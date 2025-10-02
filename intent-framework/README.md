@@ -16,7 +16,7 @@ This directory contains the core Move modules that implement the Intent Framewor
 
 ### 2. Implementation for Fungible Asset
 
-[`fungible_asset_intent.move`](sources/fungible_asset_intent.move) - A concrete implementation of the intent framework specifically designed for fungible asset trading. This module handles the creation and execution of limit orders between different fungible assets.
+[`fa_intent.move`](sources/fa_intent.move) - A concrete implementation of the intent framework specifically designed for fungible asset trading. This module handles the creation and execution of limit orders between different fungible assets.
 
 - **FungibleAssetLimitOrder**: Defines the specific trade parameters (wanted token type, amount, issuer) for fungible asset limit orders.
 - **LimitOrderEvent**: Emits events when intents are created, providing transparency and allowing external systems to discover available trades.

@@ -1,8 +1,8 @@
 // Integration-focused tests that exercise the entry functions end-to-end.
-// These complement `fungible_asset_tests.move` by validating solver/offerer
+// These complement `fa_tests.move` by validating solver/offerer
 // transactions interact correctly through `PendingIntent` and shared state.
 #[test_only]
-module aptos_intent::fungible_asset_integration_tests {
+module aptos_intent::fa_integration_tests {
     use std::signer;
 
     use aptos_framework::fungible_asset::Metadata;
@@ -10,9 +10,9 @@ module aptos_intent::fungible_asset_integration_tests {
     use aptos_framework::primary_fungible_store;
     use aptos_framework::timestamp;
 
-    use aptos_intent::fungible_asset_intent::{Self, FungibleAssetLimitOrder, FungibleStoreManager};
+    use aptos_intent::fa_intent::{Self, FungibleAssetLimitOrder, FungibleStoreManager};
     use aptos_intent::intent;
-    use aptos_intent::fungible_asset_test_utils::register_and_mint_tokens;
+    use aptos_intent::fa_test_utils::register_and_mint_tokens;
 
     #[test_only]
     struct PendingIntent has key {
@@ -38,7 +38,7 @@ module aptos_intent::fungible_asset_integration_tests {
 
         let source_fa = primary_fungible_store::withdraw(offerer, offered_fa, source_amount);
         // Preserve the created intent so the solver can access it later.
-        let intent = fungible_asset_intent::create_fa_to_fa_intent(
+        let intent = fa_intent::create_fa_to_fa_intent(
             source_fa,
             desired_fa,
             desired_amount,
@@ -60,14 +60,14 @@ module aptos_intent::fungible_asset_integration_tests {
         let PendingIntent { intent } = move_from<PendingIntent>(offerer_addr);
 
         // Solver 1. starts the session and unlocks the tokens from the offerer's intent.
-        let (unlocked_fa, session) = fungible_asset_intent::start_fa_offering_session(intent);
+        let (unlocked_fa, session) = fa_intent::start_fa_offering_session(intent);
         // Solver deposits the unlocked tokens to their own account before providing the desired asset.
         primary_fungible_store::deposit(signer::address_of(solver), unlocked_fa);
 
         // Solver 2. withdraws the desired asset from their account to complete the trade.
         let desired_asset = primary_fungible_store::withdraw(solver, desired_fa, desired_amount);
         // Solver 3. finishes the session, which transfers the desired tokens to the creator and closes the intent.
-        fungible_asset_intent::finish_fa_receiving_session(session, desired_asset);
+        fa_intent::finish_fa_receiving_session(session, desired_asset);
     }
 
     // ============================================================================
@@ -113,7 +113,7 @@ module aptos_intent::fungible_asset_integration_tests {
         offerer = @0xcafe,
         solver = @0xdead
     )]
-    #[expected_failure(abort_code = 65537, location = fungible_asset_intent)] // error::invalid_argument(EAMOUNT_NOT_MEET)
+    #[expected_failure(abort_code = 65537, location = fa_intent)] // error::invalid_argument(EAMOUNT_NOT_MEET)
     /// Solver fails to settle when providing fewer tokens than required.
     fun test_fa_limit_order_insufficient_solver_payment(
         aptos_framework: &signer,

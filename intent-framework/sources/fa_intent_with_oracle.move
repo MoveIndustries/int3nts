@@ -4,7 +4,7 @@
 /// Offerers still escrow a single fungible asset, but settlement succeeds only
 /// when the solver supplies a signed report from an authorized oracle whose
 /// reported value meets the threshold chosen by the creator.
-module aptos_intent::fungible_asset_intent_with_oracle {
+module aptos_intent::fa_intent_with_oracle {
     use std::bcs;
     use std::error;
     use std::option::{Self as option, Option};

@@ -1,5 +1,5 @@
 #[test_only]
-module aptos_intent::fungible_asset_test_utils {
+module aptos_intent::fa_test_utils {
     use std::signer;
 
     use aptos_framework::fungible_asset::{Self, Metadata, MintRef};

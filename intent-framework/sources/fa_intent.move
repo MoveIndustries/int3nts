@@ -1,5 +1,5 @@
-module aptos_intent::fungible_asset_intent {
-    friend aptos_intent::fungible_asset_integration_tests;
+module aptos_intent::fa_intent {
+    friend aptos_intent::fa_integration_tests;
     use std::error;
     use std::signer;
     use aptos_framework::event;
