@@ -17,6 +17,13 @@ module aptos_intent::intent {
     /// Provided wrong witness to complete intent.
     const EINVALID_WITNESS: u64 = 3;
 
+    /// Core intent structure that locks a resource until specific conditions are met.
+    /// 
+    /// - `offered_resource`: The resource being offered for trade
+    /// - `argument`: Trading conditions and parameters
+    /// - `self_delete_ref`: Reference to delete the intent object
+    /// - `expiry_time`: Unix timestamp when the intent expires
+    /// - `witness_type`: Type information for the required witness
     struct TradeIntent<Source, Args> has key {
         offered_resource: Source,
         argument: Args,
@@ -25,6 +32,8 @@ module aptos_intent::intent {
         witness_type: TypeInfo,
     }
 
+    /// Active trading session containing the conditions and witness requirements.
+    /// This is a "hot potato" type that must be consumed by calling finish_intent_session.
     struct TradeSession<Args> {
         argument: Args,
         witness_type: TypeInfo,
@@ -32,6 +41,20 @@ module aptos_intent::intent {
 
     // Core offering logic
 
+    /// Creates a new trade intent that locks a resource until specific conditions are met.
+    /// 
+    /// The intent can only be completed by providing a witness of the specified type,
+    /// which proves that the trading conditions have been satisfied.
+    /// 
+    /// # Arguments
+    /// - `offered_resource`: The resource to be locked in the intent
+    /// - `argument`: Trading conditions and parameters
+    /// - `expiry_time`: Unix timestamp when the intent expires
+    /// - `issuer`: Address of the intent creator
+    /// - `_witness`: Witness type that must be provided to complete the intent
+    /// 
+    /// # Returns
+    /// - `Object<TradeIntent<Source, Args>>`: Object reference to the created intent
     public fun create_intent<Source: store, Args: store + drop, Witness: drop>(
         offered_resource: Source,
         argument: Args,
@@ -56,6 +79,20 @@ module aptos_intent::intent {
         object::object_from_constructor_ref(&constructor_ref)
     }
 
+    /// Starts an intent session by unlocking the offered resource and creating a trading session.
+    /// 
+    /// This function checks that the intent hasn't expired and then destroys the intent object,
+    /// returning the locked resource and a session that must be completed with finish_intent_session.
+    /// 
+    /// # Arguments
+    /// - `intent`: Object reference to the intent to start
+    /// 
+    /// # Returns
+    /// - `Source`: The unlocked resource that was offered
+    /// - `TradeSession<Args>`: Session containing trading conditions (hot potato type)
+    /// 
+    /// # Aborts
+    /// - `EINTENT_EXPIRED`: If the current time exceeds the intent's expiry time
     public fun start_intent_session<Source: store, Args: store + drop>(
         intent: Object<TradeIntent<Source, Args>>,
     ): (Source, TradeSession<Args>) acquires TradeIntent {
@@ -78,10 +115,29 @@ module aptos_intent::intent {
         })
     }
 
+    /// Retrieves the trading conditions from a trading session.
+    /// 
+    /// # Arguments
+    /// - `session`: Reference to the trading session
+    /// 
+    /// # Returns
+    /// - `&Args`: Reference to the trading conditions
     public fun get_argument<Args>(session: &TradeSession<Args>): &Args {
         &session.argument
     }
 
+    /// Completes an intent session by providing the required witness.
+    /// 
+    /// This function verifies that the provided witness type matches the one
+    /// required by the original intent. The witness serves as proof that the
+    /// trading conditions have been satisfied.
+    /// 
+    /// # Arguments
+    /// - `session`: The trading session to complete (consumed)
+    /// - `_witness`: The witness proving conditions were met
+    /// 
+    /// # Aborts
+    /// - `EINVALID_WITNESS`: If the witness type doesn't match the required type
     public fun finish_intent_session<Witness: drop, Args: store + drop>(
         session: TradeSession<Args>,
         _witness: Witness,
@@ -94,6 +150,20 @@ module aptos_intent::intent {
         assert!(type_info::type_of<Witness>() == witness_type, error::permission_denied(EINVALID_WITNESS));
     }
 
+    /// Revokes an intent and returns the locked resource to the original owner.
+    /// 
+    /// Only the owner of the intent can revoke it. This function destroys the intent
+    /// object and returns the offered resource to the issuer.
+    /// 
+    /// # Arguments
+    /// - `issuer`: Signer of the intent owner
+    /// - `intent`: Object reference to the intent to revoke
+    /// 
+    /// # Returns
+    /// - `Source`: The locked resource that was offered
+    /// 
+    /// # Aborts
+    /// - `ENOT_OWNER`: If the signer is not the owner of the intent
     public fun revoke_intent<Source: store, Args: store + drop>(
         issuer: &signer,
         intent: Object<TradeIntent<Source, Args>>,
