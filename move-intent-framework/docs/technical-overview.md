@@ -4,7 +4,7 @@ This document provides a comprehensive technical overview of the Intent Framewor
 
 ## Intent Flow
 
-The framework supports two types of intents:
+The framework supports three types of intents:
 
 #### Unreserved Intent Flow
 
@@ -25,7 +25,18 @@ The framework supports two types of intents:
 4. **Intent broadcast**: Contract emits event, but only the authorized solver can execute.
 5. **Authorized Solver execution**: Only the pre-authorized solver can call `start_intent_session()` and complete the intent.
 
-For detailed implementation details of the reservation system, see [intent-reservation.md](intent-reservation.md).
+#### Oracle-Guarded Intent Flow
+
+**Why oracle-guarded intents?** For conditional trading based on external data (such as price feeds), intents need to verify oracle-reported values before execution. Oracle-guarded intents provide this external data validation.
+
+1. **Intent Creator creates oracle-guarded intent**: Locks resources with oracle requirements (minimum value threshold and authorized oracle public key).
+2. **Intent broadcast**: Contract emits event with oracle requirements for solvers to monitor.
+3. **Solver obtains oracle signature**: Solver gets signed data from the authorized oracle.
+4. **Solver execution with oracle witness**: Solver calls `start_intent_session()` and provides oracle signature witness proving the reported value meets the threshold.
+5. **Contract verifies oracle signature**: Contract verifies the oracle signature and checks that the reported value meets the minimum threshold.
+6. **Intent completion**: If verification succeeds, the intent executes; otherwise, the transaction aborts.
+
+For detailed implementation details of the oracle system, see [oracle-intents.md](oracle-intents.md).
 
 ## Core Components
 
@@ -58,6 +69,15 @@ This directory contains the core Move modules that implement the Intent Framewor
 - **IntentDraft**: Off-chain data structure for sharing intent details without solver information.
 - **IntentToSign**: Data structure that solvers sign to commit to solving a specific intent.
 - **IntentReserved**: On-chain reservation data that restricts intent execution to authorized solvers.
+
+#### 4. Oracle-Guarded Intent System
+
+[`fa_intent_with_oracle.move`](../sources/fa_intent_with_oracle.move) - Extends the fungible asset intent flow with oracle signature requirements for conditional execution based on external data.
+
+- **OracleSignatureRequirement**: Defines minimum reported values and authorized oracle public keys.
+- **OracleGuardedLimitOrder**: Trading conditions that include oracle requirements.
+- **OracleSignatureWitness**: Proof that an oracle has signed off on external data with a value meeting the threshold.
+- **OracleLimitOrderEvent**: Specialized events that include oracle requirements for transparency.
 
 ## Architecture Design
 

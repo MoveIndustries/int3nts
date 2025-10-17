@@ -163,7 +163,90 @@ public fun verify_and_create_reservation(
 
 **Returns:** An optional reservation if verification succeeds
 
-## Events
+## Oracle Intent API
+
+### Creating Oracle-Guarded Intents
+
+```move
+public fun create_oracle_guarded_intent_entry(
+    source_metadata: Object<Metadata>,
+    source_amount: u64,
+    desired_metadata: Object<Metadata>,
+    desired_amount: u64,
+    expiry_time: u64,
+    oracle_requirement: OracleSignatureRequirement,
+): Object<TradeIntent<FungibleAsset, OracleGuardedLimitOrder>>
+```
+
+**Parameters:**
+- `source_metadata`: Metadata of the asset being offered
+- `source_amount`: Amount of the source asset
+- `desired_metadata`: Metadata of the desired asset
+- `desired_amount`: Amount of the desired asset
+- `expiry_time`: Unix timestamp when the intent expires
+- `oracle_requirement`: Oracle signature requirements
+
+**Returns:** An oracle-guarded trade intent object
+
+### Creating Oracle Signature Requirements
+
+```move
+public fun new_oracle_signature_requirement(
+    min_reported_value: u64,
+    public_key: ed25519::UnvalidatedPublicKey,
+): OracleSignatureRequirement
+```
+
+**Parameters:**
+- `min_reported_value`: Minimum value the oracle must report
+- `public_key`: Authorized oracle's public key
+
+**Returns:** Oracle signature requirement struct
+
+### Creating Oracle Signature Witness
+
+```move
+public fun new_oracle_signature_witness(
+    reported_value: u64,
+    signature: ed25519::Signature,
+): OracleSignatureWitness
+```
+
+**Parameters:**
+- `reported_value`: Value reported by the oracle
+- `signature`: Oracle's signature
+
+**Returns:** Oracle signature witness for verification
+
+### Starting Oracle Intent Session
+
+```move
+public fun start_oracle_intent_session(
+    intent: Object<TradeIntent<FungibleAsset, OracleGuardedLimitOrder>>,
+): (FungibleAsset, TradeSession<OracleGuardedLimitOrder>)
+```
+
+**Parameters:**
+- `intent`: The oracle-guarded trade intent
+
+**Returns:** The offered fungible asset and trading session
+
+### Completing Oracle Intent
+
+```move
+public fun finish_oracle_intent_session(
+    session: TradeSession<OracleGuardedLimitOrder>,
+    oracle_witness: OracleSignatureWitness,
+): FungibleAsset
+```
+
+**Parameters:**
+- `session`: The active trading session
+- `oracle_witness`: Oracle signature witness proving external data
+
+**Returns:** The fungible asset received in exchange
+
+## Oracle Events
 
 ### LimitOrderEvent
 
@@ -182,6 +265,22 @@ struct LimitOrderEvent has drop, store {
 }
 ```
 
+### OracleLimitOrderEvent
+
+Emitted when an oracle-guarded intent is created:
+
+```move
+struct OracleLimitOrderEvent has store, drop {
+    source_metadata: Object<Metadata>,
+    source_amount: u64,
+    desired_metadata: Object<Metadata>,
+    desired_amount: u64,
+    issuer: address,
+    expiry_time: u64,
+    min_reported_value: u64,
+}
+```
+
 ## Error Codes
 
 - `EINVALID_SIGNATURE`: Signature verification failed
@@ -189,6 +288,8 @@ struct LimitOrderEvent has drop, store {
 - `EUNAUTHORIZED_SOLVER`: Attempted execution by unauthorized solver
 - `EINVALID_AMOUNT`: Invalid asset amount specified
 - `EINVALID_METADATA`: Invalid asset metadata provided
+- `ESIGNATURE_REQUIRED`: Oracle signature witness is missing
+- `EORACLE_VALUE_TOO_LOW`: Oracle-reported value below threshold
 
 ## Type Definitions
 
@@ -220,5 +321,34 @@ struct TradeSession<Args: store + drop> has store {
 struct FungibleAssetLimitOrder has store, drop {
     wanted_metadata: Object<Metadata>,
     wanted_amount: u64,
+}
+```
+
+### OracleSignatureRequirement
+
+```move
+struct OracleSignatureRequirement has store, drop {
+    min_reported_value: u64,
+    public_key: ed25519::UnvalidatedPublicKey,
+}
+```
+
+### OracleGuardedLimitOrder
+
+```move
+struct OracleGuardedLimitOrder has store, drop {
+    desired_metadata: Object<Metadata>,
+    desired_amount: u64,
+    issuer: address,
+    requirement: OracleSignatureRequirement,
+}
+```
+
+### OracleSignatureWitness
+
+```move
+struct OracleSignatureWitness has drop {
+    reported_value: u64,
+    signature: ed25519::Signature,
 }
 ```

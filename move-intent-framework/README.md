@@ -18,6 +18,7 @@ For detailed flow descriptions and implementation details, see:
 - [Technical Overview](docs/technical-overview.md) - Architecture and intent flows
 - [API Reference](docs/api-reference.md) - Complete API documentation
 - [Intent Reservation](docs/intent-reservation.md) - Reserved intent implementation
+- [Oracle Intents](docs/oracle-intents.md) - Oracle-guarded intent implementation
 
 ## Development
 
@@ -49,7 +50,8 @@ move-intent-framework/
 │   ├── technical-overview.md    # Architecture and intent flows
 │   ├── api-reference.md         # Complete API documentation
 │   ├── development.md          # Development setup and testing
-│   └── intent-reservation.md   # Reservation system details
+│   ├── intent-reservation.md   # Reservation system details
+│   └── oracle-intents.md       # Oracle-guarded intent details
 ├── sources/                    # Move modules
 │   ├── intent.move            # Core generic intent framework
 │   ├── fa_intent.move         # Fungible asset implementation
