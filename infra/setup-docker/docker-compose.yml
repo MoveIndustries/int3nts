@@ -1,0 +1,18 @@
+services:
+  # Aptos Localnet following the single-validator approach
+  aptos-localnet:
+    image: aptoslabs/tools:nightly
+    container_name: aptos-localnet
+    network_mode: host
+    volumes:
+      - aptos-data:/aptos/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: >
+      sh -c "
+        echo 'Starting Aptos Localnet with faucet (fresh start)...' &&
+        aptos node run-localnet --with-faucet --force-restart --assume-yes
+      "
+    restart: unless-stopped
+
+volumes:
+  aptos-data:
