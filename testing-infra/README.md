@@ -16,13 +16,10 @@ This directory contains infrastructure setup for running chains for development 
 ### Quick start
 
 ```bash
-# Single chain
-./testing-infra/single-chain/setup-docker-chain.sh
+# Multi-chain (two independent localnets with Alice and Bob accounts)
+./testing-infra/multi-chain/setup-dual-chains-and-test-alice-bob.sh
 
-# Single-chain quick test (accounts, funding, transfer)
-./testing-infra/single-chain/test-alice-bob.sh
-
-# Multi-chain (two independent localnets)
+# Or setup chains only
 ./testing-infra/multi-chain/setup-dual-chains.sh
 
 # Stop both chains
@@ -37,14 +34,11 @@ This directory contains infrastructure setup for running chains for development 
 ### Management
 
 ```bash
-# Single chain logs / stop / restart
-docker-compose -f testing-infra/single-chain/docker-compose.yml logs -f
-docker-compose -f testing-infra/single-chain/docker-compose.yml down
-docker-compose -f testing-infra/single-chain/docker-compose.yml restart
-
 # Multi-chain logs / stop
-docker-compose -f testing-infra/single-chain/docker-compose.yml logs -f
-docker-compose -f testing-infra/multi-chain/docker-compose-chain2.yml logs -f
+docker-compose -f testing-infra/multi-chain/docker-compose-chain1.yml -p aptos-chain1 logs -f
+docker-compose -f testing-infra/multi-chain/docker-compose-chain2.yml -p aptos-chain2 logs -f
+docker-compose -f testing-infra/multi-chain/docker-compose-chain1.yml -p aptos-chain1 down
+docker-compose -f testing-infra/multi-chain/docker-compose-chain2.yml -p aptos-chain2 down
 ./testing-infra/multi-chain/stop-dual-chains.sh
 ```
 
