@@ -11,15 +11,6 @@ module mvmt_intent::intent_as_escrow_tests {
     use aptos_std::ed25519;
 
     // ============================================================================
-    // TEST HELPER FUNCTIONS
-    // ============================================================================
-
-    /// Gets the approval constants for testing
-    fun get_oracle_approve(): u64 { 1 }
-    /// Gets the rejection constants for testing  
-    fun get_oracle_reject(): u64 { 0 }
-
-    // ============================================================================
     // TESTS
     // ============================================================================
 
@@ -64,9 +55,9 @@ module mvmt_intent::intent_as_escrow_tests {
         let (escrowed_asset, session) = intent_as_escrow::start_escrow_session(solver, escrow_intent);
         primary_fungible_store::deposit(signer::address_of(solver), escrowed_asset);
         
-        // Verifier approves the escrow
-        let approval_value = get_oracle_approve();
-        let verifier_signature = ed25519::sign_arbitrary_bytes(&verifier_secret_key, bcs::to_bytes(&approval_value));
+        // Verifier signs the intent_id - the signature itself is the approval
+        let intent_id = @0x1; // Same intent_id used when creating escrow
+        let verifier_signature = ed25519::sign_arbitrary_bytes(&verifier_secret_key, bcs::to_bytes(&intent_id));
 
         // Solver provides payment (source token type)
         let solver_payment = primary_fungible_store::withdraw(solver, source_token_type, 50);
@@ -74,7 +65,6 @@ module mvmt_intent::intent_as_escrow_tests {
             solver,
             session,
             solver_payment,
-            approval_value,
             verifier_signature,
         );
         
@@ -91,9 +81,9 @@ module mvmt_intent::intent_as_escrow_tests {
         solver = @0xdead,
         _verifier = @0xbeef
     )]
-    #[expected_failure(abort_code = 65536, location = intent_as_escrow)] // ORACLE_REJECT
-    /// Test escrow rejection by verifier
-    fun test_escrow_with_verifier_rejection(
+    #[expected_failure(abort_code = 65539, location = fa_intent_with_oracle)] // error::invalid_argument(EINVALID_SIGNATURE)
+    /// Test that signature verification fails when signed intent_id doesn't match escrow's intent_id
+    fun test_escrow_with_wrong_intent_id_signature(
         aptos_framework: &signer,
         user: &signer,
         solver: &signer,
@@ -109,6 +99,7 @@ module mvmt_intent::intent_as_escrow_tests {
         let (verifier_secret_key, validated_pk) = ed25519::generate_keys();
         let verifier_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
+        // Create escrow with intent_id = @0x1
         let source_asset = primary_fungible_store::withdraw(user, source_token_type, 50);
         let reservation = intent_reservation::new_reservation(signer::address_of(solver));
         let escrow_intent = intent_as_escrow::create_escrow(
@@ -116,25 +107,94 @@ module mvmt_intent::intent_as_escrow_tests {
             source_asset,
             verifier_public_key,
             timestamp::now_seconds() + 3600,
-            @0x1, // dummy intent_id for testing
-            reservation, // Escrow must be reserved for a specific solver
+            @0x1, // Escrow created with intent_id = @0x1
+            reservation,
         );
         
         let (escrowed_asset, session) = intent_as_escrow::start_escrow_session(solver, escrow_intent);
         primary_fungible_store::deposit(signer::address_of(solver), escrowed_asset);
         
-        // Verifier rejects the escrow
-        let approval_value = get_oracle_reject();
-        let verifier_signature = ed25519::sign_arbitrary_bytes(&verifier_secret_key, bcs::to_bytes(&approval_value));
+        // Verifier signs a DIFFERENT intent_id (@0x2) instead of the escrow's intent_id (@0x1)
+        // This should cause signature verification to fail
+        let wrong_intent_id = @0x2; // Different from escrow's intent_id (@0x1)
+        let verifier_signature = ed25519::sign_arbitrary_bytes(&verifier_secret_key, bcs::to_bytes(&wrong_intent_id));
 
-        // This should abort because oracle rejected
+        // This should abort because signature was created for wrong intent_id
         let solver_payment = primary_fungible_store::withdraw(solver, source_token_type, 50);
         intent_as_escrow::complete_escrow(
             solver,
             session,
             solver_payment,
-            approval_value,
             verifier_signature,
+        );
+    }
+
+    #[test(
+        aptos_framework = @0x1,
+        user = @0xcafe,
+        solver = @0xdead,
+        _verifier = @0xbeef
+    )]
+    #[expected_failure(abort_code = 65539, location = fa_intent_with_oracle)] // error::invalid_argument(EINVALID_SIGNATURE)
+    /// Test that a signature for one intent_id cannot be reused on a different escrow with a different intent_id
+    /// This explicitly tests signature replay prevention - signatures are bound to specific intent_ids
+    fun test_signature_replay_prevention(
+        aptos_framework: &signer,
+        user: &signer,
+        solver: &signer,
+        _verifier: &signer,
+    ) {
+        // Need enough tokens: 30 for escrow A + 30 for escrow B + 30 for solver payment = 90
+        // Using smaller amounts to stay within test token supply limits (other tests use 100 max)
+        let (source_token_type, _) = test_utils::register_and_mint_tokens(aptos_framework, user, 90);
+
+        // Give solver some of the source token type for payment
+        let solver_payment_tokens = primary_fungible_store::withdraw(user, source_token_type, 30);
+        primary_fungible_store::deposit(signer::address_of(solver), solver_payment_tokens);
+
+        let (verifier_secret_key, validated_pk) = ed25519::generate_keys();
+        let verifier_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
+        
+        // Create escrow A with intent_id = @0x1
+        let source_asset_a = primary_fungible_store::withdraw(user, source_token_type, 30);
+        let reservation_a = intent_reservation::new_reservation(signer::address_of(solver));
+        let _escrow_intent_a = intent_as_escrow::create_escrow(
+            user,
+            source_asset_a,
+            verifier_public_key,
+            timestamp::now_seconds() + 3600,
+            @0x1, // Escrow A with intent_id = @0x1
+            reservation_a,
+        );
+        
+        // Create escrow B with intent_id = @0x2
+        let source_asset_b = primary_fungible_store::withdraw(user, source_token_type, 30);
+        let reservation_b = intent_reservation::new_reservation(signer::address_of(solver));
+        let escrow_intent_b = intent_as_escrow::create_escrow(
+            user,
+            source_asset_b,
+            verifier_public_key,
+            timestamp::now_seconds() + 3600,
+            @0x2, // Escrow B with intent_id = @0x2
+            reservation_b,
+        );
+        
+        // Start escrow session for escrow B
+        let (escrowed_asset_b, session_b) = intent_as_escrow::start_escrow_session(solver, escrow_intent_b);
+        primary_fungible_store::deposit(signer::address_of(solver), escrowed_asset_b);
+        
+        // Verifier creates a VALID signature for intent_id @0x1 (escrow A)
+        let intent_id_a = @0x1;
+        let valid_signature_for_a = ed25519::sign_arbitrary_bytes(&verifier_secret_key, bcs::to_bytes(&intent_id_a));
+
+        // Try to use the signature for intent_id @0x1 on escrow B (which has intent_id @0x2)
+        // This should fail because the signature is bound to @0x1, not @0x2
+        let solver_payment = primary_fungible_store::withdraw(solver, source_token_type, 30);
+        intent_as_escrow::complete_escrow(
+            solver,
+            session_b,
+            solver_payment,
+            valid_signature_for_a, // Signature for @0x1 used on escrow with @0x2
         );
     }
 
