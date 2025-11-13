@@ -6,6 +6,12 @@
 use trusted_verifier::monitor::{RequestIntentEvent, EscrowEvent};
 #[path = "mod.rs"]
 mod test_helpers;
+use test_helpers::{create_base_request_intent, create_base_escrow_event};
+
+
+// ============================================================================
+// TESTS
+// ============================================================================
 
 /// Test that escrow events can be matched to intent events by intent_id
 /// Why: Verify cross-chain matching logic correctly links escrow to hub intent for validation
@@ -36,39 +42,11 @@ mod test_helpers;
 #[test]
 fn test_cross_chain_intent_matching() {
     // Step 1: User creates intent on hub chain (requests 1000 tokens to be provided by solver)
-    let hub_intent = RequestIntentEvent {
-        chain: "hub".to_string(),
-        intent_id: "0xhub_abc123".to_string(),
-        issuer: "0xalice".to_string(),
-        offered_metadata: "{\"inner\":\"0xsource_meta\"}".to_string(),
-        offered_amount: 1000, // amount that will be locked in escrow on connected chain
-        desired_metadata: "{\"inner\":\"0xdesired_meta\"}".to_string(),
-        desired_amount: 0, // Escrow only holds offered funds // User wants solver to provide 1000 tokens on hub chain
-        expiry_time: 1000000,
-        revocable: false,
-        solver: None,
-        connected_chain_id: Some(2),
-        timestamp: 0,
-    };
+    let hub_intent = create_base_request_intent();
     
     // Step 2: User creates escrow on connected chain WITH tokens locked in it
     // The user must manually provide the hub_intent_id when creating the escrow
-    let escrow_creation = EscrowEvent {
-        chain: "connected".to_string(),
-        escrow_id: "0xescrow_xyz789".to_string(), // Escrow object address on connected chain
-        intent_id: "0xhub_abc123".to_string(),    // Intent ID from hub chain (provided by user)
-        issuer: "0xalice".to_string(),           // Alice created the escrow and locked tokens
-        offered_metadata: "{\"inner\":\"0xsource_meta\"}".to_string(), // User's locked tokens
-        offered_amount: 1000,                     // User's tokens locked in escrow
-        desired_metadata: "{\"inner\":\"0xdesired_meta\"}".to_string(), // What solver needs to provide
-        desired_amount: 0, // Escrow only holds offered funds, requirement is in hub request intent
-        expiry_time: 1000000,
-        revocable: false, // Escrows must be non-revocable for security
-        reserved_solver: None,
-        chain_id: 2,
-        chain_type: trusted_verifier::ChainType::Move,
-        timestamp: 0,
-    };
+    let escrow_creation = create_base_escrow_event();
     
     // Step 3: Solver fulfills hub intent (solver provides 1000 tokens on hub chain)
     // [Not yet tested. This will also be tested here, not just in integration tests.]
@@ -104,40 +82,11 @@ async fn test_escrow_chain_id_validation() {
     let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
     
     // Test that escrow chain_id must match intent's offered_chain_id when provided
-    let valid_intent = RequestIntentEvent {
-        chain: "hub".to_string(),
-        intent_id: "0xvalid_intent".to_string(),
-        issuer: "0xalice".to_string(),
-        offered_metadata: "{}".to_string(),
-        offered_amount: 1000, // Must match escrow offered_amount
-        desired_metadata: "{}".to_string(),
-        desired_amount: 0, // Escrow only holds offered funds
-        expiry_time: 1000000,
-        revocable: false,
-        solver: Some("0xsolver".to_string()),
-        connected_chain_id: Some(2), // Has chain ID - should pass this check
-        timestamp: 0,
-    };
-    
-    let valid_escrow = EscrowEvent {
-        chain: "connected".to_string(),
-        escrow_id: "0xescrow_valid".to_string(),
-        intent_id: "0xvalid_intent".to_string(),
-        issuer: "0xalice".to_string(),
-        offered_metadata: "{}".to_string(),
-        offered_amount: 1000, // Matches intent source_amount
-        desired_metadata: "{}".to_string(),
-        desired_amount: 0, // Escrow only holds offered funds
-        expiry_time: 1000000,
-        revocable: false,
-        reserved_solver: Some("0xsolver".to_string()),
-        chain_id: 2,
-        chain_type: trusted_verifier::ChainType::Move,
-        timestamp: 0,
-    };
+    let valid_intent = create_base_request_intent();
+    let valid_escrow = create_base_escrow_event();
     
     // This should pass the connected_chain_id check (may fail other validations, but not this one)
-    let result = validator.validate_intent_fulfillment(&valid_intent, &valid_escrow).await;
+    let result = validator.validate_request_intent_fulfillment(&valid_intent, &valid_escrow).await;
     assert!(result.is_ok(), "Validation should complete");
     
     let validation_result = result.unwrap();
@@ -163,65 +112,28 @@ async fn test_escrow_amount_must_match_hub_intent_offered_amount() {
     let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
     
     // Create a hub intent with offered_amount = 1000
-    let hub_intent = RequestIntentEvent {
-        chain: "hub".to_string(),
-        intent_id: "0xintent_123".to_string(),
-        issuer: "0xalice".to_string(),
-        offered_metadata: "{\"inner\":\"0xsource_meta\"}".to_string(),
-        offered_amount: 1000, // amount that will be locked in escrow
-        desired_metadata: "{\"inner\":\"0xdesired_meta\"}".to_string(),
-        desired_amount: 0, // Escrow only holds offered funds
-        expiry_time: 1000000,
-        revocable: false,
-        solver: Some("0xsolver".to_string()),
-        connected_chain_id: Some(2),
-        timestamp: 0,
-    };
+    let hub_intent = create_base_request_intent();
     
     // Create an escrow with mismatched offered_amount (500 != 1000)
     let escrow_mismatch = EscrowEvent {
-        chain: "connected".to_string(),
-        escrow_id: "0xescrow_123".to_string(),
-        intent_id: "0xintent_123".to_string(),
-        issuer: "0xalice".to_string(),
-        offered_metadata: "{\"inner\":\"0xsource_meta\"}".to_string(),
-        offered_amount: 500, // Mismatch: should be 1000 to match hub intent
-        desired_metadata: "{\"inner\":\"0xdesired_meta\"}".to_string(),
-        desired_amount: 0, // Escrow only holds offered funds
-        expiry_time: 1000000,
-        revocable: false,
-        reserved_solver: Some("0xsolver".to_string()),
-        chain_id: 2,
-        chain_type: trusted_verifier::ChainType::Move,
-        timestamp: 0,
+        offered_amount: 500,
+        ..create_base_escrow_event()
     };
     
-    let validation_result = validator.validate_intent_fulfillment(&hub_intent, &escrow_mismatch).await
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent, &escrow_mismatch).await
         .expect("Validation should complete without error");
     
-    assert!(!validation_result.valid, "Validation should fail when escrow offered_amount doesn't match hub intent offered amount");
+    assert!(
+        !validation_result.valid,
+        "Validation should fail when escrow offered_amount doesn't match hub intent offered amount"
+    );
     assert!(validation_result.message.contains("offered amount"),
             "Error message should mention offered amount mismatch");
     
     // Now test with matching amounts
-    let escrow_match = EscrowEvent {
-        chain: "connected".to_string(),
-        escrow_id: "0xescrow_456".to_string(),
-        intent_id: "0xintent_123".to_string(),
-        issuer: "0xalice".to_string(),
-        offered_metadata: "{\"inner\":\"0xsource_meta\"}".to_string(),
-        offered_amount: 1000, // Matches hub intent offered amount
-        desired_metadata: "{\"inner\":\"0xdesired_meta\"}".to_string(),
-        desired_amount: 0, // Escrow only holds offered funds
-        expiry_time: 1000000,
-        revocable: false,
-        reserved_solver: Some("0xsolver".to_string()),
-        chain_id: 2,
-        chain_type: trusted_verifier::ChainType::Move,
-        timestamp: 0,
-    };
+    let escrow_match = create_base_escrow_event();
     
-    let validation_result = validator.validate_intent_fulfillment(&hub_intent, &escrow_match).await
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent, &escrow_match).await
         .expect("Validation should complete without error");
     
     // Verify that validation doesn't fail due to amount mismatch (amount check passes)
@@ -230,5 +142,399 @@ async fn test_escrow_amount_must_match_hub_intent_offered_amount() {
     
     // Verify that validation doesn't fail at all (all checks pass)
     assert!(validation_result.valid, "Validation should pass when all checks pass");
+}
+
+/// Test that verifier accepts escrows where offered_metadata exactly matches hub request intent's offered_metadata
+/// Why: Verify that metadata matching validation works correctly for successful cases
+#[tokio::test]
+async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_success() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Create a hub intent with specific offered_metadata
+    let hub_intent = create_base_request_intent();
+    
+    // Create an escrow with matching offered_metadata
+    let escrow_match = create_base_escrow_event();
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent, &escrow_match).await
+        .expect("Validation should complete without error");
+    
+    assert!(validation_result.valid, "Validation should pass when offered_metadata matches");
+    assert!(!validation_result.message.contains("offered metadata"),
+            "Error message should not mention offered metadata mismatch when metadata matches");
+}
+
+/// Test that verifier rejects escrows where offered_metadata doesn't match hub request intent's offered_metadata
+/// Why: Verify that metadata mismatch validation works correctly
+#[tokio::test]
+async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_rejection() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Create a hub intent with specific offered_metadata
+    let hub_intent = create_base_request_intent();
+    
+    // Create an escrow with mismatched offered_metadata
+    let escrow_mismatch = EscrowEvent {
+        offered_metadata: "{\"inner\":\"0xdifferent_meta\"}".to_string(),
+        ..create_base_escrow_event()
+    };
+    
+    // The validation function should complete successfully (return Ok, not Err)
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent, &escrow_mismatch).await
+        .expect("Validation should complete without error");
+    
+    // But the validation result should indicate failure (valid = false) because metadata doesn't match
+    assert!(!validation_result.valid, "Validation should fail when offered_metadata doesn't match");
+    assert!(validation_result.message.contains("offered metadata"),
+            "Error message should mention offered metadata mismatch");
+}
+
+/// Test that verifier correctly handles empty metadata strings
+/// Why: Verify that empty metadata strings are handled correctly (both empty should match, one empty one not should fail)
+#[tokio::test]
+async fn test_escrow_offered_metadata_empty_strings() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Test case 1: Both empty - should pass
+    let hub_intent_empty = RequestIntentEvent {
+        offered_metadata: "".to_string(),
+        ..create_base_request_intent()
+    };
+    let escrow_empty = EscrowEvent {
+        offered_metadata: "".to_string(),
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent_empty, &escrow_empty).await
+        .expect("Validation should complete without error");
+    
+    assert!(validation_result.valid, "Validation should pass when both metadata strings are empty");
+    
+    // Test case 2: Hub intent has metadata, escrow is empty - should fail
+    let hub_intent_with_meta = RequestIntentEvent {
+        offered_metadata: "{\"inner\":\"0xoffered_meta\"}".to_string(),
+        ..create_base_request_intent()
+    };
+    let escrow_empty_2 = EscrowEvent {
+        offered_metadata: "".to_string(),
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent_with_meta, &escrow_empty_2).await
+        .expect("Validation should complete without error");
+    
+    assert!(!validation_result.valid, "Validation should fail when hub intent has metadata but escrow is empty");
+    assert!(validation_result.message.contains("offered metadata"),
+            "Error message should mention offered metadata mismatch");
+    
+    // Test case 3: Hub intent is empty, escrow has metadata - should fail
+    let hub_intent_empty_3 = RequestIntentEvent {
+        offered_metadata: "".to_string(),
+        ..create_base_request_intent()
+    };
+    let escrow_with_meta = EscrowEvent {
+        offered_metadata: "{\"inner\":\"0xoffered_meta\"}".to_string(),
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent_empty_3, &escrow_with_meta).await
+        .expect("Validation should complete without error");
+    
+    assert!(!validation_result.valid, "Validation should fail when hub intent is empty but escrow has metadata");
+    assert!(validation_result.message.contains("offered metadata"),
+            "Error message should mention offered metadata mismatch");
+}
+
+/// Test that verifier correctly handles complex JSON metadata structures
+/// Why: Verify that exact string matching works for complex nested JSON, escaped characters, etc.
+#[tokio::test]
+async fn test_escrow_offered_metadata_complex_json() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Test case 1: Complex nested JSON - should pass when exact match
+    let complex_metadata = r#"{"nested":{"level1":{"level2":"value","array":[1,2,3],"escaped":"\"quoted\""},"timestamp":1234567890},"metadata":"complex"}"#;
+    
+    let hub_intent_complex = RequestIntentEvent {
+        offered_metadata: complex_metadata.to_string(),
+        ..create_base_request_intent()
+    };
+    let escrow_complex_match = EscrowEvent {
+        offered_metadata: complex_metadata.to_string(),
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent_complex, &escrow_complex_match).await
+        .expect("Validation should complete without error");
+    
+    assert!(validation_result.valid, "Validation should pass when complex JSON metadata matches exactly");
+    
+    // Test case 2: Semantically equivalent but different string representation - should fail
+    // (e.g., different whitespace, different key order)
+    let complex_metadata_2 = r#"{"metadata":"complex","nested":{"timestamp":1234567890,"level1":{"level2":"value","array":[1,2,3],"escaped":"\"quoted\""}}}"#;
+    // This is semantically equivalent JSON but different string representation
+    
+    let escrow_complex_mismatch = EscrowEvent {
+        offered_metadata: complex_metadata_2.to_string(),
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent_complex, &escrow_complex_mismatch).await
+        .expect("Validation should complete without error");
+    
+    assert!(
+        !validation_result.valid,
+        "Validation should fail when metadata strings don't match exactly (even if semantically equivalent)"
+    );
+    assert!(validation_result.message.contains("offered metadata"),
+            "Error message should mention offered metadata mismatch");
+    
+    // Test case 3: Minor difference in nested value - should fail
+    let complex_metadata_3 = r#"{"nested":{"level1":{"level2":"different_value","array":[1,2,3],"escaped":"\"quoted\""},"timestamp":1234567890},"metadata":"complex"}"#;
+    
+    let escrow_complex_mismatch_2 = EscrowEvent {
+        offered_metadata: complex_metadata_3.to_string(),
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent_complex, &escrow_complex_mismatch_2).await
+        .expect("Validation should complete without error");
+    
+    assert!(!validation_result.valid, "Validation should fail when nested values differ");
+    assert!(validation_result.message.contains("offered metadata"),
+            "Error message should mention offered metadata mismatch");
+}
+
+/// Test that verifier accepts escrows where desired_amount is 0
+/// Why: Verify that escrow desired_amount validation works correctly for successful cases
+#[tokio::test]
+async fn test_escrow_desired_amount_must_be_zero_success() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Create a hub intent
+    let hub_intent = create_base_request_intent();
+    
+    // Validation passes when desired_amount is 0
+    let escrow_valid = create_base_escrow_event();
+    // Ensure desired_amount is 0 (it's already set to 0 in the helper)
+    assert_eq!(escrow_valid.desired_amount, 0, "Escrow should have desired_amount = 0");
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent, &escrow_valid).await
+        .expect("Validation should complete without error");
+    
+    assert!(validation_result.valid, "Validation should pass when desired_amount is 0");
+}
+
+/// Test that verifier rejects escrows where desired_amount is non-zero
+/// Why: Verify that escrow desired_amount validation works correctly for rejection cases
+#[tokio::test]
+async fn test_escrow_desired_amount_must_be_zero_rejection() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Create a hub intent
+    let hub_intent = create_base_request_intent();
+    
+    // Validation fails when desired_amount is non-zero
+    let escrow_invalid = EscrowEvent {
+        desired_amount: 1,
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent, &escrow_invalid).await
+        .expect("Validation should complete without error");
+    
+    assert!(!validation_result.valid, "Validation should fail when desired_amount is non-zero");
+    assert!(validation_result.message.contains("desired amount"),
+            "Error message should mention desired amount must be 0");
+}
+
+/// Test that verifier accepts escrows where reserved_solver matches hub intent solver for Aptos escrows
+/// Why: Verify that solver address matching validation works correctly for successful cases
+#[tokio::test]
+async fn test_escrow_solver_address_matching_success() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Create a hub intent with a solver
+    let hub_intent = RequestIntentEvent {
+        reserved_solver: Some("0xsolver_aptos".to_string()),
+        ..create_base_request_intent()
+    };
+    
+    // Create an escrow with matching solver address (Aptos escrow)
+    let escrow_match = EscrowEvent {
+        reserved_solver: Some("0xsolver_aptos".to_string()),
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent, &escrow_match).await
+        .expect("Validation should complete without error");
+    
+    assert!(validation_result.valid, "Validation should pass when solver addresses match");
+    assert!(!validation_result.message.contains("solver") || validation_result.message.contains("successful"),
+            "Error message should not mention solver mismatch when addresses match");
+}
+
+/// Test that verifier rejects escrows where reserved_solver doesn't match hub intent solver for Aptos escrows
+/// Why: Verify that solver address mismatch validation works correctly
+#[tokio::test]
+async fn test_escrow_solver_address_mismatch_rejection() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Create a hub intent with a solver
+    let hub_intent = RequestIntentEvent {
+        reserved_solver: Some("0xsolver_aptos".to_string()),
+        ..create_base_request_intent()
+    };
+    
+    // Create an escrow with different solver address (Aptos escrow)
+    let escrow_mismatch = EscrowEvent {
+        reserved_solver: Some("0xdifferent_solver".to_string()),
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent, &escrow_mismatch).await
+        .expect("Validation should complete without error");
+    
+    assert!(!validation_result.valid, "Validation should fail when solver addresses don't match");
+    assert!(validation_result.message.contains("does not match"),
+            "Error message should mention solver addresses do not match");
+}
+
+/// Test that verifier rejects escrows when one has reserved_solver and the other doesn't for Aptos escrows
+/// Why: Verify that reservation mismatch validation works correctly
+#[tokio::test]
+async fn test_escrow_solver_reservation_mismatch_rejection() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Test case 1: Hub intent has solver, escrow doesn't
+    let hub_intent_with_solver = RequestIntentEvent {
+        reserved_solver: Some("0xsolver_aptos".to_string()),
+        ..create_base_request_intent()
+    };
+    
+    let escrow_without_solver = EscrowEvent {
+        reserved_solver: None,
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent_with_solver, &escrow_without_solver).await
+        .expect("Validation should complete without error");
+    
+    assert!(!validation_result.valid, "Validation should fail when hub intent has solver but escrow doesn't");
+    assert!(validation_result.message.contains("reservation mismatch"),
+            "Error message should mention reservation mismatch");
+    
+    // Test case 2: Escrow has solver, hub intent doesn't
+    let hub_intent_without_solver = RequestIntentEvent {
+        reserved_solver: None,
+        ..create_base_request_intent()
+    };
+    
+    let escrow_with_solver = EscrowEvent {
+        reserved_solver: Some("0xsolver_aptos".to_string()),
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent_without_solver, &escrow_with_solver).await
+        .expect("Validation should complete without error");
+    
+    assert!(!validation_result.valid, "Validation should fail when escrow has solver but hub intent doesn't");
+    assert!(validation_result.message.contains("reservation mismatch"),
+            "Error message should mention reservation mismatch");
+}
+
+/// Test that verifier rejects escrows when request intent has no connected_chain_id
+/// Why: Verify that request intents must specify connected_chain_id for escrow validation
+#[tokio::test]
+async fn test_escrow_rejection_when_connected_chain_id_is_none() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Create a hub intent without connected_chain_id
+    let hub_intent = RequestIntentEvent {
+        connected_chain_id: None,
+        ..create_base_request_intent()
+    };
+    
+    // Create an escrow with a chain_id
+    let escrow = EscrowEvent {
+        chain_id: 999,
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent, &escrow).await
+        .expect("Validation should complete without error");
+    
+    assert!(!validation_result.valid, "Validation should fail when request intent has no connected_chain_id");
+    assert!(validation_result.message.contains("must specify connected_chain_id"),
+            "Error message should mention that connected_chain_id must be specified");
+}
+
+/// Test that verifier rejects escrows when connected_chain_id doesn't match escrow chain_id
+/// Why: Verify that chain_id mismatch validation works correctly
+#[tokio::test]
+async fn test_escrow_chain_id_mismatch_rejection() {
+    use trusted_verifier::validator::CrossChainValidator;
+    use test_helpers::build_test_config;
+    
+    let config = build_test_config();
+    let validator = CrossChainValidator::new(&config).await.expect("Failed to create validator");
+    
+    // Create a hub intent with connected_chain_id
+    let hub_intent = RequestIntentEvent {
+        connected_chain_id: Some(31337),
+        ..create_base_request_intent()
+    };
+    
+    // Create an escrow with mismatched chain_id
+    let escrow_mismatch = EscrowEvent {
+        chain_id: 999, // Different from connected_chain_id (31337)
+        ..create_base_escrow_event()
+    };
+    
+    let validation_result = validator.validate_request_intent_fulfillment(&hub_intent, &escrow_mismatch).await
+        .expect("Validation should complete without error");
+    
+    assert!(!validation_result.valid, "Validation should fail when chain_id doesn't match connected_chain_id");
+    assert!(validation_result.message.contains("does not match"),
+            "Error message should mention chain_id does not match");
 }
 

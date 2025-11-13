@@ -7,7 +7,17 @@ use trusted_verifier::monitor::{RequestIntentEvent, EscrowEvent, FulfillmentEven
 use futures::future;
 #[path = "mod.rs"]
 mod test_helpers;
-use test_helpers::build_test_config;
+use test_helpers::{build_test_config, create_base_request_intent, create_base_escrow_event, create_base_fulfillment};
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/// Helper function for validation logic
+fn is_safe_for_escrow(event: &RequestIntentEvent) -> bool {
+    !event.revocable
+}
+
 
 // ============================================================================
 // TESTS
@@ -18,18 +28,9 @@ use test_helpers::build_test_config;
 #[test]
 fn test_revocable_intent_rejection() {
     let revocable_intent = RequestIntentEvent {
-        chain: "hub".to_string(),
         intent_id: "0xrevocable".to_string(),
-        issuer: "0xalice".to_string(),
-        offered_metadata: String::new(),
-        offered_amount: 1000,
-        desired_metadata: String::new(),
-        desired_amount: 2000,
-        expiry_time: 0,
         revocable: true, // NOT safe for escrow
-        solver: None,
-        connected_chain_id: None,
-        timestamp: 0,
+        ..create_base_request_intent()
     };
     
     // Simulate validation: revocable intents should be rejected
@@ -37,18 +38,9 @@ fn test_revocable_intent_rejection() {
     assert!(!result, "Revocable intents should NOT be safe for escrow");
     
     let non_revocable_intent = RequestIntentEvent {
-        chain: "hub".to_string(),
         intent_id: "0xsafe".to_string(),
         issuer: "0xbob".to_string(),
-        offered_metadata: String::new(),
-        offered_amount: 1000,
-        desired_metadata: String::new(),
-        desired_amount: 2000,
-        expiry_time: 0,
-        revocable: false, // Safe for escrow
-        solver: None,
-        connected_chain_id: None,
-        timestamp: 0,
+        ..create_base_request_intent()
     };
     
     let result = is_safe_for_escrow(&non_revocable_intent);
@@ -67,37 +59,24 @@ async fn test_generates_approval_when_fulfillment_and_escrow_present() {
     {
         let mut escrow_cache = monitor.escrow_cache.write().await;
         escrow_cache.push(EscrowEvent {
-            chain: "connected".to_string(),
-            escrow_id: "0xescrow".to_string(),
+            escrow_id: "0xescrow123".to_string(),
             intent_id: intent_id.to_string(),
-            issuer: "0xissuer".to_string(),
-            offered_metadata: "{}".to_string(),
-            offered_amount: 1000,
-            reserved_solver: None,
-            chain_id: 2,
-            desired_metadata: "{}".to_string(),
-            desired_amount: 1,
-            expiry_time: 9999999999,
-            revocable: false,
-            chain_type: trusted_verifier::ChainType::Move,
             timestamp: 1,
+            ..create_base_escrow_event()
         });
     }
 
     // Act: call approval generation on fulfillment with same intent_id
     let fulfillment = FulfillmentEvent {
-        chain: "hub".to_string(),
         intent_id: intent_id.to_string(),
-        intent_address: "0xaddr".to_string(),
-        solver: "0xsolver".to_string(),
-        provided_metadata: "{}".to_string(),
         provided_amount: 1000,
         timestamp: 2,
+        ..create_base_fulfillment()
     };
     monitor.validate_and_approve_fulfillment(&fulfillment).await.expect("Approval generation should succeed");
 
     // Assert: approval exists for escrow
-    let approval = monitor.get_approval_for_escrow("0xescrow").await;
+    let approval = monitor.get_approval_for_escrow("0xescrow123").await;
     assert!(approval.is_some(), "Approval should exist for escrow");
     let approval = approval.unwrap();
     assert_eq!(approval.intent_id, intent_id);
@@ -112,13 +91,10 @@ async fn test_returns_error_when_no_matching_escrow() {
     let monitor = EventMonitor::new(&config).await.expect("Failed to create monitor");
 
     let fulfillment = FulfillmentEvent {
-        chain: "hub".to_string(),
         intent_id: "0x999".to_string(), // Valid hex but no matching escrow
-        intent_address: "0xaddr".to_string(),
-        solver: "0xsolver".to_string(),
-        provided_metadata: "{}".to_string(),
         provided_amount: 1000,
         timestamp: 2,
+        ..create_base_fulfillment()
     };
     
     // Act: try to generate approval without matching escrow
@@ -146,52 +122,27 @@ async fn test_multiple_concurrent_intents() {
     // Arrange: create multiple escrows with different intent_ids simultaneously (valid hex addresses)
     let escrows = vec![
         EscrowEvent {
-            chain: "connected".to_string(),
             escrow_id: "0xescrow1".to_string(),
             intent_id: "0x01".to_string(),
             issuer: "0xissuer1".to_string(),
-            offered_metadata: "{}".to_string(),
-            offered_amount: 1000,
-            reserved_solver: None,
-            chain_id: 2,
-            desired_metadata: "{}".to_string(),
-            desired_amount: 1,
-            expiry_time: 9999999999,
-            revocable: false,
-            chain_type: trusted_verifier::ChainType::Move,
             timestamp: 1,
+            ..create_base_escrow_event()
         },
         EscrowEvent {
-            chain: "connected".to_string(),
             escrow_id: "0xescrow2".to_string(),
             intent_id: "0x02".to_string(),
             issuer: "0xissuer2".to_string(),
-            offered_metadata: "{}".to_string(),
             offered_amount: 2000,
-            reserved_solver: None,
-            chain_id: 2,
-            desired_metadata: "{}".to_string(),
-            desired_amount: 1,
-            expiry_time: 9999999999,
-            revocable: false,
-            chain_type: trusted_verifier::ChainType::Move,
             timestamp: 1,
+            ..create_base_escrow_event()
         },
         EscrowEvent {
-            chain: "connected".to_string(),
             escrow_id: "0xescrow3".to_string(),
             intent_id: "0x03".to_string(),
             issuer: "0xissuer3".to_string(),
-            offered_metadata: "{}".to_string(),
             offered_amount: 3000,
-            reserved_solver: None,
-            chain_id: 2,
-            desired_metadata: "{}".to_string(),
-            desired_amount: 1,
-            expiry_time: 9999999999,
-            revocable: false,
-            chain_type: trusted_verifier::ChainType::Move,
             timestamp: 1,
+            ..create_base_escrow_event()
         },
     ];
 
@@ -204,31 +155,28 @@ async fn test_multiple_concurrent_intents() {
     // Act: process multiple fulfillments concurrently
     let fulfillments = vec![
         FulfillmentEvent {
-            chain: "hub".to_string(),
             intent_id: "0x01".to_string(),
             intent_address: "0xaddr1".to_string(),
             solver: "0xsolver1".to_string(),
-            provided_metadata: "{}".to_string(),
             provided_amount: 1000,
             timestamp: 2,
+            ..create_base_fulfillment()
         },
         FulfillmentEvent {
-            chain: "hub".to_string(),
             intent_id: "0x02".to_string(),
             intent_address: "0xaddr2".to_string(),
             solver: "0xsolver2".to_string(),
-            provided_metadata: "{}".to_string(),
             provided_amount: 2000,
             timestamp: 2,
+            ..create_base_fulfillment()
         },
         FulfillmentEvent {
-            chain: "hub".to_string(),
             intent_id: "0x03".to_string(),
             intent_address: "0xaddr3".to_string(),
             solver: "0xsolver3".to_string(),
-            provided_metadata: "{}".to_string(),
             provided_amount: 3000,
             timestamp: 2,
+            ..create_base_fulfillment()
         },
     ];
 
@@ -258,27 +206,332 @@ async fn test_multiple_concurrent_intents() {
     let approval3 = approval3.unwrap();
     assert_eq!(approval3.intent_id, "0x03");
 
-    // Assert: approvals are independent and signatures are unique per intent
+    // Assert: approvals are independent and signatures are unique per request intent
     assert!(!approval1.signature.is_empty(), "Approval 1 should have signature");
     assert!(!approval2.signature.is_empty(), "Approval 2 should have signature");
     assert!(!approval3.signature.is_empty(), "Approval 3 should have signature");
     
-    // Assert: signatures must be unique per intent (each signature includes intent_id)
+    // Assert: signatures must be unique per request intent (each signature includes intent_id)
     let sig1 = approval1.signature;
     let sig2 = approval2.signature;
     let sig3 = approval3.signature;
-    assert_ne!(sig1, sig2, "Signatures should be unique per intent");
-    assert_ne!(sig2, sig3, "Signatures should be unique per intent");
-    assert_ne!(sig1, sig3, "Signatures should be unique per intent");
+    assert_ne!(sig1, sig2, "Signatures should be unique per request intent");
+    assert_ne!(sig2, sig3, "Signatures should be unique per request intent");
+    assert_ne!(sig1, sig3, "Signatures should be unique per request intent");
 }
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/// Helper function for validation logic
-fn is_safe_for_escrow(event: &RequestIntentEvent) -> bool {
-    !event.revocable
+/// Test that monitor's validate_request_intent_fulfillment rejects escrows when matching request intent has expired
+/// Why: Verify that expired request intents are rejected when validating escrow fulfillment
+#[tokio::test]
+async fn test_expiry_check_failure_in_monitor_validate_request_intent_fulfillment() {
+    let _ = tracing_subscriber::fmt::try_init();
+    let config = build_test_config();
+    let monitor = EventMonitor::new(&config).await.expect("Failed to create monitor");
+    
+    // Create an expired request intent
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let past_expiry = current_time - 1000; // Expired 1000 seconds ago
+    
+    let expired_request_intent = RequestIntentEvent {
+        intent_id: "0xexpired_intent".to_string(),
+        expiry_time: past_expiry,
+        ..create_base_request_intent()
+    };
+    
+    // Add expired request intent to cache
+    {
+        let mut cache = monitor.event_cache.write().await;
+        cache.push(expired_request_intent.clone());
+    }
+    
+    // Create an escrow event that matches the expired request intent
+    // The escrow must pass other validations first (amount, metadata, solver)
+    // Note: escrow.offered_amount (1000) >= request_intent.desired_amount (0) ✓
+    //       escrow.desired_metadata ("{}") == request_intent.desired_metadata ("{}") ✓
+    //       Both have no solver reservation, so solver validation passes ✓
+    let escrow_event = EscrowEvent {
+        intent_id: expired_request_intent.intent_id.clone(),
+        timestamp: 1,
+        ..create_base_escrow_event()
+    };
+    
+    // Verify that validation fails when request intent has expired
+    let result = monitor.validate_request_intent_fulfillment(&escrow_event).await;
+    assert!(result.is_err(), "Validation should fail when request intent has expired");
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("expired") || error_msg.contains("expiry"),
+            "Error message should indicate request intent expired: {}", error_msg);
 }
 
+/// Test that monitor's validate_request_intent_fulfillment passes expiry check for non-expired request intents
+/// Why: Verify that non-expired request intents pass the expiry validation
+#[tokio::test]
+async fn test_expiry_check_success_in_monitor_validate_request_intent_fulfillment() {
+    let _ = tracing_subscriber::fmt::try_init();
+    let config = build_test_config();
+    let monitor = EventMonitor::new(&config).await.expect("Failed to create monitor");
+    
+    // Create a non-expired request intent
+    let current_time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let future_expiry = current_time + 1000; // Expires in 1000 seconds
+    
+    let non_expired_request_intent = RequestIntentEvent {
+        intent_id: "0xvalid_intent".to_string(),
+        expiry_time: future_expiry,
+        ..create_base_request_intent()
+    };
+    
+    // Add non-expired request intent to cache
+    {
+        let mut cache = monitor.event_cache.write().await;
+        cache.push(non_expired_request_intent.clone());
+    }
+    
+    // Create an escrow event that matches the non-expired request intent
+    // The escrow must pass all other validations to reach the expiry check:
+    // - escrow.offered_amount (1000) >= request_intent.desired_amount (0) ✓
+    // - escrow.desired_metadata ("{}") == request_intent.desired_metadata ("{}") ✓
+    // - Both have no solver reservation, so solver validation passes ✓
+    let valid_escrow = EscrowEvent {
+        intent_id: non_expired_request_intent.intent_id.clone(),
+        timestamp: 1,
+        ..create_base_escrow_event()
+    };
+    
+    // Verify that validation passes when request intent has not expired
+    // This confirms the expiry check passes for non-expired intents
+    let result = monitor.validate_request_intent_fulfillment(&valid_escrow).await;
+    assert!(result.is_ok(), "Validation should pass when request intent has not expired and all other validations pass");
+}
 
+/// Test that duplicate escrow events are rejected (not added to cache)
+/// Why: Verify that the monitor correctly detects and rejects duplicate escrow events
+#[tokio::test]
+async fn test_duplicate_escrow_event_rejection() {
+    let _ = tracing_subscriber::fmt::try_init();
+    let config = build_test_config();
+    let monitor = EventMonitor::new(&config).await.expect("Failed to create monitor");
+    
+    let escrow = create_base_escrow_event();
+    
+    // Add escrow to cache (first time)
+    {
+        let mut escrow_cache = monitor.escrow_cache.write().await;
+        // Simulate duplicate detection logic from monitor_connected_chain
+        if !escrow_cache.iter().any(|cached| cached.escrow_id == escrow.escrow_id && cached.chain_id == escrow.chain_id) {
+            escrow_cache.push(escrow.clone());
+        }
+    }
+    
+    // Verify escrow was added
+    let escrow_cache = monitor.escrow_cache.read().await;
+    assert_eq!(escrow_cache.len(), 1, "Escrow should be in cache");
+    assert_eq!(escrow_cache[0].escrow_id, escrow.escrow_id);
+    drop(escrow_cache);
+    
+    // Try to add the same escrow again (duplicate)
+    {
+        let mut escrow_cache = monitor.escrow_cache.write().await;
+        // Simulate duplicate detection logic from monitor_connected_chain
+        if !escrow_cache.iter().any(|cached| cached.escrow_id == escrow.escrow_id && cached.chain_id == escrow.chain_id) {
+            escrow_cache.push(escrow.clone());
+        }
+    }
+    
+    // Verify duplicate was not added
+    let escrow_cache = monitor.escrow_cache.read().await;
+    assert_eq!(escrow_cache.len(), 1, "Duplicate escrow should not be added to cache");
+    assert_eq!(escrow_cache[0].escrow_id, escrow.escrow_id);
+}
+
+/// Test that duplicate intent events are rejected (not added to cache)
+/// Why: Verify that the monitor correctly detects and rejects duplicate intent events
+#[tokio::test]
+async fn test_duplicate_intent_event_rejection() {
+    let _ = tracing_subscriber::fmt::try_init();
+    let config = build_test_config();
+    let monitor = EventMonitor::new(&config).await.expect("Failed to create monitor");
+    
+    let intent = create_base_request_intent();
+    
+    // Add intent to cache (first time)
+    {
+        let mut cache = monitor.event_cache.write().await;
+        // Simulate duplicate detection logic from monitor_hub_chain
+        if !cache.iter().any(|cached| cached.intent_id == intent.intent_id) {
+            cache.push(intent.clone());
+        }
+    }
+    
+    // Verify intent was added
+    let cache = monitor.event_cache.read().await;
+    assert_eq!(cache.len(), 1, "Intent should be in cache");
+    assert_eq!(cache[0].intent_id, intent.intent_id);
+    drop(cache);
+    
+    // Try to add the same intent again (duplicate)
+    {
+        let mut cache = monitor.event_cache.write().await;
+        // Simulate duplicate detection logic from monitor_hub_chain
+        if !cache.iter().any(|cached| cached.intent_id == intent.intent_id) {
+            cache.push(intent.clone());
+        }
+    }
+    
+    // Verify duplicate was not added
+    let cache = monitor.event_cache.read().await;
+    assert_eq!(cache.len(), 1, "Duplicate intent should not be added to cache");
+    assert_eq!(cache[0].intent_id, intent.intent_id);
+}
+
+/// Test that duplicate fulfillment events are handled correctly (not processed twice)
+/// Why: Verify that the monitor correctly detects and skips duplicate fulfillment events
+#[tokio::test]
+async fn test_duplicate_fulfillment_event_handling() {
+    let _ = tracing_subscriber::fmt::try_init();
+    let config = build_test_config();
+    let monitor = EventMonitor::new(&config).await.expect("Failed to create monitor");
+    
+    // Add matching escrow to cache (required for approval generation)
+    {
+        let mut escrow_cache = monitor.escrow_cache.write().await;
+        escrow_cache.push(create_base_escrow_event());
+    }
+    
+    let fulfillment = create_base_fulfillment();
+    
+    // Add fulfillment to cache (first time) and process it
+    {
+        let mut fulfillment_cache = monitor.fulfillment_cache.write().await;
+        // Simulate duplicate detection logic from poll_hub_events
+        if !fulfillment_cache.iter().any(|cached| cached.intent_id == fulfillment.intent_id) {
+            fulfillment_cache.push(fulfillment.clone());
+        }
+    }
+    
+    // Process the first fulfillment (should generate approval)
+    monitor.validate_and_approve_fulfillment(&fulfillment).await.expect("First fulfillment should succeed");
+    
+    // Verify approval was generated
+    let approval = monitor.get_approval_for_escrow("0xescrow123").await;
+    assert!(approval.is_some(), "Approval should exist after first fulfillment");
+    let first_approval = approval.unwrap();
+    let first_signature = first_approval.signature.clone();
+    
+    // Try to add the same fulfillment again (duplicate)
+    {
+        let mut fulfillment_cache = monitor.fulfillment_cache.write().await;
+        // Simulate duplicate detection logic from poll_hub_events
+        if !fulfillment_cache.iter().any(|cached| cached.intent_id == fulfillment.intent_id) {
+            fulfillment_cache.push(fulfillment.clone());
+        }
+    }
+    
+    // Verify duplicate was not added to cache
+    let fulfillment_cache = monitor.fulfillment_cache.read().await;
+    assert_eq!(fulfillment_cache.len(), 1, "Duplicate fulfillment should not be added to cache");
+    drop(fulfillment_cache);
+    
+    // Verify approval was not regenerated (same approval exists)
+    let approval = monitor.get_approval_for_escrow("0xescrow123").await;
+    assert!(approval.is_some(), "Approval should still exist");
+    let second_approval = approval.unwrap();
+    assert_eq!(first_signature, second_approval.signature, "Approval should not be regenerated for duplicate fulfillment");
+}
+
+/// Test that base helper structs work with signature generation
+/// Why: Verify that base helpers use valid hex values that can be used for signature generation
+#[tokio::test]
+async fn test_base_helpers_work_with_signature_generation() {
+    let _ = tracing_subscriber::fmt::try_init();
+    let config = build_test_config();
+    let monitor = EventMonitor::new(&config).await.expect("Failed to create monitor");
+    
+    // Add escrow using base helper (should have valid hex intent_id)
+    {
+        let mut escrow_cache = monitor.escrow_cache.write().await;
+        escrow_cache.push(create_base_escrow_event());
+    }
+    
+    // Create fulfillment using base helper (should have valid hex intent_id matching escrow)
+    let fulfillment = create_base_fulfillment();
+    
+    // This should succeed - base helpers should have valid hex values
+    let result = monitor.validate_and_approve_fulfillment(&fulfillment).await;
+    assert!(result.is_ok(), "Base helpers should work with signature generation - intent_id must be valid hex (even number of digits)");
+    
+    // Verify approval was generated
+    let approval = monitor.get_approval_for_escrow("0xescrow123").await;
+    assert!(approval.is_some(), "Approval should exist when using base helpers");
+}
+
+/// Test that approval generation fails when fulfillment intent_id doesn't match escrow intent_id
+/// Why: Verify that mismatched intent_ids are rejected - fulfillment must match an existing escrow
+#[tokio::test]
+async fn test_approval_fails_when_intent_id_mismatch() {
+    let _ = tracing_subscriber::fmt::try_init();
+    let config = build_test_config();
+    let monitor = EventMonitor::new(&config).await.expect("Failed to create monitor");
+    
+    // Add escrow with one intent_id
+    {
+        let mut escrow_cache = monitor.escrow_cache.write().await;
+        escrow_cache.push(EscrowEvent {
+            intent_id: "0x01".to_string(), // Valid hex
+            ..create_base_escrow_event()
+        });
+    }
+    
+    // Create fulfillment with different intent_id (doesn't match escrow)
+    let fulfillment = FulfillmentEvent {
+        intent_id: "0x02".to_string(), // Different intent_id - doesn't match escrow
+        ..create_base_fulfillment()
+    };
+    
+    // This should fail - no matching escrow found
+    let result = monitor.validate_and_approve_fulfillment(&fulfillment).await;
+    assert!(result.is_err(), "Approval should fail when fulfillment intent_id doesn't match any escrow");
+    
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("No matching escrow") || error_msg.contains("matching escrow"),
+            "Error message should indicate no matching escrow found: {}", error_msg);
+    
+    // Verify no approval was generated
+    let approval = monitor.get_approval_for_escrow("0xescrow123").await;
+    assert!(approval.is_none(), "No approval should exist when intent_ids don't match");
+}
+
+/// Test that approval generation fails when no escrow exists in cache
+/// Why: Verify that fulfillments cannot be approved when there's no matching escrow in the cache
+#[tokio::test]
+async fn test_approval_fails_when_no_escrow_exists() {
+    let _ = tracing_subscriber::fmt::try_init();
+    let config = build_test_config();
+    let monitor = EventMonitor::new(&config).await.expect("Failed to create monitor");
+    
+    // Ensure escrow cache is empty (no escrow added)
+    let escrow_cache = monitor.escrow_cache.read().await;
+    assert_eq!(escrow_cache.len(), 0, "Escrow cache should be empty");
+    drop(escrow_cache);
+    
+    // Create fulfillment (but no matching escrow exists)
+    let fulfillment = create_base_fulfillment();
+    
+    // This should fail - no escrow in cache to match
+    let result = monitor.validate_and_approve_fulfillment(&fulfillment).await;
+    assert!(result.is_err(), "Approval should fail when no escrow exists in cache");
+    
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("No matching escrow") || error_msg.contains("matching escrow"),
+            "Error message should indicate no matching escrow found: {}", error_msg);
+    
+    // Verify no approval was generated
+    let approval = monitor.get_approval_for_escrow("0xescrow123").await;
+    assert!(approval.is_none(), "No approval should exist when no escrow is in cache");
+}

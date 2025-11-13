@@ -77,8 +77,8 @@ module mvmt_intent::fa_intent_with_oracle {
     struct OracleLimitOrderEvent has store, drop {
         intent_address: address, // The escrow intent address (on connected chain)
         intent_id: address,      // The original intent ID (from hub chain) - links escrow to hub intent
-        source_metadata: Object<Metadata>,
-        source_amount: u64,
+        offered_metadata: Object<Metadata>,
+        offered_amount: u64,
         desired_metadata: Object<Metadata>,
         desired_amount: u64,
         issuer: address,
@@ -119,7 +119,7 @@ module mvmt_intent::fa_intent_with_oracle {
     /// oracle threshold) are captured in the intent arguments.
     ///
     /// # Arguments
-    /// - `source_fungible_asset`: The asset being offered by the issuer
+    /// - `offered_fungible_asset`: The asset being offered by the issuer
     /// - `desired_metadata`: Metadata handle of the asset the issuer wants to receive
     /// - `desired_amount`: Minimum amount of the desired asset that must be paid
     /// - `expiry_time`: Unix timestamp after which the intent can no longer be filled
@@ -132,7 +132,7 @@ module mvmt_intent::fa_intent_with_oracle {
     /// # Returns
     /// - `Object<TradeIntent<...>>`: Handle to the created oracle-guarded intent
     public fun create_fa_to_fa_intent_with_oracle_requirement(
-        source_fungible_asset: FungibleAsset,
+        offered_fungible_asset: FungibleAsset,
         desired_metadata: Object<Metadata>,
         desired_amount: u64,
         expiry_time: u64,
@@ -143,8 +143,8 @@ module mvmt_intent::fa_intent_with_oracle {
         reservation: Option<IntentReserved>,
     ): Object<TradeIntent<FungibleStoreManager, OracleGuardedLimitOrder>> {
         // Capture metadata and amount before depositing
-        let source_metadata = fungible_asset::asset_metadata(&source_fungible_asset);
-        let source_amount = fungible_asset::amount(&source_fungible_asset);
+        let offered_metadata = fungible_asset::asset_metadata(&offered_fungible_asset);
+        let offered_amount = fungible_asset::amount(&offered_fungible_asset);
         
         let coin_store_ref = object::create_object(issuer);
         let extend_ref = object::generate_extend_ref(&coin_store_ref);
@@ -153,10 +153,10 @@ module mvmt_intent::fa_intent_with_oracle {
         let linear_ref = object::generate_linear_transfer_ref(&transfer_ref);
         object::transfer_with_ref(linear_ref, object::address_from_constructor_ref(&coin_store_ref));
 
-        fungible_asset::create_store(&coin_store_ref, fungible_asset::metadata_from_asset(&source_fungible_asset));
+        fungible_asset::create_store(&coin_store_ref, fungible_asset::metadata_from_asset(&offered_fungible_asset));
         fungible_asset::deposit(
             object::object_from_constructor_ref<FungibleStore>(&coin_store_ref),
-            source_fungible_asset
+            offered_fungible_asset
         );
         let intent_obj = intent::create_intent<FungibleStoreManager, OracleGuardedLimitOrder, OracleGuardedWitness>(
             FungibleStoreManager { extend_ref, delete_ref },
@@ -172,8 +172,8 @@ module mvmt_intent::fa_intent_with_oracle {
         event::emit(OracleLimitOrderEvent {
             intent_address: object::object_address(&intent_obj),
             intent_id,  // Pass the intent ID from user (hub chain intent ID for escrows)
-            source_metadata,
-            source_amount,
+            offered_metadata,
+            offered_amount,
             desired_metadata,
             desired_amount,
             issuer,
