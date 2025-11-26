@@ -50,41 +50,26 @@ Comprehensive reference for all data structures used across the Intent Framework
 - Verification Domain (Rust normalized event structures)
 - Cross-Chain Data Linking patterns
 
-### [Use Cases and Scenarios Documentation](use-cases.md)
+### [Conception Documents](conception/)
 
-Documentation of how the Intent Framework handles specific scenarios in the current implementation, including happy path flows, error cases, edge cases, and real-world usage patterns.
+Documentation describing the conceptual design of the Intent Framework, including flows, scenarios, error cases, and security properties.
 
-**Key Sections**:
+**Key Documents**:
 
-- Happy Path Use Cases (Standard Cross-Chain Swap, Oracle-Guarded Intent, Intent-as-Escrow, Reserved Intent)
-- Error Cases (Intent Expiry, Invalid Witness, Unauthorized Access, Cross-Chain Failures, Token Type Mismatches)
-- Edge Cases (Non-Revocable Escrow Intents, Reserved Solver Enforcement, Zero-Amount Cross-Chain Swaps, Concurrent Intent Fulfillment)
-- Real-World Usage Patterns (DEX Integration, Cross-Chain Arbitrage, Payment Channels, Escrow Services)
-
-### [Requirements Document](requirements.md)
-
-Working document specifying functional and non-functional requirements for the Intent Framework, including future cross-chain flows (Inflow and Outflow), intent creation capabilities, execution models, and system requirements.
-
-**Key Sections**:
-
-- Cross-Chain Flows (Inflow and Outflow with detailed sequence diagrams)
-- Intent Creation Requirements (Unreserved, Reserved, Oracle-Guarded, Escrow)
-- Move On-Chain Intent Execution (session model)
-- Trusted Verifier Service Requirements
-- Non-Functional Requirements (Reliability, Usability, Compatibility)
+- [Conception Generic](conception/conception_generic.md) - Introduction, actors, flow types, generic protocol steps, security properties, error cases, and risks
+- [Conception Inflow](conception/conception_inflow.md) - Inflow flow (Connected Chain → Hub): use cases, protocol, scenarios, and protocol steps
+- [Conception Outflow](conception/conception_outflow.md) - Outflow flow (Hub → Connected Chain): use cases, protocol, scenarios, and protocol steps
+- [Conception Router Flow](conception/conception_routerflow.md) - Router flow (Connected Chain → Connected Chain): use cases, protocol, scenarios, and protocol steps
+- [Architecture Differences](conception/architecture-diff.md) - Implementation status, function signatures, and differences from conception
+- [Requirements](conception/requirements.md) - Functional and non-functional requirements
 
 ## How to Use These Documents
 
 1. **New to the codebase?** Start with [Component-to-Domain Mapping](architecture-component-mapping.md) to understand how components are organized into domains.
-
 2. **Need precise interface definitions?** See [Domain Boundaries and Interfaces](domain-boundaries-and-interfaces.md) for detailed boundary specifications.
-
 3. **Understanding the design philosophy?** Read [RPG Methodology Principles](rpg-methodology.md) to understand why the architecture is organized this way.
-
 4. **Need data structure details?** See [Data Models Documentation](data-models.md) for field-by-field documentation of all data structures.
-
-5. **Understanding system behavior?** See [Use Cases and Scenarios Documentation](use-cases.md) for how the system handles specific scenarios.
-
+5. **Understanding system behavior?** See [Conception Documents](conception/) for flows, scenarios, and error cases.
 6. **Planning implementation?** Use the Topological Order sections to understand build dependencies and implementation sequence.
 
 ## Related Documentation
@@ -96,7 +81,7 @@ Working document specifying functional and non-functional requirements for the I
 
 ## Document Relationships
 
-```
+```text
 RPG Methodology Principles
     ↓ (provides methodology)
 Component-to-Domain Mapping
@@ -109,4 +94,3 @@ Protocol Specification (public docs/)
 ```
 
 All architecture documents cross-reference each other and link to public component documentation for implementation details.
-
