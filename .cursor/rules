@@ -27,6 +27,7 @@ Tests pass: Move <amount>, EVM <amount>, Verifier (Rust) <number>, Solver (Rust)
 - **CRITICAL: NEVER run `git add` or `git add -A`** - files must already be staged by the user
 - **Run tests before committing** to ensure changes work correctly
 - **Always include test results** in the format: `Tests pass: Move <amount>, EVM <amount>, Verifier (Rust) <number>, Solver (Rust) <number>`
+- **Display test summary table** after running tests using the commands in the next subsection, showing passed/total for each category (Move, EVM, Verifier, Solver)
 - Follow conventional commit format (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`)
 - Keep commit messages brief and professional
 - Do NOT mention subtask or task IDs in commit messages
@@ -38,7 +39,7 @@ Get test counts for each component:
 
 ```bash
 # Move tests
-nix develop -c bash -c "cd move-intent-framework && aptos move test --dev --named-addresses mvmt_intent=0x123" 2>&1 | grep "Total tests:"
+nix develop -c bash -c "cd move-intent-framework && movement move test --dev --named-addresses mvmt_intent=0x123" 2>&1 | grep "Total tests:"
 
 # Verifier tests
 nix develop -c bash -c "cd trusted-verifier && cargo test" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print "Verifier: " sum " passed"}'
@@ -115,7 +116,7 @@ See [`.cursor/codestandards.md`](.cursor/codestandards.md) for language-specific
 
 - **Move tests**: Place in `move-intent-framework/tests/` with `*_tests.move` naming
 - **Solidity tests**: Place in `evm-intent-framework/test/` with `*.test.js` naming
-- **E2E tests**: Use shell scripts in `testing-infra/e2e-tests-*/`
+- **E2E tests**: Use shell scripts in `testing-infra/ci-e2e/e2e-tests-*/`
 - **Test isolation**: Each test should be independent and clean up after itself
 - **Balance checks**: Use granular balance display functions appropriate for the chain being tested
 

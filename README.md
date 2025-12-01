@@ -14,7 +14,7 @@ For contributing guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Quick start
 
-- Enter dev shell with pinned toolchain (Rust, Aptos CLI):
+- Enter dev shell with pinned toolchain (Rust, Movement CLI, Aptos CLI):
 
 ```text
 nix develop
@@ -27,7 +27,7 @@ nix develop
 Run from project root:
 
 ```bash
-nix develop -c bash -c "cd move-intent-framework && aptos move test --dev --named-addresses mvmt_intent=0x123"
+nix develop -c bash -c "cd move-intent-framework && movement move test --dev --named-addresses mvmt_intent=0x123"
 nix develop -c bash -c "cd trusted-verifier && cargo test"
 nix develop -c bash -c "cd evm-intent-framework && npm test"
 nix develop -c bash -c "cd solver && cargo test"
@@ -38,9 +38,9 @@ nix develop -c bash -c "cd solver && cargo test"
 Run from project root:
 
 ```bash
-nix develop -c bash -c "./testing-infra/e2e-tests-mvm/run-tests-inflow.sh"
-nix develop -c bash -c "./testing-infra/e2e-tests-mvm/run-tests-outflow.sh"
-nix develop -c bash -c "./testing-infra/e2e-tests-evm/run-tests-inflow.sh"
+nix develop -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh"
+nix develop -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-outflow.sh"
+nix develop -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inflow.sh"
 ```
 
 ## License
