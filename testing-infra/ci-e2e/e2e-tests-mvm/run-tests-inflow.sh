@@ -24,7 +24,21 @@ echo "🧹 Step 1: Cleaning up any existing chains, accounts and processes..."
 echo "================================================================"
 ./testing-infra/ci-e2e/chain-connected-mvm/cleanup.sh
 
-echo "🚀 Step 2: Setting up chains, deploying contracts, funding accounts"
+echo ""
+echo "🔨 Step 2: Building Rust services (verifier and solver)..."
+echo "==========================================================="
+pushd "$PROJECT_ROOT/trusted-verifier" > /dev/null
+cargo build --bin trusted-verifier 2>&1 | tail -5
+popd > /dev/null
+echo "   ✅ Verifier built"
+
+pushd "$PROJECT_ROOT/solver" > /dev/null
+cargo build --bin solver 2>&1 | tail -5
+popd > /dev/null
+echo "   ✅ Solver built"
+echo ""
+
+echo "🚀 Step 3: Setting up chains, deploying contracts, funding accounts"
 echo "===================================================================="
 ./testing-infra/ci-e2e/chain-hub/setup-chain.sh
 ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
@@ -34,45 +48,69 @@ echo "===================================================================="
 ./testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh
 
 echo ""
-echo "🚀 Step 3: Configuring and starting verifier (for negotiation routing)..."
+echo "🚀 Step 4: Configuring and starting verifier (for negotiation routing)..."
 echo "=========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-verifier.sh
 
 # Start solver service for automatic signing and fulfillment
+echo ""
+echo "🚀 Step 4b: Starting solver service..."
+echo "======================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-solver.sh
 
+# Verify solver started successfully
+./testing-infra/ci-e2e/verify-solver-running.sh
+
 echo ""
-echo "🚀 Step 4: Testing INFLOW intents (connected chain → hub chain)..."
+echo "🚀 Step 5: Testing INFLOW intents (connected chain → hub chain)..."
 echo "==================================================================="
 echo "   Submitting inflow cross-chain intents via verifier negotiation routing..."
 ./testing-infra/ci-e2e/e2e-tests-mvm/inflow-submit-hub-intent.sh
+echo ""
+echo "💰 Pre-Escrow Balance Validation"
+echo "=========================================="
+# Nobody should have done anything yet: all four actors start with 1 USDhub/USDcon on each chain
+./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 1000000 1000000 1000000 1000000
+
 ./testing-infra/ci-e2e/e2e-tests-mvm/inflow-submit-escrow.sh
 
 echo ""
-echo "   - Waiting for transactions to be finalized and events to be queryable..."
-sleep 5
+echo "🚀 Step 6: Waiting for solver to automatically fulfill..."
+echo "=========================================================="
+
+# Load intent ID for solver fulfillment wait
+if ! load_intent_info "INTENT_ID"; then
+    echo "❌ ERROR: Failed to load intent info"
+    exit 1
+fi
+
+echo "   The solver service is running and will:"
+echo "   1. Detect the escrow on connected MVM chain"
+echo "   2. Fulfill the intent on hub chain"
+echo "   3. Verifier will detect fulfillment and generate approval"
+echo ""
+
+if ! wait_for_solver_fulfillment "$INTENT_ID" "inflow" 60; then
+    echo "❌ ERROR: Solver did not fulfill the intent automatically"
+    display_service_logs "Solver fulfillment timeout"
+    exit 1
+fi
+
+echo "✅ Solver fulfilled the intent automatically!"
+echo ""
+
+# Wait for solver to claim escrow (verifies escrow object was deleted)
+./testing-infra/ci-e2e/e2e-tests-mvm/wait-for-escrow-claim.sh
 
 echo ""
-echo "🚀 Step 5: Completing inflow flow (fulfillment and escrow release)..."
-echo "==================================================================="
-./testing-infra/ci-e2e/e2e-tests-mvm/inflow-fulfill-hub-intent.sh
-./testing-infra/ci-e2e/e2e-tests-mvm/release-escrow.sh
-
-echo ""
-echo "🚀 Step 6: Running Rust integration tests..."
-echo "============================================"
-./testing-infra/ci-e2e/e2e-tests-mvm/verifier-rust-integration-tests.sh
-
-echo ""
-echo "💰 Final Balance View"
+echo "💰 Final Balance Validation"
 echo "=========================================="
-./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh || true
+# Inflow: Solver transfers to hub requester (0 on hub, 2000000 on MVM from escrow)
+#         Requester receives on hub (2000000 on hub, 0 on MVM locked in escrow)
+./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 0 2000000 2000000 0
+
 echo ""
-echo "✅ E2E inflow test flow completed!"
-echo ""
-echo "📊 Test Summary:"
-echo "   ✅ Inflow tests: Tokens transferred from connected chain to hub chain"
-echo "   ✅ Verifier negotiation routing: Draft submission and signature retrieval"
+echo "✅ E2E inflow test completed!"
 echo ""
 
 echo "🧹 Step 7: Cleaning up chains, accounts and processes..."

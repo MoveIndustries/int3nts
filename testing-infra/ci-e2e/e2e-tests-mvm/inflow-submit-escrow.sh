@@ -38,32 +38,26 @@ log "   Solver Chain 1 (hub):       $SOLVER_CHAIN1_ADDRESS"
 log "   Requester Chain 2 (connected): $REQUESTER_CHAIN2_ADDRESS"
 log "   Solver Chain 2 (connected): $SOLVER_CHAIN2_ADDRESS"
 
-VERIFIER_TESTING_CONFIG="${PROJECT_ROOT}/trusted-verifier/config/verifier_testing.toml"
+# Load verifier keys (generated during deployment)
+load_verifier_keys
 
-if [ ! -f "$VERIFIER_TESTING_CONFIG" ]; then
-    log_and_echo "❌ ERROR: verifier_testing.toml not found at $VERIFIER_TESTING_CONFIG"
-    log_and_echo "   Tests require trusted-verifier/config/verifier_testing.toml to exist"
-    exit 1
-fi
-
-export VERIFIER_CONFIG_PATH="$VERIFIER_TESTING_CONFIG"
-
-VERIFIER_PUBLIC_KEY_B64=$(grep "^public_key" "$VERIFIER_TESTING_CONFIG" | cut -d'"' -f2)
+# Get public key from environment variable
+VERIFIER_PUBLIC_KEY_B64="${E2E_VERIFIER_PUBLIC_KEY}"
 
 if [ -z "$VERIFIER_PUBLIC_KEY_B64" ]; then
-    log_and_echo "❌ ERROR: Could not find public_key in verifier_testing.toml"
+    log_and_echo "❌ ERROR: E2E_VERIFIER_PUBLIC_KEY environment variable not set"
     log_and_echo "   The verifier public key is required for escrow creation."
-    log_and_echo "   Please ensure verifier_testing.toml has a valid public_key field."
+    log_and_echo "   Please ensure E2E_VERIFIER_PUBLIC_KEY is set (generate_verifier_keys should do this)."
     exit 1
 fi
 
 ORACLE_PUBLIC_KEY_HEX=$(echo "$VERIFIER_PUBLIC_KEY_B64" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
 
 if [ -z "$ORACLE_PUBLIC_KEY_HEX" ] || [ ${#ORACLE_PUBLIC_KEY_HEX} -ne 64 ]; then
-    log_and_echo "❌ ERROR: Invalid public key format in verifier_testing.toml"
+    log_and_echo "❌ ERROR: Invalid public key format"
     log_and_echo "   Expected: base64-encoded 32-byte Ed25519 public key"
     log_and_echo "   Got: $VERIFIER_PUBLIC_KEY_B64"
-    log_and_echo "   Please ensure the public_key in verifier_testing.toml is valid base64 and decodes to 32 bytes (64 hex chars)."
+    log_and_echo "   Please ensure E2E_VERIFIER_PUBLIC_KEY is valid base64 and decodes to 32 bytes (64 hex chars)."
     exit 1
 fi
 
@@ -79,14 +73,14 @@ log "   Expiry time: $EXPIRY_TIME"
 log "   Intent ID: $INTENT_ID"
 
 log ""
-log "   - Getting USDxyz metadata on Chain 2..."
-USDXYZ_METADATA_CHAIN2=$(get_usdxyz_metadata "0x$TEST_TOKENS_CHAIN2" "2")
-if [ -z "$USDXYZ_METADATA_CHAIN2" ]; then
-    log_and_echo "❌ Failed to get USDxyz metadata on Chain 2"
+log "   - Getting USDcon metadata on Chain 2..."
+USDCON_METADATA_CHAIN2=$(get_usdxyz_metadata "0x$TEST_TOKENS_CHAIN2" "2")
+if [ -z "$USDCON_METADATA_CHAIN2" ]; then
+    log_and_echo "❌ Failed to get USDcon metadata on Chain 2"
     exit 1
 fi
-log "     ✅ Got USDxyz metadata on Chain 2: $USDXYZ_METADATA_CHAIN2"
-OFFERED_METADATA_CHAIN2="$USDXYZ_METADATA_CHAIN2"
+log "     ✅ Got USDcon metadata on Chain 2: $USDCON_METADATA_CHAIN2"
+OFFERED_METADATA_CHAIN2="$USDCON_METADATA_CHAIN2"
 
 # ============================================================================
 # SECTION 3: DISPLAY INITIAL STATE
@@ -101,34 +95,62 @@ log_and_echo ""
 # ============================================================================
 log ""
 log "   Creating escrow on connected chain..."
-log "   - Requester (Requester) locks 1 USDxyz in escrow on Chain 2 (connected chain)"
+log "   - Requester (Requester) locks 1 USDcon in escrow on Chain 2 (connected chain)"
 log "   - Using intent_id from hub chain: $INTENT_ID"
+
+# DEBUG: Check requester balance BEFORE escrow creation
+log ""
+log "   DEBUG: Checking requester balance BEFORE escrow creation..."
+BEFORE_BALANCE=$(get_usdxyz_balance "requester-chain2" "2" "0x$TEST_TOKENS_CHAIN2")
+log_and_echo "   DEBUG: Requester USDcon balance BEFORE escrow: $BEFORE_BALANCE"
 
 log "   - Creating escrow intent on Chain 2..."
 log "     Offered metadata: $OFFERED_METADATA_CHAIN2"
-log "     Reserved solver (Solver): $SOLVER_CHAIN2_ADDRESS"
+log "     Reserved solver (Connected Chain 2 Solver): $SOLVER_CHAIN2_ADDRESS"
 
-aptos move run --profile requester-chain2 --assume-yes \
+ESCROW_OUTPUT=$(aptos move run --profile requester-chain2 --assume-yes \
     --function-id "0x${CHAIN2_ADDRESS}::intent_as_escrow_entry::create_escrow_from_fa" \
-    --args "address:${OFFERED_METADATA_CHAIN2}" "u64:1000000" "u64:${CONNECTED_CHAIN_ID}" "hex:${ORACLE_PUBLIC_KEY}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${SOLVER_CHAIN2_ADDRESS}" "u64:${HUB_CHAIN_ID}" >> "$LOG_FILE" 2>&1
+    --args "address:${OFFERED_METADATA_CHAIN2}" "u64:1000000" "u64:${CONNECTED_CHAIN_ID}" "hex:${ORACLE_PUBLIC_KEY}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${SOLVER_CHAIN2_ADDRESS}" "u64:${HUB_CHAIN_ID}" 2>&1)
+ESCROW_EXIT_CODE=$?
+
+log "   DEBUG: Escrow transaction output:"
+log "$ESCROW_OUTPUT"
 
 # ============================================================================
 # SECTION 5: VERIFY RESULTS
 # ============================================================================
-if [ $? -eq 0 ]; then
+if [ $ESCROW_EXIT_CODE -eq 0 ]; then
     log "     ✅ Escrow intent created on Chain 2!"
 
-    sleep 2
+    # DEBUG: Check requester balance AFTER escrow creation
+    log ""
+    log "   DEBUG: Checking requester balance AFTER escrow creation..."
+    AFTER_BALANCE=$(get_usdxyz_balance "requester-chain2" "2" "0x$TEST_TOKENS_CHAIN2")
+    log_and_echo "   DEBUG: Requester USDcon balance AFTER escrow: $AFTER_BALANCE"
+    
+    if [ "$BEFORE_BALANCE" = "$AFTER_BALANCE" ]; then
+        log_and_echo "   ⚠️  WARNING: Requester balance did NOT change after escrow creation!"
+        log_and_echo "      Before: $BEFORE_BALANCE, After: $AFTER_BALANCE"
+    else
+        DIFF=$((BEFORE_BALANCE - AFTER_BALANCE))
+        log_and_echo "   ✅ Requester balance decreased by: $DIFF (locked in escrow)"
+    fi
+
+    sleep 4
     log "     - Verifying escrow stored on-chain with locked tokens..."
 
-    ESCROW_ADDRESS=$(curl -s "http://127.0.0.1:8082/v1/accounts/${REQUESTER_CHAIN2_ADDRESS}/transactions?limit=1" | \
-        jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.intent_address' | head -n 1)
-    ESCROW_INTENT_ID=$(curl -s "http://127.0.0.1:8082/v1/accounts/${REQUESTER_CHAIN2_ADDRESS}/transactions?limit=1" | \
-        jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.intent_id' | head -n 1)
-    LOCKED_AMOUNT=$(curl -s "http://127.0.0.1:8082/v1/accounts/${REQUESTER_CHAIN2_ADDRESS}/transactions?limit=1" | \
-        jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.offered_amount' | head -n 1)
-    DESIRED_AMOUNT=$(curl -s "http://127.0.0.1:8082/v1/accounts/${REQUESTER_CHAIN2_ADDRESS}/transactions?limit=1" | \
-        jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.desired_amount' | head -n 1)
+    # Get full transaction for debugging
+    FULL_TX=$(curl -s "http://127.0.0.1:8082/v1/accounts/${REQUESTER_CHAIN2_ADDRESS}/transactions?limit=1")
+    
+    ESCROW_ADDRESS=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.intent_address' | head -n 1)
+    ESCROW_INTENT_ID=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.intent_id' | head -n 1)
+    LOCKED_AMOUNT=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.offered_amount' | head -n 1)
+    DESIRED_AMOUNT=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.desired_amount' | head -n 1)
+    
+    # Output full event for debugging
+    FULL_EVENT=$(echo "$FULL_TX" | jq '.[0].events[] | select(.type | contains("OracleLimitOrderEvent"))')
+    log "   DEBUG: Full OracleLimitOrderEvent:"
+    log "$FULL_EVENT"
 
     if [ -z "$ESCROW_ADDRESS" ] || [ "$ESCROW_ADDRESS" = "null" ]; then
         log_and_echo "❌ ERROR: Could not verify escrow from events"
@@ -156,10 +178,10 @@ if [ $? -eq 0 ]; then
     fi
 
     if [ "$LOCKED_AMOUNT" = "1000000" ]; then
-        log "     ✅ Escrow has correct locked amount (1 USDxyz)"
+        log "     ✅ Escrow has correct locked amount (1 USDcon)"
     else
         log_and_echo "❌ ERROR: Escrow has unexpected locked amount: $LOCKED_AMOUNT"
-        log_and_echo "   Expected: 100_000_000 (1 USDxyz)"
+        log_and_echo "   Expected: 100_000_000 (1 USDcon)"
         exit 1
     fi
 
@@ -192,6 +214,8 @@ log "📋 Escrow Details:"
 log "   Intent ID: $INTENT_ID"
 if [ -n "$ESCROW_ADDRESS" ] && [ "$ESCROW_ADDRESS" != "null" ]; then
     log "   Chain 2 Escrow: $ESCROW_ADDRESS"
+    # Save ESCROW_ADDRESS to intent-info.env for escrow claim verification
+    echo "CHAIN2_ESCROW_ADDRESS=$ESCROW_ADDRESS" >> "$PROJECT_ROOT/.tmp/intent-info.env"
 fi
 
 

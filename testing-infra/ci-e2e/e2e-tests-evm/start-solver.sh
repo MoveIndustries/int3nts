@@ -20,6 +20,8 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
 source "$SCRIPT_DIR/../util_mvm.sh"
+source "$SCRIPT_DIR/../util_evm.sh"
+source "$SCRIPT_DIR/../chain-connected-evm/utils.sh"
 
 # Setup project root and logging
 setup_project_root
@@ -41,22 +43,27 @@ generate_solver_config_evm() {
     local solver_chain1_address=$(get_profile_address "solver-chain1")
     local chain1_address=$(get_profile_address "intent-account-chain1")
     
-    # Get USDxyz metadata on hub chain (32-byte Move address)
-    local usdxyz_metadata_chain1=$(get_usdxyz_metadata "0x${test_tokens_chain1}" "1")
+    # Get USDhub metadata on hub chain (32-byte Move address)
+    local usdhub_metadata_chain1=$(get_usdxyz_metadata "0x${test_tokens_chain1}" "1")
     
-    # Get EVM USDxyz address from chain-info.env and pad to 32 bytes
+    # Get EVM USDcon address from chain-info.env and pad to 32 bytes
     if [ -f "$PROJECT_ROOT/.tmp/chain-info.env" ]; then
         source "$PROJECT_ROOT/.tmp/chain-info.env"
     fi
-    local evm_token_address="${USDXYZ_EVM_ADDRESS:-}"
+    local evm_token_address="${USDCON_EVM_ADDRESS:-}"
     if [ -z "$evm_token_address" ]; then
-        log_and_echo "❌ ERROR: USDXYZ_EVM_ADDRESS not found in chain-info.env"
+        log_and_echo "❌ ERROR: USDCON_EVM_ADDRESS not found in chain-info.env"
+        exit 1
+    fi
+    local escrow_address="${ESCROW_CONTRACT_ADDRESS:-}"
+    if [ -z "$escrow_address" ]; then
+        log_and_echo "❌ ERROR: ESCROW_CONTRACT_ADDRESS not found in chain-info.env"
         exit 1
     fi
     # Lowercase and pad to 32 bytes for Move compatibility
     local evm_token_no_prefix="${evm_token_address#0x}"
     local evm_token_lower=$(echo "$evm_token_no_prefix" | tr '[:upper:]' '[:lower:]')
-    local usdxyz_metadata_evm="0x000000000000000000000000${evm_token_lower}"
+    local usdcon_metadata_evm="0x000000000000000000000000${evm_token_lower}"
     
     # Use environment variables from test setup
     local verifier_url="${VERIFIER_URL:-http://127.0.0.1:3333}"
@@ -65,7 +72,7 @@ generate_solver_config_evm() {
     local hub_chain_id="${CHAIN1_ID:-1}"
     local evm_chain_id="${EVM_CHAIN_ID:-31337}"
     local module_address="0x${chain1_address}"
-    local escrow_contract="${ESCROW_CONTRACT_ADDRESS:-0x0}"
+    local escrow_contract="${escrow_address}"
     local solver_address="0x${solver_chain1_address}"
     local evm_private_key_env="${EVM_PRIVATE_KEY_ENV:-SOLVER_EVM_PRIVATE_KEY}"
     
@@ -76,8 +83,8 @@ generate_solver_config_evm() {
     log "   - Hub module address: $module_address"
     log "   - EVM escrow contract: $escrow_contract"
     log "   - Solver address: $solver_address"
-    log "   - USDxyz metadata (hub): $usdxyz_metadata_chain1"
-    log "   - USDxyz metadata (EVM, padded): $usdxyz_metadata_evm"
+    log "   - USDhub metadata (hub): $usdhub_metadata_chain1"
+    log "   - USDcon metadata (EVM, padded): $usdcon_metadata_evm"
     
     cat > "$config_file" << EOF
 # Auto-generated solver config for EVM E2E tests
@@ -103,11 +110,11 @@ escrow_contract_address = "$escrow_contract"
 private_key_env = "$evm_private_key_env"
 
 [acceptance]
-# Accept USDxyz swaps at 1:1 rate for E2E testing
+# Accept USDhub/USDcon swaps at 1:1 rate for E2E testing
 # Inflow: offered on EVM (connected), desired on hub
-"$evm_chain_id:$usdxyz_metadata_evm:$hub_chain_id:$usdxyz_metadata_chain1" = 1.0
+"$evm_chain_id:$usdcon_metadata_evm:$hub_chain_id:$usdhub_metadata_chain1" = 1.0
 # Outflow: offered on hub, desired on EVM (connected)
-"$hub_chain_id:$usdxyz_metadata_chain1:$evm_chain_id:$usdxyz_metadata_evm" = 1.0
+"$hub_chain_id:$usdhub_metadata_chain1:$evm_chain_id:$usdcon_metadata_evm" = 1.0
 
 [solver]
 profile = "solver-chain1"
@@ -122,13 +129,27 @@ SOLVER_CONFIG="$PROJECT_ROOT/.tmp/solver-e2e-evm.toml"
 mkdir -p "$(dirname "$SOLVER_CONFIG")"
 generate_solver_config_evm "$SOLVER_CONFIG"
 
+# Export solver's EVM address for auto-registration
+# Hardhat account #2 is used for solver
+export SOLVER_EVM_ADDRESS=$(get_hardhat_account_address "2")
+if [ -z "$SOLVER_EVM_ADDRESS" ]; then
+    log_and_echo "❌ ERROR: Failed to get solver EVM address"
+    log_and_echo "   Make sure Hardhat is running and get_hardhat_account_address is available"
+    exit 1
+fi
+log "   Exported SOLVER_EVM_ADDRESS=$SOLVER_EVM_ADDRESS"
+
+# Unset testnet keys to prevent accidental use (E2E tests use profiles only)
+unset MOVEMENT_SOLVER_PRIVATE_KEY
+log "   Unset MOVEMENT_SOLVER_PRIVATE_KEY (E2E tests use profile keys only)"
+
 # Start the solver service
-if start_solver "$LOG_DIR/solver-evm.log" "info" "$SOLVER_CONFIG"; then
+if start_solver "$LOG_DIR/solver.log" "info" "$SOLVER_CONFIG"; then
     log ""
     log_and_echo "✅ Solver started successfully"
     log_and_echo "   PID: $SOLVER_PID"
     log_and_echo "   Config: $SOLVER_CONFIG"
-    log_and_echo "   Logs: $LOG_DIR/solver-evm.log"
+    log_and_echo "   Logs: $LOG_DIR/solver.log"
 else
     log ""
     log_and_echo "⚠️  Solver failed to start"
@@ -142,7 +163,7 @@ else
         popd > /dev/null
         
         # Try starting again
-        if start_solver "$LOG_DIR/solver-evm.log" "info" "$SOLVER_CONFIG"; then
+        if start_solver "$LOG_DIR/solver.log" "info" "$SOLVER_CONFIG"; then
             log_and_echo "✅ Solver started successfully after build"
         else
             log_and_echo "❌ Solver still failed to start after build"

@@ -37,6 +37,7 @@ fn create_test_evm_config() -> EvmChainConfig {
         chain_id: 84532,
         escrow_contract_address: "0xcccccccccccccccccccccccccccccccccccccccc".to_string(),
         private_key_env: "TEST_PRIVATE_KEY".to_string(),
+        network_name: "localhost".to_string(),
     }
 }
 
@@ -71,26 +72,30 @@ fn test_intent_created_event_deserialization() {
 
 /// What is tested: EscrowEvent deserialization (MVM)
 /// Why: Ensure we can parse escrow events from connected MVM chain
+/// Note: Field names match Move's OracleLimitOrderEvent (intent_address, requester, reserved_solver as Move Option)
 #[test]
 fn test_escrow_event_deserialization() {
     let json = json!({
-        "escrow_id": "0x1111111111111111111111111111111111111111",
+        "intent_address": "0x1111111111111111111111111111111111111111",
         "intent_id": "0x2222222222222222222222222222222222222222",
-        "issuer": "0xcccccccccccccccccccccccccccccccccccccccc",
+        "requester": "0xcccccccccccccccccccccccccccccccccccccccc",
         "offered_metadata": {"inner": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
         "offered_amount": "1000",
         "desired_metadata": {"inner": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
         "desired_amount": "2000",
         "expiry_time": "2000000",
         "revocable": true,
-        "reserved_solver": "0xdddddddddddddddddddddddddddddddddddddddd"
+        "reserved_solver": {"vec": ["0xdddddddddddddddddddddddddddddddddddddddd"]}
     });
 
     let event: solver::chains::connected_mvm::EscrowEvent = serde_json::from_value(json).unwrap();
     assert_eq!(event.escrow_id, "0x1111111111111111111111111111111111111111");
     assert_eq!(event.intent_id, "0x2222222222222222222222222222222222222222");
+    assert_eq!(event.issuer, "0xcccccccccccccccccccccccccccccccccccccccc");
     assert_eq!(event.offered_amount, "1000");
-    assert_eq!(event.reserved_solver, Some("0xdddddddddddddddddddddddddddddddddddddddd".to_string()));
+    // reserved_solver is a Move Option wrapper
+    let solver = event.reserved_solver.and_then(|opt| opt.into_option());
+    assert_eq!(solver, Some("0xdddddddddddddddddddddddddddddddddddddddd".to_string()));
 }
 
 // ============================================================================
@@ -130,7 +135,7 @@ async fn test_get_intent_events_success() {
                             "desired_amount": "2000",
                             "desired_chain_id": "2",
                             "requester": "0xcccccccccccccccccccccccccccccccccccccccc",
-                            "expiry_time": "2000000",
+                            "expiry_time": "9999999999",
                             "revocable": true
                         }
                     }
@@ -175,6 +180,179 @@ async fn test_get_intent_events_empty() {
     assert_eq!(events.len(), 0);
 }
 
+/// What is tested: is_solver_registered() returns true for registered solver
+/// Why: Ensure we can check if a solver is registered on-chain
+#[tokio::test]
+async fn test_is_solver_registered_true() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    // Mock view function response - returns [true] for registered solver
+    // Note: HubChainClient calls /v1/view on the base_url
+    Mock::given(method("POST"))
+        .and(path("/v1/view"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([true])))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_hub_config();
+    config.rpc_url = base_url;
+    let client = HubChainClient::new(&config).unwrap();
+
+    let is_registered = client
+        .is_solver_registered("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        .await
+        .unwrap();
+
+    assert!(is_registered);
+}
+
+/// What is tested: is_solver_registered() returns false for unregistered solver
+/// Why: Ensure we correctly detect when a solver is not registered
+#[tokio::test]
+async fn test_is_solver_registered_false() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    // Mock view function response - returns [false] for unregistered solver
+    // Note: HubChainClient calls /v1/view on the base_url
+    Mock::given(method("POST"))
+        .and(path("/v1/view"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([false])))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_hub_config();
+    config.rpc_url = base_url;
+    let client = HubChainClient::new(&config).unwrap();
+
+    let is_registered = client
+        .is_solver_registered("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+        .await
+        .unwrap();
+
+    assert!(!is_registered);
+}
+
+/// What is tested: is_solver_registered() handles address normalization (with/without 0x prefix)
+/// Why: Ensure address format doesn't matter
+#[tokio::test]
+async fn test_is_solver_registered_address_normalization() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    // Note: HubChainClient calls /v1/view on the base_url
+    Mock::given(method("POST"))
+        .and(path("/v1/view"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([true])))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_hub_config();
+    config.rpc_url = base_url;
+    let client = HubChainClient::new(&config).unwrap();
+
+    // Test with 0x prefix
+    let is_registered1 = client
+        .is_solver_registered("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        .await
+        .unwrap();
+    assert!(is_registered1);
+
+    // Test without 0x prefix (should still work)
+    let is_registered2 = client
+        .is_solver_registered("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        .await
+        .unwrap();
+    assert!(is_registered2);
+}
+
+/// What is tested: is_solver_registered() handles HTTP errors
+/// Why: Ensure network errors are properly propagated
+#[tokio::test]
+async fn test_is_solver_registered_http_error() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    // Mock HTTP 500 error
+    // Note: HubChainClient calls /v1/view on the base_url
+    Mock::given(method("POST"))
+        .and(path("/v1/view"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_hub_config();
+    config.rpc_url = base_url;
+    let client = HubChainClient::new(&config).unwrap();
+
+    let result = client
+        .is_solver_registered("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        .await;
+
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Failed to query solver registration"));
+}
+
+/// What is tested: is_solver_registered() handles invalid JSON response
+/// Why: Ensure malformed responses are handled gracefully
+#[tokio::test]
+async fn test_is_solver_registered_invalid_json() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    // Mock invalid JSON response (not an array, or wrong format)
+    // Note: HubChainClient calls /v1/view on the base_url
+    Mock::given(method("POST"))
+        .and(path("/v1/view"))
+        .respond_with(ResponseTemplate::new(200).set_body_string("invalid json"))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_hub_config();
+    config.rpc_url = base_url;
+    let client = HubChainClient::new(&config).unwrap();
+
+    let result = client
+        .is_solver_registered("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        .await;
+
+    assert!(result.is_err());
+}
+
+/// What is tested: is_solver_registered() handles unexpected response format
+/// Why: Ensure we handle cases where response is not a boolean array
+#[tokio::test]
+async fn test_is_solver_registered_unexpected_format() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    // Mock response with wrong format (empty array or non-boolean)
+    // Note: HubChainClient calls /v1/view on the base_url
+    Mock::given(method("POST"))
+        .and(path("/v1/view"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_hub_config();
+    config.rpc_url = base_url;
+    let client = HubChainClient::new(&config).unwrap();
+
+    let result = client
+        .is_solver_registered("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+        .await;
+
+    assert!(result.is_err());
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Unexpected response format"));
+}
+
 // ============================================================================
 // CONNECTED MVM CLIENT TESTS
 // ============================================================================
@@ -192,7 +370,8 @@ fn test_mvm_client_new() {
 #[tokio::test]
 async fn test_get_escrow_events_success() {
     let mock_server = MockServer::start().await;
-    let base_url = mock_server.uri().to_string();
+    // Note: base_url simulates the full RPC URL including /v1 suffix
+    let base_url = format!("{}/v1", mock_server.uri());
 
     Mock::given(method("GET"))
         .and(path("/v1/accounts/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/transactions"))
@@ -202,16 +381,16 @@ async fn test_get_escrow_events_success() {
                     {
                         "type": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb::fa_intent_with_oracle::OracleLimitOrderEvent",
                         "data": {
-                            "escrow_id": "0x1111111111111111111111111111111111111111",
+                            "intent_address": "0x1111111111111111111111111111111111111111",
                             "intent_id": "0x2222222222222222222222222222222222222222",
-                            "issuer": "0xcccccccccccccccccccccccccccccccccccccccc",
+                            "requester": "0xcccccccccccccccccccccccccccccccccccccccc",
                             "offered_metadata": {"inner": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
                             "offered_amount": "1000",
                             "desired_metadata": {"inner": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
                             "desired_amount": "2000",
                             "expiry_time": "2000000",
                             "revocable": true,
-                            "reserved_solver": "0xdddddddddddddddddddddddddddddddddddddddd"
+                            "reserved_solver": {"vec": ["0xdddddddddddddddddddddddddddddddddddddddd"]}
                         }
                     }
                 ]
@@ -252,8 +431,8 @@ async fn test_get_escrow_events_evm_success() {
     let base_url = mock_server.uri().to_string();
 
     // EscrowInitialized event signature hash
-    // keccak256("EscrowInitialized(uint256,address,address,address,address)")
-    let event_topic = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+    // keccak256("EscrowInitialized(uint256,address,address,address,address,uint256,uint256)")
+    let event_topic = "0x104303e46c846fc43f53cd6c4ab9ce96acdf68dcee176382e71fc812218a25a0";
 
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
@@ -267,7 +446,7 @@ async fn test_get_escrow_events_evm_success() {
                         "0x000000000000000000000000cccccccccccccccccccccccccccccccccccccccc", // escrow
                         "0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"  // requester
                     ],
-                    "data": "0x000000000000000000000000ffffffffffffffffffffffffffffffffffffffff000000000000000000000000dddddddddddddddddddddddddddddddddddddddd", // token + reserved_solver
+                    "data": "0x000000000000000000000000ffffffffffffffffffffffffffffffffffffffff000000000000000000000000dddddddddddddddddddddddddddddddddddddddd00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000", // token (32 bytes) + reserved_solver (32 bytes) + amount (32 bytes, 1000000) + expiry (32 bytes, 0)
                     "blockNumber": "0x1000",
                     "transactionHash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
                 }

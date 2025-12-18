@@ -27,18 +27,19 @@ log ""
 # ============================================================================
 log "🔧 Configuring verifier..."
 
-# Configure hub chain section
-./testing-infra/ci-e2e/chain-hub/configure-verifier.sh
+# Configure hub chain section (use source to preserve env vars like E2E_VERIFIER_PRIVATE_KEY)
+source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-hub/configure-verifier.sh"
 
-# Configure connected EVM chain section (also comments out MVM)
-./testing-infra/ci-e2e/chain-connected-evm/configure-verifier.sh
+# Configure connected EVM chain section
+# Must use source to preserve env vars from hub config
+source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-evm/configure-verifier.sh"
 
 # ============================================================================
 # SECTION 2: START VERIFIER
 # ============================================================================
 log ""
 log "   Starting verifier service..."
-start_verifier "$LOG_DIR/verifier-evm.log" "info"
+start_verifier "$LOG_DIR/verifier.log" "info"
 
 log ""
 log_and_echo "✅ Verifier configured and started successfully"

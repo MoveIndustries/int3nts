@@ -86,6 +86,8 @@ pub struct ConnectedEvmClient {
     /// Chain ID (for future transaction signing)
     #[allow(dead_code)]
     chain_id: u64,
+    /// Hardhat network name (e.g., "localhost", "baseSepolia")
+    network_name: String,
 }
 
 impl ConnectedEvmClient {
@@ -102,6 +104,7 @@ impl ConnectedEvmClient {
     pub fn new(config: &EvmChainConfig) -> Result<Self> {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
+            .no_proxy() // Avoid macOS system-configuration issues in tests
             .build()
             .context("Failed to create HTTP client")?;
 
@@ -110,6 +113,7 @@ impl ConnectedEvmClient {
             base_url: config.rpc_url.clone(),
             escrow_contract_address: config.escrow_contract_address.clone(),
             chain_id: config.chain_id,
+            network_name: config.network_name.clone(),
         })
     }
 
@@ -131,12 +135,18 @@ impl ConnectedEvmClient {
         from_block: Option<u64>,
         to_block: Option<u64>,
     ) -> Result<Vec<EscrowInitializedEvent>> {
-        // EscrowInitialized event signature: keccak256("EscrowInitialized(uint256,address,address,address,address)")
-        // Event signature hash: first topic in logs
-        let event_signature = "EscrowInitialized(uint256,address,address,address,address)";
+        use tracing::{info, warn};
+        
+        // EscrowInitialized event signature: keccak256("EscrowInitialized(uint256,address,address,address,address,uint256,uint256)")
+        // Event: EscrowInitialized(uint256 indexed intentId, address indexed escrow, address indexed requester, address token, address reservedSolver, uint256 amount, uint256 expiry)
+        // Note: indexed parameters don't affect the signature, only the types matter
+        let event_signature = "EscrowInitialized(uint256,address,address,address,address,uint256,uint256)";
         let mut hasher = Keccak256::new();
         hasher.update(event_signature.as_bytes());
         let event_topic = format!("0x{}", hex::encode(hasher.finalize()));
+
+        info!("Querying EVM escrow events: contract={}, from_block={:?}, to_block={:?}, event_topic={}", 
+            self.escrow_contract_address, from_block, to_block, event_topic);
 
         // Build filter
         let mut filter = serde_json::json!({
@@ -160,9 +170,11 @@ impl ConnectedEvmClient {
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             method: "eth_getLogs".to_string(),
-            params: vec![filter],
+            params: vec![filter.clone()],
             id: 1,
         };
+
+        info!("Sending eth_getLogs request to {}: filter={}", self.base_url, serde_json::to_string(&filter).unwrap_or_default());
 
         let response: JsonRpcResponse<Vec<EvmLog>> = self
             .client
@@ -176,15 +188,21 @@ impl ConnectedEvmClient {
             .context("Failed to parse eth_getLogs response")?;
 
         if let Some(error) = response.error {
+            warn!("JSON-RPC error: {} ({})", error.message, error.code);
             anyhow::bail!("JSON-RPC error: {} ({})", error.message, error.code);
         }
 
         let logs = response.result.unwrap_or_default();
+        info!("Received {} log entries from eth_getLogs", logs.len());
         let mut events = Vec::new();
 
         for log in logs {
-            // Topics: [event_signature, intent_id, escrow, requester]
-            // Data: token (20 bytes) + reserved_solver (20 bytes) = 64 hex chars
+            // EscrowInitialized(uint256 indexed intentId, address indexed escrow, address indexed requester, address token, address reservedSolver, uint256 amount, uint256 expiry)
+            // topics[0] = event signature
+            // topics[1] = intentId (uint256, padded to 32 bytes)
+            // topics[2] = escrow (address, padded to 32 bytes)
+            // topics[3] = requester (address, padded to 32 bytes)
+            // data = abi.encode(token, reservedSolver, amount, expiry) - 4 fields (256 hex chars = 128 bytes)
             if log.topics.len() < 4 {
                 continue; // Invalid event format
             }
@@ -193,14 +211,14 @@ impl ConnectedEvmClient {
             let escrow = format!("0x{}", &log.topics[2][26..]); // Extract last 20 bytes (40 hex chars)
             let requester = format!("0x{}", &log.topics[3][26..]);
 
-            // Parse data: token (32 bytes) + reserved_solver (32 bytes)
+            // Parse data: token (32 bytes), reservedSolver (32 bytes), amount (32 bytes), expiry (32 bytes)
             let data = log.data.strip_prefix("0x").unwrap_or(&log.data);
-            if data.len() < 128 {
-                continue; // Invalid data length
+            if data.len() < 256 {
+                continue; // Invalid data length (4 fields * 64 hex chars)
             }
 
-            let token = format!("0x{}", &data[24..64]); // Extract last 20 bytes from first 32-byte word
-            let reserved_solver = format!("0x{}", &data[88..128]); // Extract last 20 bytes from second 32-byte word
+            let token = format!("0x{}", &data[24..64]); // Extract address from first 32-byte word (skip padding)
+            let reserved_solver = format!("0x{}", &data[88..128]); // Extract address from second 32-byte word
 
             events.push(EscrowInitializedEvent {
                 intent_id,
@@ -251,12 +269,8 @@ impl ConnectedEvmClient {
         amount: u64,
         intent_id: &str,
     ) -> Result<String> {
-        // Determine project root (assume we're in solver/ directory, go up one level)
-        let current_dir = std::env::current_dir().context("Failed to get current directory")?;
-        let project_root = current_dir
-            .parent()
-            .context("Failed to determine project root (expected solver/ to be subdirectory)")?;
-
+        // Solver runs from project root in CI and local E2E tests
+        let project_root = std::env::current_dir().context("Failed to get current directory")?;
         let evm_framework_dir = project_root.join("evm-intent-framework");
         if !evm_framework_dir.exists() {
             anyhow::bail!(
@@ -273,6 +287,9 @@ impl ConnectedEvmClient {
         };
 
         // Call Hardhat script via nix develop
+        // Pass BASE_SEPOLIA_RPC_URL so Hardhat can configure the baseSepolia network
+        // Pass BASE_SOLVER_PRIVATE_KEY for signing (signers[2] in the script)
+        let solver_private_key = std::env::var("BASE_SOLVER_PRIVATE_KEY").unwrap_or_default();
         let output = Command::new("nix")
             .args(&[
                 "develop",
@@ -281,12 +298,15 @@ impl ConnectedEvmClient {
                 "bash",
                 "-c",
                 &format!(
-                    "cd '{}' && TOKEN_ADDRESS='{}' RECIPIENT='{}' AMOUNT='{}' INTENT_ID='{}' npx hardhat run scripts/transfer-with-intent-id.js --network localhost",
+                    "cd '{}' && BASE_SEPOLIA_RPC_URL='{}' BASE_SOLVER_PRIVATE_KEY='{}' TOKEN_ADDRESS='{}' RECIPIENT='{}' AMOUNT='{}' INTENT_ID='{}' npx hardhat run scripts/transfer-with-intent-id.js --network {}",
                     evm_framework_dir.display(),
+                    self.base_url,
+                    solver_private_key,
                     token_address,
                     recipient,
                     amount,
-                    intent_id_evm
+                    intent_id_evm,
+                    self.network_name
                 ),
             ])
             .output()
@@ -367,13 +387,8 @@ impl ConnectedEvmClient {
             format!("0x{}", intent_id)
         };
 
-        // Determine project root (assume we're in solver/ directory, go up one level)
-        // This matches how E2E scripts determine PROJECT_ROOT
-        let current_dir = std::env::current_dir().context("Failed to get current directory")?;
-        let project_root = current_dir
-            .parent()
-            .context("Failed to determine project root (expected solver/ to be subdirectory)")?;
-
+        // Solver runs from project root in CI and local E2E tests
+        let project_root = std::env::current_dir().context("Failed to get current directory")?;
         let evm_framework_dir = project_root.join("evm-intent-framework");
         if !evm_framework_dir.exists() {
             anyhow::bail!(
@@ -383,7 +398,9 @@ impl ConnectedEvmClient {
         }
 
         // Call Hardhat script via npx (using nix develop to ensure correct environment)
-        // This matches the E2E script approach: nix develop "$PROJECT_ROOT" -c bash -c "cd ... && npx hardhat run ..."
+        // Pass BASE_SEPOLIA_RPC_URL so Hardhat can configure the baseSepolia network
+        // Pass BASE_SOLVER_PRIVATE_KEY for signing (signers[2] in the script)
+        let solver_private_key = std::env::var("BASE_SOLVER_PRIVATE_KEY").unwrap_or_default();
         let output = Command::new("nix")
             .args(&[
                 "develop",
@@ -392,11 +409,14 @@ impl ConnectedEvmClient {
                 "bash",
                 "-c",
                 &format!(
-                    "cd '{}' && ESCROW_ADDRESS='{}' INTENT_ID_EVM='{}' SIGNATURE_HEX='{}' npx hardhat run scripts/claim-escrow.js --network localhost",
+                    "cd '{}' && BASE_SEPOLIA_RPC_URL='{}' BASE_SOLVER_PRIVATE_KEY='{}' ESCROW_ADDRESS='{}' INTENT_ID_EVM='{}' SIGNATURE_HEX='{}' npx hardhat run scripts/claim-escrow.js --network {}",
                     evm_framework_dir.display(),
+                    self.base_url,
+                    solver_private_key,
                     escrow_address,
                     intent_id_evm,
-                    signature_hex
+                    signature_hex,
+                    self.network_name
                 ),
             ])
             .output()

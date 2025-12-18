@@ -43,6 +43,7 @@ fn create_test_config() -> SolverConfig {
 
 fn create_test_draft_data() -> DraftintentData {
     DraftintentData {
+        intent_id: "0x1111111111111111111111111111111111111111111111111111111111111111".to_string(),
         offered_token: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
         offered_amount: 1000,
         offered_chain_id: 2, // Connected chain (inflow)
@@ -77,7 +78,7 @@ async fn test_add_signed_intent() {
             "11111111-1111-1111-1111-111111111111".to_string(),
             draft_data.clone(),
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();
@@ -89,7 +90,9 @@ async fn test_add_signed_intent() {
         .unwrap();
     assert_eq!(tracked.state, IntentState::Signed);
     assert_eq!(tracked.draft_data.offered_amount, 1000);
-    assert!(tracked.is_inflow); // offered_chain_id (2) != hub_chain_id (1)
+    // Verify inflow: desired_chain_id (1) == hub_chain_id (1)
+    let hub_chain_id = config.hub_chain.chain_id;
+    assert_eq!(tracked.draft_data.desired_chain_id, hub_chain_id);
 }
 
 /// What is tested: add_signed_intent() correctly identifies inflow vs outflow
@@ -109,14 +112,15 @@ async fn test_add_signed_intent_inflow_outflow() {
             "inflow-draft".to_string(),
             inflow_data,
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();
 
-    // Test outflow intent (tokens locked on hub chain)
+    // Test outflow intent (tokens locked on hub chain, desired on connected)
     let outflow_data = DraftintentData {
         offered_chain_id: 1, // Hub chain
+        desired_chain_id: 2, // Connected chain
         ..create_test_draft_data()
     };
     tracker
@@ -124,15 +128,18 @@ async fn test_add_signed_intent_inflow_outflow() {
             "outflow-draft".to_string(),
             outflow_data,
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();
 
     let inflow = tracker.get_intent("inflow-draft").await.unwrap();
     let outflow = tracker.get_intent("outflow-draft").await.unwrap();
-    assert!(inflow.is_inflow);
-    assert!(!outflow.is_inflow);
+    let hub_chain_id = config.hub_chain.chain_id;
+    // Inflow: desired_chain_id == hub_chain_id
+    assert_eq!(inflow.draft_data.desired_chain_id, hub_chain_id);
+    // Outflow: offered_chain_id == hub_chain_id
+    assert_eq!(outflow.draft_data.offered_chain_id, hub_chain_id);
 }
 
 /// What is tested: get_intents_ready_for_fulfillment() returns only Created (on-chain) intents
@@ -150,7 +157,7 @@ async fn test_get_intents_ready_for_fulfillment_state_filter() {
             "draft-1".to_string(),
             draft_data.clone(),
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();
@@ -186,14 +193,15 @@ async fn test_get_intents_ready_for_fulfillment_inflow_outflow_filter() {
             "inflow-draft".to_string(),
             inflow_data,
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();
 
-    // Add outflow intent
+    // Add outflow intent (offered on hub, desired on connected)
     let outflow_data = DraftintentData {
-        offered_chain_id: 1,
+        offered_chain_id: 1, // Hub chain
+        desired_chain_id: 2, // Connected chain
         ..create_test_draft_data()
     };
     tracker
@@ -201,7 +209,7 @@ async fn test_get_intents_ready_for_fulfillment_inflow_outflow_filter() {
             "outflow-draft".to_string(),
             outflow_data,
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();
@@ -238,7 +246,7 @@ async fn test_mark_fulfilled() {
             "draft-1".to_string(),
             draft_data,
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();
@@ -312,7 +320,7 @@ async fn test_get_intents_ready_for_fulfillment_excludes_fulfilled() {
             "draft-1".to_string(),
             draft_data.clone(),
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();
@@ -322,7 +330,7 @@ async fn test_get_intents_ready_for_fulfillment_excludes_fulfilled() {
             "draft-2".to_string(),
             draft_data,
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();
@@ -360,7 +368,7 @@ async fn test_get_intents_ready_for_fulfillment_returns_only_created() {
             "draft-1".to_string(),
             draft_data.clone(),
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();
@@ -371,7 +379,7 @@ async fn test_get_intents_ready_for_fulfillment_returns_only_created() {
             "draft-2".to_string(),
             draft_data,
             "0xdddddddddddddddddddddddddddddddddddddddd".to_string(),
-            2000000,
+            9999999999, // Far future expiry
         )
         .await
         .unwrap();

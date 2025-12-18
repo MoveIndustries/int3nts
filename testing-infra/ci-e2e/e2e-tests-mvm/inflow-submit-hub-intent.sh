@@ -10,6 +10,11 @@ setup_project_root
 setup_logging "submit-hub-intent"
 cd "$PROJECT_ROOT"
 
+# Verify services are running before proceeding
+verify_verifier_running
+verify_solver_running
+verify_solver_registered
+
 # ============================================================================
 # SECTION 1: LOAD DEPENDENCIES
 # ============================================================================
@@ -39,11 +44,9 @@ log "   Requester Chain 2 (connected): $REQUESTER_CHAIN2_ADDRESS"
 log "   Solver Chain 2 (connected): $SOLVER_CHAIN2_ADDRESS"
 
 EXPIRY_TIME=$(date -d "+1 hour" +%s)
-# Requester and Solver get funded with 1 USDxyz each, transfer 1 USDxyz
-OFFERED_AMOUNT="1000000"  # 1 USDxyz (6 decimals = 1_000_000)
-DESIRED_AMOUNT="1000000"  # 1 USDxyz (6 decimals = 1_000_000)
-OFFERED_CHAIN_ID=$CONNECTED_CHAIN_ID
-DESIRED_CHAIN_ID=1
+# Requester and Solver get funded with 1 USDhub / 1 USDcon each (6 decimals = 1_000_000)
+OFFERED_AMOUNT="1000000"  # 1 USDcon (connected chain, 6 decimals = 1_000_000)
+DESIRED_AMOUNT="1000000"  # 1 USDhub (hub chain, 6 decimals = 1_000_000)
 HUB_CHAIN_ID=1
 EVM_ADDRESS="0x0000000000000000000000000000000000000001"
 
@@ -51,30 +54,30 @@ log ""
 log "🔑 Configuration:"
 log "   Intent ID: $INTENT_ID"
 log "   Expiry time: $EXPIRY_TIME"
-log "   Offered amount: $OFFERED_AMOUNT (1 USDxyz)"
-log "   Desired amount: $DESIRED_AMOUNT (1 USDxyz)"
+log "   Offered amount: $OFFERED_AMOUNT (1 USDcon on connected MVM chain, Chain 2)"
+log "   Desired amount: $DESIRED_AMOUNT (1 USDhub on hub chain, Chain 1)"
 
 log ""
-log "   - Getting USDxyz metadata addresses..."
-log "     Getting USDxyz metadata on Chain 1..."
-USDXYZ_METADATA_CHAIN1=$(get_usdxyz_metadata "0x$TEST_TOKENS_CHAIN1" "1")
-if [ -z "$USDXYZ_METADATA_CHAIN1" ]; then
-    log_and_echo "❌ Failed to get USDxyz metadata on Chain 1"
+log "   - Getting USD token metadata addresses..."
+log "     Getting USDhub metadata on Chain 1..."
+USDHUB_METADATA_CHAIN1=$(get_usdxyz_metadata "0x$TEST_TOKENS_CHAIN1" "1")
+if [ -z "$USDHUB_METADATA_CHAIN1" ]; then
+    log_and_echo "❌ Failed to get USDhub metadata on Chain 1"
     exit 1
 fi
-log "     ✅ Got USDxyz metadata on Chain 1: $USDXYZ_METADATA_CHAIN1"
+log "     ✅ Got USDhub metadata on Chain 1: $USDHUB_METADATA_CHAIN1"
 
-log "     Getting USDxyz metadata on Chain 2..."
-USDXYZ_METADATA_CHAIN2=$(get_usdxyz_metadata "0x$TEST_TOKENS_CHAIN2" "2")
-if [ -z "$USDXYZ_METADATA_CHAIN2" ]; then
-    log_and_echo "❌ Failed to get USDxyz metadata on Chain 2"
+log "     Getting USDcon metadata on Chain 2..."
+USDCON_METADATA_CHAIN2=$(get_usdxyz_metadata "0x$TEST_TOKENS_CHAIN2" "2")
+if [ -z "$USDCON_METADATA_CHAIN2" ]; then
+    log_and_echo "❌ Failed to get USDcon metadata on Chain 2"
     exit 1
 fi
-log "     ✅ Got USDxyz metadata on Chain 2: $USDXYZ_METADATA_CHAIN2"
+log "     ✅ Got USDcon metadata on Chain 2: $USDCON_METADATA_CHAIN2"
 
 # For INFLOW: offered tokens are on connected chain (Chain 2), desired tokens are on hub (Chain 1)
-OFFERED_METADATA_CHAIN2="$USDXYZ_METADATA_CHAIN2"
-DESIRED_METADATA_CHAIN1="$USDXYZ_METADATA_CHAIN1"
+OFFERED_METADATA_CHAIN2="$USDCON_METADATA_CHAIN2"
+DESIRED_METADATA_CHAIN1="$USDHUB_METADATA_CHAIN1"
 log "     Inflow configuration:"
 log "       Offered metadata (connected chain 2): $OFFERED_METADATA_CHAIN2"
 log "       Desired metadata (hub chain 1): $DESIRED_METADATA_CHAIN1"
@@ -89,35 +92,7 @@ display_balances_connected_mvm "0x$TEST_TOKENS_CHAIN2"
 log_and_echo ""
 
 # ============================================================================
-# SECTION 4: REGISTER SOLVER ON-CHAIN (prerequisite for signature validation)
-# ============================================================================
-log ""
-log "   Registering solver on-chain (prerequisite for verifier validation)..."
-
-# Get solver's public key by running sign_intent with a dummy call to extract key
-log "   - Getting solver public key..."
-SOLVER_PUBLIC_KEY_OUTPUT=$(cd "$PROJECT_ROOT" && env HOME="${HOME}" nix develop -c bash -c "cd solver && cargo run --bin sign_intent -- --profile solver-chain1 --chain-address $CHAIN1_ADDRESS --offered-metadata $OFFERED_METADATA_CHAIN2 --offered-amount $OFFERED_AMOUNT --offered-chain-id $OFFERED_CHAIN_ID --desired-metadata $DESIRED_METADATA_CHAIN1 --desired-amount $DESIRED_AMOUNT --desired-chain-id $DESIRED_CHAIN_ID --expiry-time $EXPIRY_TIME --issuer 0x$REQUESTER_CHAIN1_ADDRESS --solver 0x$SOLVER_CHAIN1_ADDRESS --chain-num 1 2>&1" | tee -a "$LOG_FILE")
-
-SOLVER_PUBLIC_KEY=$(echo "$SOLVER_PUBLIC_KEY_OUTPUT" | grep "PUBLIC_KEY:" | tail -1 | sed 's/.*PUBLIC_KEY://')
-if [ -z "$SOLVER_PUBLIC_KEY" ]; then
-    log_and_echo "❌ Failed to extract solver public key"
-    log_and_echo "Command output:"
-    echo "$SOLVER_PUBLIC_KEY_OUTPUT"
-    exit 1
-fi
-log "     ✅ Solver public key: ${SOLVER_PUBLIC_KEY:0:20}..."
-
-log "   - Registering solver in solver registry..."
-register_solver "solver-chain1" "$CHAIN1_ADDRESS" "$SOLVER_PUBLIC_KEY" "$EVM_ADDRESS" "$SOLVER_CHAIN2_ADDRESS" "$LOG_FILE"
-
-log "   - Waiting for solver registration to be confirmed on-chain (5 seconds)..."
-sleep 5
-
-log "   - Verifying solver registration..."
-verify_solver_registered "solver-chain1" "$CHAIN1_ADDRESS" "$SOLVER_CHAIN1_ADDRESS" "$LOG_FILE"
-
-# ============================================================================
-# SECTION 5: VERIFIER-BASED NEGOTIATION ROUTING
+# SECTION 4: VERIFIER-BASED NEGOTIATION ROUTING
 # ============================================================================
 log ""
 log "🔄 Starting verifier-based negotiation routing..."
@@ -129,10 +104,10 @@ log "   Step 1: Requester submits draft intent to verifier..."
 DRAFT_DATA=$(build_draft_data \
     "$OFFERED_METADATA_CHAIN2" \
     "$OFFERED_AMOUNT" \
-    "$OFFERED_CHAIN_ID" \
+    "$CONNECTED_CHAIN_ID" \
     "$DESIRED_METADATA_CHAIN1" \
     "$DESIRED_AMOUNT" \
-    "$DESIRED_CHAIN_ID" \
+    "$HUB_CHAIN_ID" \
     "$EXPIRY_TIME" \
     "$INTENT_ID" \
     "$REQUESTER_CHAIN1_ADDRESS" \
@@ -158,13 +133,50 @@ RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_address')
 
 if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
     log_and_echo "❌ ERROR: Failed to retrieve signature from verifier"
+    log_and_echo ""
+    log_and_echo "🔍 Diagnostics:"
+    
+    # Check if solver is running
+    SOLVER_LOG_FILE="$PROJECT_ROOT/.tmp/e2e-tests/solver.log"
+    if [ -f "$PROJECT_ROOT/.tmp/e2e-tests/solver.pid" ]; then
+        SOLVER_PID=$(cat "$PROJECT_ROOT/.tmp/e2e-tests/solver.pid")
+        if ps -p "$SOLVER_PID" > /dev/null 2>&1; then
+            log_and_echo "   ✅ Solver process is running (PID: $SOLVER_PID)"
+        else
+            log_and_echo "   ❌ Solver process is NOT running (PID: $SOLVER_PID)"
+        fi
+    else
+        log_and_echo "   ❌ Solver PID file not found"
+    fi
+    
+    # Show solver log
+    if [ -f "$SOLVER_LOG_FILE" ]; then
+        log_and_echo ""
+        log_and_echo "   📋 Solver log (last 100 lines):"
+        log_and_echo "   ----------------------------------------"
+        tail -100 "$SOLVER_LOG_FILE" | while read line; do log_and_echo "   $line"; done
+        log_and_echo "   ----------------------------------------"
+    else
+        log_and_echo "   ⚠️  Solver log file not found: $SOLVER_LOG_FILE"
+    fi
+    
+    # Show verifier log
+    VERIFIER_LOG_FILE="$PROJECT_ROOT/.tmp/e2e-tests/verifier.log"
+    if [ -f "$VERIFIER_LOG_FILE" ]; then
+        log_and_echo ""
+        log_and_echo "   📋 Verifier log (last 30 lines):"
+        log_and_echo "   ----------------------------------------"
+        tail -30 "$VERIFIER_LOG_FILE" | while read line; do log_and_echo "   $line"; done
+        log_and_echo "   ----------------------------------------"
+    fi
+    
     exit 1
 fi
 log "     ✅ Retrieved signature from solver: $RETRIEVED_SOLVER"
 log "     Signature: ${RETRIEVED_SIGNATURE:0:20}..."
 
 # ============================================================================
-# SECTION 6: CREATE INTENT ON-CHAIN WITH RETRIEVED SIGNATURE
+# SECTION 5: CREATE INTENT ON-CHAIN WITH RETRIEVED SIGNATURE
 # ============================================================================
 log ""
 log "   Creating cross-chain intent on Chain 1..."
@@ -175,10 +187,10 @@ log "     Solver address: $RETRIEVED_SOLVER"
 SOLVER_SIGNATURE_HEX="${RETRIEVED_SIGNATURE#0x}"
 aptos move run --profile requester-chain1 --assume-yes \
     --function-id "0x${CHAIN1_ADDRESS}::fa_intent_inflow::create_inflow_intent_entry" \
-    --args "address:${OFFERED_METADATA_CHAIN2}" "u64:${OFFERED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "address:${DESIRED_METADATA_CHAIN1}" "u64:${DESIRED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${RETRIEVED_SOLVER}" "hex:${SOLVER_SIGNATURE_HEX}" >> "$LOG_FILE" 2>&1
+    --args "address:${OFFERED_METADATA_CHAIN2}" "u64:${OFFERED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "address:${DESIRED_METADATA_CHAIN1}" "u64:${DESIRED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${RETRIEVED_SOLVER}" "hex:${SOLVER_SIGNATURE_HEX}" "address:${REQUESTER_CHAIN2_ADDRESS}" >> "$LOG_FILE" 2>&1
 
 # ============================================================================
-# SECTION 7: VERIFY RESULTS
+# SECTION 6: VERIFY RESULTS
 # ============================================================================
 if [ $? -eq 0 ]; then
     log "     ✅ Request-intent created on Chain 1!"
@@ -205,7 +217,7 @@ else
 fi
 
 # ============================================================================
-# SECTION 8: FINAL SUMMARY
+# SECTION 7: FINAL SUMMARY
 # ============================================================================
 log ""
 display_balances_hub "0x$TEST_TOKENS_CHAIN1"

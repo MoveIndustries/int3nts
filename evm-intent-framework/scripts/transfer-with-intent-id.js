@@ -32,11 +32,35 @@ async function main() {
     throw error;
   }
 
-  const signers = await hre.ethers.getSigners();
-  const solver = signers[2];
-
-  const ERC20 = await hre.ethers.getContractFactory("MockERC20");
-  const token = ERC20.attach(tokenAddress);
+  // Get solver signer
+  // For in-memory Hardhat network (unit tests): use hre.ethers.getSigners()
+  // For external networks (E2E tests): use raw ethers to avoid HardhatEthersProvider.resolveName bug
+  let solver;
+  
+  if (hre.network.name === "hardhat") {
+    // In-memory Hardhat network (unit tests) - getSigners() works fine here
+    const signers = await hre.ethers.getSigners();
+    if (signers.length < 3) {
+      throw new Error(`Expected at least 3 signers, got ${signers.length}`);
+    }
+    solver = signers[2];
+  } else if (process.env.BASE_SOLVER_PRIVATE_KEY) {
+    // Testnet: Create wallet from private key using raw ethers
+    const { ethers } = require("ethers");
+    const rpcUrl = hre.network.config.url || "http://127.0.0.1:8545";
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    solver = new ethers.Wallet(process.env.BASE_SOLVER_PRIVATE_KEY, provider);
+  } else {
+    // External network (E2E tests): use raw ethers to avoid resolveName bug
+    const { ethers } = require("ethers");
+    const rpcUrl = hre.network.config.url || "http://127.0.0.1:8545";
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const accounts = await provider.send("eth_accounts", []);
+    if (accounts.length < 3) {
+      throw new Error(`Expected at least 3 accounts from Hardhat node, got ${accounts.length}`);
+    }
+    solver = await provider.getSigner(accounts[2]);
+  }
 
   const amountBigInt = BigInt(amount);
   const selector = "0xa9059cbb";
@@ -51,8 +75,17 @@ async function main() {
   
   const data = selector + recipientPadded + amountPadded + intentIdPadded;
 
+  // Extract 20-byte EVM address from potentially 32-byte padded format
+  // 32-byte format: 0x000000000000000000000000<20-byte-address>
+  // 20-byte format: 0x<20-byte-address>
+  let evmTokenAddress = tokenAddress;
+  if (tokenAddress.length === 66) {
+    // 32-byte padded (0x + 64 chars) - extract last 40 chars
+    evmTokenAddress = "0x" + tokenAddress.slice(-40);
+  }
+
   const tx = await solver.sendTransaction({
-    to: tokenAddress,
+    to: hre.ethers.getAddress(evmTokenAddress),
     data: data,
   });
 

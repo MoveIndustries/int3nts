@@ -69,7 +69,7 @@ impl OutflowService {
 
     /// Polls for pending outflow intents and executes transfers on connected chain
     ///
-    /// This function queries the tracker for pending outflow intents (Created state, is_inflow = false)
+    /// This function queries the tracker for pending outflow intents (Created state, offered_chain_id == hub_chain_id)
     /// and executes token transfers on the connected chain to the requester's address.
     ///
     /// # Returns
@@ -77,7 +77,7 @@ impl OutflowService {
     /// * `Ok(Vec<(TrackedIntent, String)>)` - List of (intent, transaction_hash) pairs for transfers executed
     /// * `Err(anyhow::Error)` - Failed to execute transfers
     pub async fn poll_and_execute_transfers(&self) -> Result<Vec<(TrackedIntent, String)>> {
-        // Get pending outflow intents (Created state, is_inflow = false)
+        // Get pending outflow intents (Created state, offered_chain_id == hub_chain_id)
         let pending_intents = self
             .tracker
             .get_intents_ready_for_fulfillment(Some(false))
@@ -160,12 +160,10 @@ impl OutflowService {
     ///
     /// * `Ok(String)` - Requester address on connected chain
     /// * `Err(anyhow::Error)` - Failed to query intent object
-    async fn get_requester_address_connected_chain(&self, _intent: &TrackedIntent) -> Result<String> {
-        // TODO: Query intent object on hub chain to get requester_address_connected_chain field
-        // For now, return an error to indicate this needs to be implemented
-        anyhow::bail!(
-            "get_requester_address_connected_chain not yet implemented. Need to query intent object on hub chain."
-        )
+    async fn get_requester_address_connected_chain(&self, intent: &TrackedIntent) -> Result<String> {
+        // Get from tracked intent (set when on-chain event was detected)
+        intent.requester_address_connected_chain.clone()
+            .context("requester_address_connected_chain not set. This may happen if the intent is inflow (not outflow) or the event data didn't include this field.")
     }
 
     /// Gets verifier approval for an outflow fulfillment transaction

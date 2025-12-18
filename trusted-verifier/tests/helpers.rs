@@ -4,7 +4,7 @@
 
 use base64::{engine::general_purpose, Engine as _};
 use ed25519_dalek::SigningKey;
-use rand::RngCore;
+use rand::{Rng, RngCore};
 use trusted_verifier::config::{ApiConfig, ChainConfig, Config, EvmChainConfig, VerifierConfig};
 use trusted_verifier::evm_client::EvmTransaction;
 use trusted_verifier::monitor::{ChainType, EscrowEvent, FulfillmentEvent, IntentEvent};
@@ -12,7 +12,8 @@ use trusted_verifier::mvm_client::MvmTransaction;
 use trusted_verifier::validator::FulfillmentTransactionParams;
 
 /// Build a valid in-memory test configuration with a fresh Ed25519 keypair.
-/// Keys are encoded using standard Base64 to satisfy CryptoService requirements.
+/// Keys are encoded using standard Base64 and set as environment variables.
+/// The config references these env vars via private_key_env/public_key_env.
 #[allow(dead_code)]
 pub fn build_test_config_with_mvm() -> Config {
     let mut rng = rand::thread_rng();
@@ -23,6 +24,15 @@ pub fn build_test_config_with_mvm() -> Config {
 
     let private_key_b64 = general_purpose::STANDARD.encode(signing_key.to_bytes());
     let public_key_b64 = general_purpose::STANDARD.encode(verifying_key.to_bytes());
+
+    // Use unique env var names per invocation to avoid parallel test conflicts
+    let unique_id: u64 = rng.gen();
+    let private_key_env_name = format!("TEST_VERIFIER_PRIVATE_KEY_{}", unique_id);
+    let public_key_env_name = format!("TEST_VERIFIER_PUBLIC_KEY_{}", unique_id);
+
+    // Set environment variables for the keys (CryptoService reads from env vars)
+    std::env::set_var(&private_key_env_name, &private_key_b64);
+    std::env::set_var(&public_key_env_name, &public_key_b64);
 
     Config {
         hub_chain: ChainConfig {
@@ -42,8 +52,8 @@ pub fn build_test_config_with_mvm() -> Config {
             known_accounts: Some(vec!["0x2".to_string()]),
         }),
         verifier: VerifierConfig {
-            private_key: private_key_b64,
-            public_key: public_key_b64,
+            private_key_env: private_key_env_name,
+            public_key_env: public_key_env_name,
             polling_interval_ms: 1000,
             validation_timeout_ms: 1000,
         },
@@ -105,6 +115,7 @@ pub fn create_base_intent_mvm() -> IntentEvent {
 
 /// Create a base intent event with default test values for EVM connected chain.
 /// This uses `create_base_intent_mvm()` as a base and overrides EVM-specific fields.
+/// For inflow intents, offered_metadata uses {"token":"0x..."} format to match EVM escrow format.
 /// This can be customized using Rust's struct update syntax:
 /// ```
 /// let intent = create_base_intent_evm();
@@ -117,6 +128,7 @@ pub fn create_base_intent_mvm() -> IntentEvent {
 #[allow(dead_code)]
 pub fn create_base_intent_evm() -> IntentEvent {
     IntentEvent {
+        offered_metadata: r#"{"token":"0xcccccccccccccccccccccccccccccccccccccccc"}"#.to_string(), // EVM token address format for cross-chain
         reserved_solver: Some("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string()), // EVM address format (20 bytes)
         connected_chain_id: Some(31337), // EVM chain ID (matches build_test_config_with_evm)
         requester_address_connected_chain: Some(
@@ -150,7 +162,7 @@ pub fn create_base_fulfillment() -> FulfillmentEvent {
     }
 }
 
-/// Create a base escrow event with default test values.
+/// Create a base escrow event with default test values for Move VM connected chain.
 /// This can be customized using Rust's struct update syntax:
 /// ```
 /// let escrow = create_base_escrow_event();
@@ -178,6 +190,28 @@ pub fn create_base_escrow_event() -> EscrowEvent {
         ),
         chain_id: 2,
         chain_type: ChainType::Mvm,
+        timestamp: 0, // Should be set explicitly in tests
+    }
+}
+
+/// Create a base escrow event with default test values for EVM connected chain.
+/// This reflects real EVM escrow behavior where desired_metadata is always empty
+/// because the EVM IntentEscrow contract doesn't store this field.
+#[allow(dead_code)]
+pub fn create_base_escrow_event_evm() -> EscrowEvent {
+    EscrowEvent {
+        escrow_id: "0x1111111111111111111111111111111111111111111111111111111111111111".to_string(), // For EVM, escrow_id = intent_id
+        intent_id: "0x1111111111111111111111111111111111111111111111111111111111111111".to_string(),
+        issuer: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(), // EVM address format (20 bytes)
+        offered_metadata: "{\"token\":\"0xcccccccccccccccccccccccccccccccccccccccc\"}".to_string(), // Token address in JSON
+        offered_amount: 1000,
+        desired_metadata: "{}".to_string(), // EVM escrows don't store desired_metadata on-chain
+        desired_amount: 0, // Not used for EVM inflow escrows
+        expiry_time: 0,    // Should be set explicitly in tests
+        revocable: false,
+        reserved_solver: Some("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string()), // EVM address format (20 bytes)
+        chain_id: 31337, // Matches build_test_config_with_evm
+        chain_type: ChainType::Evm,
         timestamp: 0, // Should be set explicitly in tests
     }
 }

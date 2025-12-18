@@ -72,6 +72,10 @@ pub struct EscrowInitializedEvent {
     pub token: String,
     /// Reserved solver address (from data)
     pub reserved_solver: String,
+    /// Amount deposited in escrow (from data)
+    pub amount: u64,
+    /// Expiry timestamp (from data)
+    pub expiry: u64,
     /// Block number
     pub block_number: String,
     /// Transaction hash
@@ -139,6 +143,7 @@ impl EvmClient {
     pub fn new(node_url: &str, escrow_contract_address: &str) -> Result<Self> {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
+            .no_proxy() // Avoid macOS system-configuration issues in tests
             .build()
             .context("Failed to create HTTP client")?;
 
@@ -169,11 +174,11 @@ impl EvmClient {
         from_block: Option<u64>,
         to_block: Option<u64>,
     ) -> Result<Vec<EscrowInitializedEvent>> {
-        // EscrowInitialized event signature: keccak256("EscrowInitialized(uint256,address,address,address,address)")
+        // EscrowInitialized event signature: keccak256("EscrowInitialized(uint256,address,address,address,address,uint256,uint256)")
         // Note: indexed parameters don't affect the signature, only the types matter
-        // Event: EscrowInitialized(uint256 indexed intentId, address indexed escrow, address indexed requester, address token, address reservedSolver)
-        // Signature string: "EscrowInitialized(uint256,address,address,address,address)"
-        let signature_string = "EscrowInitialized(uint256,address,address,address,address)";
+        // Event: EscrowInitialized(uint256 indexed intentId, address indexed escrow, address indexed requester, address token, address reservedSolver, uint256 amount, uint256 expiry)
+        // Signature string: "EscrowInitialized(uint256,address,address,address,address,uint256,uint256)"
+        let signature_string = "EscrowInitialized(uint256,address,address,address,address,uint256,uint256)";
         let mut hasher = Keccak256::new();
         hasher.update(signature_string.as_bytes());
         let hash = hasher.finalize();
@@ -230,12 +235,12 @@ impl EvmClient {
         let mut events = Vec::new();
 
         for log in logs {
-            // EscrowInitialized(uint256 indexed intentId, address indexed escrow, address indexed requester, address token, address reservedSolver)
+            // EscrowInitialized(uint256 indexed intentId, address indexed escrow, address indexed requester, address token, address reservedSolver, uint256 amount, uint256 expiry)
             // topics[0] = event signature
             // topics[1] = intentId (uint256, padded to 32 bytes)
             // topics[2] = escrow (address, padded to 32 bytes)
             // topics[3] = requester (address, padded to 32 bytes)
-            // data = abi.encode(token, reservedSolver) - two addresses (64 bytes total)
+            // data = abi.encode(token, reservedSolver, amount, expiry) - 4 fields (128 bytes total)
 
             if log.topics.len() < 4 {
                 continue; // Invalid event format
@@ -245,14 +250,16 @@ impl EvmClient {
             let escrow = format!("0x{}", &log.topics[2][26..]); // Extract address from padded topic
             let requester = format!("0x{}", &log.topics[3][26..]); // Extract address from padded topic
 
-            // Parse data: two addresses (64 hex chars = 32 bytes each)
+            // Parse data: token (32 bytes), reservedSolver (32 bytes), amount (32 bytes), expiry (32 bytes)
             let data = log.data.strip_prefix("0x").unwrap_or(&log.data);
-            if data.len() < 128 {
-                continue; // Invalid data length
+            if data.len() < 256 {
+                continue; // Invalid data length (4 fields * 64 hex chars)
             }
 
             let token = format!("0x{}", &data[24..64]); // Extract address from data (skip padding)
             let reserved_solver = format!("0x{}", &data[88..128]); // Extract second address
+            let amount = u64::from_str_radix(&data[128..192], 16).unwrap_or(0); // Extract amount
+            let expiry = u64::from_str_radix(&data[192..256], 16).unwrap_or(0); // Extract expiry
 
             events.push(EscrowInitializedEvent {
                 intent_id,
@@ -260,6 +267,8 @@ impl EvmClient {
                 requester,
                 token,
                 reserved_solver,
+                amount,
+                expiry,
                 block_number: log.block_number,
                 transaction_hash: log.transaction_hash,
             });

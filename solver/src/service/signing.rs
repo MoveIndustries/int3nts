@@ -210,9 +210,21 @@ impl SigningService {
 
         // Get private key, intent hash, and sign - all blocking operations
         let (signature_hex, public_key_hex) = tokio::task::spawn_blocking(move || -> Result<(String, String)> {
-            // Get private key
-            let private_key = get_private_key_from_profile(&profile)
-                .context("Failed to get private key from profile")?;
+            // Get private key - check env var first (testnet mode), fall back to profile (E2E mode)
+            let private_key = if let Ok(key_str) = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY") {
+                let key_hex = key_str.strip_prefix("0x").unwrap_or(&key_str);
+                let key_bytes = hex::decode(key_hex)
+                    .context("Failed to decode MOVEMENT_SOLVER_PRIVATE_KEY from hex")?;
+                if key_bytes.len() != 32 {
+                    anyhow::bail!("MOVEMENT_SOLVER_PRIVATE_KEY must be 32 bytes (64 hex chars)");
+                }
+                let mut key_array = [0u8; 32];
+                key_array.copy_from_slice(&key_bytes);
+                key_array
+            } else {
+                get_private_key_from_profile(&profile)
+                    .context("Failed to get private key from profile or MOVEMENT_SOLVER_PRIVATE_KEY env var")?
+            };
 
             // Get intent hash
             let hash = get_intent_hash(
@@ -243,7 +255,7 @@ impl SigningService {
         })
         .await
         .context("Failed to spawn blocking task for signing")?
-        .context("Signing failed")?;
+        .map_err(|e| anyhow::anyhow!("Signing failed: {:?}", e))?;
 
         // Get solver address again for submission
         let solver_address = self.config.solver.address.clone();
@@ -310,6 +322,7 @@ pub fn parse_draft_data(draft_data: &Value) -> Result<DraftintentData> {
     // Extract fields from draft_data JSON
     // Expected format (simple strings for metadata, strings for numbers):
     // {
+    //   "intent_id": "0x...",
     //   "offered_metadata": "0x...",
     //   "offered_amount": "1000",
     //   "offered_chain_id": "1",
@@ -317,6 +330,10 @@ pub fn parse_draft_data(draft_data: &Value) -> Result<DraftintentData> {
     //   "desired_amount": "2000",
     //   "desired_chain_id": "2",
     // }
+
+    let intent_id = draft_data["intent_id"]
+        .as_str()
+        .context("Missing or invalid intent_id")?;
 
     let offered_metadata = draft_data["offered_metadata"]
         .as_str()
@@ -351,6 +368,7 @@ pub fn parse_draft_data(draft_data: &Value) -> Result<DraftintentData> {
         .context("desired_chain_id must be a valid number")?;
 
     Ok(DraftintentData {
+        intent_id: intent_id.to_string(),
         offered_token: offered_metadata.to_string(),
         offered_amount,
         offered_chain_id,

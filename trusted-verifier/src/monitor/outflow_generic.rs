@@ -4,10 +4,12 @@
 //! Outflow intents have tokens locked on the hub chain and request tokens on the connected chain.
 
 use anyhow::Result;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{error, info};
 
 use super::generic::{EventMonitor, FulfillmentEvent, IntentEvent};
 use super::hub_mvm;
+use super::inflow_generic;
 
 // ============================================================================
 // HUB CHAIN MONITORING
@@ -34,21 +36,25 @@ pub async fn monitor_hub_chain(monitor: &EventMonitor) -> Result<()> {
         match poll_hub_events(monitor).await {
             Ok(events) => {
                 for event in events {
-                    info!("Received intent event: {:?}", event);
-
                     // CRITICAL SECURITY CHECK: Reject revocable intents
                     if event.revocable {
                         error!("SECURITY: Rejecting revocable intent {} from {} - NOT safe for escrow", event.intent_id, event.requester);
                         continue; // Skip this event - do not cache or process
                     }
 
-                    info!(
-                        "Request-intent {} is non-revocable - safe for escrow",
-                        event.intent_id
-                    );
+                    // Skip expired intents
+                    let current_time = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs();
+                    if event.expiry_time < current_time {
+                        // Don't log every expired intent on every poll - just skip silently
+                        continue;
+                    }
 
-                    // Cache the event for API access (only non-revocable events)
-                    {
+                    // Cache the event for API access (only non-revocable, non-expired events)
+                    // Only log new events (not already in cache)
+                    let is_new_intent = {
                         let intent_id = event.intent_id.clone();
                         let mut cache = monitor.event_cache.write().await;
                         // Check if this intent_id already exists in the cache (normalize for comparison)
@@ -58,7 +64,23 @@ pub async fn monitor_hub_chain(monitor: &EventMonitor) -> Result<()> {
                             crate::monitor::generic::normalize_intent_id(&cached.intent_id)
                                 == normalized_intent_id
                         }) {
-                            cache.push(event);
+                            // Only log new events
+                            info!("New intent event: {} from {}", event.intent_id, event.requester);
+                            info!(
+                                "Request-intent {} is non-revocable - safe for escrow",
+                                event.intent_id
+                            );
+                            cache.push(event.clone());
+                            true
+                        } else {
+                            false
+                        }
+                    };
+
+                    // If this is a new intent, try validation for any escrows/fulfillments
+                    if is_new_intent {
+                        if let Err(e) = inflow_generic::try_validate_for_intent(monitor, &event.intent_id).await {
+                            error!("Failed to validate for intent {}: {}", event.intent_id, e);
                         }
                     }
                 }

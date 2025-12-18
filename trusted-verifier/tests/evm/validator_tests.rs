@@ -323,3 +323,38 @@ async fn test_error_handling_for_registry_query_failures() {
         error_msg
     );
 }
+
+/// Test that validate_evm_escrow_solver rejects when intent has no reserved solver
+/// Why: Verify error handling when intent doesn't have a solver
+#[tokio::test]
+async fn test_rejection_when_intent_has_no_solver() {
+    let _ = tracing_subscriber::fmt::try_init();
+
+    let (_mock_server, config, _validator) = setup_mock_server_with_evm_address_response(
+        "0xsolver_mvm",
+        Some("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+    )
+    .await;
+
+    let intent = create_test_intent(None); // No solver
+
+    let escrow_reserved_solver = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let result = trusted_verifier::validator::inflow_evm::validate_evm_escrow_solver(
+        &intent,
+        escrow_reserved_solver,
+        &config.hub_chain.rpc_url,
+        &config.hub_chain.intent_module_address,
+    )
+    .await;
+
+    assert!(result.is_ok(), "Validation should complete without error");
+    let validation_result = result.unwrap();
+    assert!(
+        !validation_result.valid,
+        "Validation should fail when intent has no reserved solver"
+    );
+    assert!(
+        validation_result.message.contains("does not have a reserved solver"),
+        "Error message should indicate intent has no solver"
+    );
+}

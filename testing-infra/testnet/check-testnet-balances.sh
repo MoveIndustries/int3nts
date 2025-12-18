@@ -3,7 +3,7 @@
 # Check Testnet Balances Script
 # Checks balances for all accounts in .testnet-keys.env
 # Supports:
-#   - Movement Bardock Testnet (MOVE, USDC)
+#   - Movement Bardock Testnet (MOVE, USDC.e)
 #   - Base Sepolia (ETH, USDC)
 #   - Ethereum Sepolia (ETH, USDC)
 # 
@@ -71,7 +71,7 @@ fi
 MOVEMENT_USDC_ADDRESS=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 MOVEMENT_USDC_DECIMALS=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
 if [ -n "$MOVEMENT_USDC_ADDRESS" ] && [ -z "$MOVEMENT_USDC_DECIMALS" ]; then
-    echo "❌ ERROR: Movement USDC address configured but decimals not found in testnet-assets.toml"
+    echo "❌ ERROR: Movement USDC.e address configured but decimals not found in testnet-assets.toml"
     echo "   Add usdc_decimals = 6 to [movement_bardock_testnet] section"
     exit 1
 fi
@@ -109,6 +109,16 @@ BASE_RPC_URL=$(grep -A 5 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_
 if [ -z "$BASE_RPC_URL" ]; then
     echo "⚠️  WARNING: Base Sepolia RPC URL not found in testnet-assets.toml"
     echo "   Base Sepolia balance checks will fail"
+fi
+
+# Substitute API key in Base Sepolia RPC URL if placeholder is present
+if [[ "$BASE_RPC_URL" == *"ALCHEMY_API_KEY"* ]]; then
+    if [ -n "$ALCHEMY_BASE_SEPOLIA_API_KEY" ]; then
+        BASE_RPC_URL="${BASE_RPC_URL/ALCHEMY_API_KEY/$ALCHEMY_BASE_SEPOLIA_API_KEY}"
+    else
+        echo "⚠️  WARNING: ALCHEMY_BASE_SEPOLIA_API_KEY not set in .testnet-keys.env"
+        echo "   Base Sepolia balance checks will fail"
+    fi
 fi
 
 SEPOLIA_RPC_URL=$(grep -A 5 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
@@ -149,11 +159,13 @@ get_movement_balance() {
     fi
 }
 
-# Function to get Movement USDC balance (fungible asset or coin)
+# Function to get Movement USDC balance (Fungible Asset)
 get_movement_usdc_balance() {
     local address="$1"
-    # Remove 0x prefix if present
-    address="${address#0x}"
+    # Ensure address has 0x prefix
+    if [[ ! "$address" =~ ^0x ]]; then
+        address="0x${address}"
+    fi
     
     # If USDC address is not configured, return 0
     if [ -z "$MOVEMENT_USDC_ADDRESS" ] || [ "$MOVEMENT_USDC_ADDRESS" = "" ]; then
@@ -161,18 +173,18 @@ get_movement_usdc_balance() {
         return
     fi
     
-    # Try to get USDC balance
-    # If USDC is deployed as a coin type:
-    # local balance=$(curl -s "${MOVEMENT_RPC_URL}/accounts/${address}/resource/0x1::coin::CoinStore<${MOVEMENT_USDC_ADDRESS}::usdc::USDC>" \
-    #     | jq -r '.data.coin.value // 0' 2>/dev/null)
+    # Query USDC.e balance via view function API (Fungible Asset)
+    # USDC.e is deployed as a Fungible Asset, use primary_fungible_store::balance
+    local balance=$(curl -s --max-time 10 -X POST "${MOVEMENT_RPC_URL}/view" \
+        -H "Content-Type: application/json" \
+        -d "{\"function\":\"0x1::primary_fungible_store::balance\",\"type_arguments\":[\"0x1::fungible_asset::Metadata\"],\"arguments\":[\"$address\",\"${MOVEMENT_USDC_ADDRESS}\"]}" \
+        | jq -r '.[0] // "0"' 2>/dev/null)
     
-    # If USDC is deployed as a fungible asset, query the fungible asset store
-    # This is a placeholder - actual implementation depends on USDC deployment
-    # For now, return 0
-    echo "0"
-    
-    # TODO: Implement based on actual USDC deployment on Movement testnet
-    # Update this function once USDC is deployed and we know its type
+    if [ -z "$balance" ] || [ "$balance" = "null" ]; then
+        echo "0"
+    else
+        echo "$balance"
+    fi
 }
 
 # Function to get EVM ETH balance (works for any EVM chain)
@@ -288,10 +300,10 @@ else
     usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_DEPLOYER_ADDRESS")
     echo "   Deployer  ($MOVEMENT_DEPLOYER_ADDRESS)"
     if [ -n "$MOVEMENT_USDC_ADDRESS" ]; then
-        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC")
+        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
         echo "             $formatted, $usdc_formatted"
     else
-        echo "             $formatted (USDC n/a)"
+        echo "             $formatted (USDC.e n/a)"
     fi
 fi
 
@@ -303,10 +315,10 @@ else
     usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_REQUESTER_ADDRESS")
     echo "   Requester ($MOVEMENT_REQUESTER_ADDRESS)"
     if [ -n "$MOVEMENT_USDC_ADDRESS" ]; then
-        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC")
+        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
         echo "             $formatted, $usdc_formatted"
     else
-        echo "             $formatted (USDC n/a)"
+        echo "             $formatted (USDC.e n/a)"
     fi
 fi
 
@@ -318,10 +330,10 @@ else
     usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_SOLVER_ADDRESS")
     echo "   Solver    ($MOVEMENT_SOLVER_ADDRESS)"
     if [ -n "$MOVEMENT_USDC_ADDRESS" ]; then
-        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC")
+        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
         echo "             $formatted, $usdc_formatted"
     else
-        echo "             $formatted (USDC n/a)"
+        echo "             $formatted (USDC.e n/a)"
     fi
 fi
 
@@ -432,8 +444,8 @@ fi
 
 echo ""
 if [ -z "$MOVEMENT_USDC_ADDRESS" ] || [ "$MOVEMENT_USDC_ADDRESS" = "" ]; then
-    echo "💡 Note: Movement USDC address not configured in testnet-assets.toml"
-    echo "   Add USDC deployment address to check Movement USDC balances"
+    echo "💡 Note: Movement USDC.e address not configured in testnet-assets.toml"
+    echo "   Add USDC.e deployment address to check Movement USDC.e balances"
 fi
 echo "   Config file: $ASSETS_CONFIG_FILE"
 echo ""

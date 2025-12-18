@@ -38,7 +38,7 @@ setup_project_root() {
 
 # Setup logging functions and directory
 # Usage: setup_logging "script-name"
-# Creates log file: .tmp/intent-framework-logs/script-name_TIMESTAMP.log
+# Creates log file: .tmp/e2e-tests/script-name.log
 setup_logging() {
     local script_name="${1:-script}"
     
@@ -46,47 +46,160 @@ setup_logging() {
         setup_project_root
     fi
     
-    LOG_DIR="$PROJECT_ROOT/.tmp/intent-framework-logs"
+    LOG_DIR="$PROJECT_ROOT/.tmp/e2e-tests"
     mkdir -p "$LOG_DIR"
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    LOG_FILE="$LOG_DIR/${script_name}_${TIMESTAMP}.log"
+    LOG_FILE="$LOG_DIR/${script_name}.log"
     
-    export LOG_DIR LOG_FILE TIMESTAMP
+    export LOG_DIR LOG_FILE
 }
 
 # Helper function to print important messages to terminal (also logs them)
 log_and_echo() {
     echo "$@"
     [ -n "$LOG_FILE" ] && echo "$@" >> "$LOG_FILE"
+    return 0  # Prevent set -e from exiting on [ -n "$LOG_FILE" ] returning false
 }
 
 # Helper function to write only to log file (not terminal)
 log() {
     echo "$@"
     [ -n "$LOG_FILE" ] && echo "$@" >> "$LOG_FILE"
+    return 0  # Prevent set -e from exiting on [ -n "$LOG_FILE" ] returning false
 }
 
 # Setup verifier configuration
-# Usage: setup_verifier_config
-# Sets up the verifier testing configuration file path and exports it
-# This function is used by configure-verifier.sh scripts and e2e tests
-setup_verifier_config() {
+# Usage: generate_verifier_keys
+# Generates fresh ephemeral keys for E2E/CI testing and exports them as env vars.
+# Also creates a minimal config file so get_verifier_eth_address can read the keys.
+# Keys are saved to testing-infra/ci-e2e/.verifier-keys.env during the test run,
+# but cleanup deletes this file at the start of each test run, ensuring fresh keys every time.
+# If keys already exist (from a previous call in same test run), loads them instead.
+generate_verifier_keys() {
     if [ -z "$PROJECT_ROOT" ]; then
         setup_project_root
     fi
 
-    VERIFIER_TESTING_CONFIG="$PROJECT_ROOT/trusted-verifier/config/verifier_testing.toml"
+    VERIFIER_KEYS_FILE="$PROJECT_ROOT/testing-infra/ci-e2e/.verifier-keys.env"
+    VERIFIER_CONFIG_FILE="$PROJECT_ROOT/trusted-verifier/config/verifier-e2e-ci-testing.toml"
 
-    if [ ! -f "$VERIFIER_TESTING_CONFIG" ]; then
-        log_and_echo "❌ ERROR: verifier_testing.toml not found at $VERIFIER_TESTING_CONFIG"
-        log_and_echo "   Tests require trusted-verifier/config/verifier_testing.toml to exist"
-        exit 1
+    # If keys already exist, just load them
+    if [ -f "$VERIFIER_KEYS_FILE" ]; then
+        source "$VERIFIER_KEYS_FILE"
+        export E2E_VERIFIER_PRIVATE_KEY
+        export E2E_VERIFIER_PUBLIC_KEY
+        log_and_echo "   ✅ Loaded existing ephemeral keys"
+        return
     fi
 
-    # Export config path for Rust code to use (absolute path so tests can find it)
-    export VERIFIER_CONFIG_PATH="$VERIFIER_TESTING_CONFIG"
+    log_and_echo "   Generating ephemeral test keys..."
+    cd "$PROJECT_ROOT/trusted-verifier"
+    
+    # Build and run generate_keys, capture output
+    KEYS_OUTPUT=$(cargo run --bin generate_keys 2>/dev/null)
+    
+    # Extract keys from output
+    PRIVATE_KEY=$(echo "$KEYS_OUTPUT" | grep "Private Key (base64):" | sed 's/.*: //')
+    PUBLIC_KEY=$(echo "$KEYS_OUTPUT" | grep "Public Key (base64):" | sed 's/.*: //')
+    
+    if [ -z "$PRIVATE_KEY" ] || [ -z "$PUBLIC_KEY" ]; then
+        log_and_echo "❌ ERROR: Failed to generate test keys"
+        exit 1
+    fi
+    
+    # Export keys as environment variables (E2E prefix to avoid collision)
+    export E2E_VERIFIER_PRIVATE_KEY="$PRIVATE_KEY"
+    export E2E_VERIFIER_PUBLIC_KEY="$PUBLIC_KEY"
+    
+    # Save keys to file for reuse within the same test run (cleanup deletes it at start of next run)
+    cat > "$VERIFIER_KEYS_FILE" << EOF
+# Ephemeral verifier keys for E2E/CI testing
+# Generated at: $(date)
+# WARNING: These keys are for testing only. Do not use in production.
+E2E_VERIFIER_PRIVATE_KEY="$PRIVATE_KEY"
+E2E_VERIFIER_PUBLIC_KEY="$PUBLIC_KEY"
+EOF
 
-    log "   ✅ Verifier config set: $VERIFIER_CONFIG_PATH"
+    # Create minimal config file so get_verifier_eth_address can read keys
+    # This will be overwritten by configure-verifier.sh with full config
+    cat > "$VERIFIER_CONFIG_FILE" << EOF
+# Minimal config for key access - will be overwritten by configure-verifier.sh
+
+[hub_chain]
+name = "Hub Chain"
+rpc_url = "http://127.0.0.1:8080"
+chain_id = 1
+intent_module_address = "0x123"
+known_accounts = []
+
+[verifier]
+private_key_env = "E2E_VERIFIER_PRIVATE_KEY"
+public_key_env = "E2E_VERIFIER_PUBLIC_KEY"
+polling_interval_ms = 2000
+validation_timeout_ms = 30000
+
+[api]
+host = "127.0.0.1"
+port = 3333
+cors_origins = []
+EOF
+    
+    cd "$PROJECT_ROOT"
+    log_and_echo "   ✅ Generated fresh ephemeral keys"
+}
+
+# Usage: load_verifier_keys
+# Loads previously generated keys from the keys file.
+load_verifier_keys() {
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+
+    VERIFIER_KEYS_FILE="$PROJECT_ROOT/testing-infra/ci-e2e/.verifier-keys.env"
+
+    if [ -f "$VERIFIER_KEYS_FILE" ]; then
+        source "$VERIFIER_KEYS_FILE"
+        export E2E_VERIFIER_PRIVATE_KEY
+        export E2E_VERIFIER_PUBLIC_KEY
+    else
+        log_and_echo "❌ ERROR: Verifier keys file not found at $VERIFIER_KEYS_FILE"
+        log_and_echo "   Run generate_verifier_keys first."
+        exit 1
+    fi
+}
+
+# Setup solver configuration for E2E/CI testing
+# Usage: setup_solver_config
+# Always creates config from template (overwrites any existing config)
+# This function is used by E2E test scripts
+#
+# SECURITY: This function ALWAYS creates a fresh config from template for E2E/CI testing.
+# Test scripts should populate it with ephemeral/test addresses and keys.
+setup_solver_config() {
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+
+    SOLVER_E2E_CI_TESTING_CONFIG="$PROJECT_ROOT/solver/config/solver-e2e-ci-testing.toml"
+    SOLVER_TEMPLATE="$PROJECT_ROOT/solver/config/solver.template.toml"
+
+    # Always recreate config from template (ensures fresh config for each test run)
+    log_and_echo "   Creating solver-e2e-ci-testing.toml from template..."
+    
+    if [ ! -f "$SOLVER_TEMPLATE" ]; then
+        log_and_echo "❌ ERROR: solver.template.toml not found at $SOLVER_TEMPLATE"
+        exit 1
+    fi
+    
+    # Copy template (overwrites any existing config file)
+    cp "$SOLVER_TEMPLATE" "$SOLVER_E2E_CI_TESTING_CONFIG"
+    
+    cd "$PROJECT_ROOT"
+    log_and_echo "   ✅ Created solver-e2e-ci-testing.toml from template"
+
+    # Export config path for Rust code to use (absolute path so tests can find it)
+    export SOLVER_CONFIG_PATH="$SOLVER_E2E_CI_TESTING_CONFIG"
+
+    log "   ✅ Solver config set: $SOLVER_CONFIG_PATH"
 }
 
 # Save intent information to file
@@ -185,6 +298,29 @@ stop_verifier() {
     fi
 }
 
+# Check if port is listening
+# Usage: check_port_listening [port]
+# Returns 0 if port is listening, 1 if not
+check_port_listening() {
+    local port="${1:-3333}"
+    
+    # Try different methods depending on what's available
+    if command -v ss > /dev/null 2>&1; then
+        ss -ln | grep -q ":${port} " && return 0
+    elif command -v netstat > /dev/null 2>&1; then
+        netstat -ln | grep -q ":${port} " && return 0
+    elif command -v lsof > /dev/null 2>&1; then
+        lsof -i ":${port}" > /dev/null 2>&1 && return 0
+    fi
+    
+    # Fallback: try to connect to the port
+    if command -v nc > /dev/null 2>&1; then
+        nc -z 127.0.0.1 "${port}" > /dev/null 2>&1 && return 0
+    fi
+    
+    return 1
+}
+
 # Check verifier health
 # Usage: check_verifier_health [port]
 # Checks if verifier health endpoint responds
@@ -199,6 +335,132 @@ check_verifier_health() {
     fi
 }
 
+# Verify verifier is running
+# Usage: verify_verifier_running
+# Checks verifier process, port, and health endpoint
+# Exits with error if verifier is not running
+verify_verifier_running() {
+    # Ensure LOG_DIR is set (for reading PID files)
+    if [ -z "$LOG_DIR" ] && [ -n "$PROJECT_ROOT" ]; then
+        LOG_DIR="$PROJECT_ROOT/.tmp/e2e-tests"
+    fi
+    
+    log ""
+    log "🔍 Verifying verifier is running..."
+    
+    # Try to load VERIFIER_PID from file if not set
+    if [ -z "$VERIFIER_PID" ] && [ -n "$LOG_DIR" ] && [ -f "$LOG_DIR/verifier.pid" ]; then
+        VERIFIER_PID=$(cat "$LOG_DIR/verifier.pid" 2>/dev/null || echo "")
+        export VERIFIER_PID
+    fi
+    
+    # Check verifier process
+    if [ -z "$VERIFIER_PID" ] || ! ps -p "$VERIFIER_PID" > /dev/null 2>&1; then
+        log_and_echo "❌ ERROR: Verifier process is not running"
+        log_and_echo "   Expected PID: ${VERIFIER_PID:-<not set>}"
+        log_and_echo "   Please start verifier first using start-verifier.sh"
+        exit 1
+    fi
+    
+    # Check if verifier port is listening
+    VERIFIER_PORT="${VERIFIER_PORT:-3333}"
+    if ! check_port_listening "$VERIFIER_PORT"; then
+        log_and_echo "❌ ERROR: Verifier is not listening on port $VERIFIER_PORT"
+        log_and_echo "   Verifier PID: $VERIFIER_PID"
+        log_and_echo "   Process exists but port is not accessible"
+        log_and_echo "   Check logs: ${VERIFIER_LOG:-<not set>}"
+        exit 1
+    fi
+    
+    # Check verifier health endpoint
+    if ! check_verifier_health "$VERIFIER_PORT"; then
+        log_and_echo "❌ ERROR: Verifier health check failed"
+        log_and_echo "   Verifier PID: $VERIFIER_PID"
+        log_and_echo "   Port $VERIFIER_PORT is listening but /health endpoint failed"
+        log_and_echo "   Check logs: ${VERIFIER_LOG:-<not set>}"
+        exit 1
+    fi
+    log "   ✅ Verifier is running and healthy (PID: $VERIFIER_PID, port: $VERIFIER_PORT)"
+}
+
+# Verify solver is running
+# Usage: verify_solver_running
+# Checks solver process
+# Exits with error if solver is not running
+verify_solver_running() {
+    # Ensure LOG_DIR is set (for reading PID files)
+    if [ -z "$LOG_DIR" ] && [ -n "$PROJECT_ROOT" ]; then
+        LOG_DIR="$PROJECT_ROOT/.tmp/e2e-tests"
+    fi
+    
+    log ""
+    log "🔍 Verifying solver is running..."
+    
+    # Try to load SOLVER_PID from file if not set
+    if [ -z "$SOLVER_PID" ] && [ -n "$LOG_DIR" ] && [ -f "$LOG_DIR/solver.pid" ]; then
+        SOLVER_PID=$(cat "$LOG_DIR/solver.pid" 2>/dev/null || echo "")
+        export SOLVER_PID
+    fi
+    
+    # Check solver
+    if [ -z "$SOLVER_PID" ] || ! ps -p "$SOLVER_PID" > /dev/null 2>&1; then
+        log_and_echo "❌ ERROR: Solver is not running"
+        log_and_echo "   Expected PID: ${SOLVER_PID:-<not set>}"
+        log_and_echo "   Please start solver first using start-solver.sh"
+        exit 1
+    fi
+    log "   ✅ Solver is running (PID: $SOLVER_PID)"
+}
+
+# Note: verify_solver_registered() is defined in util_mvm.sh with auto-detection
+# Both MVM and EVM E2E tests source util_mvm.sh since the hub chain is always MVM
+
+# Display solver and verifier logs for debugging
+# Usage: display_service_logs [context_message]
+# Shows last 100 lines of solver.log and verifier.log if they exist
+display_service_logs() {
+    local context="${1:-Error occurred}"
+    
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+    
+    local log_dir="$PROJECT_ROOT/.tmp/e2e-tests"
+    local solver_log="$log_dir/solver.log"
+    local verifier_log="$log_dir/verifier.log"
+    
+    # Get current timestamp in ISO format (matches Rust log format)
+    local error_timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.%NZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
+    log_and_echo ""
+    log_and_echo "📋 Service Logs ($context)"
+    log_and_echo "=========================================="
+    log_and_echo "⏰ Error occurred at: $error_timestamp"
+    log_and_echo ""
+    
+    if [ -f "$verifier_log" ]; then
+        log_and_echo ""
+        log_and_echo "🔍 Verifier logs (last 100 lines):"
+        log_and_echo "-----------------------------------"
+        tail -100 "$verifier_log" | sed 's/^/   /'
+    else
+        log_and_echo ""
+        log_and_echo "⚠️  Verifier log not found: $verifier_log"
+    fi
+    
+    if [ -f "$solver_log" ]; then
+        log_and_echo ""
+        log_and_echo "🔍 Solver logs (last 100 lines):"
+        log_and_echo "-----------------------------------"
+        tail -100 "$solver_log" | sed 's/^/   /'
+    else
+        log_and_echo ""
+        log_and_echo "⚠️  Solver log not found: $solver_log"
+    fi
+    
+    log_and_echo ""
+}
+
 # Start verifier service
 # Usage: start_verifier [log_file] [rust_log_level]
 # Starts trusted-verifier in background and waits for it to be ready
@@ -210,14 +472,22 @@ start_verifier() {
     fi
 
     if [ -z "$VERIFIER_CONFIG_PATH" ]; then
-        setup_verifier_config
+        export VERIFIER_CONFIG_PATH="$PROJECT_ROOT/trusted-verifier/config/verifier-e2e-ci-testing.toml"
     fi
+    
+    # Load keys
+    load_verifier_keys
 
     local log_file="${1:-$LOG_DIR/verifier.log}"
     local rust_log="${2:-info}"
     
     # Ensure log directory exists
     mkdir -p "$(dirname "$log_file")"
+    
+    # Delete existing log file to start fresh for this test run
+    if [ -f "$log_file" ]; then
+        rm -f "$log_file"
+    fi
     
     # Stop any existing verifier first
     stop_verifier
@@ -226,11 +496,25 @@ start_verifier() {
     log "   Using config: $VERIFIER_CONFIG_PATH"
     log "   Log file: $log_file"
     
-    # Change to trusted-verifier directory and start the verifier
-    pushd "$PROJECT_ROOT/trusted-verifier" > /dev/null
-    VERIFIER_CONFIG_PATH="$VERIFIER_CONFIG_PATH" RUST_LOG="$rust_log" cargo run --bin trusted-verifier > "$log_file" 2>&1 &
+    # Use pre-built binary (must be built first via Step 0)
+    local verifier_binary="$PROJECT_ROOT/trusted-verifier/target/debug/trusted-verifier"
+    if [ ! -f "$verifier_binary" ]; then
+        log_and_echo "   ❌ PANIC: Verifier binary not found: $verifier_binary"
+        log_and_echo "   Please build first: cd trusted-verifier && cargo build --bin trusted-verifier"
+        exit 1
+    fi
+    
+    log "   Using binary: $verifier_binary"
+    VERIFIER_CONFIG_PATH="$VERIFIER_CONFIG_PATH" RUST_LOG="$rust_log" "$verifier_binary" >> "$log_file" 2>&1 &
     VERIFIER_PID=$!
-    popd > /dev/null
+    
+    # Export PID so it persists across subshells
+    export VERIFIER_PID
+    
+    # Save PID to file for cross-script persistence
+    if [ -n "$LOG_DIR" ]; then
+        echo "$VERIFIER_PID" > "$LOG_DIR/verifier.pid"
+    fi
     
     log "   ✅ Verifier started with PID: $VERIFIER_PID"
     
@@ -321,6 +605,7 @@ check_solver_health() {
     return 1
 }
 
+
 # Start solver service
 # Usage: start_solver [log_file] [rust_log_level] [config_path]
 # Starts solver in background and waits for it to be ready
@@ -339,6 +624,11 @@ start_solver() {
     # Ensure log directory exists
     mkdir -p "$(dirname "$log_file")"
     
+    # Delete existing log file to start fresh for this test run
+    if [ -f "$log_file" ]; then
+        rm -f "$log_file"
+    fi
+    
     # Stop any existing solver first
     stop_solver
     
@@ -346,26 +636,33 @@ start_solver() {
     log "   Using config: $config_path"
     log "   Log file: $log_file"
     
-    # Check if solver binary exists
-    if [ ! -f "$PROJECT_ROOT/solver/target/debug/solver" ] && ! cargo --version > /dev/null 2>&1; then
-        log_and_echo "   ⚠️  WARNING: Solver service not yet built"
-        log_and_echo "   This function will work once solver service is implemented (Task 6-7)"
-        log_and_echo "   For now, tests will use manual signing via sign_intent binary"
-        return 1
+    # Use pre-built binary (must be built first via Step 0)
+    local solver_binary="$PROJECT_ROOT/solver/target/debug/solver"
+    if [ ! -f "$solver_binary" ]; then
+        log_and_echo "   ❌ PANIC: Solver binary not found: $solver_binary"
+        log_and_echo "   Please build first: cd solver && cargo build --bin solver"
+        exit 1
     fi
     
-    # Change to solver directory and start the solver
-    pushd "$PROJECT_ROOT/solver" > /dev/null
-    SOLVER_CONFIG_PATH="$config_path" RUST_LOG="$rust_log" cargo run --bin solver > "$log_file" 2>&1 &
+    log "   Using binary: $solver_binary"
+    SOLVER_CONFIG_PATH="$config_path" RUST_LOG="$rust_log" "$solver_binary" >> "$log_file" 2>&1 &
     SOLVER_PID=$!
-    popd > /dev/null
+    
+    # Export PID so it persists across subshells
+    export SOLVER_PID
+    
+    # Save PID to file for cross-script persistence
+    if [ -n "$LOG_DIR" ]; then
+        echo "$SOLVER_PID" > "$LOG_DIR/solver.pid"
+    fi
     
     log "   ✅ Solver started with PID: $SOLVER_PID"
     
-    # Wait for solver to be ready
-    log "   - Waiting for solver to initialize..."
+    # Wait for solver to be ready (check for "Starting all services" in log)
+    # This properly waits for compilation + initialization in CI
+    log "   - Waiting for solver to initialize (may take a while if compiling)..."
     RETRY_COUNT=0
-    MAX_RETRIES=60
+    MAX_RETRIES=180  # 3 minutes to allow for compilation in CI
     
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         # Check if process is still running
@@ -374,7 +671,7 @@ start_solver() {
             log_and_echo "   Solver log:"
             log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
             if [ -f "$log_file" ]; then
-                log_and_echo "   $(cat "$log_file")"
+                cat "$log_file" | while read line; do log_and_echo "   $line"; done
             else
                 log_and_echo "   Log file not found at: $log_file"
             fi
@@ -382,22 +679,23 @@ start_solver() {
             exit 1
         fi
         
-        # Check health endpoint (once implemented)
-        if check_solver_health; then
+        # Check if solver has initialized by looking for the startup log message
+        if [ -f "$log_file" ] && grep -q "Starting all services" "$log_file" 2>/dev/null; then
             log "   ✅ Solver is ready!"
-            
             SOLVER_LOG="$log_file"
             export SOLVER_PID SOLVER_LOG
             return 0
         fi
         
-        # For now, just wait a bit and assume it's ready if process is running
-        # TODO: Replace with actual health check once solver service is implemented
-        if [ $RETRY_COUNT -gt 5 ]; then
-            log "   ✅ Solver process is running (health check not yet implemented)"
-            SOLVER_LOG="$log_file"
-            export SOLVER_PID SOLVER_LOG
-            return 0
+        # Show progress every 10 seconds
+        if [ $((RETRY_COUNT % 10)) -eq 0 ] && [ $RETRY_COUNT -gt 0 ]; then
+            if [ -f "$log_file" ]; then
+                # Show last line of log to indicate progress
+                local last_line=$(tail -1 "$log_file" 2>/dev/null || echo "")
+                if [ -n "$last_line" ]; then
+                    log "   ... still waiting (${RETRY_COUNT}s): $last_line"
+                fi
+            fi
         fi
         
         sleep 1
@@ -762,5 +1060,128 @@ build_draft_data() {
     fi
     
     echo "$json"
+}
+
+# Wait for solver to automatically fulfill an intent
+# Polls the verifier's /events endpoint for fulfillment events matching the intent
+# Usage: wait_for_solver_fulfillment <intent_id> <flow_type> [timeout_seconds]
+#   intent_id: The intent ID to wait for
+#   flow_type: "inflow" or "outflow"
+#   timeout_seconds: Maximum wait time (default: 60)
+# Returns: 0 on success, 1 on timeout
+wait_for_solver_fulfillment() {
+    local intent_id="$1"
+    local flow_type="$2"
+    local timeout_seconds="${3:-60}"
+    local poll_interval=3
+    local elapsed=0
+    
+    local verifier_url="${VERIFIER_URL:-http://127.0.0.1:3333}"
+    
+    log ""
+    log "⏳ Waiting for solver to automatically fulfill $flow_type intent..."
+    log "   Intent ID: $intent_id"
+    log "   Timeout: ${timeout_seconds}s (polling every ${poll_interval}s)"
+    log "   The solver service should detect the escrow/intent and fulfill automatically."
+    log ""
+    
+    # Normalize intent_id for comparison (remove 0x prefix and leading zeros)
+    local normalized_intent_id
+    normalized_intent_id=$(echo "$intent_id" | tr '[:upper:]' '[:lower:]' | sed 's/^0x//' | sed 's/^0*//')
+    
+    local solver_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/solver.log"
+    
+    while [ $elapsed -lt $timeout_seconds ]; do
+        # Check for fulfillment event in verifier (works for inflow)
+        local events_response
+        events_response=$(curl -s "${verifier_url}/events" 2>/dev/null)
+        
+        if [ $? -eq 0 ]; then
+            # Check if fulfillment event exists for this intent
+            local fulfillment_found
+            fulfillment_found=$(echo "$events_response" | jq -r --arg nid "$normalized_intent_id" \
+                '.data.fulfillment_events[]? | select(.intent_id | ascii_downcase | gsub("^0x"; "") | gsub("^0+"; "") == $nid) | .intent_id' \
+                2>/dev/null | head -1)
+            
+            if [ -n "$fulfillment_found" ]; then
+                log "   ✅ Solver fulfilled the intent! (detected via verifier after ${elapsed}s)"
+                log "   Fulfillment event found for intent: $fulfillment_found"
+                return 0
+            fi
+        fi
+        
+        # Also check solver logs for successful fulfillment (works for outflow)
+        # Note: fa_intent_with_oracle doesn't emit LimitOrderFulfillmentEvent, so we check solver logs
+        # Use normalized_intent_id (without leading zeros) since solver logs may strip them
+        if [ -f "$solver_log_file" ]; then
+            # Search for intent ID with or without leading zeros (0xd86... or 0x000d86...)
+            local intent_id_no_zeros="0x${normalized_intent_id}"
+            if grep -qi "Successfully fulfilled.*${intent_id_no_zeros}" "$solver_log_file" 2>/dev/null; then
+                log "   ✅ Solver fulfilled the intent! (detected via solver logs after ${elapsed}s)"
+                return 0
+            fi
+        fi
+        
+        printf "   Waiting for solver... (%ds/%ds)\r" $elapsed $timeout_seconds
+        sleep $poll_interval
+        elapsed=$((elapsed + poll_interval))
+    done
+    
+    # Timeout - show diagnostic info
+    log ""
+    log_and_echo "⏰ Timeout waiting for solver fulfillment after ${timeout_seconds}s"
+    log ""
+    log "🔍 Diagnostic Information:"
+    log "========================================"
+    
+    # Show solver logs (solver_log_file already declared above)
+    if [ -f "$solver_log_file" ]; then
+        log ""
+        log "   Solver logs (last 100 lines):"
+        log "   + + + + + + + + + + + + + + + + + + + +"
+        tail -100 "$solver_log_file" | while IFS= read -r line; do log "   $line"; done
+        log "   + + + + + + + + + + + + + + + + + + + +"
+    else
+        log "   Solver log file not found at: $solver_log_file"
+    fi
+    
+    # Show verifier logs
+    local verifier_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/verifier.log"
+    if [ -f "$verifier_log_file" ]; then
+        log ""
+        log "   Verifier logs (last 100 lines):"
+        log "   + + + + + + + + + + + + + + + + + + + +"
+        tail -100 "$verifier_log_file" | while IFS= read -r line; do log "   $line"; done
+        log "   + + + + + + + + + + + + + + + + + + + +"
+    else
+        log ""
+        log "   Verifier log file not found (checked: $verifier_log_file)"
+    fi
+    
+    # Show verifier events
+    log ""
+    log "   Verifier events:"
+    local events_response
+    events_response=$(curl -s "${verifier_url}/events" 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        local escrow_count fulfillment_count intent_count
+        escrow_count=$(echo "$events_response" | jq -r '.data.escrow_events | length' 2>/dev/null || echo "0")
+        fulfillment_count=$(echo "$events_response" | jq -r '.data.fulfillment_events | length' 2>/dev/null || echo "0")
+        intent_count=$(echo "$events_response" | jq -r '.data.intent_events | length' 2>/dev/null || echo "0")
+        
+        log "      Intent events: $intent_count"
+        log "      Escrow events: $escrow_count"
+        log "      Fulfillment events: $fulfillment_count"
+        
+        if [ "$escrow_count" != "0" ]; then
+            log ""
+            log "      Escrow details:"
+            echo "$events_response" | jq -r '.data.escrow_events[] | "         \(.intent_id) - amount: \(.offered_amount)"' 2>/dev/null || log "         (parse error)"
+        fi
+    else
+        log "      Failed to query verifier events"
+    fi
+    
+    return 1
 }
 

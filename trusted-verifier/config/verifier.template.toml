@@ -12,7 +12,7 @@ name = "Hub Chain"                                    # Human-readable name for 
 rpc_url = "http://127.0.0.1:8080"                    # RPC endpoint URL for blockchain communication
 chain_id = 1                                          # Unique chain identifier
 intent_module_address = "0x123"                      # Address of the intent framework module
-escrow_module_address = null                         # Address of escrow module (optional for hub)
+# escrow_module_address = "0x..."                    # Address of escrow module (optional for hub, omit if not needed)
 known_accounts = ["0xalice", "0xbob"]                # Known test accounts to poll for events (Alice and Bob addresses)
 
 # Connected Move VM Chain Configuration  
@@ -28,21 +28,22 @@ known_accounts = ["0xalice", "0xbob"]                # Known test accounts to po
 
 # Connected EVM Chain Configuration
 # The connected EVM chain is where EVM escrow events occur and are monitored
-# This section is optional - only include if you have a connected EVM chain
-[connected_chain_evm]
-name = "Connected EVM Chain"                          # Human-readable name for the chain
-rpc_url = "http://127.0.0.1:8545"                    # RPC endpoint URL for EVM chain (e.g., Hardhat, Anvil, or public RPC)
-escrow_contract_address = "0x123"                    # Address of the IntentEscrow contract on the EVM chain
-chain_id = 31337                                      # Unique chain identifier (e.g., 31337 for Hardhat, 1 for Ethereum mainnet)
-verifier_address = "0x123"                            # Ethereum address of the verifier (used for signature verification)
+# This section is optional - uncomment and configure if you have a connected EVM chain
+# [connected_chain_evm]
+# name = "Connected EVM Chain"
+# rpc_url = "http://127.0.0.1:8545"
+# escrow_contract_address = "0x123"
+# chain_id = 31337
+# verifier_address = "0x123"
 
 # Verifier Configuration
 # Cryptographic keys and timing parameters for the verifier
+# Keys are loaded from environment variables at runtime for security
 [verifier]
-private_key = "REPLACE_WITH_YOUR_PRIVATE_KEY_BASE64" # Ed25519 private key for signing (base64 encoded)
-public_key = "REPLACE_WITH_YOUR_PUBLIC_KEY_BASE64"   # Ed25519 public key for verification (base64 encoded)
-polling_interval_ms = 2000                           # Polling interval for event monitoring in milliseconds
-validation_timeout_ms = 30000                        # Timeout for validation operations in milliseconds
+private_key_env = "VERIFIER_PRIVATE_KEY"  # Environment variable name containing Ed25519 private key (base64 encoded)
+public_key_env = "VERIFIER_PUBLIC_KEY"    # Environment variable name containing Ed25519 public key (base64 encoded)
+polling_interval_ms = 2000                # Polling interval for event monitoring in milliseconds
+validation_timeout_ms = 30000             # Timeout for validation operations in milliseconds
 
 # API Server Configuration
 # HTTP server settings for the REST API

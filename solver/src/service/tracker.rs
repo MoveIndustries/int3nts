@@ -48,8 +48,8 @@ pub struct TrackedIntent {
     pub expiry_time: u64,
     /// Intent object address (set when created on-chain)
     pub intent_address: Option<String>,
-    /// Whether this is an inflow intent (tokens locked on connected chain)
-    pub is_inflow: bool,
+    /// Requester address on the connected chain (for outflow intents)
+    pub requester_address_connected_chain: Option<String>,
 }
 
 /// Intent tracker that monitors signed intents and their on-chain creation
@@ -58,6 +58,8 @@ pub struct IntentTracker {
     intents: Arc<RwLock<HashMap<String, TrackedIntent>>>,
     /// Set of requester addresses to query for events (tracked from signed intents)
     requester_addresses: Arc<RwLock<std::collections::HashSet<String>>>,
+    /// Set of on-chain intent IDs that have been completed (to avoid re-processing)
+    completed_intent_ids: Arc<RwLock<std::collections::HashSet<String>>>,
     /// Hub chain client for querying intent events
     hub_client: HubChainClient,
     /// Hub chain configuration
@@ -81,6 +83,7 @@ impl IntentTracker {
         Ok(Self {
             intents: Arc::new(RwLock::new(HashMap::new())),
             requester_addresses: Arc::new(RwLock::new(std::collections::HashSet::new())),
+            completed_intent_ids: Arc::new(RwLock::new(std::collections::HashSet::new())),
             hub_client,
             hub_config: config.hub_chain.clone(),
         })
@@ -111,15 +114,8 @@ impl IntentTracker {
         requester_address: String,
         expiry_time: u64,
     ) -> Result<()> {
-        // Determine if this is an inflow or outflow intent
-        // Inflow: tokens locked on connected chain (offered_chain_id != hub_chain_id)
-        // Outflow: tokens locked on hub chain (offered_chain_id == hub_chain_id)
-        let hub_chain_id = self.hub_config.chain_id;
-        let is_inflow = draft_data.offered_chain_id != hub_chain_id;
-
-        // Generate intent_id from draft_id (for now, use draft_id as intent_id)
-        // In production, this would be derived from the draft data
-        let intent_id = draft_id.clone();
+        // Use the actual intent_id from draft data (not the draft UUID)
+        let intent_id = draft_data.intent_id.clone();
 
         let tracked = TrackedIntent {
             draft_id: draft_id.clone(),
@@ -129,7 +125,7 @@ impl IntentTracker {
             requester_address: requester_address.clone(),
             expiry_time,
             intent_address: None,
-            is_inflow,
+            requester_address_connected_chain: None,
         };
 
         // Track requester address for event querying
@@ -163,8 +159,11 @@ impl IntentTracker {
 
         // If no requester addresses, we can't query - return 0
         if requester_addresses.is_empty() {
+            // Skip logging - this is expected when no drafts have been signed yet
             return Ok(0);
         }
+
+        tracing::debug!("Polling for intents from {} requester address(es)", requester_addresses.len());
 
         // Query hub chain for intent creation events
         let events = self
@@ -173,8 +172,26 @@ impl IntentTracker {
             .await
             .context("Failed to query hub chain for intent events")?;
 
+        // Filter out already completed intents
+        let completed = self.completed_intent_ids.read().await;
+        let events: Vec<_> = events
+            .into_iter()
+            .filter(|e| !completed.contains(&e.intent_id))
+            .collect();
+        drop(completed);
+
+        if events.is_empty() {
+            // No new events to process - skip logging to reduce noise
+            return Ok(0);
+        }
+
+        tracing::debug!("Found {} non-expired, non-completed intent event(s)", events.len());
+
         let mut updated_count = 0;
         let mut intents = self.intents.write().await;
+
+        let signed_count = intents.values().filter(|i| i.state == IntentState::Signed).count();
+        tracing::debug!("Tracker has {} signed intent(s) waiting for on-chain creation", signed_count);
 
         for event in events {
             // Try to match event to a tracked intent
@@ -201,12 +218,26 @@ impl IntentTracker {
                 };
 
                 if matches {
+                    // Extract requester_address_connected_chain from MoveOption wrapper
+                    let connected_chain_addr = event.requester_address_connected_chain
+                        .clone()
+                        .and_then(|opt| opt.into_option());
+                    
+                    tracing::info!("Intent {} matched on-chain event {}. Transitioning to Created state.", 
+                        _draft_id, event.intent_id);
+                    tracing::info!("requester_address_connected_chain: {:?}", connected_chain_addr);
                     tracked.state = IntentState::Created;
+                    tracked.intent_id = event.intent_id.clone(); // Update to actual on-chain intent_id
                     tracked.intent_address = Some(event.intent_address.clone());
+                    tracked.requester_address_connected_chain = connected_chain_addr;
                     updated_count += 1;
                     break; // Found match, move to next event
                 }
             }
+        }
+
+        if updated_count > 0 {
+            tracing::info!("Updated {} intent(s) to Created state", updated_count);
         }
 
         Ok(updated_count)
@@ -232,6 +263,11 @@ impl IntentTracker {
     /// * `Vec<TrackedIntent>` - List of intents (Created state) ready for fulfillment
     pub async fn get_intents_ready_for_fulfillment(&self, inflow_only: Option<bool>) -> Vec<TrackedIntent> {
         let intents = self.intents.read().await;
+        let hub_chain_id = self.hub_config.chain_id;
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
 
         intents
             .values()
@@ -241,9 +277,17 @@ impl IntentTracker {
                     return false;
                 }
 
+                // Skip expired intents
+                if intent.expiry_time < current_time {
+                    return false;
+                }
+
                 // Filter by inflow/outflow if specified
+                // Inflow: desired_chain_id == hub_chain_id (tokens desired on hub)
+                // Outflow: offered_chain_id == hub_chain_id (tokens offered on hub)
                 if let Some(inflow) = inflow_only {
-                    if intent.is_inflow != inflow {
+                    let is_inflow = intent.draft_data.desired_chain_id == hub_chain_id;
+                    if is_inflow != inflow {
                         return false;
                     }
                 }
@@ -268,6 +312,25 @@ impl IntentTracker {
         let mut intents = self.intents.write().await;
         if let Some(intent) = intents.get_mut(draft_id) {
             intent.state = IntentState::Fulfilled;
+            
+            // Add on-chain intent ID to completed set so we don't re-process it
+            if let Some(ref intent_addr) = intent.intent_address {
+                let mut completed = self.completed_intent_ids.write().await;
+                completed.insert(intent_addr.clone());
+                tracing::debug!("Marked intent {} as completed (on-chain ID: {})", draft_id, intent_addr);
+            }
+            
+            // Clean up requester address if no other active intents
+            let requester = intent.requester_address.clone();
+            let has_active = intents.values().any(|i| {
+                i.requester_address == requester && i.state != IntentState::Fulfilled
+            });
+            if !has_active {
+                let mut addresses = self.requester_addresses.write().await;
+                addresses.remove(&requester);
+                tracing::debug!("Removed requester {} from tracking (no active intents)", requester);
+            }
+            
             Ok(())
         } else {
             anyhow::bail!("Intent not found: {}", draft_id)
