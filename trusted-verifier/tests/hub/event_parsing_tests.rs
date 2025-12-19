@@ -89,15 +89,31 @@ async fn setup_mock_server_with_oracle_event(
         .mount(&mock_server)
         .await;
 
-    let mut config = build_test_config_with_mvm();
-    config.hub_chain.rpc_url = mock_server.uri();
-    // Add 0x prefix for known_accounts (the code will strip it)
+    // Mock the intent registry get_active_requesters view function
+    // Returns the test account address so poll_hub_events knows which accounts to query
     let account_with_prefix = if account_address.starts_with("0x") {
         account_address.to_string()
     } else {
         format!("0x{}", account_address)
     };
-    config.hub_chain.known_accounts = Some(vec![account_with_prefix]);
+    let view_response_requesters = json!([[account_with_prefix]]);
+    Mock::given(method("POST"))
+        .and(path("/v1/view"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(view_response_requesters))
+        .mount(&mock_server)
+        .await;
+
+    // Mock the solver registry list_all_solver_addresses view function
+    // Returns empty list for tests (no solvers registered in test scenario)
+    let view_response_solvers = json!([[]]);
+    Mock::given(method("POST"))
+        .and(path("/v1/view"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(view_response_solvers))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = build_test_config_with_mvm();
+    config.hub_chain.rpc_url = mock_server.uri();
 
     let monitor = EventMonitor::new(&config)
         .await

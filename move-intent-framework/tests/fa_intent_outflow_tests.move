@@ -12,6 +12,7 @@ module mvmt_intent::fa_intent_outflow_tests {
     use mvmt_intent::fa_intent_with_oracle;
     use mvmt_intent::intent::Intent;
     use mvmt_intent::intent_reservation;
+    use mvmt_intent::intent_registry;
     use mvmt_intent::solver_registry;
     use mvmt_intent::test_utils;
 
@@ -51,8 +52,9 @@ module mvmt_intent::fa_intent_outflow_tests {
         let offered_amount = 50u64;
         let desired_amount = 25u64;
         
-        // Initialize solver registry
+        // Initialize solver registry and intent registry
         solver_registry::init_for_test(mvmt_intent);
+        intent_registry::init_for_test(mvmt_intent);
         
         // Generate key pairs for solver and verifier
         let (solver_secret_key, validated_solver_pk) = ed25519::generate_keys();
@@ -159,11 +161,8 @@ module mvmt_intent::fa_intent_outflow_tests {
         requester_signer = @0xcafe,
         solver_signer = @0xdead
     )]
-    /// Test: Outflow intent creation
-    /// Verifies that create_outflow_intent:
-    /// 1. Locks actual tokens on hub chain (not 0 tokens like inflow)
-    /// 2. Stores requester_address_connected_chain in OracleGuardedLimitOrder struct
-    /// 3. Creates an oracle-guarded intent requiring verifier signature
+    /// What is tested: create_outflow_intent locks tokens on hub and stores the connected-chain requester address
+    /// Why: Outflow intents must lock real funds on hub and carry the destination address for settlement
     fun test_create_outflow_intent(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -203,7 +202,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         
         // Verify intent was created successfully by checking the intent object
         let intent_address = object::object_address(&intent_obj);
-        assert!(intent_address != @0x0, 1); // Intent address should not be zero
+        assert!(intent_address != @0x0); // Intent address should not be zero
     }
 
     #[test(
@@ -212,10 +211,8 @@ module mvmt_intent::fa_intent_outflow_tests {
         requester_signer = @0xcafe,
         solver_signer = @0xdead
     )]
-    /// Test: Outflow intent struct field validation
-    /// Verifies that requester_address_connected_chain parameter is accepted and intent is created successfully.
-    /// The successful creation of the intent with the requester_address_connected_chain parameter
-    /// confirms the struct field is stored correctly (indirect validation).
+    /// What is tested: OracleGuardedLimitOrder stores requester_address_connected_chain correctly
+    /// Why: Solver needs this address to know where to send tokens on the connected chain
     fun test_outflow_intent_requester_address_storage(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -235,8 +232,9 @@ module mvmt_intent::fa_intent_outflow_tests {
         let requester_address_connected_chain = @0x1234; // Address on connected chain
         let expiry_time = timestamp::now_seconds() + 3600;
         
-        // Initialize solver registry
+        // Initialize solver registry and intent registry
         solver_registry::init_for_test(mvmt_intent);
+        intent_registry::init_for_test(mvmt_intent);
         
         // Generate key pairs
         let (_, validated_solver_pk) = ed25519::generate_keys();
@@ -296,9 +294,8 @@ module mvmt_intent::fa_intent_outflow_tests {
         requester_signer = @0xcafe,
         solver_signer = @0xdead
     )]
-    /// Test: Outflow intent creation and fulfillment end-to-end
-    /// Verifies that create_outflow_intent creates an intent correctly,
-    /// and that fulfill_outflow_intent can fulfill it.
+    /// What is tested: fulfill_outflow_intent releases locked tokens to solver after verifier signature validation
+    /// Why: Verify solver receives locked tokens after providing valid verifier signature
     fun test_fulfill_outflow_intent(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -316,9 +313,11 @@ module mvmt_intent::fa_intent_outflow_tests {
             solver_signer,
         );
         
-        // Verify intent was created
+        // Verify intent was created and registered
         let intent_address = object::object_address(&intent_obj);
         assert!(intent_address != @0x0);
+        assert!(intent_registry::is_intent_registered(intent_address));
+        assert!(intent_registry::get_intent_count(signer::address_of(requester_signer)) == 1);
         
         // Verify tokens were locked (requester_signer's balance decreased)
         assert!(primary_fungible_store::balance(signer::address_of(requester_signer), offered_metadata) == 50);
@@ -339,6 +338,10 @@ module mvmt_intent::fa_intent_outflow_tests {
         
         // Verify requester_signer's balance is still 50 (tokens were locked, then solver got them)
         assert!(primary_fungible_store::balance(signer::address_of(requester_signer), offered_metadata) == 50);
+        
+        // Verify intent was unregistered from registry after fulfillment
+        assert!(!intent_registry::is_intent_registered(intent_address));
+        assert!(intent_registry::get_intent_count(signer::address_of(requester_signer)) == 0);
     }
 
     #[test(
@@ -348,10 +351,9 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_signer = @0xdead
     )]
     #[expected_failure(abort_code = 393223, location = aptos_framework::object)] // error::not_found(ERESOURCE_DOES_NOT_EXIST)
-    /// Test: Cannot fulfill outflow intent with fulfill_inflow_intent
-    /// Verifies type safety - an outflow intent (OracleGuardedLimitOrder) cannot be fulfilled
-    /// using fulfill_inflow_intent which expects FungibleAssetLimitOrder.
-    /// 
+    /// What is tested: fulfilling an outflow intent with the inflow function aborts with ERESOURCE_DOES_NOT_EXIST
+    /// Why: Outflow intents require verifier signature; using inflow function would skip that check
+    ///
     /// Note: The error ERESOURCE_DOES_NOT_EXIST occurs because object::address_to_object<T> checks
     /// if an object of type T exists at the address. The object exists, but not as the requested type,
     /// so the runtime reports that a resource of that type does not exist at that address.
@@ -389,15 +391,8 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_signer = @0xdead
     )]
     #[expected_failure(abort_code = 0x10003, location = mvmt_intent::fa_intent_outflow)] // error::invalid_argument(EINVALID_REQUESTER_ADDRESS)
-    /// Test: Outflow intent creation fails with zero address for requester_address_connected_chain
-    /// Verifies that create_outflow_intent rejects zero address (0x0) for requester_address_connected_chain.
-    /// 
-    /// What is tested: Attempting to create an outflow intent with requester_address_connected_chain = @0x0
-    /// should abort with EINVALID_REQUESTER_ADDRESS error.
-    /// 
-    /// Why: Outflow intents require a valid address on the connected chain where the solver should send tokens.
-    /// A zero address is invalid and indicates the requester address was not properly provided. The Move contract
-    /// must reject such intents to prevent invalid transactions.
+    /// What is tested: create_outflow_intent aborts when requester_address_connected_chain is the zero address
+    /// Why: Outflow intents must target a valid connected-chain recipient address
     fun test_create_outflow_intent_rejects_zero_requester_address(
         aptos_framework: &signer,
         mvmt_intent: &signer,
