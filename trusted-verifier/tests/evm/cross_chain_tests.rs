@@ -6,23 +6,20 @@
 use trusted_verifier::monitor::{EscrowEvent, IntentEvent};
 #[path = "../mod.rs"]
 mod test_helpers;
-use test_helpers::{create_base_escrow_event_evm, create_base_intent_evm};
+use test_helpers::{create_default_escrow_event_evm, create_default_intent_evm, DUMMY_EXPIRY, DUMMY_INTENT_ID};
 
 /// Test that EVM escrow can be matched to hub intent by intent_id
 /// Why: Verify cross-chain matching logic correctly links EVM escrow to hub intent
 #[test]
 fn test_evm_escrow_cross_chain_matching() {
     // Step 1: Create hub intent
-    let hub_intent = create_base_intent_evm();
+    let hub_intent = create_default_intent_evm();
 
     // Step 2: Create EVM escrow with matching intent_id
     // Use the realistic EVM escrow helper which has empty desired_metadata
     let evm_escrow = EscrowEvent {
-        intent_id: hub_intent.intent_id.clone(),
-        escrow_id: hub_intent.intent_id.clone(), // For EVM, escrow_id = intent_id
-        issuer: hub_intent.requester.clone(),
-        offered_amount: hub_intent.offered_amount,
-        ..create_base_escrow_event_evm()
+        requester_addr: hub_intent.requester_addr.clone(), // Match hub intent requester (MVM format) instead of default EVM address
+        ..create_default_escrow_event_evm()
     };
 
     // Step 3: Verify matching logic (simulating the matching in validate_intent_fulfillment)
@@ -95,7 +92,7 @@ fn test_intent_id_conversion_to_evm_format() {
     );
 
     // Test 2: Full 32-byte hex string (no padding needed)
-    let mvmt_intent_id_full = "0x1111111111111111111111111111111111111111111111111111111111111111";
+    let mvmt_intent_id_full = DUMMY_INTENT_ID;
     let intent_id_hex_full = mvmt_intent_id_full
         .strip_prefix("0x")
         .unwrap_or(mvmt_intent_id_full);
@@ -136,20 +133,17 @@ fn test_intent_id_conversion_to_evm_format() {
 fn test_evm_escrow_matching_with_hub_intent() {
     // Step 1: Create hub intent
     let hub_intent = IntentEvent {
-        expiry_time: 2000000,
-        ..create_base_intent_evm()
+        expiry_time: DUMMY_EXPIRY,
+        ..create_default_intent_evm()
     };
 
     // Step 2: Create EVM escrow on connected chain with matching intent_id
     // Use the realistic EVM escrow helper which has empty desired_metadata
     // (because the EVM IntentEscrow contract doesn't store this field)
     let evm_escrow = EscrowEvent {
-        intent_id: hub_intent.intent_id.clone(),
-        escrow_id: hub_intent.intent_id.clone(), // EVM: escrow_id = intent_id
-        issuer: hub_intent.requester.clone(),
-        offered_amount: hub_intent.offered_amount,
-        expiry_time: 2000000, // Matches hub intent expiry
-        ..create_base_escrow_event_evm()
+        requester_addr: hub_intent.requester_addr.clone(), // Match hub intent requester (MVM format) instead of default EVM address
+        expiry_time: DUMMY_EXPIRY, // Matches hub intent expiry (default sets 0)
+        ..create_default_escrow_event_evm()
     };
 
     // Step 3: Verify cross-chain matching (simulating validate_intent_fulfillment logic)
@@ -178,7 +172,7 @@ fn test_evm_escrow_matching_with_hub_intent() {
         "Expiry times should match"
     );
     assert_eq!(
-        matched.requester, evm_escrow.issuer,
+        matched.requester_addr, evm_escrow.requester_addr,
         "Request-intent requester should match escrow issuer"
     );
 

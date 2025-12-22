@@ -60,10 +60,10 @@ module mvmt_intent::fa_intent_with_oracle {
         desired_amount: u64, // Original desired amount (for the chain specified by desired_chain_id)
         desired_chain_id: u64, // Chain ID where desired tokens are located
         offered_chain_id: u64, // Chain ID where offered tokens are located (used to determine if payment is required on current chain)
-        requester: address,
+        requester_addr: address,
         requirement: OracleSignatureRequirement,
         intent_id: address, // Intent ID from hub chain (for escrows) - used for signature verification
-        requester_address_connected_chain: Option<address>, // Address on connected chain where solver should send tokens (for outflow intents)
+        requester_addr_connected_chain: Option<address>, // Address on connected chain where solver should send tokens (for outflow intents)
     }
 
     /// Witness type proving receipt completion after oracle validation.
@@ -80,21 +80,21 @@ module mvmt_intent::fa_intent_with_oracle {
     /// Mirrors the base event while also surfacing the minimum acceptable
     /// oracle value chosen by the issuer for transparency.
     struct OracleLimitOrderEvent has store, drop {
-        intent_address: address, // The escrow intent address (on connected chain)
+        intent_addr: address, // The escrow intent address (on connected chain)
         intent_id: address,      // The original intent ID (from hub chain) - links escrow to hub intent
         offered_metadata: Object<Metadata>,
         offered_amount: u64,
         offered_chain_id: u64,  // Chain ID where offered tokens are located
         desired_metadata: Object<Metadata>, // Required for type compatibility, but may be placeholder for cross-chain
-        desired_metadata_address: Option<address>, // Raw address for cross-chain tokens, None for same-chain
+        desired_metadata_addr: Option<address>, // Raw address for cross-chain tokens, None for same-chain
         desired_amount: u64,    // Original desired amount (for the chain specified by desired_chain_id)
         desired_chain_id: u64,  // Chain ID where desired tokens are located
-        requester: address,
+        requester_addr: address,
         expiry_time: u64,
         min_reported_value: u64,
         revocable: bool,
         reserved_solver: Option<address>, // Solver address if the intent is reserved (None for unreserved intents)
-        requester_address_connected_chain: Option<address>, // Requester address on connected chain (for outflow intents)
+        requester_addr_connected_chain: Option<address>, // Requester address on connected chain (for outflow intents)
     }
 
     // ============================================================================
@@ -134,13 +134,13 @@ module mvmt_intent::fa_intent_with_oracle {
     /// - `desired_metadata`: Metadata handle of the asset the requester wants to receive
     /// - `desired_amount`: Minimum amount of the desired asset that must be paid
     /// - `desired_chain_id`: Chain ID where desired tokens are located
-    /// - `desired_metadata_address`: Optional explicit desired metadata address (required when desired_chain_id != offered_chain_id)
+    /// - `desired_metadata_addr`: Optional explicit desired metadata address (required when desired_chain_id != offered_chain_id)
     /// - `expiry_time`: Unix timestamp after which the intent can no longer be filled
     /// - `requester`: Address of the intent creator
     /// - `requirement`: Oracle public key and minimum reported value used for verification
     /// - `revocable`: Whether the intent can be revoked by the owner
-    /// - `intent_id`: The original intent ID from hub chain (for escrows) or same as intent_address (for regular intents)
-    /// - `requester_address_connected_chain`: Optional address on connected chain where solver should send tokens (for outflow intents)
+    /// - `intent_id`: The original intent ID from hub chain (for escrows) or same as intent_addr (for regular intents)
+    /// - `requester_addr_connected_chain`: Optional address on connected chain where solver should send tokens (for outflow intents)
     /// - `reservation`: Optional reservation specifying which solver can claim the escrow
     ///
     /// # Returns
@@ -151,31 +151,31 @@ module mvmt_intent::fa_intent_with_oracle {
         desired_metadata: Object<Metadata>,
         desired_amount: u64,
         desired_chain_id: u64,
-        desired_metadata_address: Option<address>, // Optional explicit desired metadata address for cross-chain intents
+        desired_metadata_addr: Option<address>, // Optional explicit desired metadata address for cross-chain intents
         expiry_time: u64,
-        requester: address,
+        requester_addr: address,
         requirement: OracleSignatureRequirement,
         revocable: bool,
         intent_id: address,
-        requester_address_connected_chain: Option<address>,
+        requester_addr_connected_chain: Option<address>,
         reservation: Option<IntentReserved>,
     ): Object<Intent<FungibleStoreManager, OracleGuardedLimitOrder>> {
         // Capture metadata and amount before depositing
         let offered_metadata = fungible_asset::asset_metadata(&offered_fa);
         let offered_amount = fungible_asset::amount(&offered_fa);
         
-        // Determine desired_metadata_address:
+        // Determine desired_metadata_addr:
         // - If desired_chain_id == offered_chain_id: same-chain intent, use None (use desired_metadata object)
         // - If desired_chain_id != offered_chain_id: cross-chain intent, use provided address if available
         //   Note: Escrows don't validate desired metadata (validation happens on hub chain), so None is allowed
-        let event_desired_metadata_address = if (desired_chain_id == offered_chain_id) {
+        let event_desired_metadata_addr = if (desired_chain_id == offered_chain_id) {
             option::none<address>() // Same-chain: use desired_metadata object
         } else {
             // Cross-chain: use provided address if available (None allowed for escrows)
-            desired_metadata_address
+            desired_metadata_addr
         };
         
-        let coin_store_ref = object::create_object(requester);
+        let coin_store_ref = object::create_object(requester_addr);
         let extend_ref = object::generate_extend_ref(&coin_store_ref);
         let delete_ref = object::generate_delete_ref(&coin_store_ref);
         let transfer_ref = object::generate_transfer_ref(&coin_store_ref);
@@ -198,9 +198,9 @@ module mvmt_intent::fa_intent_with_oracle {
         
         let intent_obj = intent::create_intent<FungibleStoreManager, OracleGuardedLimitOrder, OracleGuardedWitness>(
             FungibleStoreManager { extend_ref, delete_ref },
-            OracleGuardedLimitOrder { desired_metadata, desired_amount, desired_chain_id, offered_chain_id, requester, requirement, intent_id, requester_address_connected_chain },
+            OracleGuardedLimitOrder { desired_metadata, desired_amount, desired_chain_id, offered_chain_id, requester_addr, requirement, intent_id, requester_addr_connected_chain },
             expiry_time,
-            requester,
+            requester_addr,
             OracleGuardedWitness {},
             reservation,
             revocable,
@@ -209,21 +209,21 @@ module mvmt_intent::fa_intent_with_oracle {
         // Emit event after creating intent so we have the intent address
         // Use desired_amount directly (which should be the original value for the chain specified by desired_chain_id)
         event::emit(OracleLimitOrderEvent {
-            intent_address: object::object_address(&intent_obj),
+            intent_addr: object::object_address(&intent_obj),
             intent_id,  // Pass the intent ID from requester (hub chain intent ID for escrows)
             offered_metadata,
             offered_amount,
             offered_chain_id,
             desired_metadata,
-            desired_metadata_address: event_desired_metadata_address,
+            desired_metadata_addr: event_desired_metadata_addr,
             desired_amount,
             desired_chain_id,
-            requester,
+            requester_addr,
             expiry_time,
             min_reported_value: requirement.min_reported_value,
             revocable,
             reserved_solver,
-            requester_address_connected_chain,
+            requester_addr_connected_chain,
         });
 
         intent_obj
@@ -296,7 +296,7 @@ module mvmt_intent::fa_intent_with_oracle {
 
         verify_oracle_requirement(argument, &oracle_witness_opt);
 
-        primary_fungible_store::deposit(argument.requester, received_fa);
+        primary_fungible_store::deposit(argument.requester_addr, received_fa);
         intent::finish_intent_session(session, OracleGuardedWitness {})
     }
 

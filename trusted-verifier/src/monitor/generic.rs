@@ -76,8 +76,6 @@ pub enum ChainType {
 pub struct IntentEvent {
     /// Unique identifier for the intent
     pub intent_id: String,
-    /// Address of the requester who created the intent
-    pub requester: String,
     /// Metadata of the asset being offered
     pub offered_metadata: String,
     /// Amount of the asset being offered (u64, matching Move contract constraint)
@@ -86,17 +84,19 @@ pub struct IntentEvent {
     pub desired_metadata: String,
     /// Amount of the desired asset (u64, matching Move contract constraint)
     pub desired_amount: u64,
-    /// Unix timestamp when the intent expires
-    pub expiry_time: u64,
     /// Whether the intent can be revoked by the creator
     pub revocable: bool,
-    /// Solver address if the intent is reserved (None for unreserved intents)
-    pub reserved_solver: Option<String>,
-    /// Connected chain ID where escrow will be created (None for regular intents)
-    pub connected_chain_id: Option<u64>,
+    /// Address of the requester who created the intent
+    pub requester_addr: String,
     /// Requester address on connected chain (for outflow intents - where solver should send tokens)
     /// None for inflow intents or if not available
-    pub requester_address_connected_chain: Option<String>,
+    pub requester_addr_connected_chain: Option<String>,
+    /// Solver address if the intent is reserved (None for unreserved intents)
+    pub reserved_solver_addr: Option<String>,
+    /// Connected chain ID where escrow will be created (None for regular intents)
+    pub connected_chain_id: Option<u64>,
+    /// Unix timestamp when the intent expires
+    pub expiry_time: u64,
     /// Timestamp when the event was received
     pub timestamp: u64,
 }
@@ -112,8 +112,6 @@ pub struct EscrowEvent {
     pub escrow_id: String,
     /// Unique identifier for the intent on hub chain (for matching)
     pub intent_id: String,
-    /// Address of the issuer who created the escrow (who locked the funds)
-    pub issuer: String,
     /// Metadata of the asset being offered (what's locked in escrow)
     pub offered_metadata: String,
     /// Amount of the asset being offered (u64, matching Move contract constraint)
@@ -122,14 +120,14 @@ pub struct EscrowEvent {
     pub desired_metadata: String,
     /// Amount of the desired asset (u64, matching Move contract constraint)
     pub desired_amount: u64,
-    /// Unix timestamp when the escrow expires
-    pub expiry_time: u64,
     /// Whether the escrow intent can be revoked (should always be false for security)
     pub revocable: bool,
+    /// Address of the requester who created the escrow (who locked the funds)
+    pub requester_addr: String,
     /// Reserved solver address if the escrow is reserved (None for unreserved escrows)
     /// For Move VM escrows: Move VM address
     /// For EVM escrows: EVM address (0x-prefixed hex string)
-    pub reserved_solver: Option<String>,
+    pub reserved_solver_addr: Option<String>,
     /// Chain ID where this escrow is located
     /// Note: This is set by the verifier based on which monitor discovered the event (from config),
     /// not from the event data itself, so it can be trusted for validation.
@@ -138,6 +136,8 @@ pub struct EscrowEvent {
     /// Note: This is set by the verifier based on which monitor discovered the event,
     /// not from the event data itself, so it can be trusted for validation.
     pub chain_type: ChainType,
+    /// Unix timestamp when the escrow expires
+    pub expiry_time: u64,
     /// Timestamp when the event was received
     pub timestamp: u64,
 }
@@ -152,9 +152,9 @@ pub struct FulfillmentEvent {
     /// Unique identifier for the intent that was fulfilled
     pub intent_id: String,
     /// Address of the intent that was fulfilled
-    pub intent_address: String,
+    pub intent_addr: String,
     /// Address of the solver who fulfilled the intent
-    pub solver: String,
+    pub solver_addr: String,
     /// Metadata of the asset provided by the solver
     pub provided_metadata: String,
     /// Amount of the asset provided by the solver (u64, matching Move contract constraint)

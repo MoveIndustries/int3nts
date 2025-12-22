@@ -91,10 +91,10 @@ echo ""
 # ============================================================================
 
 # Get ERC20 token balance on Base Sepolia
-# Usage: get_base_usdc_balance <address> <token_address> <rpc_url>
+# Usage: get_base_usdc_balance <address> <token_addr> <rpc_url>
 get_base_usdc_balance() {
     local address="$1"
-    local token_address="$2"
+    local token_addr="$2"
     local rpc_url="$3"
     
     # ERC20 balanceOf(address) selector = 0x70a08231
@@ -103,7 +103,7 @@ get_base_usdc_balance() {
     
     local result=$(curl -s -X POST "$rpc_url" \
         -H "Content-Type: application/json" \
-        -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_call\",\"params\":[{\"to\":\"$token_address\",\"data\":\"$data\"},\"latest\"],\"id\":1}" \
+        -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_call\",\"params\":[{\"to\":\"$token_addr\",\"data\":\"$data\"},\"latest\"],\"id\":1}" \
         2>/dev/null | jq -r '.result // "0x0"')
     
     # Convert hex to decimal
@@ -111,7 +111,7 @@ get_base_usdc_balance() {
 }
 
 # Get USDC.e balance on Movement (Fungible Asset)
-# Usage: get_movement_usdc_balance <address> <metadata_address> <rpc_url>
+# Usage: get_movement_usdc_balance <address> <metadata_addr> <rpc_url>
 get_movement_usdc_balance() {
     local address="$1"
     local metadata="$2"
@@ -169,7 +169,7 @@ if [ ! -f "$VERIFIER_CONFIG" ]; then
 fi
 
 # Extract config values
-INTENT_MODULE_ADDRESS=$(grep -A5 "\[hub_chain\]" "$VERIFIER_CONFIG" | grep "intent_module_address" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
+INTENT_MODULE_ADDRESS=$(grep -A5 "\[hub_chain\]" "$VERIFIER_CONFIG" | grep "intent_module_addr" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
 VERIFIER_URL="http://localhost:3333"  # Default to local verifier
 
 # Check if verifier is reachable
@@ -347,7 +347,7 @@ DRAFT_DATA=$(jq -n \
         expiry_time: ($et | tonumber),
         intent_id: $ii,
         issuer: $is,
-        chain_address: $ca,
+        chain_addr: $ca,
         flow_type: $ft
     }')
 
@@ -355,7 +355,7 @@ DRAFT_DATA=$(jq -n \
 DRAFT_RESPONSE=$(curl -s -X POST "$VERIFIER_URL/draftintent" \
     -H "Content-Type: application/json" \
     -d "{
-        \"requester_address\": \"$MOVEMENT_REQUESTER_ADDRESS\",
+        \"requester_addr\": \"$MOVEMENT_REQUESTER_ADDRESS\",
         \"draft_data\": $DRAFT_DATA,
         \"expiry_time\": $EXPIRY_TIME
     }")
@@ -405,7 +405,7 @@ if [ -z "$SIGNATURE_DATA" ]; then
 fi
 
 RETRIEVED_SIGNATURE=$(echo "$SIGNATURE_DATA" | jq -r '.data.signature')
-RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.data.solver_address')
+RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.data.solver_addr')
 
 echo "   ✅ Signature received from solver: $RETRIEVED_SOLVER"
 echo ""
@@ -487,10 +487,10 @@ if [ $? -eq 0 ]; then
         fi
         
         # Get escrow contract address from verifier config
-        ESCROW_CONTRACT_ADDRESS=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "escrow_contract_address" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
+        ESCROW_CONTRACT_ADDRESS=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "escrow_contract_addr" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
         
         if [ -z "$ESCROW_CONTRACT_ADDRESS" ]; then
-            echo "⚠️  WARNING: escrow_contract_address not found in verifier_testnet.toml"
+            echo "⚠️  WARNING: escrow_contract_addr not found in verifier_testnet.toml"
             echo "   Cannot automatically create escrow. Manual steps required:"
             echo ""
             echo "💡 Next steps (manual):"

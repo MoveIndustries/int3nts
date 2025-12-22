@@ -14,9 +14,9 @@ use anyhow::{Context, Result};
 /// # Arguments
 ///
 /// * `intent` - The intent event from the hub chain (must have a solver)
-/// * `escrow_reserved_solver` - The reserved solver MVM address from the escrow (on connected chain)
+/// * `escrow_reserved_solver_addr` - The reserved solver MVM address from the escrow (on connected chain)
 /// * `hub_chain_rpc_url` - RPC URL of the hub chain (to query solver registry)
-/// * `registry_address` - Address where the solver registry is deployed
+/// * `solver_registry_addr` - Address where the solver registry is deployed
 ///
 /// # Returns
 ///
@@ -24,12 +24,12 @@ use anyhow::{Context, Result};
 /// * `Err(anyhow::Error)` - Validation failed due to error
 pub async fn validate_mvm_escrow_solver(
     intent: &IntentEvent,
-    escrow_reserved_solver: &str,
+    escrow_reserved_solver_addr: &str,
     hub_chain_rpc_url: &str,
-    registry_address: &str,
+    solver_registry_addr: &str,
 ) -> Result<ValidationResult> {
     // Check if intent has a solver
-    let intent_solver = match &intent.reserved_solver {
+    let intent_solver = match &intent.reserved_solver_addr {
         Some(solver) => solver,
         None => {
             return Ok(ValidationResult {
@@ -42,12 +42,12 @@ pub async fn validate_mvm_escrow_solver(
 
     // Query solver registry for connected chain MVM address
     let mvm_client = crate::mvm_client::MvmClient::new(hub_chain_rpc_url)?;
-    let registered_mvm_address = mvm_client
-        .get_solver_connected_chain_mvm_address(intent_solver, registry_address)
+    let registered_mvm_addr = mvm_client
+        .get_solver_connected_chain_mvm_address(intent_solver, solver_registry_addr)
         .await
         .context("Failed to query solver connected chain MVM address from registry")?;
 
-    let registered_mvm_address = match registered_mvm_address {
+    let registered_mvm_addr = match registered_mvm_addr {
         Some(addr) => addr,
         None => {
             return Ok(ValidationResult {
@@ -62,13 +62,13 @@ pub async fn validate_mvm_escrow_solver(
     };
 
     // Normalize addresses for comparison (remove 0x prefix, pad to 64 hex chars, lowercase)
-    let escrow_solver_raw = escrow_reserved_solver
+    let escrow_solver_raw = escrow_reserved_solver_addr
         .strip_prefix("0x")
-        .unwrap_or(escrow_reserved_solver);
+        .unwrap_or(escrow_reserved_solver_addr);
     let escrow_solver = format!("{:0>64}", escrow_solver_raw).to_lowercase();
-    let registered_solver_raw = registered_mvm_address
+    let registered_solver_raw = registered_mvm_addr
         .strip_prefix("0x")
-        .unwrap_or(&registered_mvm_address);
+        .unwrap_or(&registered_mvm_addr);
     let registered_solver = format!("{:0>64}", registered_solver_raw).to_lowercase();
 
     if escrow_solver != registered_solver {
@@ -76,7 +76,7 @@ pub async fn validate_mvm_escrow_solver(
             valid: false,
             message: format!(
                 "MVM escrow reserved solver '{}' does not match registered solver connected chain MVM address '{}'",
-                escrow_reserved_solver, registered_mvm_address
+                escrow_reserved_solver_addr, registered_mvm_addr
             ),
             timestamp: chrono::Utc::now().timestamp() as u64,
         });

@@ -36,7 +36,7 @@ module mvmt_intent::fa_tests {
             primary_fungible_store::withdraw(offerer, offered_fa_type, 50),
             1, // offered_chain_id
             option::none(), // No offered_amount_override - tokens locked on this chain
-            option::none(), // No offered_metadata_address_override - tokens locked on this chain
+            option::none(), // No offered_metadata_addr_override - tokens locked on this chain
             desired_fa_type,
             25,
             1, // desired_chain_id
@@ -45,7 +45,7 @@ module mvmt_intent::fa_tests {
             option::none(),
             true, // revocable
             option::none(), // No cross-chain intent_id for regular intents
-            option::none() // No requester_address_connected_chain for same-chain intents
+            option::none() // No requester_addr_connected_chain for same-chain intents
         );
         // Verify intent was created
         assert!(object::object_address(&intent) != @0x0);
@@ -93,7 +93,7 @@ module mvmt_intent::fa_tests {
             primary_fungible_store::withdraw(offerer1, fa1_metadata, 30),
             1, // offered_chain_id
             option::none(), // No offered_amount_override - tokens locked on this chain
-            option::none(), // No offered_metadata_address_override - tokens locked on this chain
+            option::none(), // No offered_metadata_addr_override - tokens locked on this chain
             fa2_metadata,
             15,
             1, // desired_chain_id
@@ -102,7 +102,7 @@ module mvmt_intent::fa_tests {
             option::none(),
             true, // revocable
             option::none(), // No cross-chain intent_id for regular intents
-            option::none() // No requester_address_connected_chain for same-chain intents
+            option::none() // No requester_addr_connected_chain for same-chain intents
         );
 
         // Offerer2 deposits 15 of FA2 requesting 30 of FA1.
@@ -110,7 +110,7 @@ module mvmt_intent::fa_tests {
             primary_fungible_store::withdraw(offerer2, fa2_metadata, 15),
             1, // offered_chain_id
             option::none(), // No offered_amount_override - tokens locked on this chain
-            option::none(), // No offered_metadata_address_override - tokens locked on this chain
+            option::none(), // No offered_metadata_addr_override - tokens locked on this chain
             fa1_metadata,
             30,
             1, // desired_chain_id
@@ -119,7 +119,7 @@ module mvmt_intent::fa_tests {
             option::none(),
             true, // revocable
             option::none(), // No cross-chain intent_id for regular intents
-            option::none() // No requester_address_connected_chain for same-chain intents
+            option::none() // No requester_addr_connected_chain for same-chain intents
         );
 
         // Solver unlocks both intents to gather the offered assets.
@@ -169,7 +169,7 @@ module mvmt_intent::fa_tests {
             primary_fungible_store::withdraw(offerer, offered_fa_type, 50),
             1, // offered_chain_id
             option::none(), // No offered_amount_override - tokens locked on this chain
-            option::none(), // No offered_metadata_address_override - tokens locked on this chain
+            option::none(), // No offered_metadata_addr_override - tokens locked on this chain
             desired_fa_type,
             25,
             1, // desired_chain_id
@@ -178,7 +178,7 @@ module mvmt_intent::fa_tests {
             option::none(),
             true, // revocable
             option::none(), // No cross-chain intent_id for regular intents
-            option::none() // No requester_address_connected_chain for same-chain intents
+            option::none() // No requester_addr_connected_chain for same-chain intents
         );
         // Check balance before revocation
         assert!(primary_fungible_store::balance(signer::address_of(offerer), offered_fa_type) == 50);
@@ -214,7 +214,7 @@ module mvmt_intent::fa_tests {
             primary_fungible_store::withdraw(offerer, offered_fa_type, 50),
             1, // offered_chain_id
             option::none(), // No offered_amount_override - tokens locked on this chain
-            option::none(), // No offered_metadata_address_override - tokens locked on this chain
+            option::none(), // No offered_metadata_addr_override - tokens locked on this chain
             desired_fa_type,
             25, // Wants 25 but solver only has 5
             1, // desired_chain_id
@@ -223,7 +223,7 @@ module mvmt_intent::fa_tests {
             option::none(),
             true, // revocable
             option::none(), // No cross-chain intent_id for regular intents
-            option::none() // No requester_address_connected_chain for same-chain intents
+            option::none() // No requester_addr_connected_chain for same-chain intents
         );
         
         // Solver starts the session and unlocks the 50 offered tokens

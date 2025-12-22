@@ -63,8 +63,8 @@ module mvmt_intent::fa_intent_inflow {
         intent: Object<Intent<FungibleStoreManager, FungibleAssetLimitOrder>>,
         payment_amount: u64
     ) {
-        let intent_address = object::object_address(&intent);
-        let solver_address = signer::address_of(solver);
+        let intent_addr = object::object_address(&intent);
+        let solver_addr = signer::address_of(solver);
 
         // 1. Start the session (this unlocks 0 tokens, but creates the session)
         let (unlocked_fa, session) = fa_intent::start_fa_offering_session(
@@ -72,7 +72,7 @@ module mvmt_intent::fa_intent_inflow {
         );
 
         // Deposit the unlocked tokens (which are 0 for inflow intents)
-        primary_fungible_store::deposit(solver_address, unlocked_fa);
+        primary_fungible_store::deposit(solver_addr, unlocked_fa);
 
         // 2. Infer desired metadata from the intent's stored argument
         let argument = intent::get_argument(&session);
@@ -86,12 +86,12 @@ module mvmt_intent::fa_intent_inflow {
         fa_intent::finish_fa_receiving_session_with_event(
             session,
             payment_fa,
-            intent_address,
-            solver_address
+            intent_addr,
+            solver_addr
         );
 
         // 5. Unregister intent from the registry
-        intent_registry::unregister_intent(intent_address);
+        intent_registry::unregister_intent(intent_addr);
     }
 
     /// Creates an inflow intent and returns the intent object.
@@ -99,7 +99,7 @@ module mvmt_intent::fa_intent_inflow {
     /// This is the core implementation that both the entry function and tests use.
     ///
     /// # Note on parameter types:
-    /// - `offered_metadata_address` uses `address` because the offered tokens are on a different chain
+    /// - `offered_metadata_addr` uses `address` because the offered tokens are on a different chain
     ///   (connected chain), so the metadata object doesn't exist on the hub chain. We can't validate
     ///   it here - validation happens on the connected chain where the escrow was created.
     /// - `desired_metadata` uses `Object<Metadata>` because the desired tokens are on the hub chain,
@@ -107,7 +107,7 @@ module mvmt_intent::fa_intent_inflow {
     ///
     /// # Arguments
     /// - `account`: Signer of the requester creating the intent
-    /// - `offered_metadata_address`: Address of the token metadata being offered (locked on connected chain)
+    /// - `offered_metadata_addr`: Address of the token metadata being offered (locked on connected chain)
     /// - `offered_amount`: Amount of tokens offered (locked in escrow on connected chain)
     /// - `offered_chain_id`: Chain ID where the escrow is created (connected chain)
     /// - `desired_metadata`: Metadata object of the desired token type (on hub chain)
@@ -117,7 +117,7 @@ module mvmt_intent::fa_intent_inflow {
     /// - `intent_id`: Intent ID for cross-chain linking
     /// - `solver`: Address of the solver authorized to fulfill this intent (must be registered)
     /// - `solver_signature`: Ed25519 signature from the solver authorizing this intent
-    /// - `requester_address_connected_chain`: Requester's address on the connected chain (for escrow lookup)
+    /// - `requester_addr_connected_chain`: Requester's address on the connected chain (for escrow lookup)
     ///
     /// # Returns
     /// - `Object<Intent<FungibleStoreManager, FungibleAssetLimitOrder>>`: The created intent object
@@ -127,7 +127,7 @@ module mvmt_intent::fa_intent_inflow {
     /// - `EINVALID_SIGNATURE`: Signature verification failed
     public fun create_inflow_intent(
         account: &signer,
-        offered_metadata_address: address,
+        offered_metadata_addr: address,
         offered_amount: u64,
         offered_chain_id: u64,
         desired_metadata: Object<Metadata>,
@@ -137,7 +137,7 @@ module mvmt_intent::fa_intent_inflow {
         intent_id: address,
         solver: address,
         solver_signature: vector<u8>,
-        requester_address_connected_chain: address
+        requester_addr_connected_chain: address
     ): Object<Intent<FungibleStoreManager, FungibleAssetLimitOrder>> {
         // Withdraw 0 tokens of DESIRED type (not offered type).
         // Why: The offered token metadata is on the connected chain, so the Object doesn't exist here.
@@ -152,7 +152,7 @@ module mvmt_intent::fa_intent_inflow {
         // Verify solver signature using raw addresses (works for cross-chain where offered token doesn't exist locally)
         let intent_to_sign =
             intent_reservation::new_intent_to_sign_raw(
-                offered_metadata_address,
+                offered_metadata_addr,
                 offered_amount,
                 offered_chain_id,
                 desired_metadata_addr,
@@ -178,7 +178,7 @@ module mvmt_intent::fa_intent_inflow {
             fa,
             offered_chain_id, // where escrow is created
             option::some(offered_amount), // Pass explicit offered_amount since tokens are locked on connected chain
-            option::some(offered_metadata_address), // Pass explicit offered_metadata_address since tokens are on connected chain
+            option::some(offered_metadata_addr), // Pass explicit offered_metadata_addr since tokens are on connected chain
             desired_metadata,
             desired_amount,
             desired_chain_id, // hub chain where this intent is created
@@ -188,7 +188,7 @@ module mvmt_intent::fa_intent_inflow {
             false, // CRITICAL: All parts of a cross-chain intent MUST be non-revocable (including the hub intent)
             // Ensures consistent safety guarantees for verifiers across chains
             option::some(intent_id), // Store the cross-chain intent_id for fulfillment event
-            option::some(requester_address_connected_chain) // Store requester address on connected chain for escrow lookup
+            option::some(requester_addr_connected_chain) // Store requester address on connected chain for escrow lookup
         );
 
         // Register intent in the registry for dynamic account discovery
@@ -206,7 +206,7 @@ module mvmt_intent::fa_intent_inflow {
     /// For argument descriptions and abort conditions, see `create_inflow_intent`.
     public entry fun create_inflow_intent_entry(
         account: &signer,
-        offered_metadata_address: address,
+        offered_metadata_addr: address,
         offered_amount: u64,
         offered_chain_id: u64,
         desired_metadata: Object<Metadata>,
@@ -216,12 +216,12 @@ module mvmt_intent::fa_intent_inflow {
         intent_id: address,
         solver: address,
         solver_signature: vector<u8>,
-        requester_address_connected_chain: address
+        requester_addr_connected_chain: address
     ) {
         let _intent_obj =
             create_inflow_intent(
                 account,
-                offered_metadata_address,
+                offered_metadata_addr,
                 offered_amount,
                 offered_chain_id,
                 desired_metadata,
@@ -231,7 +231,7 @@ module mvmt_intent::fa_intent_inflow {
                 intent_id,
                 solver,
                 solver_signature,
-                requester_address_connected_chain
+                requester_addr_connected_chain
             );
     }
 }

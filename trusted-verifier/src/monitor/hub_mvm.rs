@@ -94,16 +94,16 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
     let client = MvmClient::new(&monitor.config.hub_chain.rpc_url)?;
 
     // Query active requester addresses from the intent registry
-    let registry_address = &monitor.config.hub_chain.intent_module_address;
+    let solver_registry_addr = &monitor.config.hub_chain.intent_module_addr;
     let requester_addresses_to_poll = client
-        .get_active_requesters(registry_address)
+        .get_active_requesters(solver_registry_addr)
         .await
         .context("Failed to query intent registry for active requesters")?;
 
     // Query all registered solver addresses to poll for fulfillment events
     // Fulfillment events are emitted on the solver's account, not the requester's account
     let solver_addresses = client
-        .get_all_solver_addresses(registry_address)
+        .get_all_solver_addresses(solver_registry_addr)
         .await
         .context("Failed to query solver registry for all solvers")?;
 
@@ -146,8 +146,8 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                     let normalized_intent_id = crate::monitor::generic::normalize_intent_id_to_64_chars(&data.intent_id);
                     let fulfillment_event = FulfillmentEvent {
                         intent_id: normalized_intent_id,
-                        intent_address: data.intent_address.clone(),
-                        solver: data.solver.clone(),
+                        intent_addr: data.intent_addr.clone(),
+                        solver_addr: data.solver_addr.clone(),
                         provided_metadata: serde_json::to_string(&data.provided_metadata)
                             .unwrap_or_default(),
                         provided_amount: parse_amount_with_u64_limit(&data.provided_amount, "Fulfillment provided_amount")?,
@@ -171,7 +171,7 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                             fulfillment_cache.push(fulfillment_event.clone());
                             info!(
                                 "Received fulfillment event for intent {} by solver {}",
-                                data.intent_id, data.solver
+                                data.intent_id, data.solver_addr
                             );
                             true
                         } else {
@@ -191,7 +191,14 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                 // Outflow intents use OracleLimitOrderEvent (from fa_intent_with_oracle)
                 // All outflow intents MUST have a reserved solver
                 let data: MvmOracleLimitOrderEvent = serde_json::from_value(event.data.clone())
-                    .context("Failed to parse OracleLimitOrderEvent")?;
+                    .with_context(|| {
+                        format!(
+                            "Failed to parse OracleLimitOrderEvent. Event type: {}, Event data: {}",
+                            event_type,
+                            serde_json::to_string_pretty(&event.data)
+                                .unwrap_or_else(|_| format!("{:?}", event.data))
+                        )
+                    })?;
 
                 // Use reserved_solver from event (now included in the event)
                 // All outflow intents must have a reserved solver
@@ -239,22 +246,22 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                 
                 intent_events.push(IntentEvent {
                     intent_id: data.intent_id.clone(), // Use intent_id for cross-chain linking
-                    requester: data.requester.clone(),
                     offered_metadata: serde_json::to_string(&data.offered_metadata)
                         .unwrap_or_default(),
                     offered_amount: parse_amount_with_u64_limit(&data.offered_amount, "Request-intent offered_amount")?,
                     desired_metadata: desired_metadata_str,
                     desired_amount: parse_amount_with_u64_limit(&data.desired_amount, "Request-intent desired_amount")?,
+                    revocable: data.revocable,
+                    requester_addr: data.requester_addr.clone(),
+                    requester_addr_connected_chain: data
+                        .requester_addr_connected_chain
+                        .clone(),
+                    reserved_solver_addr: Some(reserved_solver),
+                    connected_chain_id,
                     expiry_time: data
                         .expiry_time
                         .parse::<u64>()
                         .context("Failed to parse expiry_time")?,
-                    revocable: data.revocable,
-                    reserved_solver: Some(reserved_solver),
-                    connected_chain_id,
-                    requester_address_connected_chain: data
-                        .requester_address_connected_chain
-                        .clone(),
                     timestamp,
                 });
             } else if event_type.contains("LimitOrderEvent") && !event_type.contains("Fulfillment")
@@ -295,27 +302,34 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                 
                 intent_events.push(IntentEvent {
                     intent_id: data.intent_id.clone(), // Use intent_id for cross-chain linking
-                    requester: data.requester.clone(),
                     offered_metadata: offered_metadata_str,
                     offered_amount: parse_amount_with_u64_limit(&data.offered_amount, "Request-intent offered_amount")?,
                     desired_metadata: serde_json::to_string(&data.desired_metadata)
                         .unwrap_or_default(),
                     desired_amount: parse_amount_with_u64_limit(&data.desired_amount, "Request-intent desired_amount")?,
+                    revocable: data.revocable,
+                    requester_addr: data.requester_addr.clone(),
+                    requester_addr_connected_chain: data.requester_addr_connected_chain.clone(),
+                    reserved_solver_addr: reserved_solver,
+                    connected_chain_id,
                     expiry_time: data
                         .expiry_time
                         .parse::<u64>()
                         .context("Failed to parse expiry_time")?,
-                    revocable: data.revocable,
-                    reserved_solver,
-                    connected_chain_id,
-                    requester_address_connected_chain: data.requester_address_connected_chain.clone(),
                     timestamp,
                 });
             } else if event_type.contains("OracleLimitOrderEvent") {
                 // Outflow intents use OracleLimitOrderEvent (from fa_intent_with_oracle)
                 // All outflow intents MUST have a reserved solver
                 let data: MvmOracleLimitOrderEvent = serde_json::from_value(event.data.clone())
-                    .context("Failed to parse OracleLimitOrderEvent")?;
+                    .with_context(|| {
+                        format!(
+                            "Failed to parse OracleLimitOrderEvent. Event type: {}, Event data: {}",
+                            event_type,
+                            serde_json::to_string_pretty(&event.data)
+                                .unwrap_or_else(|_| format!("{:?}", event.data))
+                        )
+                    })?;
 
                 // Use reserved_solver from event (now included in the event)
                 // All outflow intents must have a reserved solver
@@ -363,22 +377,22 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                 
                 intent_events.push(IntentEvent {
                     intent_id: data.intent_id.clone(), // Use intent_id for cross-chain linking
-                    requester: data.requester.clone(),
                     offered_metadata: serde_json::to_string(&data.offered_metadata)
                         .unwrap_or_default(),
                     offered_amount: parse_amount_with_u64_limit(&data.offered_amount, "Request-intent offered_amount")?,
                     desired_metadata: desired_metadata_str,
                     desired_amount: parse_amount_with_u64_limit(&data.desired_amount, "Request-intent desired_amount")?,
+                    revocable: data.revocable,
+                    requester_addr: data.requester_addr.clone(),
+                    requester_addr_connected_chain: data
+                        .requester_addr_connected_chain
+                        .clone(),
+                    reserved_solver_addr: Some(reserved_solver),
+                    connected_chain_id,
                     expiry_time: data
                         .expiry_time
                         .parse::<u64>()
                         .context("Failed to parse expiry_time")?,
-                    revocable: data.revocable,
-                    reserved_solver: Some(reserved_solver),
-                    connected_chain_id,
-                    requester_address_connected_chain: data
-                        .requester_address_connected_chain
-                        .clone(),
                     timestamp,
                 });
             }

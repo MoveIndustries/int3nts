@@ -15,8 +15,10 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 #[path = "../mod.rs"]
 mod test_helpers;
 use test_helpers::{
-    build_test_config_with_mvm, create_base_fulfillment_transaction_params_mvm,
-    create_base_mvm_transaction, create_base_intent_mvm,
+    build_test_config_with_mvm, create_default_fulfillment_transaction_params_mvm,
+    create_default_mvm_transaction, create_default_intent_mvm, setup_mock_server_with_registry_mvm,
+    DUMMY_INTENT_ID, DUMMY_METADATA_ADDR_MVM, DUMMY_REQUESTER_ADDR_MVM_CON, DUMMY_SOLVER_ADDR_MVM_HUB, DUMMY_SOLVER_ADDR_MVM_CON,
+    DUMMY_SOLVER_REGISTRY_ADDR,
 };
 
 // ============================================================================
@@ -36,13 +38,13 @@ fn test_extract_mvm_fulfillment_params_success() {
         payload: Some(serde_json::json!({
             "function": "0x123::utils::transfer_with_intent_id",
             "arguments": [
-                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-                "0x17d7840",
-                "0x1111111111111111111111111111111111111111111111111111111111111111"
+                DUMMY_REQUESTER_ADDR_MVM_CON, // recipient
+                DUMMY_METADATA_ADDR_MVM, // metadata object address
+                "0x17d7840", // amount
+                DUMMY_INTENT_ID // intent_id
             ]
         })),
-        ..create_base_mvm_transaction()
+        ..create_default_mvm_transaction()
     };
 
     let result = extract_mvm_fulfillment_params(&tx);
@@ -53,21 +55,21 @@ fn test_extract_mvm_fulfillment_params_success() {
     );
     let params = result.unwrap();
     assert_eq!(
-        params.recipient,
-        "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        params.recipient_addr,
+        DUMMY_REQUESTER_ADDR_MVM_CON
     );
     assert_eq!(params.amount, 25000000); // 0x17d7840 in decimal
     assert_eq!(
         params.intent_id,
-        "0x1111111111111111111111111111111111111111111111111111111111111111"
+        DUMMY_INTENT_ID
     );
     assert_eq!(
-        params.solver,
-        "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        params.solver_addr,
+        DUMMY_SOLVER_ADDR_MVM_CON
     );
     assert_eq!(
         params.token_metadata,
-        "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        DUMMY_METADATA_ADDR_MVM
     );
 }
 
@@ -82,13 +84,13 @@ fn test_extract_mvm_fulfillment_params_amount_as_number() {
         payload: Some(serde_json::json!({
             "function": "0x123::utils::transfer_with_intent_id",
             "arguments": [
-                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                DUMMY_REQUESTER_ADDR_MVM_CON, // recipient
+                DUMMY_METADATA_ADDR_MVM, // metadata object address
                 100000000u64, // Amount as JSON number (when passed as u64:100000000 to aptos CLI)
-                "0x1111111111111111111111111111111111111111111111111111111111111111"
+                DUMMY_INTENT_ID // intent_id
             ]
         })),
-        ..create_base_mvm_transaction()
+        ..create_default_mvm_transaction()
     };
 
     let result = extract_mvm_fulfillment_params(&tx);
@@ -112,13 +114,13 @@ fn test_extract_mvm_fulfillment_params_amount_as_decimal_string() {
         payload: Some(serde_json::json!({
             "function": "0x123::utils::transfer_with_intent_id",
             "arguments": [
-                "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                DUMMY_REQUESTER_ADDR_MVM_CON, // recipient
+                DUMMY_METADATA_ADDR_MVM, // metadata object address
                 "100000000", // Amount as decimal string (without 0x prefix)
-                "0x1111111111111111111111111111111111111111111111111111111111111111"
+                DUMMY_INTENT_ID // intent_id
             ]
         })),
-        ..create_base_mvm_transaction()
+        ..create_default_mvm_transaction()
     };
 
     let result = extract_mvm_fulfillment_params(&tx);
@@ -145,7 +147,7 @@ fn test_extract_mvm_fulfillment_params_wrong_function() {
             "function": "0x123::utils::transfer",
             "arguments": ["0xrecipient", "0xmetadata", "0x100"]
         })),
-        ..create_base_mvm_transaction()
+        ..create_default_mvm_transaction()
     };
 
     let result = extract_mvm_fulfillment_params(&tx);
@@ -168,7 +170,7 @@ fn test_extract_mvm_fulfillment_params_wrong_function() {
 fn test_extract_mvm_fulfillment_params_missing_payload() {
     let tx = MvmTransaction {
         payload: None,
-        ..create_base_mvm_transaction()
+        ..create_default_mvm_transaction()
     };
 
     let result = extract_mvm_fulfillment_params(&tx);
@@ -192,22 +194,22 @@ fn test_extract_mvm_fulfillment_params_missing_payload() {
 fn test_extract_mvm_fulfillment_params_address_normalization() {
     // Address without leading zeros: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee (62 chars)
     // Should be normalized to: 00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee (64 chars)
-    let recipient_short = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+    let recipient_short: &str = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
 
     let tx = MvmTransaction {
         payload: Some(serde_json::json!({
             "function": "0x123::utils::transfer_with_intent_id",
             "arguments": [
                 recipient_short,
-                "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                DUMMY_METADATA_ADDR_MVM, // metadata object address
                 "100000000",
-                "0x1111111111111111111111111111111111111111111111111111111111111111"
+                DUMMY_INTENT_ID // intent_id
             ]
         })),
         sender: Some(
-            "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string(),
+            DUMMY_SOLVER_ADDR_MVM_HUB.to_string(), // solver
         ),
-        ..create_base_mvm_transaction()
+        ..create_default_mvm_transaction()
     };
 
     let result = extract_mvm_fulfillment_params(&tx);
@@ -220,13 +222,13 @@ fn test_extract_mvm_fulfillment_params_address_normalization() {
 
     // Recipient should be normalized to 64 hex chars with leading zeros
     assert_eq!(
-        params.recipient, "0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        params.recipient_addr, "0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
         "Recipient address should be padded to 64 hex characters"
     );
 
     // Intent ID is already 64 hex chars, so should remain unchanged
     assert_eq!(
-        params.intent_id, "0x1111111111111111111111111111111111111111111111111111111111111111",
+        params.intent_id, DUMMY_INTENT_ID,
         "Intent ID should remain 64 hex characters (already correct length)"
     );
     assert_eq!(
@@ -237,7 +239,7 @@ fn test_extract_mvm_fulfillment_params_address_normalization() {
 
     // Solver should also be normalized (already 64 chars in test, but should still work)
     assert_eq!(
-        params.solver.len(),
+        params.solver_addr.len(),
         66, // 0x + 64 hex chars
         "Solver address should be 66 characters (0x + 64 hex)"
     );
@@ -247,75 +249,6 @@ fn test_extract_mvm_fulfillment_params_address_normalization() {
 // HELPER FUNCTIONS
 // ============================================================================
 
-/// Helper to create a mock SolverRegistry resource response with MVM address
-fn create_solver_registry_resource_with_mvm_address(
-    registry_address: &str,
-    solver_address: &str,
-    connected_chain_mvm_address: Option<&str>,
-) -> serde_json::Value {
-    let solver_entry = if let Some(mvm_addr) = connected_chain_mvm_address {
-        // SolverInfo with connected_chain_mvm_address set
-        json!({
-            "key": solver_address,
-            "value": {
-                "public_key": [1, 2, 3, 4], // Dummy public key bytes
-                "connected_chain_evm_address": {"vec": []}, // None
-                "connected_chain_mvm_address": {"vec": [mvm_addr]}, // Some(address)
-                "registered_at": 1234567890
-            }
-        })
-    } else {
-        // SolverInfo without connected_chain_mvm_address
-        json!({
-            "key": solver_address,
-            "value": {
-                "public_key": [1, 2, 3, 4], // Dummy public key bytes
-                "connected_chain_evm_address": {"vec": []}, // None
-                "connected_chain_mvm_address": {"vec": []}, // None
-                "registered_at": 1234567890
-            }
-        })
-    };
-
-    json!([{
-        "type": format!("{}::solver_registry::SolverRegistry", registry_address),
-        "data": {
-            "solvers": {
-                "data": [solver_entry]
-            }
-        }
-    }])
-}
-
-/// Setup a mock server that responds to get_resources calls with SolverRegistry
-async fn setup_mock_server_with_registry(
-    registry_address: &str,
-    solver_address: &str,
-    connected_chain_mvm_address: Option<&str>,
-) -> (MockServer, CrossChainValidator) {
-    let mock_server = MockServer::start().await;
-
-    let resources_response = create_solver_registry_resource_with_mvm_address(
-        registry_address,
-        solver_address,
-        connected_chain_mvm_address,
-    );
-
-    Mock::given(method("GET"))
-        .and(path(format!("/v1/accounts/{}/resources", registry_address)))
-        .respond_with(ResponseTemplate::new(200).set_body_json(resources_response))
-        .mount(&mock_server)
-        .await;
-
-    let mut config = build_test_config_with_mvm();
-    config.hub_chain.rpc_url = mock_server.uri();
-    let validator = CrossChainValidator::new(&config)
-        .await
-        .expect("Failed to create validator");
-
-    (mock_server, validator)
-}
-
 // ============================================================================
 // OUTFLOW FULFILLMENT VALIDATION TESTS
 // ============================================================================
@@ -323,35 +256,34 @@ async fn setup_mock_server_with_registry(
 /// Test that validate_outflow_fulfillment succeeds when all parameters match
 ///
 /// What is tested: Validating an outflow fulfillment transaction where transaction was successful,
-/// intent_id matches, recipient matches requester_address_connected_chain, amount matches desired_amount,
+/// intent_id matches, recipient matches requester_addr_connected_chain, amount matches desired_amount,
 /// and solver matches reserved solver.
 ///
 /// Why: Verify that the validation function correctly validates all requirements for a successful
 /// outflow fulfillment.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_success() {
-    let solver_address = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    let connected_chain_mvm_address =
-        "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    let registry_address = "0x1";
+    let solver_addr = DUMMY_SOLVER_ADDR_MVM_HUB;
+    let solver_connected_chain_mvm_addr = DUMMY_SOLVER_ADDR_MVM_CON;
+    let solver_registry_addr = DUMMY_SOLVER_REGISTRY_ADDR;
 
-    let (_mock_server, validator) = setup_mock_server_with_registry(
-        registry_address,
-        solver_address,
-        Some(connected_chain_mvm_address),
+    let (_mock_server, validator) = setup_mock_server_with_registry_mvm(
+        solver_registry_addr,
+        solver_addr,
+        Some(solver_connected_chain_mvm_addr),
     )
     .await;
 
     let intent = IntentEvent {
         desired_amount: 25000000, // For outflow intents, validation uses desired_amount (amount desired on connected chain)
-        reserved_solver: Some(solver_address.to_string()),
-        ..create_base_intent_mvm()
+        reserved_solver_addr: Some(solver_addr.to_string()),
+        ..create_default_intent_mvm()
     };
 
     let tx_params = FulfillmentTransactionParams {
         amount: 25000000,
-        solver: connected_chain_mvm_address.to_string(),
-        ..create_base_fulfillment_transaction_params_mvm()
+        solver_addr: solver_connected_chain_mvm_addr.to_string(),
+        ..create_default_fulfillment_transaction_params_mvm()
     };
 
     let result = validate_outflow_fulfillment(&validator, &intent, &tx_params, true).await;
@@ -377,11 +309,11 @@ async fn test_validate_outflow_fulfillment_fails_on_unsuccessful_tx() {
         .await
         .expect("Failed to create validator");
 
-    let intent = create_base_intent_mvm();
+    let intent = create_default_intent_mvm();
     let tx_params = FulfillmentTransactionParams {
         intent_id: intent.intent_id.clone(),
         amount: intent.desired_amount,
-        ..create_base_fulfillment_transaction_params_mvm()
+        ..create_default_fulfillment_transaction_params_mvm()
     };
 
     let result = validate_outflow_fulfillment(&validator, &intent, &tx_params, false).await;
@@ -411,11 +343,11 @@ async fn test_validate_outflow_fulfillment_fails_on_intent_id_mismatch() {
         .await
         .expect("Failed to create validator");
 
-    let intent = create_base_intent_mvm();
+    let intent = create_default_intent_mvm();
     let tx_params = FulfillmentTransactionParams {
         intent_id: "0xwrong_intent_id".to_string(), // Different intent_id
         amount: intent.desired_amount,
-        ..create_base_fulfillment_transaction_params_mvm()
+        ..create_default_fulfillment_transaction_params_mvm()
     };
 
     let result = validate_outflow_fulfillment(&validator, &intent, &tx_params, true).await;
@@ -432,10 +364,10 @@ async fn test_validate_outflow_fulfillment_fails_on_intent_id_mismatch() {
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when recipient doesn't match requester_address_connected_chain
+/// Test that validate_outflow_fulfillment fails when recipient doesn't match requester_addr_connected_chain
 ///
 /// What is tested: Validating an outflow fulfillment transaction where the transaction's recipient
-/// doesn't match the intent's requester_address_connected_chain should result in validation failure.
+/// doesn't match the intent's requester_addr_connected_chain should result in validation failure.
 ///
 /// Why: Verify that tokens are sent to the correct recipient address on the connected chain.
 #[tokio::test]
@@ -445,12 +377,12 @@ async fn test_validate_outflow_fulfillment_fails_on_recipient_mismatch() {
         .await
         .expect("Failed to create validator");
 
-    let intent = create_base_intent_mvm();
+    let intent = create_default_intent_mvm();
 
     let tx_params = FulfillmentTransactionParams {
-        recipient: "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd".to_string(), // Different recipient (Move VM address format)
+        recipient_addr: "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd".to_string(), // Different recipient (Move VM address format)
         amount: intent.desired_amount,
-        ..create_base_fulfillment_transaction_params_mvm()
+        ..create_default_fulfillment_transaction_params_mvm()
     };
 
     let result = validate_outflow_fulfillment(&validator, &intent, &tx_params, true).await;
@@ -482,12 +414,12 @@ async fn test_validate_outflow_fulfillment_fails_on_amount_mismatch() {
 
     let intent = IntentEvent {
         desired_amount: 1000,
-        ..create_base_intent_mvm()
+        ..create_default_intent_mvm()
     };
 
     let tx_params = FulfillmentTransactionParams {
         amount: 500, // Different amount
-        ..create_base_fulfillment_transaction_params_mvm()
+        ..create_default_fulfillment_transaction_params_mvm()
     };
 
     let result = validate_outflow_fulfillment(&validator, &intent, &tx_params, true).await;
@@ -515,14 +447,14 @@ async fn test_validate_outflow_fulfillment_fails_on_amount_mismatch() {
 /// Why: Verify that only registered solvers can fulfill intents.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_solver_not_registered() {
-    let unregistered_solver = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    let registry_address = "0x1";
+    let unregistered_solver = DUMMY_SOLVER_ADDR_MVM_HUB;
+    let solver_registry_addr = DUMMY_SOLVER_REGISTRY_ADDR;
 
     // Setup mock server with empty registry (solver not registered)
     let mock_server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path(format!("/v1/accounts/{}/resources", registry_address)))
+        .and(path(format!("/v1/accounts/{}/resources", solver_registry_addr)))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([]))) // Empty resources
         .mount(&mock_server)
         .await;
@@ -535,13 +467,13 @@ async fn test_validate_outflow_fulfillment_fails_on_solver_not_registered() {
 
     let intent = IntentEvent {
         desired_amount: 1000, // Set desired_amount to avoid validation failure on amount check
-        reserved_solver: Some(unregistered_solver.to_string()),
-        ..create_base_intent_mvm()
+        reserved_solver_addr: Some(unregistered_solver.to_string()),
+        ..create_default_intent_mvm()
     };
 
     let tx_params = FulfillmentTransactionParams {
         amount: intent.desired_amount,
-        ..create_base_fulfillment_transaction_params_mvm()
+        ..create_default_fulfillment_transaction_params_mvm()
     };
 
     let result = validate_outflow_fulfillment(&validator, &intent, &tx_params, true).await;

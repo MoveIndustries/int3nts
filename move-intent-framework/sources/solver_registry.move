@@ -37,15 +37,15 @@ module mvmt_intent::solver_registry {
     struct SolverInfo has store, drop {
         solver_addr: address,
         public_key: vector<u8>,  // Ed25519 public key (32 bytes)
-        connected_chain_evm_address: Option<vector<u8>>, // EVM address on connected chain (20 bytes, None if not applicable)
-        connected_chain_mvm_address: Option<address>, // Move VM address on connected chain (None if not applicable)
+        connected_chain_evm_addr: Option<vector<u8>>, // EVM address on connected chain (20 bytes, None if not applicable)
+        connected_chain_mvm_addr: Option<address>, // Move VM address on connected chain (None if not applicable)
         registered_at: u64,
     }
     
     /// Global solver registry
     struct SolverRegistry has key {
         solvers: SimpleMap<address, SolverInfo>,
-        solver_addresses: vector<address>, // Track all solver addresses for iteration
+        solver_addrs: vector<address>, // Track all solver addresses for iteration
     }
     
     // ==================== Events ====================
@@ -54,8 +54,8 @@ module mvmt_intent::solver_registry {
     struct SolverRegistered has drop, store {
         solver: address,
         public_key: vector<u8>,
-        connected_chain_evm_address: Option<vector<u8>>,
-        connected_chain_mvm_address: Option<address>,
+        connected_chain_evm_addr: Option<vector<u8>>,
+        connected_chain_mvm_addr: Option<address>,
         timestamp: u64,
     }
     
@@ -63,8 +63,8 @@ module mvmt_intent::solver_registry {
     struct SolverUpdated has drop, store {
         solver: address,
         public_key: vector<u8>,
-        connected_chain_evm_address: Option<vector<u8>>,
-        connected_chain_mvm_address: Option<address>,
+        connected_chain_evm_addr: Option<vector<u8>>,
+        connected_chain_mvm_addr: Option<address>,
         timestamp: u64,
     }
     
@@ -87,7 +87,7 @@ module mvmt_intent::solver_registry {
         
         move_to(account, SolverRegistry {
             solvers: simple_map::create(),
-            solver_addresses: vector::empty(),
+            solver_addrs: vector::empty(),
         });
     }
     
@@ -96,13 +96,13 @@ module mvmt_intent::solver_registry {
     /// # Arguments
     /// - `solver`: The solver signing the transaction
     /// - `public_key`: Ed25519 public key (32 bytes) for signature validation
-    /// - `connected_chain_evm_address`: EVM address on connected chain (20 bytes, empty vector if not applicable)
-    /// - `connected_chain_mvm_address`: Move VM address on connected chain (0x0 if not applicable)
+    /// - `connected_chain_evm_addr`: EVM address on connected chain (20 bytes, empty vector if not applicable)
+    /// - `connected_chain_mvm_addr`: Move VM address on connected chain (0x0 if not applicable)
     public entry fun register_solver(
         solver: &signer,
         public_key: vector<u8>,
-        connected_chain_evm_address: vector<u8>,
-        connected_chain_mvm_address: address,
+        connected_chain_evm_addr: vector<u8>,
+        connected_chain_mvm_addr: address,
     ) acquires SolverRegistry {
         let solver_addr = signer::address_of(solver);
         let registry_addr = @mvmt_intent;
@@ -119,7 +119,7 @@ module mvmt_intent::solver_registry {
         
         // Validate EVM address length if provided (non-empty)
         // Empty vector (0 bytes) means "not set"
-        let evm_addr_length = vector::length(&connected_chain_evm_address);
+        let evm_addr_length = vector::length(&connected_chain_evm_addr);
         if (evm_addr_length > 0) {
             assert!(evm_addr_length == EVM_ADDRESS_LENGTH, E_EVM_ADDRESS_LENGTH_INVALID);
         };
@@ -133,13 +133,13 @@ module mvmt_intent::solver_registry {
         // Empty vector (0 bytes) means "not set" -> Option::none
         // 0x0 address means "not set" -> Option::none
         let evm_addr_opt = if (evm_addr_length > 0) {
-            option::some(connected_chain_evm_address)
+            option::some(connected_chain_evm_addr)
         } else {
             option::none<vector<u8>>()
         };
         
-        let mvm_addr_opt = if (connected_chain_mvm_address != @0x0) {
-            option::some(connected_chain_mvm_address)
+        let mvm_addr_opt = if (connected_chain_mvm_addr != @0x0) {
+            option::some(connected_chain_mvm_addr)
         } else {
             option::none<address>()
         };
@@ -148,21 +148,21 @@ module mvmt_intent::solver_registry {
         let solver_info = SolverInfo {
             solver_addr,
             public_key,
-            connected_chain_evm_address: evm_addr_opt,
-            connected_chain_mvm_address: mvm_addr_opt,
+        connected_chain_evm_addr: evm_addr_opt,
+        connected_chain_mvm_addr: mvm_addr_opt,
             registered_at: timestamp::now_seconds(),
         };
         
         simple_map::add(&mut registry.solvers, solver_addr, solver_info);
-        vector::push_back(&mut registry.solver_addresses, solver_addr);
+        vector::push_back(&mut registry.solver_addrs, solver_addr);
         
         // Emit event
         let solver_data = simple_map::borrow(&registry.solvers, &solver_addr);
         event::emit(SolverRegistered {
             solver: solver_addr,
             public_key: solver_data.public_key,
-            connected_chain_evm_address: solver_data.connected_chain_evm_address,
-            connected_chain_mvm_address: solver_data.connected_chain_mvm_address,
+            connected_chain_evm_addr: solver_data.connected_chain_evm_addr,
+            connected_chain_mvm_addr: solver_data.connected_chain_mvm_addr,
             timestamp: timestamp::now_seconds(),
         });
     }
@@ -171,13 +171,13 @@ module mvmt_intent::solver_registry {
     /// Only the solver themselves can update their registration
     /// 
     /// # Arguments
-    /// - `connected_chain_evm_address`: EVM address on connected chain (20 bytes, empty vector if not applicable)
-    /// - `connected_chain_mvm_address`: Move VM address on connected chain (0x0 if not applicable)
+    /// - `connected_chain_evm_addr`: EVM address on connected chain (20 bytes, empty vector if not applicable)
+    /// - `connected_chain_mvm_addr`: Move VM address on connected chain (0x0 if not applicable)
     public entry fun update_solver(
         solver: &signer,
         public_key: vector<u8>,
-        connected_chain_evm_address: vector<u8>,
-        connected_chain_mvm_address: address,
+        connected_chain_evm_addr: vector<u8>,
+        connected_chain_mvm_addr: address,
     ) acquires SolverRegistry {
         let solver_addr = signer::address_of(solver);
         let registry_addr = @mvmt_intent;
@@ -194,7 +194,7 @@ module mvmt_intent::solver_registry {
         
         // Validate EVM address length if provided (non-empty)
         // Empty vector (0 bytes) means "not set"
-        let evm_addr_length = vector::length(&connected_chain_evm_address);
+        let evm_addr_length = vector::length(&connected_chain_evm_addr);
         if (evm_addr_length > 0) {
             assert!(evm_addr_length == EVM_ADDRESS_LENGTH, E_EVM_ADDRESS_LENGTH_INVALID);
         };
@@ -206,13 +206,13 @@ module mvmt_intent::solver_registry {
         
         // Convert sentinel values to Option types for storage
         let evm_addr_opt = if (evm_addr_length > 0) {
-            option::some(connected_chain_evm_address)
+            option::some(connected_chain_evm_addr)
         } else {
             option::none<vector<u8>>()
         };
         
-        let mvm_addr_opt = if (connected_chain_mvm_address != @0x0) {
-            option::some(connected_chain_mvm_address)
+        let mvm_addr_opt = if (connected_chain_mvm_addr != @0x0) {
+            option::some(connected_chain_mvm_addr)
         } else {
             option::none<address>()
         };
@@ -220,15 +220,15 @@ module mvmt_intent::solver_registry {
         // Update solver info
         let solver_info = simple_map::borrow_mut(&mut registry.solvers, &solver_addr);
         solver_info.public_key = public_key;
-        solver_info.connected_chain_evm_address = evm_addr_opt;
-        solver_info.connected_chain_mvm_address = mvm_addr_opt;
+        solver_info.connected_chain_evm_addr = evm_addr_opt;
+        solver_info.connected_chain_mvm_addr = mvm_addr_opt;
         
         // Emit event
         event::emit(SolverUpdated {
             solver: solver_addr,
             public_key: solver_info.public_key,
-            connected_chain_evm_address: solver_info.connected_chain_evm_address,
-            connected_chain_mvm_address: solver_info.connected_chain_mvm_address,
+            connected_chain_evm_addr: solver_info.connected_chain_evm_addr,
+            connected_chain_mvm_addr: solver_info.connected_chain_mvm_addr,
             timestamp: timestamp::now_seconds(),
         });
     }
@@ -252,7 +252,7 @@ module mvmt_intent::solver_registry {
         simple_map::remove(&mut registry.solvers, &solver_addr);
         
         // Remove from addresses vector
-        let addresses = &mut registry.solver_addresses;
+        let addresses = &mut registry.solver_addrs;
         let len = vector::length(addresses);
         let i = 0;
         while (i < len) {
@@ -309,7 +309,7 @@ module mvmt_intent::solver_registry {
             return option::none()
         };
         let solver_info = simple_map::borrow(&registry.solvers, &solver_addr);
-        solver_info.connected_chain_evm_address
+        solver_info.connected_chain_evm_addr
     }
     
     #[view]
@@ -324,7 +324,7 @@ module mvmt_intent::solver_registry {
             return option::none()
         };
         let solver_info = simple_map::borrow(&registry.solvers, &solver_addr);
-        solver_info.connected_chain_mvm_address
+        solver_info.connected_chain_mvm_addr
     }
     
     /// Get solver's public key as UnvalidatedPublicKey for signature verification
@@ -345,7 +345,7 @@ module mvmt_intent::solver_registry {
             return vector::empty()
         };
         let registry = borrow_global<SolverRegistry>(@mvmt_intent);
-        registry.solver_addresses
+        registry.solver_addrs
     }
 
     #[view]
@@ -364,7 +364,7 @@ module mvmt_intent::solver_registry {
     
     #[view]
     /// Get all solver information
-    /// Returns (is_registered, public_key, connected_chain_evm_address, connected_chain_mvm_address, registered_at)
+    /// Returns (is_registered, public_key, connected_chain_evm_addr, connected_chain_mvm_addr, registered_at)
     public fun get_solver_info(solver_addr: address): (bool, vector<u8>, Option<vector<u8>>, Option<address>, u64) acquires SolverRegistry {
         if (!exists<SolverRegistry>(@mvmt_intent)) {
             return (false, vector::empty(), option::none(), option::none(), 0)
@@ -374,7 +374,7 @@ module mvmt_intent::solver_registry {
             return (false, vector::empty(), option::none(), option::none(), 0)
         };
         let solver_info = simple_map::borrow(&registry.solvers, &solver_addr);
-        (true, solver_info.public_key, solver_info.connected_chain_evm_address, solver_info.connected_chain_mvm_address, solver_info.registered_at)
+        (true, solver_info.public_key, solver_info.connected_chain_evm_addr, solver_info.connected_chain_mvm_addr, solver_info.registered_at)
     }
     
     /// Entry function to check if a solver is registered
@@ -391,16 +391,16 @@ module mvmt_intent::solver_registry {
             event::emit(SolverRegistered {
                 solver: solver_addr,
                 public_key: solver_info.public_key,
-                connected_chain_evm_address: solver_info.connected_chain_evm_address,
-                connected_chain_mvm_address: solver_info.connected_chain_mvm_address,
+                connected_chain_evm_addr: solver_info.connected_chain_evm_addr,
+                connected_chain_mvm_addr: solver_info.connected_chain_mvm_addr,
                 timestamp: solver_info.registered_at,
             });
         } else {
             event::emit(SolverRegistered {
                 solver: solver_addr,
                 public_key: vector::empty(),
-                connected_chain_evm_address: option::none(),
-                connected_chain_mvm_address: option::none(),
+                connected_chain_evm_addr: option::none(),
+                connected_chain_mvm_addr: option::none(),
                 timestamp: 0,
             });
         };
@@ -416,7 +416,7 @@ module mvmt_intent::solver_registry {
             return
         };
         let registry = borrow_global<SolverRegistry>(@mvmt_intent);
-        let addresses = &registry.solver_addresses;
+        let addresses = &registry.solver_addrs;
         let solvers = &registry.solvers;
         
         // Iterate through all solver addresses and emit events
@@ -428,8 +428,8 @@ module mvmt_intent::solver_registry {
             event::emit(SolverRegistered {
                 solver: solver_addr,
                 public_key: solver_info.public_key,
-                connected_chain_evm_address: solver_info.connected_chain_evm_address,
-                connected_chain_mvm_address: solver_info.connected_chain_mvm_address,
+                connected_chain_evm_addr: solver_info.connected_chain_evm_addr,
+                connected_chain_mvm_addr: solver_info.connected_chain_mvm_addr,
                 timestamp: solver_info.registered_at,
             });
             i = i + 1;

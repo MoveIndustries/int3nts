@@ -488,7 +488,7 @@ pub async fn validate_and_approve_fulfillment(
         Some(escrow) => {
             // Determine if this is an EVM escrow by checking if reserved_solver looks like an EVM address
             let is_evm = escrow
-                .reserved_solver
+                .reserved_solver_addr
                 .as_ref()
                 .map(|s| s.starts_with("0x") && s.len() == 42)
                 .unwrap_or(false);
@@ -502,7 +502,7 @@ pub async fn validate_and_approve_fulfillment(
             drop(escrow_cache);
             error!(
                 "No matching escrow found for fulfillment: {} (intent_id: {})",
-                fulfillment.intent_address, fulfillment.intent_id
+                fulfillment.intent_addr, fulfillment.intent_id
             );
             return Err(anyhow::anyhow!("No matching escrow found for fulfillment"));
         }

@@ -3,7 +3,6 @@
 //! These tests verify that MVM escrow solver validation works correctly,
 //! including registry lookup, address matching, and error handling.
 
-use serde_json::json;
 use trusted_verifier::config::Config;
 use trusted_verifier::monitor::IntentEvent;
 use trusted_verifier::validator::CrossChainValidator;
@@ -11,118 +10,24 @@ use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 #[path = "../mod.rs"]
 mod test_helpers;
-use test_helpers::{build_test_config_with_mvm, create_base_intent_mvm};
+use test_helpers::{
+    create_default_intent_mvm, setup_mock_server_with_error,
+    setup_mock_server_with_mvm_address_response, DUMMY_SOLVER_ADDR_MVM_HUB, DUMMY_SOLVER_ADDR_MVM_CON,
+};
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
-/// Build a test config with a mock server URL
-fn build_test_config_with_mock_server(mock_server_url: &str) -> Config {
-    let mut config = build_test_config_with_mvm();
-    config.hub_chain.rpc_url = mock_server_url.to_string();
-    config
-}
-
-/// Helper to create a mock SolverRegistry resource response
-/// SimpleMap<address, SolverInfo> is serialized as {"data": [{"key": address, "value": SolverInfo}, ...]}
-fn create_solver_registry_resource_with_mvm_address(
-    registry_address: &str,
-    solver_address: &str,
-    connected_chain_mvm_address: Option<&str>,
-) -> serde_json::Value {
-    let solver_entry = if let Some(mvm_addr) = connected_chain_mvm_address {
-        // SolverInfo with connected_chain_mvm_address set
-        json!({
-            "key": solver_address,
-            "value": {
-                "public_key": [1, 2, 3, 4], // Dummy public key bytes
-                "connected_chain_evm_address": {"vec": []}, // None
-                "connected_chain_mvm_address": {"vec": [mvm_addr]}, // Some(address)
-                "registered_at": 1234567890
-            }
-        })
-    } else {
-        // SolverInfo without connected_chain_mvm_address
-        json!({
-            "key": solver_address,
-            "value": {
-                "public_key": [1, 2, 3, 4], // Dummy public key bytes
-                "connected_chain_evm_address": {"vec": []}, // None
-                "connected_chain_mvm_address": {"vec": []}, // None
-                "registered_at": 1234567890
-            }
-        })
-    };
-
-    json!([{
-        "type": format!("{}::solver_registry::SolverRegistry", registry_address),
-        "data": {
-            "solvers": {
-                "data": [solver_entry]
-            }
-        }
-    }])
-}
-
-/// Setup a mock server that responds to get_solver_connected_chain_mvm_address calls
-/// Returns the mock server and config
-async fn setup_mock_server_with_mvm_address_response(
-    solver_address: &str,
-    connected_chain_mvm_address: Option<&str>,
-) -> (MockServer, Config, CrossChainValidator) {
-    let mock_server = MockServer::start().await;
-    let registry_address = "0x1"; // Default registry address from test config
-
-    let resources_response = create_solver_registry_resource_with_mvm_address(
-        registry_address,
-        solver_address,
-        connected_chain_mvm_address,
-    );
-
-    Mock::given(method("GET"))
-        .and(path(format!("/v1/accounts/{}/resources", registry_address)))
-        .respond_with(ResponseTemplate::new(200).set_body_json(resources_response))
-        .mount(&mock_server)
-        .await;
-
-    let config = build_test_config_with_mock_server(&mock_server.uri());
-    let validator = CrossChainValidator::new(&config)
-        .await
-        .expect("Failed to create validator");
-
-    (mock_server, config, validator)
-}
-
-/// Setup a mock server that returns an error response
-async fn setup_mock_server_with_error(
-    status_code: u16,
-) -> (MockServer, Config, CrossChainValidator) {
-    let mock_server = MockServer::start().await;
-
-    Mock::given(method("POST"))
-        .and(path("/v1/view"))
-        .respond_with(ResponseTemplate::new(status_code))
-        .mount(&mock_server)
-        .await;
-
-    let config = build_test_config_with_mock_server(&mock_server.uri());
-    let validator = CrossChainValidator::new(&config)
-        .await
-        .expect("Failed to create validator");
-
-    (mock_server, config, validator)
-}
-
 /// Create a test intent with the given solver
-fn create_test_intent(solver: Option<String>) -> IntentEvent {
+fn create_test_intent(solver_addr: Option<String>) -> IntentEvent {
     IntentEvent {
         offered_metadata: "{}".to_string(),
         desired_metadata: "{}".to_string(),
         expiry_time: 1000000,
-        reserved_solver: solver,
+        reserved_solver_addr: solver_addr,
         connected_chain_id: Some(31337),
-        ..create_base_intent_mvm()
+        ..create_default_intent_mvm()
     }
 }
 
@@ -136,21 +41,21 @@ fn create_test_intent(solver: Option<String>) -> IntentEvent {
 async fn test_successful_mvm_solver_validation() {
     let _ = tracing_subscriber::fmt::try_init();
 
-    let solver_address = "0xsolver_mvm";
-    let registered_mvm_address = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let solver_addr = "0xsolver_mvm";
+    let solver_connected_chain_mvm_addr = DUMMY_SOLVER_ADDR_MVM_CON;
     let (_mock_server, config, _validator) =
-        setup_mock_server_with_mvm_address_response(solver_address, Some(registered_mvm_address))
+        setup_mock_server_with_mvm_address_response(solver_addr, Some(solver_connected_chain_mvm_addr))
             .await;
 
-    let intent = create_test_intent(Some(solver_address.to_string()));
+    let intent = create_test_intent(Some(solver_addr.to_string()));
 
     // Test with matching address
-    let escrow_reserved_solver = registered_mvm_address;
+    let escrow_reserved_solver = solver_connected_chain_mvm_addr;
     let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,
-        &config.hub_chain.intent_module_address,
+        &config.hub_chain.intent_module_addr,
     )
     .await;
 
@@ -172,21 +77,21 @@ async fn test_successful_mvm_solver_validation() {
 async fn test_rejection_when_solver_not_registered() {
     let _ = tracing_subscriber::fmt::try_init();
 
-    let solver_address = "0xunregistered_solver";
+    let solver_addr = "0xunregistered_solver";
     let (_mock_server, config, _validator) = setup_mock_server_with_mvm_address_response(
-        solver_address,
+        solver_addr,
         None, // No connected chain MVM address (solver not registered or no address)
     )
     .await;
 
-    let intent = create_test_intent(Some(solver_address.to_string()));
+    let intent = create_test_intent(Some(solver_addr.to_string()));
 
-    let escrow_reserved_solver = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let escrow_reserved_solver = DUMMY_SOLVER_ADDR_MVM_CON;
     let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,
-        &config.hub_chain.intent_module_address,
+        &config.hub_chain.intent_module_addr,
     )
     .await;
 
@@ -210,21 +115,21 @@ async fn test_rejection_when_solver_not_registered() {
 async fn test_rejection_when_mvm_addresses_dont_match() {
     let _ = tracing_subscriber::fmt::try_init();
 
-    let solver_address = "0xsolver_mvm";
-    let registered_mvm_address = "0x1111111111111111111111111111111111111111111111111111111111111111";
+    let solver_addr = "0xsolver_mvm";
+    let solver_connected_chain_mvm_addr = DUMMY_SOLVER_ADDR_MVM_CON;
     let (_mock_server, config, _validator) =
-        setup_mock_server_with_mvm_address_response(solver_address, Some(registered_mvm_address))
+        setup_mock_server_with_mvm_address_response(solver_addr, Some(solver_connected_chain_mvm_addr))
             .await;
 
-    let intent = create_test_intent(Some(solver_address.to_string()));
+    let intent = create_test_intent(Some(solver_addr.to_string()));
 
     // Escrow has a different address
-    let escrow_reserved_solver = "0x2222222222222222222222222222222222222222222222222222222222222222";
+    let escrow_reserved_solver = "0xwrong_solver_addr";
     let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,
-        &config.hub_chain.intent_module_address,
+        &config.hub_chain.intent_module_addr,
     )
     .await;
 
@@ -247,7 +152,7 @@ async fn test_rejection_when_mvm_addresses_dont_match() {
 async fn test_mvm_address_normalization() {
     let _ = tracing_subscriber::fmt::try_init();
 
-    // Test cases: (escrow_address, registered_address, should_match)
+    // Test cases: (escrow_addr, registered_addr, should_match)
     // MVM addresses are 32 bytes (64 hex characters), but may be shorter in input
     let test_cases = vec![
         // Same address with different case and prefix
@@ -264,18 +169,18 @@ async fn test_mvm_address_normalization() {
     ];
 
     for (escrow_addr, registered_addr, should_match) in test_cases {
-        let solver_address = "0xsolver_mvm";
+        let solver_addr = "0xsolver_mvm";
         let (_mock_server, config, _validator) =
-            setup_mock_server_with_mvm_address_response(solver_address, Some(registered_addr))
+            setup_mock_server_with_mvm_address_response(solver_addr, Some(registered_addr))
                 .await;
 
-        let intent = create_test_intent(Some(solver_address.to_string()));
+        let intent = create_test_intent(Some(solver_addr.to_string()));
 
         let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
             &intent,
             escrow_addr,
             &config.hub_chain.rpc_url,
-            &config.hub_chain.intent_module_address,
+            &config.hub_chain.intent_module_addr,
         )
         .await;
 
@@ -300,12 +205,12 @@ async fn test_error_handling_for_registry_query_failures() {
 
     let intent = create_test_intent(Some("0xsolver_mvm".to_string()));
 
-    let escrow_reserved_solver = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let escrow_reserved_solver = DUMMY_SOLVER_ADDR_MVM_CON;
     let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,
-        &config.hub_chain.intent_module_address,
+        &config.hub_chain.intent_module_addr,
     )
     .await;
 
@@ -332,18 +237,18 @@ async fn test_rejection_when_intent_has_no_solver() {
 
     let (_mock_server, config, _validator) = setup_mock_server_with_mvm_address_response(
         "0xsolver_mvm",
-        Some("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"),
+        Some(DUMMY_SOLVER_ADDR_MVM_CON),
     )
     .await;
 
     let intent = create_test_intent(None); // No solver
 
-    let escrow_reserved_solver = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let escrow_reserved_solver = DUMMY_SOLVER_ADDR_MVM_CON;
     let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,
-        &config.hub_chain.intent_module_address,
+        &config.hub_chain.intent_module_addr,
     )
     .await;
 

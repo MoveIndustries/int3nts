@@ -18,13 +18,13 @@ pub struct EscrowInitializedEvent {
     /// Intent ID (indexed, first topic)
     pub intent_id: String,
     /// Escrow contract address (indexed, second topic)
-    pub escrow: String,
+    pub escrow_addr: String,
     /// Requester address (indexed, third topic)
-    pub requester: String,
-    /// Token address (from data)
-    pub token: String,
+    pub requester_addr: String,
+    /// Token contract address (from data)
+    pub token_addr: String,
     /// Reserved solver address (from data)
-    pub reserved_solver: String,
+    pub reserved_solver_addr: String,
     /// Block number
     pub block_number: String,
     /// Transaction hash
@@ -82,7 +82,7 @@ pub struct ConnectedEvmClient {
     /// Base RPC URL
     base_url: String,
     /// Escrow contract address
-    escrow_contract_address: String,
+    escrow_contract_addr: String,
     /// Chain ID (for future transaction signing)
     #[allow(dead_code)]
     chain_id: u64,
@@ -111,7 +111,7 @@ impl ConnectedEvmClient {
         Ok(Self {
             client,
             base_url: config.rpc_url.clone(),
-            escrow_contract_address: config.escrow_contract_address.clone(),
+            escrow_contract_addr: config.escrow_contract_addr.clone(),
             chain_id: config.chain_id,
             network_name: config.network_name.clone(),
         })
@@ -146,11 +146,11 @@ impl ConnectedEvmClient {
         let event_topic = format!("0x{}", hex::encode(hasher.finalize()));
 
         info!("Querying EVM escrow events: contract={}, from_block={:?}, to_block={:?}, event_topic={}", 
-            self.escrow_contract_address, from_block, to_block, event_topic);
+            self.escrow_contract_addr, from_block, to_block, event_topic);
 
         // Build filter
         let mut filter = serde_json::json!({
-            "address": self.escrow_contract_address,
+            "address": self.escrow_contract_addr,
             "topics": [event_topic]
         });
 
@@ -208,8 +208,8 @@ impl ConnectedEvmClient {
             }
 
             let intent_id = format!("0x{}", log.topics[1].strip_prefix("0x").unwrap_or(&log.topics[1]));
-            let escrow = format!("0x{}", &log.topics[2][26..]); // Extract last 20 bytes (40 hex chars)
-            let requester = format!("0x{}", &log.topics[3][26..]);
+            let escrow_addr = format!("0x{}", &log.topics[2][26..]); // Extract last 20 bytes (40 hex chars)
+            let requester_addr = format!("0x{}", &log.topics[3][26..]);
 
             // Parse data: token (32 bytes), reservedSolver (32 bytes), amount (32 bytes), expiry (32 bytes)
             let data = log.data.strip_prefix("0x").unwrap_or(&log.data);
@@ -217,15 +217,15 @@ impl ConnectedEvmClient {
                 continue; // Invalid data length (4 fields * 64 hex chars)
             }
 
-            let token = format!("0x{}", &data[24..64]); // Extract address from first 32-byte word (skip padding)
-            let reserved_solver = format!("0x{}", &data[88..128]); // Extract address from second 32-byte word
+            let token_addr = format!("0x{}", &data[24..64]); // Extract address from first 32-byte word (skip padding)
+            let reserved_solver_addr = format!("0x{}", &data[88..128]); // Extract address from second 32-byte word
 
             events.push(EscrowInitializedEvent {
                 intent_id,
-                escrow,
-                requester,
-                token,
-                reserved_solver,
+                escrow_addr,
+                requester_addr,
+                token_addr,
+                reserved_solver_addr,
                 block_number: log.block_number,
                 transaction_hash: log.transaction_hash,
             });
@@ -246,7 +246,7 @@ impl ConnectedEvmClient {
     ///
     /// # Arguments
     ///
-    /// * `token_address` - ERC20 token contract address
+    /// * `token_addr` - ERC20 token contract address
     /// * `recipient` - Recipient address
     /// * `amount` - Transfer amount (in base units)
     /// * `intent_id` - Intent ID to include in calldata (hex format with 0x prefix)
@@ -264,7 +264,7 @@ impl ConnectedEvmClient {
     /// - `alloy` (https://github.com/alloy-rs/alloy)
     pub async fn transfer_with_intent_id(
         &self,
-        token_address: &str,
+        token_addr: &str,
         recipient: &str,
         amount: u64,
         intent_id: &str,
@@ -302,7 +302,7 @@ impl ConnectedEvmClient {
                     evm_framework_dir.display(),
                     self.base_url,
                     solver_private_key,
-                    token_address,
+                    token_addr,
                     recipient,
                     amount,
                     intent_id_evm,
@@ -342,7 +342,7 @@ impl ConnectedEvmClient {
     ///
     /// # Arguments
     ///
-    /// * `escrow_address` - Address of the IntentEscrow contract
+    /// * `escrow_addr` - Address of the IntentEscrow contract
     /// * `intent_id` - Intent ID (hex string with 0x prefix, will be converted to uint256)
     /// * `signature` - Verifier's ECDSA signature (65 bytes: r || s || v)
     ///
@@ -372,7 +372,7 @@ impl ConnectedEvmClient {
     /// 4. Sign and send the transaction
     pub async fn claim_escrow(
         &self,
-        escrow_address: &str,
+        escrow_addr: &str,
         intent_id: &str,
         signature: &[u8],
     ) -> Result<String> {
@@ -413,7 +413,7 @@ impl ConnectedEvmClient {
                     evm_framework_dir.display(),
                     self.base_url,
                     solver_private_key,
-                    escrow_address,
+                    escrow_addr,
                     intent_id_evm,
                     signature_hex,
                     self.network_name

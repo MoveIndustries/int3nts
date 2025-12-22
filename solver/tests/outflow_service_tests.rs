@@ -4,60 +4,14 @@
 //! including service initialization and basic functionality.
 
 use solver::{
-    config::SolverConfig, service::tracker::IntentTracker,
+    service::tracker::IntentTracker,
     service::outflow::OutflowService,
 };
 use std::sync::Arc;
 
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-fn create_test_config() -> SolverConfig {
-    SolverConfig {
-        service: solver::config::ServiceConfig {
-            verifier_url: "http://127.0.0.1:3333".to_string(),
-            polling_interval_ms: 2000,
-        },
-        hub_chain: solver::config::ChainConfig {
-            name: "test-hub".to_string(),
-            rpc_url: "http://127.0.0.1:8080".to_string(),
-            chain_id: 1,
-            module_address: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
-            profile: "test-profile".to_string(),
-        },
-        connected_chain: solver::config::ConnectedChainConfig::Mvm(
-            solver::config::ChainConfig {
-                name: "test-mvm".to_string(),
-                rpc_url: "http://127.0.0.1:8082".to_string(),
-                chain_id: 2,
-                module_address: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string(),
-                profile: "test-profile".to_string(),
-            },
-        ),
-        acceptance: solver::config::AcceptanceConfig {
-            token_pairs: std::collections::HashMap::new(),
-        },
-        solver: solver::config::SolverSigningConfig {
-            profile: "test-profile".to_string(),
-            address: "0xcccccccccccccccccccccccccccccccccccccccc".to_string(),
-        },
-    }
-}
-
-// Helper function for creating outflow draft data (available for future tests)
-#[allow(dead_code)]
-fn create_test_outflow_draft_data() -> solver::acceptance::DraftintentData {
-    solver::acceptance::DraftintentData {
-        intent_id: "0x1111111111111111111111111111111111111111111111111111111111111111".to_string(),
-        offered_token: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
-        offered_amount: 1000,
-        offered_chain_id: 1, // Hub chain (outflow)
-        desired_token: "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb".to_string(),
-        desired_amount: 2000,
-        desired_chain_id: 2, // Connected chain
-    }
-}
+#[path = "helpers.rs"]
+mod test_helpers;
+use test_helpers::create_default_solver_config;
 
 // ============================================================================
 // OUTFLOW SERVICE TESTS
@@ -67,7 +21,7 @@ fn create_test_outflow_draft_data() -> solver::acceptance::DraftintentData {
 /// Why: Ensure service initialization works correctly
 #[test]
 fn test_outflow_service_new() {
-    let config = create_test_config();
+    let config = create_default_solver_config();
     let tracker = Arc::new(IntentTracker::new(&config).unwrap());
     let _service = OutflowService::new(config, tracker).unwrap();
 }
@@ -84,7 +38,7 @@ fn test_poll_and_execute_transfers_empty() {
         .build()
         .unwrap();
 
-    let config = create_test_config();
+    let config = create_default_solver_config();
     
     // These create reqwest::Client which may internally use tokio runtime
     let tracker = Arc::new(IntentTracker::new(&config).unwrap());

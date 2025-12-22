@@ -129,7 +129,7 @@ pub struct EventGuid {
     pub creation_number: String,
     #[serde(rename = "account_address")]
     #[allow(dead_code)]
-    pub account_address: String,
+    pub account_addr: String,
 }
 
 /// Event from Move VM blockchain
@@ -575,8 +575,8 @@ impl MvmClient {
     ///
     /// # Arguments
     ///
-    /// * `intent_address` - Address of the intent object
-    /// * `module_address` - Address of the intent module
+    /// * `intent_addr` - Address of the intent object
+    /// * `module_addr` - Address of the intent module
     ///
     /// # Returns
     ///
@@ -585,14 +585,14 @@ impl MvmClient {
     #[allow(dead_code)] // Reserved for future use
     pub async fn get_intent_solver(
         &self,
-        intent_address: &str,
-        _module_address: &str,
+        intent_addr: &str,
+        _module_addr: &str,
     ) -> Result<Option<String>> {
         // Query the intent object's resources
-        let resources = self.get_resources(intent_address).await?;
+        let resources = self.get_resources(intent_addr).await?;
 
         // Look for the Intent resource which contains the reservation
-        // The resource type should be something like: "0x{module_address}::fa_intent::Intent<...>"
+        // The resource type should be something like: "0x{module_addr}::fa_intent::Intent<...>"
         for resource in resources {
             if resource.resource_type.contains("Intent") && !resource.resource_type.contains("IntentReserved") {
                 // Try to extract reservation from the resource data
@@ -621,8 +621,8 @@ impl MvmClient {
     ///
     /// # Arguments
     ///
-    /// * `solver_address` - Move VM address of the solver (hub chain)
-    /// * `registry_address` - Address where the solver registry is deployed (usually @mvmt_intent)
+    /// * `solver_addr` - Move VM address of the solver (hub chain)
+    /// * `solver_registry_addr` - Address where the solver registry is deployed (usually @mvmt_intent)
     ///
     /// # Returns
     ///
@@ -630,18 +630,18 @@ impl MvmClient {
     /// * `Err(anyhow::Error)` - Failed to query registry
     pub async fn get_solver_connected_chain_mvm_address(
         &self,
-        solver_address: &str,
-        registry_address: &str,
+        solver_addr: &str,
+        solver_registry_addr: &str,
     ) -> Result<Option<String>> {
         // Normalize registry address (remove 0x prefix and leading zeros for resource type matching)
         // Move strips leading zeros from addresses in type names (e.g., 0x0a4c... becomes 0xa4c...)
-        let registry_addr_normalized = registry_address
+        let registry_addr_normalized = solver_registry_addr
             .strip_prefix("0x")
-            .unwrap_or(registry_address)
+            .unwrap_or(solver_registry_addr)
             .trim_start_matches('0');
         
         // Query the SolverRegistry resource directly
-        let resources = self.get_resources(registry_address).await?;
+        let resources = self.get_resources(solver_registry_addr).await?;
 
         // Try both formats: with and without 0x prefix (Aptos may return either)
         // Also try with the original address (with leading zeros) in case it's stored that way
@@ -649,15 +649,15 @@ impl MvmClient {
             format!("0x{}::solver_registry::SolverRegistry", registry_addr_normalized);
         let registry_resource_type_without_prefix =
             format!("{}::solver_registry::SolverRegistry", registry_addr_normalized);
-        let registry_addr_with_zeros = registry_address
+        let registry_addr_with_zeros = solver_registry_addr
             .strip_prefix("0x")
-            .unwrap_or(registry_address);
+            .unwrap_or(solver_registry_addr);
         let registry_resource_type_with_zeros =
             format!("0x{}::solver_registry::SolverRegistry", registry_addr_with_zeros);
         
-        let solver_addr = solver_address
+        let solver_addr = solver_addr
             .strip_prefix("0x")
-            .unwrap_or(solver_address)
+            .unwrap_or(solver_addr)
             .to_lowercase();
 
         // Find the SolverRegistry resource (try all formats)
@@ -672,7 +672,7 @@ impl MvmClient {
         let Some(registry_resource) = registry_resource else {
             tracing::warn!(
                 "SolverRegistry resource not found. Registry address: {}, Tried types: '{}', '{}', and '{}', Available resources: {:?}",
-                registry_address,
+                solver_registry_addr,
                 registry_resource_type_with_prefix,
                 registry_resource_type_without_prefix,
                 registry_resource_type_with_zeros,
@@ -709,7 +709,7 @@ impl MvmClient {
             return Ok(None); // Solver not found in registry
         };
 
-        // Extract connected_chain_mvm_address from SolverInfo
+        // Extract connected_chain_mvm_addr from SolverInfo
         // Option<address> is serialized as {"vec": [address]} for Some, {"vec": []} for None
         let value = match entry_obj.get("value").and_then(|v| v.as_object()) {
             Some(v) => v,
@@ -717,7 +717,7 @@ impl MvmClient {
         };
 
         let mvm_addr = match value
-            .get("connected_chain_mvm_address")
+            .get("connected_chain_mvm_addr")
             .and_then(|m| m.as_object())
         {
             Some(m) => m,
@@ -743,8 +743,8 @@ impl MvmClient {
     ///
     /// # Arguments
     ///
-    /// * `solver_address` - Move VM address of the solver
-    /// * `registry_address` - Address where the solver registry is deployed (usually @mvmt_intent)
+    /// * `solver_addr` - Move VM address of the solver
+    /// * `solver_registry_addr` - Address where the solver registry is deployed (usually @mvmt_intent)
     ///
     /// # Returns
     ///
@@ -753,30 +753,30 @@ impl MvmClient {
     #[allow(dead_code)] // Reserved for future use
     pub async fn get_solver_public_key(
         &self,
-        solver_address: &str,
-        registry_address: &str,
+        solver_addr: &str,
+        solver_registry_addr: &str,
     ) -> Result<Option<Vec<u8>>> {
         // Validate solver address format: must have 0x prefix
-        if !solver_address.starts_with("0x") {
+        if !solver_addr.starts_with("0x") {
             return Err(anyhow::anyhow!(
                 "Invalid solver address '{}': must start with 0x prefix",
-                solver_address
+                solver_addr
             ));
         }
 
         tracing::debug!(
             "Querying solver public key for address '{}'",
-            solver_address
+            solver_addr
         );
 
         // Use view function to call solver_registry::get_public_key
         let result = self
             .call_view_function(
-                registry_address,
+                solver_registry_addr,
                 "solver_registry",
                 "get_public_key",
                 vec![],
-                vec![serde_json::json!(solver_address)],
+                vec![serde_json::json!(solver_addr)],
             )
             .await;
 
@@ -784,7 +784,7 @@ impl MvmClient {
             Ok(value) => {
                 tracing::debug!(
                     "View function returned for solver '{}': {:?}",
-                    solver_address,
+                    solver_addr,
                     value
                 );
                 // Aptos view function returns an array of return values
@@ -792,7 +792,7 @@ impl MvmClient {
                 let outer_array = value.as_array().ok_or_else(|| {
                     anyhow::anyhow!(
                         "Unexpected response format for solver '{}': expected array, got {:?}",
-                        solver_address,
+                        solver_addr,
                         value
                     )
                 })?;
@@ -800,14 +800,14 @@ impl MvmClient {
                 let first_result = outer_array.first().ok_or_else(|| {
                     anyhow::anyhow!(
                         "Empty response array for solver '{}': expected at least one element",
-                        solver_address
+                        solver_addr
                     )
                 })?;
 
                 let hex_str = first_result.as_str().ok_or_else(|| {
                     anyhow::anyhow!(
                         "Unexpected response format for solver '{}': expected hex string, got {:?}",
-                        solver_address,
+                        solver_addr,
                         first_result
                     )
                 })?;
@@ -815,19 +815,19 @@ impl MvmClient {
                 let hex_str = hex_str.strip_prefix("0x").unwrap_or(hex_str);
                 if hex_str.is_empty() {
                     // Empty hex string means solver is not registered
-                    tracing::debug!("Solver '{}' not registered (empty public key)", solver_address);
+                    tracing::debug!("Solver '{}' not registered (empty public key)", solver_addr);
                     Ok(None)
                 } else {
                     let bytes = hex::decode(hex_str).map_err(|e| {
                         anyhow::anyhow!(
                             "Failed to decode hex public key for solver '{}': {}",
-                            solver_address,
+                            solver_addr,
                             e
                         )
                     })?;
                     tracing::debug!(
                         "Solver '{}' registered with public key ({} bytes)",
-                        solver_address,
+                        solver_addr,
                         bytes.len()
                     );
                     Ok(Some(bytes))
@@ -835,7 +835,7 @@ impl MvmClient {
             }
             Err(e) => Err(anyhow::anyhow!(
                 "Failed to query solver public key for '{}': {}",
-                solver_address,
+                solver_addr,
                 e
             )),
         }
@@ -845,8 +845,8 @@ impl MvmClient {
     ///
     /// # Arguments
     ///
-    /// * `solver_address` - Move VM address of the solver
-    /// * `registry_address` - Address where the solver registry is deployed (usually @mvmt_intent)
+    /// * `solver_addr` - Move VM address of the solver
+    /// * `solver_registry_addr` - Address where the solver registry is deployed (usually @mvmt_intent)
     ///
     /// # Returns
     ///
@@ -854,35 +854,35 @@ impl MvmClient {
     /// * `Err(anyhow::Error)` - Failed to query registry
     pub async fn get_solver_evm_address(
         &self,
-        solver_address: &str,
-        registry_address: &str,
+        solver_addr: &str,
+        solver_registry_addr: &str,
     ) -> Result<Option<String>> {
         tracing::debug!(
-            "get_solver_evm_address called with solver_address='{}' (len: {}, type: str), registry_address='{}' (len: {}, type: str)",
-            solver_address,
-            solver_address.len(),
-            registry_address,
-            registry_address.len()
+            "get_solver_evm_address called with solver_addr='{}' (len: {}, type: str), solver_registry_addr='{}' (len: {}, type: str)",
+            solver_addr,
+            solver_addr.len(),
+            solver_registry_addr,
+            solver_registry_addr.len()
         );
         
         // Normalize solver address for comparison
-        let solver_addr_normalized = solver_address
+        let solver_addr_normalized = solver_addr
             .strip_prefix("0x")
-            .unwrap_or(solver_address)
+            .unwrap_or(solver_addr)
             .to_lowercase();
 
         tracing::debug!(
-            "Normalized solver_address='{}' -> normalized='{}' (len: {})",
-            solver_address,
+            "Normalized solver_addr='{}' -> normalized='{}' (len: {})",
+            solver_addr,
             solver_addr_normalized,
             solver_addr_normalized.len()
         );
         
         // Query the SolverRegistry resource directly
-        let resources = self.get_resources(registry_address).await?;
+        let resources = self.get_resources(solver_registry_addr).await?;
 
         // Find the SolverRegistry resource
-        let registry_resource = match Self::find_solver_registry_resource(&resources, registry_address) {
+        let registry_resource = match Self::find_solver_registry_resource(&resources, solver_registry_addr) {
             Some(resource) => resource,
             None => return Ok(None),
         };
@@ -894,7 +894,7 @@ impl MvmClient {
         };
 
         // Find the solver entry
-        let entry_obj = match Self::find_solver_entry(data_array, solver_address, &solver_addr_normalized) {
+        let entry_obj = match Self::find_solver_entry(data_array, solver_addr, &solver_addr_normalized) {
             Some(entry) => entry,
             None => return Ok(None),
         };
@@ -907,7 +907,7 @@ impl MvmClient {
                 let entry_json = serde_json::to_string(entry_obj).unwrap_or_else(|_| "failed to serialize".to_string());
                 tracing::warn!(
                     "SolverInfo 'value' field not found or not an object for solver '{}'. Entry object keys: {:?}, Full entry: {}",
-                    solver_address,
+                    solver_addr,
                     entry_keys,
                     entry_json
                 );
@@ -915,15 +915,15 @@ impl MvmClient {
             }
         };
 
-        // Extract connected_chain_evm_address field
-        let evm_addr_field: &serde_json::Value = match solver_info.get("connected_chain_evm_address") {
+        // Extract connected_chain_evm_addr field
+        let evm_addr_field: &serde_json::Value = match solver_info.get("connected_chain_evm_addr") {
             Some(field) => field,
             None => {
                 let solver_info_keys = solver_info.keys().collect::<Vec<_>>();
                 let solver_info_json = serde_json::to_string(solver_info).unwrap_or_else(|_| "failed to serialize".to_string());
                 tracing::error!(
-                    "connected_chain_evm_address field not found for solver '{}'. SolverInfo keys: {:?}, Full SolverInfo: {}",
-                    solver_address,
+                    "connected_chain_evm_addr field not found for solver '{}'. SolverInfo keys: {:?}, Full SolverInfo: {}",
+                    solver_addr,
                     solver_info_keys,
                     solver_info_json
                 );
@@ -932,8 +932,8 @@ impl MvmClient {
         };
 
         tracing::debug!(
-            "connected_chain_evm_address field for solver '{}': {}",
-            solver_address,
+            "connected_chain_evm_addr field for solver '{}': {}",
+            solver_addr,
             serde_json::to_string(evm_addr_field).unwrap_or_else(|_| "failed to serialize".to_string())
         );
 
@@ -943,8 +943,8 @@ impl MvmClient {
             None => {
                 let field_json = serde_json::to_string(evm_addr_field).unwrap_or_else(|_| "failed to serialize".to_string());
                 tracing::error!(
-                    "connected_chain_evm_address is not an object for solver '{}'. Value: {}",
-                    solver_address,
+                    "connected_chain_evm_addr is not an object for solver '{}'. Value: {}",
+                    solver_addr,
                     field_json
                 );
                 return Ok(None);
@@ -957,8 +957,8 @@ impl MvmClient {
                 let evm_addr_keys = evm_addr.keys().collect::<Vec<_>>();
                 let evm_addr_json = serde_json::to_string(evm_addr).unwrap_or_else(|_| "failed to serialize".to_string());
                 tracing::error!(
-                    "connected_chain_evm_address 'vec' field not found for solver '{}'. EVM address object keys: {:?}, Full object: {}",
-                    solver_address,
+                    "connected_chain_evm_addr 'vec' field not found for solver '{}'. EVM address object keys: {:?}, Full object: {}",
+                    solver_addr,
                     evm_addr_keys,
                     evm_addr_json
                 );
@@ -967,7 +967,7 @@ impl MvmClient {
         };
 
         // Parse EVM address bytes (handles both array and hex string formats)
-        let evm_bytes = match Self::parse_evm_address_bytes(vec_array, solver_address)? {
+        let evm_bytes = match Self::parse_evm_address_bytes(vec_array, solver_addr)? {
             Some(bytes) => bytes,
             None => return Ok(None),
         };
@@ -977,7 +977,7 @@ impl MvmClient {
 
         tracing::debug!(
             "Successfully extracted EVM address for solver '{}': {}",
-            solver_address,
+            solver_addr,
             hex_string
         );
 
@@ -990,12 +990,12 @@ impl MvmClient {
     /// Move strips leading zeros from addresses in type names (e.g., 0x0a4c... becomes 0xa4c...).
     fn find_solver_registry_resource<'a>(
         resources: &'a [ResourceData],
-        registry_address: &str,
+        solver_registry_addr: &str,
     ) -> Option<&'a ResourceData> {
         // Strip 0x prefix and leading zeros for matching Move's type name format
-        let registry_addr_normalized = registry_address
+        let registry_addr_normalized = solver_registry_addr
             .strip_prefix("0x")
-            .unwrap_or(registry_address)
+            .unwrap_or(solver_registry_addr)
             .trim_start_matches('0');
         
         let registry_resource_type_with_prefix =
@@ -1004,9 +1004,9 @@ impl MvmClient {
             format!("{}::solver_registry::SolverRegistry", registry_addr_normalized);
         
         // Also try with original address (with leading zeros) in case it's stored that way
-        let registry_addr_with_zeros = registry_address
+        let registry_addr_with_zeros = solver_registry_addr
             .strip_prefix("0x")
-            .unwrap_or(registry_address);
+            .unwrap_or(solver_registry_addr);
         let registry_resource_type_with_zeros =
             format!("0x{}::solver_registry::SolverRegistry", registry_addr_with_zeros);
 
@@ -1021,7 +1021,7 @@ impl MvmClient {
         if resource.is_none() {
             tracing::warn!(
                 "SolverRegistry resource not found. Registry address: {}, Tried types: '{}', '{}', and '{}', Available resources: {:?}",
-                registry_address,
+                solver_registry_addr,
                 registry_resource_type_with_prefix,
                 registry_resource_type_without_prefix,
                 registry_resource_type_with_zeros,
@@ -1046,7 +1046,7 @@ impl MvmClient {
     /// Find the solver entry in the data array by matching normalized addresses.
     fn find_solver_entry<'a>(
         data_array: &'a serde_json::Value,
-        solver_address: &str,
+        solver_addr: &str,
         solver_addr_normalized: &str,
     ) -> Option<&'a serde_json::Map<String, serde_json::Value>> {
         let data_array = data_array.as_array()?;
@@ -1063,8 +1063,8 @@ impl MvmClient {
             .collect();
         
         tracing::debug!(
-            "Looking for solver in registry. Input solver_address='{}' (type: str), normalized='{}' (type: str, len: {}), Available solvers (original -> normalized): {:?}",
-            solver_address,
+            "Looking for solver in registry. Input solver_addr='{}' (type: str), normalized='{}' (type: str, len: {}), Available solvers (original -> normalized): {:?}",
+            solver_addr,
             solver_addr_normalized,
             solver_addr_normalized.len(),
             available_solvers_debug
@@ -1077,7 +1077,7 @@ impl MvmClient {
             
             tracing::debug!(
                 "Comparing - Looking for: '{}' (normalized: '{}', len: {}) vs Registry key: '{}' (normalized: '{}', len: {}) -> Match: {}",
-                solver_address,
+                solver_addr,
                 solver_addr_normalized,
                 solver_addr_normalized.len(),
                 key,
@@ -1092,7 +1092,7 @@ impl MvmClient {
         if solver_entry.is_none() {
             tracing::error!(
                 "Solver not found in registry. Looking for: '{}' (normalized: '{}', len: {}), Available solvers (original -> normalized): {:?}",
-                solver_address,
+                solver_addr,
                 solver_addr_normalized,
                 solver_addr_normalized.len(),
                 available_solvers_debug
@@ -1116,7 +1116,7 @@ impl MvmClient {
     /// when addresses were returned as hex strings. We now handle both formats.
     fn parse_evm_address_bytes(
         vec_array: &serde_json::Value,
-        solver_address: &str,
+        solver_addr: &str,
     ) -> Result<Option<Vec<u8>>> {
         let vec_array = vec_array.as_array().ok_or_else(|| {
             anyhow::anyhow!("vec field is not an array")
@@ -1124,15 +1124,15 @@ impl MvmClient {
 
         if vec_array.is_empty() {
             tracing::debug!(
-                "Solver '{}' found but connected_chain_evm_address vec is empty (None)",
-                solver_address
+                "Solver '{}' found but connected_chain_evm_addr vec is empty (None)",
+                solver_addr
             );
             return Ok(None);
         }
 
         tracing::debug!(
-            "connected_chain_evm_address vec for solver '{}': length={}, vec[0]={}",
-            solver_address,
+            "connected_chain_evm_addr vec for solver '{}': length={}, vec[0]={}",
+            solver_addr,
             vec_array.len(),
             serde_json::to_string(vec_array.get(0).unwrap_or(&serde_json::Value::Null)).unwrap_or_else(|_| "failed to serialize".to_string())
         );
@@ -1149,7 +1149,7 @@ impl MvmClient {
                             tracing::error!(
                                 "Invalid byte value {} (>255) in EVM address for solver '{}'",
                                 byte,
-                                solver_address
+                                solver_addr
                             );
                             return Ok(None);
                         }
@@ -1158,7 +1158,7 @@ impl MvmClient {
                         let vec0_json = serde_json::to_string(byte_val).unwrap_or_else(|_| "failed to serialize".to_string());
                         tracing::error!(
                             "Non-u64 value in EVM address bytes array for solver '{}': {}",
-                            solver_address,
+                            solver_addr,
                             vec0_json
                         );
                         return Ok(None);
@@ -1172,7 +1172,7 @@ impl MvmClient {
                     tracing::error!(
                         "Invalid hex string length {} in EVM address for solver '{}'",
                         hex_clean.len(),
-                        solver_address
+                        solver_addr
                     );
                     return Ok(None);
                 }
@@ -1183,32 +1183,32 @@ impl MvmClient {
             } else {
                 let vec0_json = serde_json::to_string(bytes_val).unwrap_or_else(|_| "failed to serialize".to_string());
                 tracing::error!(
-                    "connected_chain_evm_address vec[0] is neither an array nor a string for solver '{}'. vec[0] value: {}",
-                    solver_address,
+                    "connected_chain_evm_addr vec[0] is neither an array nor a string for solver '{}'. vec[0] value: {}",
+                    solver_addr,
                     vec0_json
                 );
                 return Ok(None);
             }
         } else {
             tracing::error!(
-                "connected_chain_evm_address vec is non-empty but vec[0] is missing for solver '{}'",
-                solver_address
+                "connected_chain_evm_addr vec is non-empty but vec[0] is missing for solver '{}'",
+                solver_addr
             );
             return Ok(None);
         };
 
         if evm_bytes.is_empty() {
             tracing::error!(
-                "Solver '{}' found but connected_chain_evm_address bytes array is empty",
-                solver_address
+                "Solver '{}' found but connected_chain_evm_addr bytes array is empty",
+                solver_addr
             );
             return Ok(None);
         }
 
         if evm_bytes.len() != 20 {
             tracing::error!(
-                "Solver '{}' found but connected_chain_evm_address has invalid length {} (expected 20 bytes for EVM address)",
-                solver_address,
+                "Solver '{}' found but connected_chain_evm_addr has invalid length {} (expected 20 bytes for EVM address)",
+                solver_addr,
                 evm_bytes.len()
             );
             return Ok(None);
@@ -1216,7 +1216,7 @@ impl MvmClient {
 
         tracing::debug!(
             "Successfully parsed EVM address bytes for solver '{}': length={}, first 5 bytes: {:?}",
-            solver_address,
+            solver_addr,
             evm_bytes.len(),
             evm_bytes.iter().take(5).copied().collect::<Vec<_>>()
         );
@@ -1228,7 +1228,7 @@ impl MvmClient {
     ///
     /// # Arguments
     ///
-    /// * `module_address` - Address of the module
+    /// * `module_addr` - Address of the module
     /// * `module_name` - Name of the module
     /// * `function_name` - Name of the function
     /// * `type_args` - Type arguments (if any)
@@ -1241,7 +1241,7 @@ impl MvmClient {
     #[allow(dead_code)] // Reserved for future use
     pub async fn call_view_function(
         &self,
-        module_address: &str,
+        module_addr: &str,
         module_name: &str,
         function_name: &str,
         type_args: Vec<String>,
@@ -1250,7 +1250,7 @@ impl MvmClient {
         let url = format!("{}/v1/view", self.base_url);
 
         let request_body = serde_json::json!({
-            "function": format!("{}::{}::{}", module_address, module_name, function_name),
+            "function": format!("{}::{}::{}", module_addr, module_name, function_name),
             "type_arguments": type_args,
             "arguments": args,
         });
@@ -1288,16 +1288,16 @@ impl MvmClient {
     ///
     /// # Arguments
     ///
-    /// * `registry_address` - Address of the intent registry module (e.g., "0x123...")
+    /// * `solver_registry_addr` - Address of the intent registry module (e.g., "0x123...")
     ///
     /// # Returns
     ///
     /// * `Ok(Vec<String>)` - List of requester addresses with active intents
     /// * `Err(anyhow::Error)` - Failed to query registry
-    pub async fn get_active_requesters(&self, registry_address: &str) -> Result<Vec<String>> {
+    pub async fn get_active_requesters(&self, solver_registry_addr: &str) -> Result<Vec<String>> {
         let result = self
             .call_view_function(
-                registry_address,
+                solver_registry_addr,
                 "intent_registry",
                 "get_active_requesters",
                 vec![],
@@ -1329,16 +1329,16 @@ impl MvmClient {
     ///
     /// # Arguments
     ///
-    /// * `registry_address` - Address of the solver registry module (e.g., "0x123...")
+    /// * `solver_registry_addr` - Address of the solver registry module (e.g., "0x123...")
     ///
     /// # Returns
     ///
     /// * `Ok(Vec<String>)` - List of all registered solver addresses
     /// * `Err(anyhow::Error)` - Failed to query registry
-    pub async fn get_all_solver_addresses(&self, registry_address: &str) -> Result<Vec<String>> {
+    pub async fn get_all_solver_addresses(&self, solver_registry_addr: &str) -> Result<Vec<String>> {
         let result = self
             .call_view_function(
-                registry_address,
+                solver_registry_addr,
                 "solver_registry",
                 "list_all_solver_addresses",
                 vec![],
@@ -1371,10 +1371,11 @@ impl MvmClient {
 /// Represents a LimitOrderEvent emitted by the Move fa_intent module
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LimitOrderEvent {
-    pub intent_address: String,
+    pub intent_addr: String,
     pub intent_id: String,                   // For cross-chain linking
     pub offered_metadata: serde_json::Value, // Can be Object<Metadata> which is {"inner":"0x..."}
     #[serde(
+        rename = "offered_metadata_addr",
         deserialize_with = "deserialize_move_option_string",
         skip_serializing_if = "Option::is_none"
     )]
@@ -1384,7 +1385,7 @@ pub struct LimitOrderEvent {
     pub desired_metadata: serde_json::Value, // Can be Object<Metadata> which is {"inner":"0x..."}
     pub desired_amount: String,
     pub desired_chain_id: String,
-    pub requester: String,
+    pub requester_addr: String,
     pub expiry_time: String,
     pub revocable: bool,
     #[serde(
@@ -1396,13 +1397,13 @@ pub struct LimitOrderEvent {
         deserialize_with = "deserialize_move_option_string",
         skip_serializing_if = "Option::is_none"
     )]
-    pub requester_address_connected_chain: Option<String>, // Requester address on connected chain (for inflow intents)
+    pub requester_addr_connected_chain: Option<String>, // Requester address on connected chain (for inflow intents)
 }
 
 /// Represents an OracleLimitOrderEvent emitted by the Move fa_intent_with_oracle module
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OracleLimitOrderEvent {
-    pub intent_address: String, // The escrow intent address (on connected chain)
+    pub intent_addr: String, // The escrow intent address (on connected chain)
     pub intent_id: String,      // The original intent ID (from hub chain)
     pub offered_metadata: serde_json::Value, // Can be Object<Metadata> which is {"inner":"0x..."}
     pub offered_amount: String,
@@ -1410,6 +1411,7 @@ pub struct OracleLimitOrderEvent {
     pub offered_chain_id: String, // Chain ID where offered tokens are located
     pub desired_metadata: serde_json::Value, // Can be Object<Metadata> which is {"inner":"0x..."}
     #[serde(
+        rename = "desired_metadata_addr",
         deserialize_with = "deserialize_move_option_string",
         skip_serializing_if = "Option::is_none"
     )]
@@ -1417,7 +1419,7 @@ pub struct OracleLimitOrderEvent {
     pub desired_amount: String,
     #[serde(deserialize_with = "deserialize_u64_string")]
     pub desired_chain_id: String, // Chain ID where desired tokens are located
-    pub requester: String,
+    pub requester_addr: String,
     pub expiry_time: String,
     pub min_reported_value: String,
     pub revocable: bool,
@@ -1430,15 +1432,16 @@ pub struct OracleLimitOrderEvent {
         deserialize_with = "deserialize_move_option_string",
         skip_serializing_if = "Option::is_none"
     )]
-    pub requester_address_connected_chain: Option<String>, // Requester address on connected chain (for outflow intents)
+    pub requester_addr_connected_chain: Option<String>, // Requester address on connected chain (for outflow intents)
 }
 
 /// Represents a LimitOrderFulfillmentEvent emitted when an intent is fulfilled
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LimitOrderFulfillmentEvent {
-    pub intent_address: String,
+    pub intent_addr: String,
     pub intent_id: String,
-    pub solver: String,
+    #[serde(rename = "solver")]
+    pub solver_addr: String,
     pub provided_metadata: serde_json::Value,
     pub provided_amount: String,
     pub timestamp: String,

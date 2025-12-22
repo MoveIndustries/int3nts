@@ -3,7 +3,7 @@
 //! Main service loop that polls the verifier for pending drafts,
 //! evaluates acceptance, and signs/submits accepted drafts.
 
-use crate::acceptance::{should_accept_draft, AcceptanceConfig, AcceptanceResult, DraftintentData};
+use crate::acceptance::{evaluate_draft_acceptance, AcceptanceConfig, AcceptanceResult, DraftintentData};
 use crate::config::SolverConfig;
 use crate::crypto::{get_intent_hash, get_private_key_from_profile, sign_intent_hash};
 use crate::service::tracker::IntentTracker;
@@ -147,7 +147,7 @@ impl SigningService {
         let draft_data = self.parse_draft_data(&draft.draft_data)?;
 
         // Evaluate acceptance
-        match should_accept_draft(&draft_data, &self.acceptance_config) {
+        match evaluate_draft_acceptance(&draft_data, &self.acceptance_config) {
             AcceptanceResult::Accept => {
                 info!("Draft {} accepted, signing...", draft.draft_id);
                 self.sign_and_submit(draft, &draft_data).await
@@ -189,10 +189,10 @@ impl SigningService {
     ) -> Result<bool> {
         // Get solver profile and address from config
         let profile = self.config.solver.profile.clone();
-        let solver_address = self.config.solver.address.clone();
+        let solver_addr = self.config.solver.address.clone();
 
         // Get module address and chain number from hub chain config
-        let module_address = self.config.hub_chain.module_address
+        let module_addr = self.config.hub_chain.module_addr
             .strip_prefix("0x")
             .context("Module address must start with 0x")?
             .to_string();
@@ -206,7 +206,8 @@ impl SigningService {
         let desired_amount = draft_data.desired_amount;
         let desired_chain_id = draft_data.desired_chain_id;
         let expiry_time = draft.expiry_time;
-        let requester_address = draft.requester_address.clone();
+        let requester_addr = draft.requester_addr.clone();
+        let solver_addr_clone = solver_addr.clone();
 
         // Get private key, intent hash, and sign - all blocking operations
         let (signature_hex, public_key_hex) = tokio::task::spawn_blocking(move || -> Result<(String, String)> {
@@ -229,7 +230,7 @@ impl SigningService {
             // Get intent hash
             let hash = get_intent_hash(
                 &profile,
-                &module_address,
+                &module_addr,
                 &offered_token,
                 offered_amount,
                 offered_chain_id,
@@ -237,8 +238,8 @@ impl SigningService {
                 desired_amount,
                 desired_chain_id,
                 expiry_time,
-                &requester_address,
-                &solver_address,
+                &requester_addr,
+                &solver_addr_clone,
                 chain_num,
             )
             .context("Failed to get intent hash")?;
@@ -258,7 +259,7 @@ impl SigningService {
         .map_err(|e| anyhow::anyhow!("Signing failed: {:?}", e))?;
 
         // Get solver address again for submission
-        let solver_address = self.config.solver.address.clone();
+        let solver_addr = self.config.solver.address.clone();
 
         // Submit signature to verifier
         // Use spawn_blocking since verifier_client uses blocking HTTP
@@ -266,7 +267,7 @@ impl SigningService {
         let draft_id_for_log = draft.draft_id.clone();
         let draft_id_for_submit = draft.draft_id.clone();
         let submission = crate::verifier_client::SignatureSubmission {
-            solver_address: solver_address.clone(),
+            solver_addr: solver_addr.clone(),
             signature: signature_hex,
             public_key: public_key_hex,
         };
@@ -286,7 +287,7 @@ impl SigningService {
                 if let Err(e) = self.tracker.add_signed_intent(
                     draft_id_for_log.clone(),
                     draft_data.clone(),
-                    draft.requester_address.clone(),
+                    draft.requester_addr.clone(),
                     draft.expiry_time,
                 ).await {
                     warn!("Failed to add signed intent to tracker: {}", e);

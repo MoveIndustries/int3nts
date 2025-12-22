@@ -42,7 +42,7 @@ module mvmt_intent::fa_intent {
     struct FungibleAssetLimitOrder has store, drop {
         desired_metadata: Object<Metadata>,
         desired_amount: u64,
-        requester: address,
+        requester_addr: address,
         intent_id: Option<address>, // Optional cross-chain intent_id for linking (None for regular intents)
         offered_chain_id: u64,
         desired_chain_id: u64
@@ -96,27 +96,27 @@ module mvmt_intent::fa_intent {
     /// Event emitted when a fungible asset limit order intent is created.
     /// Contains all the trading details that solvers need to evaluate the opportunity.
     struct LimitOrderEvent has store, drop {
-        intent_address: address,
-        intent_id: address, // For cross-chain linking: same as intent_address for regular intents, or shared ID for linked cross-chain intents
+        intent_addr: address,
+        intent_id: address, // For cross-chain linking: same as intent_addr for regular intents, or shared ID for linked cross-chain intents
         offered_metadata: Object<Metadata>, // Required for type compatibility, but may be placeholder for cross-chain
-        offered_metadata_address: Option<address>, // Raw address for cross-chain tokens, None for same-chain
+        offered_metadata_addr: Option<address>, // Raw address for cross-chain tokens, None for same-chain
         offered_amount: u64,
         offered_chain_id: u64,
         desired_metadata: Object<Metadata>,
         desired_amount: u64,
         desired_chain_id: u64,
-        requester: address,
+        requester_addr: address,
         expiry_time: u64,
         revocable: bool,
         reserved_solver: Option<address>, // Solver address if the intent is reserved (None for unreserved intents)
-        requester_address_connected_chain: Option<address> // Requester address on connected chain (for inflow intents)
+        requester_addr_connected_chain: Option<address> // Requester address on connected chain (for inflow intents)
     }
 
     #[event]
     /// Event emitted when a fungible asset limit order intent is fulfilled.
     /// Contains details about who fulfilled the intent and what they provided.
     struct LimitOrderFulfillmentEvent has store, drop {
-        intent_address: address,
+        intent_addr: address,
         intent_id: address, // For cross-chain linking
         solver: address, // Who fulfilled the intent
         provided_metadata: Object<Metadata>,
@@ -134,10 +134,10 @@ module mvmt_intent::fa_intent {
     ///   NOTE: This cannot be `Option<FungibleAsset>` because `FungibleAsset` doesn't have `drop`
     ///   and must be consumed. For cross-chain inflow intents (offered_chain_id != this_chain_id),
     ///   a placeholder FA must be provided (amount 0, using desired_metadata). The actual offered
-    ///   amount and metadata address are provided via `offered_amount_override` and `offered_metadata_address_override`.
+    ///   amount and metadata address are provided via `offered_amount_override` and `offered_metadata_addr_override`.
     /// - `offered_chain_id`: Chain ID where offered tokens are located
     /// - `offered_amount_override`: Optional explicit offered amount (required when offered_chain_id != this_chain_id)
-    /// - `offered_metadata_address_override`: Optional explicit offered metadata address (required when offered_chain_id != this_chain_id)
+    /// - `offered_metadata_addr_override`: Optional explicit offered metadata address (required when offered_chain_id != this_chain_id)
     /// - `desired_metadata`: Metadata of the desired token type
     /// - `desired_amount`: Minimum amount of the desired token required
     /// - `desired_chain_id`: Chain ID where desired tokens are located
@@ -153,25 +153,25 @@ module mvmt_intent::fa_intent {
         offered_fungible_asset: FungibleAsset,
         offered_chain_id: u64,
         offered_amount_override: Option<u64>, // Optional explicit offered amount for cross-chain intents
-        offered_metadata_address_override: Option<address>, // Optional explicit offered metadata address for cross-chain intents
+        offered_metadata_addr_override: Option<address>, // Optional explicit offered metadata address for cross-chain intents
         desired_metadata: Object<Metadata>,
         desired_amount: u64,
         desired_chain_id: u64,
         expiry_time: u64,
-        requester: address,
+        requester_addr: address,
         reservation: Option<IntentReserved>,
         revocable: bool,
         intent_id: Option<address>, // Optional cross-chain intent_id (None for regular intents)
-        requester_address_connected_chain: Option<address> // Optional requester address on connected chain (for inflow intents)
+        requester_addr_connected_chain: Option<address> // Optional requester address on connected chain (for inflow intents)
     ): Object<Intent<FungibleStoreManager, FungibleAssetLimitOrder>> acquires ChainInfo {
         // Capture metadata before depositing
         let offered_metadata = fungible_asset::asset_metadata(&offered_fungible_asset);
         
-        // Determine offered_amount and offered_metadata_address:
+        // Determine offered_amount and offered_metadata_addr:
         // - If offered_chain_id == this_chain_id: tokens are locked on this chain, use FA amount and metadata
         // - If offered_chain_id != this_chain_id: tokens are locked elsewhere, use explicit parameters
         let this_chain_id = get_chain_id();
-        let (offered_amount, event_offered_metadata_address) = if (offered_chain_id == this_chain_id) {
+        let (offered_amount, event_offered_metadata_addr) = if (offered_chain_id == this_chain_id) {
             // Same-chain: use FA amount, no metadata address override needed
             (fungible_asset::amount(&offered_fungible_asset), option::none<address>())
         } else {
@@ -181,13 +181,13 @@ module mvmt_intent::fa_intent {
                 error::invalid_argument(EAMOUNT_NOT_MEET)
             );
             assert!(
-                option::is_some(&offered_metadata_address_override),
+                option::is_some(&offered_metadata_addr_override),
                 error::invalid_argument(EINVALID_METADATA_ADDRESS)
             );
-            (*option::borrow(&offered_amount_override), offered_metadata_address_override)
+            (*option::borrow(&offered_amount_override), offered_metadata_addr_override)
         };
 
-        let coin_store_ref = object::create_object(requester);
+        let coin_store_ref = object::create_object(requester_addr);
         let extend_ref = object::generate_extend_ref(&coin_store_ref);
         let delete_ref = object::generate_delete_ref(&coin_store_ref);
         let transfer_ref = object::generate_transfer_ref(&coin_store_ref);
@@ -219,13 +219,13 @@ module mvmt_intent::fa_intent {
                 FungibleAssetLimitOrder {
                     desired_metadata,
                     desired_amount,
-                    requester,
+                    requester_addr,
                     intent_id,
                     offered_chain_id,
                     desired_chain_id
                 },
                 expiry_time,
-                requester,
+                requester_addr,
                 FungibleAssetRecipientWitness {},
                 reservation,
                 revocable
@@ -233,7 +233,7 @@ module mvmt_intent::fa_intent {
 
         // Emit event after creating intent so we have the intent address
         let intent_addr = object::object_address(&intent_obj);
-        // Use intent_id from argument if present (cross-chain), otherwise use intent_address (regular)
+        // Use intent_id from argument if present (cross-chain), otherwise use intent_addr (regular)
         let event_intent_id =
             if (option::is_some(&intent_id)) {
                 *option::borrow(&intent_id)
@@ -242,20 +242,20 @@ module mvmt_intent::fa_intent {
             };
         event::emit(
             LimitOrderEvent {
-                intent_address: intent_addr,
+                intent_addr,
                 intent_id: event_intent_id,
                 offered_metadata,
-                offered_metadata_address: event_offered_metadata_address,
+                offered_metadata_addr: event_offered_metadata_addr,
                 offered_amount,
                 offered_chain_id,
                 desired_metadata,
                 desired_amount,
                 desired_chain_id,
                 expiry_time,
-                requester,
+                requester_addr,
                 revocable,
                 reserved_solver,
-                requester_address_connected_chain
+                requester_addr_connected_chain
             }
         );
 
@@ -287,7 +287,7 @@ module mvmt_intent::fa_intent {
         solver: address,
         solver_signature: vector<u8>
     ) acquires ChainInfo {
-        let requester = signer::address_of(account);
+        let requester_addr = signer::address_of(account);
         let reservation =
             if (vector::is_empty(&solver_signature)) {
                 option::none() // Explicitly unreserved intent
@@ -301,7 +301,7 @@ module mvmt_intent::fa_intent {
                         desired_amount,
                         chain_id,
                         expiry_time,
-                        requester,
+                        requester_addr,
                         solver
                     );
                 let result =
@@ -322,16 +322,16 @@ module mvmt_intent::fa_intent {
             fa,
             chain_id, // offered_chain_id (same chain for regular intents)
             option::none(), // No offered_amount_override needed - tokens are locked on this chain
-            option::none(), // No offered_metadata_address_override needed - tokens are locked on this chain
+            option::none(), // No offered_metadata_addr_override needed - tokens are locked on this chain
             desired_metadata,
             desired_amount,
             chain_id, // desired_chain_id (same chain for regular intents)
             expiry_time,
-            signer::address_of(account),
+            requester_addr,
             reservation,
             true, // revocable by default for regular intents
             option::none(), // No cross-chain intent_id for regular intents
-            option::none() // No requester_address_connected_chain for same-chain intents
+            option::none() // No requester_addr_connected_chain for same-chain intents
         );
     }
 
@@ -396,12 +396,12 @@ module mvmt_intent::fa_intent {
     /// # Arguments
     /// - `session`: The trade session to complete
     /// - `received_fa`: The fungible asset received
-    /// - `intent_address`: The address of the intent being fulfilled
+    /// - `intent_addr`: The address of the intent being fulfilled
     /// - `solver`: The address of the solver who fulfilled the intent
     public fun finish_fa_receiving_session_with_event(
         session: Session<FungibleAssetLimitOrder>,
         received_fa: FungibleAsset,
-        intent_address: address,
+        intent_addr: address,
         solver: address
     ) {
         let argument = intent::get_argument(&session);
@@ -419,22 +419,22 @@ module mvmt_intent::fa_intent {
             error::invalid_argument(EAMOUNT_NOT_MEET)
         );
 
-        primary_fungible_store::deposit(argument.requester, received_fa);
+        primary_fungible_store::deposit(argument.requester_addr, received_fa);
 
         // Emit fulfillment event
         let timestamp = timestamp::now_seconds();
 
-        // Use intent_id from argument if present (cross-chain), otherwise use intent_address (regular)
+        // Use intent_id from argument if present (cross-chain), otherwise use intent_addr (regular)
         let fulfillment_intent_id =
             if (option::is_some(&argument.intent_id)) {
                 *option::borrow(&argument.intent_id)
             } else {
-                intent_address
+                intent_addr
             };
 
         event::emit(
             LimitOrderFulfillmentEvent {
-                intent_address,
+                intent_addr: intent_addr,
                 intent_id: fulfillment_intent_id,
                 solver,
                 provided_metadata,
@@ -461,7 +461,7 @@ module mvmt_intent::fa_intent {
             error::invalid_argument(EAMOUNT_NOT_MEET)
         );
 
-        primary_fungible_store::deposit(argument.requester, received_fa);
+        primary_fungible_store::deposit(argument.requester_addr, received_fa);
         intent::finish_intent_session(session, FungibleAssetRecipientWitness {})
     }
 

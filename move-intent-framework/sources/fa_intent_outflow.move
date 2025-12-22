@@ -68,8 +68,8 @@ module mvmt_intent::fa_intent_outflow {
         intent: Object<Intent<fa_intent_with_oracle::FungibleStoreManager, fa_intent_with_oracle::OracleGuardedLimitOrder>>,
         verifier_signature_bytes: vector<u8>
     ) {
-        let solver_address = signer::address_of(solver);
-        let intent_address = aptos_framework::object::object_address(&intent);
+        let solver_addr = signer::address_of(solver);
+        let intent_addr = aptos_framework::object::object_address(&intent);
 
         // 1. Start the session (unlocks actual tokens that were locked on hub - these are the solver's reward)
         let (unlocked_fa, session) =
@@ -80,7 +80,7 @@ module mvmt_intent::fa_intent_outflow {
         let payment_metadata = fungible_asset::asset_metadata(&unlocked_fa);
 
         // 3. Deposit unlocked tokens to solver (they get the locked tokens as payment for their work)
-        primary_fungible_store::deposit(solver_address, unlocked_fa);
+        primary_fungible_store::deposit(solver_addr, unlocked_fa);
 
         // 4. Withdraw 0 tokens as payment (desired_amount = 0 on hub for outflow)
         // The actual desired tokens are on the connected chain, which the solver already transferred
@@ -111,7 +111,7 @@ module mvmt_intent::fa_intent_outflow {
         );
 
         // 8. Unregister intent from the registry
-        intent_registry::unregister_intent(intent_address);
+        intent_registry::unregister_intent(intent_addr);
     }
 
     /// Creates an outflow intent and returns the intent object.
@@ -121,7 +121,7 @@ module mvmt_intent::fa_intent_outflow {
     /// # Note on parameter types:
     /// - `offered_metadata` uses `Object<Metadata>` because the offered tokens are on the hub chain,
     ///   so we can validate the object exists and is the correct type before withdrawing tokens.
-    /// - `desired_metadata_address` uses `address` because the desired tokens are on a different chain
+    /// - `desired_metadata_addr` uses `address` because the desired tokens are on a different chain
     ///   (connected chain), so the metadata object doesn't exist on the hub chain. We can't validate
     ///   it here - validation happens on the connected chain when the solver transfers tokens.
     ///
@@ -130,12 +130,12 @@ module mvmt_intent::fa_intent_outflow {
     /// - `offered_metadata`: Metadata object of the token type being offered (locked on hub chain)
     /// - `offered_amount`: Amount of tokens to withdraw and lock on hub chain
     /// - `offered_chain_id`: Chain ID of the hub chain (where tokens are locked)
-    /// - `desired_metadata_address`: Address of the desired token metadata (on connected chain)
+    /// - `desired_metadata_addr`: Address of the desired token metadata (on connected chain)
     /// - `desired_amount`: Amount of desired tokens
     /// - `desired_chain_id`: Chain ID where tokens are desired (connected chain)
     /// - `expiry_time`: Unix timestamp when intent expires
     /// - `intent_id`: Intent ID for cross-chain linking
-    /// - `requester_address_connected_chain`: Address on connected chain where solver should send tokens
+    /// - `requester_addr_connected_chain`: Address on connected chain where solver should send tokens
     /// - `verifier_public_key`: Public key of the verifier that will approve the connected chain transaction (32 bytes)
     /// - `solver`: Address of the solver authorized to fulfill this intent (must be registered)
     /// - `solver_signature`: Ed25519 signature from the solver authorizing this intent
@@ -146,26 +146,26 @@ module mvmt_intent::fa_intent_outflow {
     /// # Aborts
     /// - `ESOLVER_NOT_REGISTERED`: Solver is not registered in the solver registry
     /// - `EINVALID_SIGNATURE`: Signature verification failed
-    /// - `EINVALID_REQUESTER_ADDRESS`: requester_address_connected_chain is zero address (0x0)
+    /// - `EINVALID_REQUESTER_ADDRESS`: requester_addr_connected_chain is zero address (0x0)
     public fun create_outflow_intent(
         requester_signer: &signer,
         offered_metadata: Object<Metadata>,
         offered_amount: u64,
         offered_chain_id: u64,
-        desired_metadata_address: address,
+        desired_metadata_addr: address,
         desired_amount: u64,
         desired_chain_id: u64,
         expiry_time: u64,
         intent_id: address,
-        requester_address_connected_chain: address,
+        requester_addr_connected_chain: address,
         verifier_public_key: vector<u8>, // 32 bytes
         solver: address,
         solver_signature: vector<u8>
     ): Object<Intent<fa_intent_with_oracle::FungibleStoreManager, fa_intent_with_oracle::OracleGuardedLimitOrder>> {
-        // Validate requester_address_connected_chain is not zero address
+        // Validate requester_addr_connected_chain is not zero address
         // Outflow intents require a valid address on the connected chain where the solver should send tokens
         assert!(
-            requester_address_connected_chain != @0x0,
+            requester_addr_connected_chain != @0x0,
             error::invalid_argument(EINVALID_REQUESTER_ADDRESS)
         );
 
@@ -184,7 +184,7 @@ module mvmt_intent::fa_intent_outflow {
                 offered_metadata_addr,
                 offered_amount,
                 offered_chain_id,
-                desired_metadata_address,
+                desired_metadata_addr,
                 desired_amount,
                 desired_chain_id,
                 expiry_time,
@@ -228,14 +228,14 @@ module mvmt_intent::fa_intent_outflow {
             placeholder_metadata, // Use same metadata as locked tokens (placeholder for payment check)
             desired_amount, // Original desired_amount (for the connected chain) - payment validation will use 0 on hub
             desired_chain_id, // Chain ID where desired tokens are located (connected chain)
-            option::some(desired_metadata_address), // Pass explicit desired_metadata_address since tokens are on connected chain
+            option::some(desired_metadata_addr), // Pass explicit desired_metadata_addr since tokens are on connected chain
             expiry_time,
             signer::address_of(requester_signer),
             requirement,
             false, // CRITICAL: All parts of a cross-chain intent MUST be non-revocable
             // Ensures consistent safety guarantees for verifiers across chains
             intent_id,
-            option::some(requester_address_connected_chain), // Store where solver should send tokens on connected chain
+            option::some(requester_addr_connected_chain), // Store where solver should send tokens on connected chain
             reservation_result // Reserved for specific solver
         );
 
@@ -258,12 +258,12 @@ module mvmt_intent::fa_intent_outflow {
         offered_metadata: Object<Metadata>,
         offered_amount: u64,
         offered_chain_id: u64,
-        desired_metadata_address: address,
+        desired_metadata_addr: address,
         desired_amount: u64,
         desired_chain_id: u64,
         expiry_time: u64,
         intent_id: address,
-        requester_address_connected_chain: address,
+        requester_addr_connected_chain: address,
         verifier_public_key: vector<u8>, // 32 bytes
         solver: address,
         solver_signature: vector<u8>
@@ -274,12 +274,12 @@ module mvmt_intent::fa_intent_outflow {
                 offered_metadata,
                 offered_amount,
                 offered_chain_id,
-                desired_metadata_address,
+                desired_metadata_addr,
                 desired_amount,
                 desired_chain_id,
                 expiry_time,
                 intent_id,
-                requester_address_connected_chain,
+                requester_addr_connected_chain,
                 verifier_public_key,
                 solver,
                 solver_signature

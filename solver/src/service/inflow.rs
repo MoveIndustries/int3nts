@@ -108,12 +108,12 @@ impl InflowService {
             return Ok(Vec::new());
         }
 
-        // Collect requester_address_connected_chain from pending intents (for inflow escrow lookup)
+        // Collect requester_addr_connected_chain from pending intents (for inflow escrow lookup)
         // Inflow intents have escrows created on the connected chain by the connected chain requester,
         // not the hub chain requester.
         let connected_chain_requester_addresses: Vec<String> = pending_intents
             .iter()
-            .filter_map(|intent| intent.requester_address_connected_chain.clone())
+            .filter_map(|intent| intent.requester_addr_connected_chain.clone())
             .collect();
 
         // Query connected chain for escrow events
@@ -157,7 +157,7 @@ impl InflowService {
                     .into_iter()
                     .map(|e| EscrowMatch {
                         intent_id: e.intent_id,
-                        escrow_id: e.escrow,
+                        escrow_id: e.escrow_addr,
                     })
                     .collect()
             }
@@ -207,13 +207,13 @@ impl InflowService {
     /// * `Ok(String)` - Transaction hash
     /// * `Err(anyhow::Error)` - Failed to fulfill intent
     pub fn fulfill_inflow_intent(&self, intent: &TrackedIntent, payment_amount: u64) -> Result<String> {
-        let intent_address = intent
-            .intent_address
+        let intent_addr = intent
+            .intent_addr
             .as_ref()
             .context("Intent address not set (intent not yet created on-chain)")?;
 
         let hub_client = crate::chains::HubChainClient::new(&self.config.hub_chain)?;
-        hub_client.fulfill_inflow_intent(intent_address, payment_amount)
+        hub_client.fulfill_inflow_intent(intent_addr, payment_amount)
     }
 
     /// Releases an escrow on the connected chain after getting verifier approval

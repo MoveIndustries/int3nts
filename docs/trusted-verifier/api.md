@@ -49,33 +49,34 @@ Response (abbreviated)
   "data": {
     "intent_events": [
       {
-        "chain": "hub",
         "intent_id": "0x...",
-        "issuer": "0x...",
         "offered_metadata": {"inner":"0xa"},
         "offered_amount": 0,
         "desired_metadata": {"inner":"0xa"},
         "desired_amount": 1000000,
-        "expiry_time": 2000000,
         "revocable": false,
+        "requester_addr": "0x...",
+        "requester_addr_connected_chain": null,
+        "reserved_solver_addr": "0x...",
+        "connected_chain_id": null,
+        "expiry_time": 2000000,
         "timestamp": 1000000
       }
     ],
     "escrow_events": [
       {
-        "chain": "connected",
         "escrow_id": "0x...",
         "intent_id": "0x...",
-        "issuer": "0x...",
         "offered_metadata": {"inner":"0xa"},
         "offered_amount": 1000,
         "desired_metadata": {"inner":"0xa"},
         "desired_amount": 0,
-        "expiry_time": 2000000,
         "revocable": false,
-        "reserved_solver": "0x...",
+        "requester_addr": "0x...",
+        "reserved_solver_addr": "0x...",
         "chain_id": 2,
         "chain_type": "Mvm",
+        "expiry_time": 2000000,
         "timestamp": 1000000
       }
     ],
@@ -216,13 +217,13 @@ The verifier provides negotiation routing capabilities for off-chain communicati
 
 ### POST /draftintent
 
-Submit a draft intent for negotiation. Drafts are open to any solver (no `solver_address` required).
+Submit a draft intent for negotiation. Drafts are open to any solver (no `solver_addr` required).
 
 **Request**
 
 ```json
 {
-  "requester_address": "0x...",
+  "requester_addr": "0x...",
   "draft_data": {
     "offered_metadata": "...",
     "offered_amount": 1000,
@@ -252,7 +253,7 @@ Submit a draft intent for negotiation. Drafts are open to any solver (no `solver
 curl -X POST http://127.0.0.1:3333/draftintent \
   -H "Content-Type: application/json" \
   -d '{
-    "requester_address": "0x123...",
+    "requester_addr": "0x123...",
     "draft_data": {"offered_metadata": "0x1::test::Token", "offered_amount": 1000},
     "expiry_time": 2000000
   }'
@@ -322,7 +323,7 @@ Submit a signature for a draft intent. Implements FCFS logic: first signature wi
 
 ```json
 {
-  "solver_address": "0xabc...",
+  "solver_addr": "0xabc...",
   "signature": "0x" + "a".repeat(128),
   "public_key": "0x" + "b".repeat(64)
 }
@@ -363,7 +364,7 @@ Submit a signature for a draft intent. Implements FCFS logic: first signature wi
 curl -X POST http://127.0.0.1:3333/draftintent/11111111-1111-1111-1111-111111111111/signature \
   -H "Content-Type: application/json" \
   -d '{
-    "solver_address": "0xabc...",
+    "solver_addr": "0xabc...",
     "signature": "0x'$(python3 -c "print('a'*128)")'",
     "public_key": "0x'$(python3 -c "print('b'*64)")'"
   }'
@@ -380,7 +381,7 @@ Poll for the signature of a draft intent. Returns the first signature received (
   "success": true,
   "data": {
     "signature": "0x" + "a".repeat(128),
-    "solver_address": "0xabc...",
+    "solver_addr": "0xabc...",
     "timestamp": 1000000
   },
   "error": null

@@ -43,7 +43,7 @@ module mvmt_intent::fa_entryflow_tests {
             offered_fa,
             1, // offered_chain_id
             option::none(), // No offered_amount_override - tokens locked on this chain
-            option::none(), // No offered_metadata_address_override - tokens locked on this chain
+            option::none(), // No offered_metadata_addr_override - tokens locked on this chain
             desired_fa,
             desired_amount,
             1, // desired_chain_id
@@ -52,7 +52,7 @@ module mvmt_intent::fa_entryflow_tests {
             option::none(),
             true, // revocable
             option::none(), // No cross-chain intent_id for regular intents
-            option::none() // No requester_address_connected_chain for same-chain intents
+            option::none() // No requester_addr_connected_chain for same-chain intents
         );
 
         move_to(offerer, PendingIntent { intent });
