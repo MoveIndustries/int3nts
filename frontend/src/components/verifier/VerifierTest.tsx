@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { verifierClient } from '@/lib/verifier';
 
 export function VerifierTest() {
@@ -75,6 +75,50 @@ export function VerifierTest() {
     }
   };
 
+  const [draftIdInput, setDraftIdInput] = useState('');
+  
+  const testDraftStatus = async () => {
+    if (!draftIdInput.trim()) {
+      addResult('Draft Status Error', { error: 'Please enter a draft ID' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await verifierClient.getDraftIntentStatus(draftIdInput.trim());
+      addResult('Draft Status', result);
+    } catch (error) {
+      addResult('Draft Status Error', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testDraftSignature = async () => {
+    if (!draftIdInput.trim()) {
+      addResult('Draft Signature Error', { error: 'Please enter a draft ID' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const result = await verifierClient.pollDraftSignature(draftIdInput.trim());
+      addResult('Draft Signature', result);
+    } catch (error) {
+      addResult('Draft Signature Error', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load draft ID from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedDraftId = localStorage.getItem('last_draft_id');
+      if (savedDraftId) {
+        setDraftIdInput(savedDraftId);
+      }
+    }
+  }, []);
+
   const verifierUrl = process.env.NEXT_PUBLIC_VERIFIER_URL;
 
   return (
@@ -86,6 +130,37 @@ export function VerifierTest() {
         Verifier URL: {verifierUrl || 'Not configured'}
       </div>
       
+      {/* Draft Intent Status Checker */}
+      <div className="mb-6 p-4 bg-gray-800/50 border border-gray-700 rounded">
+        <h3 className="text-sm font-bold mb-3">Check Draft Intent Status</h3>
+        <div className="flex gap-2 mb-2">
+          <input
+            type="text"
+            value={draftIdInput}
+            onChange={(e) => setDraftIdInput(e.target.value)}
+            placeholder="Enter draft ID..."
+            className="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded text-sm font-mono"
+          />
+          <button
+            onClick={testDraftStatus}
+            disabled={loading || !draftIdInput.trim()}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm disabled:opacity-50"
+          >
+            Check Status
+          </button>
+          <button
+            onClick={testDraftSignature}
+            disabled={loading || !draftIdInput.trim()}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-sm disabled:opacity-50"
+          >
+            Check Signature
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">
+          Enter a draft ID to check its status or poll for solver signature
+        </p>
+      </div>
+
       <div className="flex flex-wrap gap-2 mb-4">
         <button
           onClick={testHealth}

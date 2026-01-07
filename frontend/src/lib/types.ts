@@ -1,12 +1,33 @@
 // Protocol types for cross-chain intents
 
+/**
+ * Generate a random 32-byte hex string for intent_id.
+ * Matches the format used in e2e tests: "0x" + 64 hex chars
+ */
+export function generateIntentId(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const hex = Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+  return `0x${hex}`;
+}
+
 export interface DraftIntentRequest {
   requester_addr: string;
   draft_data: {
+    // Required fields for solver acceptance
+    intent_id: string;           // Random 32-byte hex (0x + 64 chars)
     offered_metadata: string;
-    offered_amount: number;
+    offered_amount: string;      // String for large numbers
+    offered_chain_id: string;    // Chain ID as string
     desired_metadata: string;
-    desired_amount: number;
+    desired_amount: string;      // String for large numbers
+    desired_chain_id: string;    // Chain ID as string
+    expiry_time: number;         // Unix timestamp
+    issuer: string;              // Requester address
+    // Optional flow metadata
+    flow_type?: 'inflow' | 'outflow';
   };
   expiry_time: number;
 }

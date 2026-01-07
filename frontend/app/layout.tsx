@@ -10,7 +10,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: "int3nts",
-  description: "cross-chain intents",
+  description: "Movement cross-chain intents",
 };
 
 export default function RootLayout({

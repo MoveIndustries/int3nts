@@ -153,7 +153,7 @@ impl SigningService {
                 self.sign_and_submit(draft, &draft_data).await
             }
             AcceptanceResult::Reject(reason) => {
-                debug!("Draft {} rejected: {}", draft.draft_id, reason);
+                warn!("Draft {} rejected: {}", draft.draft_id, reason);
                 Ok(false)
             }
         }
