@@ -179,7 +179,7 @@ fi
 
 echo ""
 
-cd "$PROJECT_ROOT/solver"
+cd "$PROJECT_ROOT"
 
 # Export environment variables for solver (needed for nix develop subprocess)
 export BASE_SOLVER_PRIVATE_KEY
@@ -213,17 +213,17 @@ fi
 # Check if --release flag is passed
 if [ "$1" = "--release" ]; then
     echo "🔨 Building release binary..."
-    nix develop --command bash -c "cd '$PROJECT_ROOT/solver' && cargo build --release"
+    nix develop --command bash -c "cargo build --release --manifest-path solver/Cargo.toml"
     echo ""
     echo "🚀 Starting solver (release mode)..."
     echo "   Press Ctrl+C to stop"
     echo ""
-    eval "$ENV_VARS ./target/release/solver"
+    eval "$ENV_VARS ./solver/target/release/solver"
 else
     echo "🚀 Starting solver (debug mode)..."
     echo "   Press Ctrl+C to stop"
     echo "   (Use --release for faster performance)"
     echo ""
-    nix develop --command bash -c "cd '$PROJECT_ROOT/solver' && $ENV_VARS cargo run --bin solver"
+    nix develop --command bash -c "$ENV_VARS cargo run --manifest-path solver/Cargo.toml --bin solver"
 fi
 

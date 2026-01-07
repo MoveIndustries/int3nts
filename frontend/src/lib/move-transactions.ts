@@ -3,7 +3,7 @@
  */
 
 // Intent module address on Movement testnet
-export const INTENT_MODULE_ADDRESS = '0x1dcf6e04ca82f5f5a4d9b4a33e28f77fda8f22075db9c56929545e2aeb59a442';
+export const INTENT_MODULE_ADDRESS = '0x12212cdf544f2fba164c0c55e6cc8e5bcbc4fbf61b30e7bb63e67e095b0aeb76';
 
 /**
  * Convert a hex string to Uint8Array.

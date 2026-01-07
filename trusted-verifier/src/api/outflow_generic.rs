@@ -85,11 +85,11 @@ pub struct OutflowFulfillmentValidationResponse {
 /// * `Err(warp::Rejection)` - Failed to validate transaction
 pub async fn handle_outflow_fulfillment_validation(
     request: ValidateOutflowFulfillmentRequest,
-    monitor: Arc<RwLock<EventMonitor>>,
+    monitor_arc: Arc<RwLock<EventMonitor>>,
     validator: Arc<RwLock<CrossChainValidator>>,
     crypto_service: Arc<RwLock<crate::crypto::CryptoService>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let monitor = monitor.read().await;
+    let monitor = monitor_arc.read().await;
     let validator = validator.read().await;
 
     // Query transaction based on chain type (chain-specific)
@@ -197,6 +197,12 @@ pub async fn handle_outflow_fulfillment_validation(
         match crypto.create_mvm_approval_signature(&intent_id) {
             Ok(sig) => {
                 info!("Generated hub chain approval signature for outflow intent_id: {} (signature for hub chain fulfillment)", intent_id);
+                // Mark intent as approved for frontend polling
+                drop(monitor); // Release read lock before getting write access
+                {
+                    let monitor_write = monitor_arc.read().await;
+                    monitor_write.mark_intent_approved(&intent_id).await;
+                }
                 Some(sig)
             }
             Err(e) => {

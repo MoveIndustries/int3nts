@@ -290,8 +290,22 @@ movement move run \
 
 echo ""
 
+# Initialize intent registry (required before creating intents)
+echo "🔧 Step 8: Initializing intent registry..."
+
+movement move run \
+  --profile "$TEMP_PROFILE" \
+  --function-id "${DEPLOY_ADDRESS_FULL}::intent_registry::initialize" \
+  --assume-yes 2>/dev/null && {
+    echo "   ✅ Intent registry initialized"
+  } || {
+    echo "   ⚠️  Intent registry may already be initialized (this is OK)"
+  }
+
+echo ""
+
 # Initialize verifier config for outflow intents
-echo "🔧 Step 8: Initializing verifier config..."
+echo "🔧 Step 9: Initializing verifier config..."
 
 if [ -z "$VERIFIER_PUBLIC_KEY" ]; then
     echo "❌ ERROR: VERIFIER_PUBLIC_KEY not set in .testnet-keys.env"

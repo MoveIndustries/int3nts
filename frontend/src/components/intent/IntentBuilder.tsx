@@ -24,18 +24,30 @@ export function IntentBuilder() {
   const [loadingDesiredBalance, setLoadingDesiredBalance] = useState(false);
 
   // Check for direct Nightly connection from localStorage
+  // Trust MvmWalletConnector to handle connection - just read the saved address
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedAddress = localStorage.getItem('nightly_connected_address');
       setDirectNightlyAddress(savedAddress);
       
-      // Listen for storage changes (in case wallet disconnects in another tab)
+      // Listen for storage changes (from other tabs)
       const handleStorageChange = () => {
         const address = localStorage.getItem('nightly_connected_address');
         setDirectNightlyAddress(address);
       };
+      
+      // Listen for custom event (from same tab when MvmWalletConnector changes connection)
+      const handleNightlyChange = (e: Event) => {
+        const customEvent = e as CustomEvent<{ address: string | null }>;
+        setDirectNightlyAddress(customEvent.detail.address);
+      };
+      
       window.addEventListener('storage', handleStorageChange);
-      return () => window.removeEventListener('storage', handleStorageChange);
+      window.addEventListener('nightly_wallet_changed', handleNightlyChange);
+      return () => {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('nightly_wallet_changed', handleNightlyChange);
+      };
     }
   }, []);
   const [flowType, setFlowType] = useState<FlowType>('inflow');
@@ -57,6 +69,18 @@ export function IntentBuilder() {
   // Transaction submission state
   const [submittingTransaction, setSubmittingTransaction] = useState(false);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
+  
+  // Fulfillment tracking state
+  const [intentStatus, setIntentStatus] = useState<'pending' | 'created' | 'fulfilled'>('pending');
+  const intentStatusRef = useRef<'pending' | 'created' | 'fulfilled'>('pending');
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    intentStatusRef.current = intentStatus;
+  }, [intentStatus]);
+  const [pollingFulfillment, setPollingFulfillment] = useState(false);
+  const pollingFulfillmentRef = useRef(false);
+  const currentIntentIdRef = useRef<string | null>(null);
   
   
   // Store draft data for transaction building
@@ -110,8 +134,8 @@ export function IntentBuilder() {
       const remaining = Math.max(0, fixedExpiryTime - now);
       setTimeRemaining(remaining * 1000); // Convert to milliseconds for display
 
-      if (remaining === 0) {
-        // Draft expired
+      if (remaining === 0 && intentStatusRef.current !== 'fulfilled') {
+        // Draft expired (but don't clear if intent was fulfilled)
         setDraftId(null);
         setDraftCreatedAt(null);
         setSavedDraftData(null);
@@ -140,6 +164,9 @@ export function IntentBuilder() {
     setSavedDraftData(null);
     setTransactionHash(null);
     setFixedExpiryTime(null);
+    setIntentStatus('pending');
+    setPollingFulfillment(false);
+    pollingFulfillmentRef.current = false;
     if (typeof window !== 'undefined') {
       localStorage.removeItem('last_draft_id');
       localStorage.removeItem('last_draft_created_at');
@@ -251,19 +278,95 @@ export function IntentBuilder() {
   const requesterAddr = directNightlyAddress || mvmAccount?.address || '';
   const mvmAddress = directNightlyAddress || mvmAccount?.address || '';
 
+  // Keep intent ID ref in sync for use in polling closure
+  useEffect(() => {
+    currentIntentIdRef.current = savedDraftData?.intentId || null;
+  }, [savedDraftData?.intentId]);
+
+  // Poll for fulfillment by checking verifier approvals
+  useEffect(() => {
+    if (!transactionHash || !savedDraftData || pollingFulfillmentRef.current) return;
+    
+    const pollFulfillment = async () => {
+      pollingFulfillmentRef.current = true;
+      setPollingFulfillment(true);
+      setIntentStatus('created');
+      
+      const maxAttempts = 120; // 120 attempts * 5 seconds = 10 minutes max
+      let attempts = 0;
+      
+      const poll = async () => {
+        try {
+          // Use ref to get latest intentId (may have been updated with on-chain ID)
+          const currentIntentId = currentIntentIdRef.current;
+          if (!currentIntentId) {
+            console.log('No intent ID yet, waiting...');
+            attempts++;
+            if (attempts < maxAttempts) {
+              setTimeout(poll, 5000);
+            } else {
+              setPollingFulfillment(false);
+              pollingFulfillmentRef.current = false;
+            }
+            return;
+          }
+          
+          console.log('Checking approval status for intent:', currentIntentId);
+          
+          // Use the simple /approved/{intent_id} endpoint
+          const verifierUrl = process.env.NEXT_PUBLIC_VERIFIER_URL || 'http://localhost:3333';
+          const response = await fetch(`${verifierUrl}/approved/${currentIntentId}`);
+          const data = await response.json();
+          
+          console.log('Approval check response:', data);
+          
+          if (data.success && data.data?.approved) {
+            console.log('Intent approved!');
+            setIntentStatus('fulfilled');
+            setPollingFulfillment(false);
+            pollingFulfillmentRef.current = false;
+            return;
+          }
+          
+          attempts++;
+          if (attempts < maxAttempts) {
+            setTimeout(poll, 5000); // Poll every 5 seconds
+          } else {
+            setPollingFulfillment(false);
+            pollingFulfillmentRef.current = false;
+          }
+        } catch (error) {
+          console.error('Error polling fulfillment:', error);
+          attempts++;
+          if (attempts < maxAttempts) {
+            setTimeout(poll, 5000);
+          } else {
+            setPollingFulfillment(false);
+            pollingFulfillmentRef.current = false;
+          }
+        }
+      };
+      
+      // Start polling after a short delay to let the solver pick up the intent
+      setTimeout(poll, 3000);
+    };
+    
+    pollFulfillment();
+    
+    return () => {
+      pollingFulfillmentRef.current = false;
+    };
+  }, [transactionHash, savedDraftData]);
+
   // Fetch balance when offered token is selected
   useEffect(() => {
-    console.log('Offered balance effect triggered:', { offeredToken: offeredToken?.symbol, mvmAddress, evmAddress });
     if (!offeredToken) {
-      console.log('No offered token, skipping balance fetch');
       setOfferedBalance(null);
       return;
     }
 
     const address = offeredToken.chain === 'movement' ? mvmAddress : evmAddress;
-    console.log('Offered token address lookup:', { chain: offeredToken.chain, address });
     if (!address) {
-      console.log('No address for offered token chain, skipping balance fetch');
       setOfferedBalance(null);
       return;
     }
@@ -312,6 +415,35 @@ export function IntentBuilder() {
         setLoadingDesiredBalance(false);
       });
   }, [desiredToken, mvmAddress, evmAddress]);
+
+  // Refresh balances when intent is fulfilled (funds received)
+  useEffect(() => {
+    if (intentStatus !== 'fulfilled') return;
+    
+    // Refresh offered balance
+    if (offeredToken) {
+      const offeredAddress = offeredToken.chain === 'movement' ? mvmAddress : evmAddress;
+      if (offeredAddress) {
+        setLoadingOfferedBalance(true);
+        fetchTokenBalance(offeredAddress, offeredToken)
+          .then(setOfferedBalance)
+          .catch(() => setOfferedBalance(null))
+          .finally(() => setLoadingOfferedBalance(false));
+      }
+    }
+    
+    // Refresh desired balance
+    if (desiredToken) {
+      const desiredAddress = desiredToken.chain === 'movement' ? mvmAddress : evmAddress;
+      if (desiredAddress) {
+        setLoadingDesiredBalance(true);
+        fetchTokenBalance(desiredAddress, desiredToken)
+          .then(setDesiredBalance)
+          .catch(() => setDesiredBalance(null))
+          .finally(() => setLoadingDesiredBalance(false));
+      }
+    }
+  }, [intentStatus, offeredToken, desiredToken, mvmAddress, evmAddress]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -602,6 +734,29 @@ export function IntentBuilder() {
       console.log('Transaction submitted:', pendingTxn);
       if (pendingTxn && pendingTxn.hash) {
         setTransactionHash(pendingTxn.hash);
+        
+        // Wait for transaction and extract on-chain intent ID from events
+        try {
+          const txnResult = await aptos.waitForTransaction({ transactionHash: pendingTxn.hash });
+          if ('events' in txnResult && Array.isArray(txnResult.events)) {
+            for (const event of txnResult.events) {
+              // Look for OracleLimitOrderEvent which contains the intent IDs
+              if (event.type?.includes('OracleLimitOrderEvent') || event.type?.includes('LimitOrderEvent')) {
+                // Use intent_id (the original ID from draft) - this is what the solver uses for validation
+                // intent_addr is the object address created on-chain (different)
+                const onChainIntentId = event.data?.intent_id || event.data?.intent_addr || event.data?.id;
+                if (onChainIntentId) {
+                  console.log('On-chain intent_id for approval tracking:', onChainIntentId);
+                  // Update savedDraftData with intent_id for approval tracking
+                  setSavedDraftData(prev => prev ? { ...prev, intentId: onChainIntentId } : null);
+                }
+                break;
+              }
+            }
+          }
+        } catch (waitErr) {
+          console.warn('Could not wait for transaction:', waitErr);
+        }
       } else {
         throw new Error('Transaction submitted but no hash returned');
       }
@@ -646,6 +801,41 @@ export function IntentBuilder() {
             <span>Outflow</span>
           </label>
         </div>
+        
+        {/* Quick fill buttons for testing */}
+        <div className="flex gap-2 mt-3">
+          <button
+            type="button"
+            onClick={() => {
+              handleFlowTypeChange('inflow');
+              const usdcBase = SUPPORTED_TOKENS.find(t => t.symbol === 'USDC' && t.chain === 'base-sepolia');
+              const usdcMovement = SUPPORTED_TOKENS.find(t => t.symbol === 'USDC.e' && t.chain === 'movement');
+              if (usdcBase) setOfferedToken(usdcBase);
+              if (usdcMovement) setDesiredToken(usdcMovement);
+              setOfferedAmount('0.001');
+              setDesiredAmount('0.001');
+            }}
+            className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded"
+          >
+            Default Inflow
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              handleFlowTypeChange('outflow');
+              const usdcMovement = SUPPORTED_TOKENS.find(t => t.symbol === 'USDC.e' && t.chain === 'movement');
+              const usdcBase = SUPPORTED_TOKENS.find(t => t.symbol === 'USDC' && t.chain === 'base-sepolia');
+              if (usdcMovement) setOfferedToken(usdcMovement);
+              if (usdcBase) setDesiredToken(usdcBase);
+              setOfferedAmount('0.001');
+              setDesiredAmount('0.001');
+            }}
+            className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded"
+          >
+            Default Outflow
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mt-1">USDC Base 0.001 ↔ USDC.e Movement 0.001</p>
       </div>
 
 
@@ -692,9 +882,6 @@ export function IntentBuilder() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2">
-            Offered Amount
-          </label>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -756,9 +943,6 @@ export function IntentBuilder() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2">
-            Desired Amount
-          </label>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -785,77 +969,121 @@ export function IntentBuilder() {
           </div>
         )}
 
-        {/* Success Display */}
+        {/* Action Buttons */}
+        <div className="space-y-3">
+          <button
+            type="submit"
+            disabled={loading || !requesterAddr || !!draftId}
+            className={`w-full px-4 py-2 rounded text-sm font-medium transition-colors ${
+              draftId 
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+            }`}
+          >
+            {loading ? 'Creating Draft Intent...' : draftId ? '✓ Draft Created' : 'Create Draft Intent'}
+          </button>
+
+          {/* Step 2: Create Intent Button */}
+          <button
+            type="button"
+            onClick={handleCreateIntent}
+            disabled={!signature || submittingTransaction || !requesterAddr || (flowType === 'outflow' && !evmAddress) || !!transactionHash}
+            className={`w-full px-4 py-2 rounded text-sm font-medium transition-colors ${
+              transactionHash
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                : signature 
+                  ? 'bg-green-600 hover:bg-green-700' 
+                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            {transactionHash 
+              ? '✓ Intent Created' 
+              : submittingTransaction 
+                ? 'Creating Intent...' 
+                : signature 
+                  ? 'Create Intent' 
+                  : 'Create Intent'}
+          </button>
+          
+          {/* Status note below buttons */}
+          {!requesterAddr && (
+            <p className="text-xs text-gray-400 text-center">
+              Connect your MVM wallet (Nightly) to create an intent
+            </p>
+          )}
+          {requesterAddr && !draftId && (
+            <p className="text-xs text-gray-500 text-center">
+              Step 1: Create a draft intent for solver approval
+            </p>
+          )}
+          {draftId && !signature && pollingSignature && (
+            <p className="text-xs text-yellow-400 text-center">
+              ⏳ Waiting for solver signature...
+            </p>
+          )}
+          {signature && !transactionHash && (
+            <p className="text-xs text-green-400 text-center">
+              ✅ Solver approved! Click "Create Intent" to submit on-chain
+            </p>
+          )}
+        </div>
+
+        {/* Status Display */}
         {mounted && draftId && (
-          <div className="p-3 bg-green-900/30 border border-green-700 rounded text-sm text-green-300">
-            <p className="font-bold">Draft Intent Created!</p>
-            <p className="mt-1 font-mono text-xs">Draft ID: {draftId}</p>
-            {timeRemaining !== null && (
-              <p className="mt-2 text-xs">
-                Time remaining: {Math.floor(timeRemaining / 1000)}s
-                {timeRemaining === 0 && ' (Expired)'}
-              </p>
-            )}
-            
-            {/* Signature Status */}
-            {pollingSignature && !signature && (
-              <p className="mt-2 text-xs text-yellow-300">
-                ⏳ Waiting for solver signature...
-              </p>
-            )}
+          <div className="p-3 bg-gray-800/50 border border-gray-700 rounded text-sm text-gray-300">
+            <div className="flex justify-between items-start">
+              <div>
+                {/* Only show timer if not fulfilled */}
+                {intentStatus !== 'fulfilled' && timeRemaining !== null && (
+                  <p className="mt-1 text-xs">
+                    Time remaining: {Math.floor(timeRemaining / 1000)}s
+                    {timeRemaining === 0 && ' (Expired)'}
+                  </p>
+                )}
+              </div>
+            </div>
             
             {signature && (
-              <div className="mt-3 p-2 bg-gray-800/50 rounded">
-                <p className="text-xs font-bold text-green-400">✅ Solver signature received!</p>
-                <p className="mt-1 text-xs font-mono">Solver: {signature.solver_addr.slice(0, 10)}...{signature.solver_addr.slice(-8)}</p>
-                
-                {!transactionHash && (
-                  <button
-                    type="button"
-                    onClick={handleCreateIntent}
-                    disabled={submittingTransaction || !requesterAddr || (flowType === 'outflow' && !evmAddress)}
-                    className="mt-2 w-full px-4 py-2 bg-green-600 hover:bg-green-700 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {submittingTransaction ? 'Creating Intent...' : 'Create Intent on Chain'}
-                  </button>
-                )}
+              <div className="mt-2">
+                <p className="text-xs font-mono text-gray-400">Solver: {signature.solver_addr.slice(0, 10)}...{signature.solver_addr.slice(-8)}</p>
                 
                 {transactionHash && (
-                  <div className="mt-2">
-                    <p className="text-xs font-bold text-green-400">✅ Intent created on-chain!</p>
-                    <p className="mt-1 text-xs font-mono break-all">Tx: {transactionHash}</p>
+                  <div className="mt-2 space-y-2">
+                    <p className="text-xs font-mono break-all text-gray-400">Tx: {transactionHash}</p>
+                    {savedDraftData?.intentId && (
+                      <p className="text-xs font-mono break-all text-gray-400">Intent ID: {savedDraftData.intentId}</p>
+                    )}
+                    
+                    {intentStatus === 'created' && pollingFulfillment && (
+                      <div className="p-2 bg-yellow-900/30 rounded border border-yellow-600/50">
+                        <p className="text-xs text-yellow-400">
+                          ⏳ Waiting for funds to arrive...
+                        </p>
+                      </div>
+                    )}
+                    
+                    {intentStatus === 'fulfilled' && (
+                      <div className="p-2 bg-green-900/30 rounded border border-green-600/50">
+                        <p className="text-xs font-bold text-green-400">🎉 Funds received!</p>
+                        <p className="mt-1 text-xs text-gray-400">Verified by trusted verifier</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
             
-            <button
-              type="button"
-              onClick={clearDraft}
-              className="mt-2 text-xs underline hover:no-underline"
-            >
-              Clear
-            </button>
-          </div>
-        )}
-
-        {/* Submit Button - Only show when no active draft */}
-        {!draftId && (
-          <>
-            <button
-              type="submit"
-              disabled={loading || !requesterAddr}
-              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Creating Draft Intent...' : 'Create Draft Intent'}
-            </button>
-
-            {!requesterAddr && (
-              <p className="text-xs text-gray-400 text-center">
-                Connect your MVM wallet (Nightly) to create an intent
-              </p>
+            {/* Clear button at bottom when fulfilled */}
+            {intentStatus === 'fulfilled' && (
+              <button
+                type="button"
+                onClick={clearDraft}
+                className="mt-3 w-full px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-black font-medium rounded text-sm"
+              >
+                Clear & Create New Intent
+              </button>
             )}
-          </>
+          </div>
         )}
       </form>
     </div>

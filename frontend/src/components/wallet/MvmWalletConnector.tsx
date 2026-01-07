@@ -12,30 +12,48 @@ export function MvmWalletConnector() {
   useEffect(() => {
     setMounted(true);
     
-    // Restore Nightly connection from localStorage and try to reconnect silently
+    // Restore Nightly connection from localStorage - try silent methods first
     if (typeof window !== 'undefined') {
       const savedAddress = localStorage.getItem('nightly_connected_address');
       if (savedAddress) {
         const nightlyWallet = (window as any).nightly?.aptos;
         if (nightlyWallet) {
-          // Try to silently reconnect
-          nightlyWallet.connect().then((response: any) => {
-            const address = response?.address || (Array.isArray(response) ? response[0]?.address : null);
-            if (address) {
-              setDirectNightlyAccount(address);
-              localStorage.setItem('nightly_connected_address', address);
-            } else if (response?.status === 'Approved' || response?.status === 'AlreadyConnected') {
-              // Wallet approved but didn't return address, use saved
-              setDirectNightlyAccount(savedAddress);
-            } else {
-              // Connection failed or rejected
-              localStorage.removeItem('nightly_connected_address');
-              setDirectNightlyAccount(null);
+          // Try getAccount() first - this doesn't prompt the user
+          const tryGetAccount = async () => {
+            try {
+              // Some wallets support getAccount() for checking current state
+              if (typeof nightlyWallet.getAccount === 'function') {
+                const account = await nightlyWallet.getAccount();
+                if (account?.address) {
+                  setDirectNightlyAccount(account.address);
+                  localStorage.setItem('nightly_connected_address', account.address);
+                  window.dispatchEvent(new CustomEvent('nightly_wallet_changed', { detail: { address: account.address } }));
+                  return true;
+                }
+              }
+            } catch {
+              // getAccount not supported or failed
             }
-          }).catch(() => {
-            // Silent reconnect failed, clear state
-            localStorage.removeItem('nightly_connected_address');
-            setDirectNightlyAccount(null);
+            
+            // Check if wallet has an 'account' property (some wallets expose this)
+            if (nightlyWallet.account?.address) {
+              setDirectNightlyAccount(nightlyWallet.account.address);
+              window.dispatchEvent(new CustomEvent('nightly_wallet_changed', { detail: { address: nightlyWallet.account.address } }));
+              return true;
+            }
+            
+            return false;
+          };
+          
+          tryGetAccount().then((silentSuccess) => {
+            if (!silentSuccess) {
+              // No silent method worked - just trust localStorage for now
+              // User will need to reconnect manually if the session expired
+              // Don't call connect() here as it prompts the user
+              setDirectNightlyAccount(savedAddress);
+              // Dispatch custom event so other components know
+              window.dispatchEvent(new CustomEvent('nightly_wallet_changed', { detail: { address: savedAddress } }));
+            }
           });
         } else {
           // Wallet extension not found, clear stale state
@@ -113,6 +131,8 @@ export function MvmWalletConnector() {
               }
               setDirectNightlyAccount(null);
               localStorage.removeItem('nightly_connected_address');
+              // Dispatch custom event so other components know
+              window.dispatchEvent(new CustomEvent('nightly_wallet_changed', { detail: { address: null } }));
             }}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-sm"
           >
@@ -178,6 +198,8 @@ export function MvmWalletConnector() {
                               setDirectNightlyAccount(address);
                               // Persist to localStorage
                               localStorage.setItem('nightly_connected_address', address);
+                              // Dispatch custom event so other components know
+                              window.dispatchEvent(new CustomEvent('nightly_wallet_changed', { detail: { address } }));
                               
                               // Also try to connect via adapter if possible
                               const nightlyWallet = wallets.find(w => w.name.toLowerCase().includes('nightly'));

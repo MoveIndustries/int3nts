@@ -190,14 +190,16 @@ impl HubChainClient {
         &self,
         known_accounts: &[String],
         since_version: Option<u64>,
-    ) -> Result<Vec<IntentCreatedEvent>> {
+        processed_transactions: Option<&std::collections::HashSet<String>>,
+    ) -> Result<(Vec<IntentCreatedEvent>, Vec<String>)> {
         let mut events = Vec::new();
+        let mut transaction_hashes = Vec::new();
 
         for account in known_accounts {
             let account_addr = account.strip_prefix("0x").unwrap_or(account);
             let url = format!("{}/v1/accounts/{}/transactions", self.base_url, account_addr);
 
-            tracing::debug!("Querying transactions from: {}", url);
+            tracing::trace!("Querying transactions from: {}", url);
 
             let mut query_params = vec![("limit", "100".to_string())];
             if let Some(version) = since_version {
@@ -224,23 +226,47 @@ impl HubChainClient {
                 .await
                 .context("Failed to parse transactions response")?;
 
-            tracing::debug!("Found {} transaction(s) for account {}", transactions.len(), account);
-
+            // Count skipped vs new transactions
+            let mut skipped_count = 0;
+            let mut new_count = 0;
+            
             // Extract intent creation events from transactions
             for tx in &transactions {
                 let tx_hash = tx.get("hash").and_then(|h| h.as_str()).unwrap_or("unknown");
+                
+                // Skip already-processed transactions
+                if let Some(processed) = processed_transactions {
+                    if processed.contains(tx_hash) {
+                        skipped_count += 1;
+                        continue; // Skip this transaction - already processed
+                    }
+                }
+                new_count += 1;
+                
+                // Track this transaction hash (will be added to processed set after processing)
+                let tx_hash_owned = tx_hash.to_string();
+                
                 if let Some(tx_events) = tx.get("events").and_then(|e| e.as_array()) {
                     tracing::debug!("Transaction {} has {} events", tx_hash, tx_events.len());
-                    for event_json in tx_events {
+                    for (idx, event_json) in tx_events.iter().enumerate() {
                         let event_type = event_json
                             .get("type")
                             .and_then(|t| t.as_str())
                             .unwrap_or("");
 
+                        // Log ALL event types for debugging (only for new transactions)
+                        tracing::debug!("Transaction {} event {}: type = '{}'", tx_hash, idx, event_type);
+                        
+                        // Log full event structure for first event of each transaction to see structure
+                        if idx == 0 {
+                            tracing::debug!("Transaction {} first event keys: {:?}", tx_hash, 
+                                event_json.as_object().map(|o| o.keys().collect::<Vec<_>>()));
+                        }
+                        
                         // Log all event types for debugging
                         if event_type.contains("intent") || event_type.contains("Intent") || 
                            event_type.contains("Order") || event_type.contains("order") {
-                            tracing::debug!("Found potentially relevant event type: {}", event_type);
+                            tracing::info!("Found potentially relevant event type: {}", event_type);
                         }
 
                         // Check for LimitOrderEvent (inflow) or OracleLimitOrderEvent (outflow)
@@ -275,10 +301,18 @@ impl HubChainClient {
                         }
                     }
                 }
+                
+                // Add transaction hash to processed list (even if no intent event found, to avoid re-parsing)
+                transaction_hashes.push(tx_hash_owned);
+            }
+            
+            // Only log when there are new transactions to process
+            if new_count > 0 {
+                tracing::debug!("Account {}: {} new transaction(s), {} already processed", account, new_count, skipped_count);
             }
         }
 
-        Ok(events)
+        Ok((events, transaction_hashes))
     }
 
     /// Fulfills an inflow request intent
@@ -591,4 +625,5 @@ impl HubChainClient {
         anyhow::bail!("Could not extract transaction hash from registration output: {}", output_str)
     }
 }
+
 

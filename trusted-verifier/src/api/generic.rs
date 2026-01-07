@@ -155,6 +155,39 @@ pub async fn get_approval_by_escrow_handler(
     }
 }
 
+/// Handler for checking if an intent has been approved.
+///
+/// This is a simple endpoint for the frontend to check if an outflow intent
+/// has received approval from the verifier.
+///
+/// # Arguments
+///
+/// * `intent_id` - The intent ID to check
+/// * `monitor` - The event monitor instance
+///
+/// # Returns
+///
+/// * `Ok(warp::Reply)` - JSON response with `{ approved: true/false }`
+pub async fn is_intent_approved_handler(
+    intent_id: String,
+    monitor: Arc<RwLock<EventMonitor>>,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let monitor = monitor.read().await;
+    let approved = monitor.is_intent_approved(&intent_id).await;
+    
+    #[derive(serde::Serialize)]
+    struct ApprovalStatus {
+        intent_id: String,
+        approved: bool,
+    }
+    
+    Ok(warp::reply::json(&ApiResponse {
+        success: true,
+        data: Some(ApprovalStatus { intent_id, approved }),
+        error: None,
+    }))
+}
+
 /// Handler for the approval endpoint.
 ///
 /// This function creates an approval or rejection signature based on
@@ -492,6 +525,14 @@ impl ApiServer {
             .and(with_monitor(approval_by_escrow_monitor))
             .and_then(get_approval_by_escrow_handler);
 
+        // Check if intent is approved endpoint - simple true/false for frontend polling
+        let is_approved_monitor = monitor.clone();
+        let is_approved = warp::path("approved")
+            .and(warp::path::param())
+            .and(warp::get())
+            .and(with_monitor(is_approved_monitor))
+            .and_then(is_intent_approved_handler);
+
         // Create approval signature endpoint - creates approval/rejection signatures
         let approval = warp::path("approval")
             .and(warp::post())
@@ -610,6 +651,7 @@ impl ApiServer {
             .or(events)
             .or(approvals)
             .or(approval_by_escrow)
+            .or(is_approved)
             .or(approval)
             .or(public_key)
             .or(validate_outflow)

@@ -60,6 +60,8 @@ pub struct IntentTracker {
     requester_addresses: Arc<RwLock<std::collections::HashSet<String>>>,
     /// Set of on-chain intent IDs that have been completed (to avoid re-processing)
     completed_intent_ids: Arc<RwLock<std::collections::HashSet<String>>>,
+    /// Set of transaction hashes that have been processed (to avoid re-parsing)
+    processed_transactions: Arc<RwLock<std::collections::HashSet<String>>>,
     /// Hub chain client for querying intent events
     hub_client: HubChainClient,
     /// Hub chain configuration
@@ -84,6 +86,7 @@ impl IntentTracker {
             intents: Arc::new(RwLock::new(HashMap::new())),
             requester_addresses: Arc::new(RwLock::new(std::collections::HashSet::new())),
             completed_intent_ids: Arc::new(RwLock::new(std::collections::HashSet::new())),
+            processed_transactions: Arc::new(RwLock::new(std::collections::HashSet::new())),
             hub_client,
             hub_config: config.hub_chain.clone(),
         })
@@ -166,14 +169,29 @@ impl IntentTracker {
             return Ok(0);
         }
 
-        tracing::debug!("Polling for intents from {} requester address(es)", requester_addresses.len());
+        // Use trace level for routine polling to reduce log noise
+        tracing::trace!("Polling for intents from {} requester address(es)", requester_addresses.len());
+
+        // Get processed transactions to avoid re-parsing
+        let processed_tx_set = {
+            let processed = self.processed_transactions.read().await;
+            processed.clone()
+        };
 
         // Query hub chain for intent creation events
-        let events = self
+        let (events, transaction_hashes) = self
             .hub_client
-            .get_intent_events(&requester_addresses, None)
+            .get_intent_events(&requester_addresses, None, Some(&processed_tx_set))
             .await
             .context("Failed to query hub chain for intent events")?;
+        
+        // Mark these transactions as processed
+        if !transaction_hashes.is_empty() {
+            let mut processed = self.processed_transactions.write().await;
+            for tx_hash in transaction_hashes {
+                processed.insert(tx_hash);
+            }
+        }
 
         // Filter out already completed intents
         let completed = self.completed_intent_ids.read().await;

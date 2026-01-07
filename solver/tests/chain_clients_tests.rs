@@ -143,7 +143,7 @@ async fn test_get_intent_events_success() {
     let client = HubChainClient::new(&config).unwrap();
 
     let accounts = vec![DUMMY_REQUESTER_ADDR_MVM_HUB.to_string()];
-    let events = client.get_intent_events(&accounts, None).await.unwrap();
+    let (events, _tx_hashes) = client.get_intent_events(&accounts, None, None).await.unwrap();
 
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].intent_id, DUMMY_INTENT_ID);
@@ -170,7 +170,7 @@ async fn test_get_intent_events_empty() {
     let client = HubChainClient::new(&config).unwrap();
 
     let accounts = vec![DUMMY_REQUESTER_ADDR_MVM_HUB.to_string()];
-    let events = client.get_intent_events(&accounts, None).await.unwrap();
+    let (events, _tx_hashes) = client.get_intent_events(&accounts, None, None).await.unwrap();
 
     assert_eq!(events.len(), 0);
 }
