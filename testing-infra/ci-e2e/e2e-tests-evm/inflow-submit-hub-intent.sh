@@ -132,6 +132,7 @@ log "     (Solver service polls verifier automatically)"
 SIGNATURE_DATA=$(poll_for_signature "$DRAFT_ID" 10 2)
 RETRIEVED_SIGNATURE=$(echo "$SIGNATURE_DATA" | jq -r '.signature')
 RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_addr')
+RETRIEVED_SOLVER_EVM=$(echo "$SIGNATURE_DATA" | jq -r '.solver_evm_addr // empty')
 
 if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
     log_and_echo "❌ ERROR: Failed to retrieve signature from verifier"
@@ -176,6 +177,17 @@ if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
 fi
 log "     ✅ Retrieved signature from solver: $RETRIEVED_SOLVER"
 log "     Signature: ${RETRIEVED_SIGNATURE:0:20}..."
+
+# Validate solver EVM address for inflow escrow creation
+if [ -z "$RETRIEVED_SOLVER_EVM" ] || [ "$RETRIEVED_SOLVER_EVM" = "null" ]; then
+    log_and_echo "❌ ERROR: Solver EVM address not in signature response"
+    log_and_echo "   The solver must register with an EVM address for inflow intents"
+    exit 1
+fi
+log "     Solver EVM address: $RETRIEVED_SOLVER_EVM"
+
+# Export for escrow creation script
+export SOLVER_EVM_ADDRESS="$RETRIEVED_SOLVER_EVM"
 
 # ============================================================================
 # SECTION 5: CREATE INTENT ON-CHAIN WITH RETRIEVED SIGNATURE
@@ -244,6 +256,11 @@ if [ -n "$HUB_INTENT_ADDRESS" ] && [ "$HUB_INTENT_ADDRESS" != "null" ]; then
 fi
 
 # Export values for use by other scripts
+# Ensure SOLVER_EVM_ADDRESS is set before saving (re-export to be safe)
+if [ -z "$SOLVER_EVM_ADDRESS" ] && [ -n "$RETRIEVED_SOLVER_EVM" ]; then
+    export SOLVER_EVM_ADDRESS="$RETRIEVED_SOLVER_EVM"
+    log "   Re-exported SOLVER_EVM_ADDRESS: $SOLVER_EVM_ADDRESS"
+fi
 save_intent_info "$INTENT_ID" "$HUB_INTENT_ADDRESS"
 
 # Check final balances using common function

@@ -85,6 +85,9 @@ pub struct IntentCreatedEvent {
     pub offered_chain_id: String,
     /// Desired token metadata (wrapped in {"inner": "0x..."})
     pub desired_metadata: MoveInner,
+    /// Desired metadata address for cross-chain tokens (optional)
+    #[serde(default)]
+    pub desired_metadata_addr: Option<MoveOption<String>>,
     /// Desired amount
     pub desired_amount: String,
     /// Desired chain ID
@@ -93,6 +96,15 @@ pub struct IntentCreatedEvent {
     pub requester_addr: String,
     /// Expiry timestamp
     pub expiry_time: String,
+    /// Minimum reported oracle value (optional)
+    #[serde(default)]
+    pub min_reported_value: Option<String>,
+    /// Whether the intent is revocable (optional)
+    #[serde(default)]
+    pub revocable: Option<bool>,
+    /// Reserved solver address (optional)
+    #[serde(default)]
+    pub reserved_solver: Option<MoveOption<String>>,
     /// Requester address on the connected chain (for outflow intents)
     /// Wrapped in Move Option: {"vec": ["0x..."]} or {"vec": []}
     #[serde(default)]
@@ -126,6 +138,8 @@ pub struct HubChainClient {
     module_addr: String,
     /// CLI profile name
     profile: String,
+    /// E2E mode flag: if true, use aptos CLI with profiles; if false, use movement CLI with private keys
+    e2e_mode: bool,
 }
 
 impl HubChainClient {
@@ -157,6 +171,7 @@ impl HubChainClient {
             base_url,
             module_addr: config.module_addr.clone(),
             profile: config.profile.clone(),
+            e2e_mode: config.e2e_mode,
         })
     }
 
@@ -178,14 +193,16 @@ impl HubChainClient {
         &self,
         known_accounts: &[String],
         since_version: Option<u64>,
-    ) -> Result<Vec<IntentCreatedEvent>> {
+        processed_transactions: Option<&std::collections::HashSet<String>>,
+    ) -> Result<(Vec<IntentCreatedEvent>, Vec<String>)> {
         let mut events = Vec::new();
+        let mut transaction_hashes = Vec::new();
 
         for account in known_accounts {
             let account_addr = account.strip_prefix("0x").unwrap_or(account);
             let url = format!("{}/v1/accounts/{}/transactions", self.base_url, account_addr);
 
-            tracing::debug!("Querying transactions from: {}", url);
+            tracing::trace!("Querying transactions from: {}", url);
 
             let mut query_params = vec![("limit", "100".to_string())];
             if let Some(version) = since_version {
@@ -212,21 +229,54 @@ impl HubChainClient {
                 .await
                 .context("Failed to parse transactions response")?;
 
-            tracing::debug!("Found {} transaction(s) for account {}", transactions.len(), account);
-
+            // Count skipped vs new transactions
+            let mut skipped_count = 0;
+            let mut new_count = 0;
+            
             // Extract intent creation events from transactions
             for tx in &transactions {
+                let tx_hash = tx.get("hash").and_then(|h| h.as_str()).unwrap_or("unknown");
+                
+                // Skip already-processed transactions
+                if let Some(processed) = processed_transactions {
+                    if processed.contains(tx_hash) {
+                        skipped_count += 1;
+                        continue; // Skip this transaction - already processed
+                    }
+                }
+                new_count += 1;
+                
+                // Track this transaction hash (will be added to processed set after processing)
+                let tx_hash_owned = tx_hash.to_string();
+                
                 if let Some(tx_events) = tx.get("events").and_then(|e| e.as_array()) {
-                    for event_json in tx_events {
+                    tracing::debug!("Transaction {} has {} events", tx_hash, tx_events.len());
+                    for (idx, event_json) in tx_events.iter().enumerate() {
                         let event_type = event_json
                             .get("type")
                             .and_then(|t| t.as_str())
                             .unwrap_or("");
 
+                        // Log ALL event types for debugging (only for new transactions)
+                        tracing::debug!("Transaction {} event {}: type = '{}'", tx_hash, idx, event_type);
+                        
+                        // Log full event structure for first event of each transaction to see structure
+                        if idx == 0 {
+                            tracing::debug!("Transaction {} first event keys: {:?}", tx_hash, 
+                                event_json.as_object().map(|o| o.keys().collect::<Vec<_>>()));
+                        }
+                        
+                        // Log all event types for debugging
+                        if event_type.contains("intent") || event_type.contains("Intent") || 
+                           event_type.contains("Order") || event_type.contains("order") {
+                            tracing::info!("Found potentially relevant event type: {}", event_type);
+                        }
+
                         // Check for LimitOrderEvent (inflow) or OracleLimitOrderEvent (outflow)
                         // IMPORTANT: Check OracleLimitOrderEvent BEFORE LimitOrderEvent because
                         // "OracleLimitOrderEvent".contains("LimitOrderEvent") is true!
                         if event_type.contains("OracleLimitOrderEvent") || event_type.contains("LimitOrderEvent") {
+                            tracing::info!("Found intent creation event: {}", event_type);
                             match serde_json::from_value::<IntentCreatedEvent>(
                                 event_json.get("data").cloned().unwrap_or(serde_json::Value::Null),
                             ) {
@@ -238,24 +288,34 @@ impl HubChainClient {
                                         .as_secs();
                                     if let Ok(expiry) = event_data.expiry_time.parse::<u64>() {
                                         if expiry >= current_time {
-                                            tracing::debug!("Found intent event: {} - type: {}", 
-                                                event_data.intent_id, event_type);
+                                            tracing::info!("Intent {} is valid (expiry {} >= now {})", 
+                                                event_data.intent_id, expiry, current_time);
                                             events.push(event_data);
+                                        } else {
+                                            tracing::debug!("Intent {} is expired (expiry {} < now {})", 
+                                                event_data.intent_id, expiry, current_time);
                                         }
-                                        // Skip expired events silently
                                     }
                                 }
                                 Err(e) => {
-                                    tracing::debug!("Failed to parse event data: {} - data: {:?}", e, event_json.get("data"));
+                                    tracing::warn!("Failed to parse intent event data: {} - data: {:?}", e, event_json.get("data"));
                                 }
                             }
                         }
                     }
                 }
+                
+                // Add transaction hash to processed list (even if no intent event found, to avoid re-parsing)
+                transaction_hashes.push(tx_hash_owned);
+            }
+            
+            // Only log when there are new transactions to process
+            if new_count > 0 {
+                tracing::debug!("Account {}: {} new transaction(s), {} already processed", account, new_count, skipped_count);
             }
         }
 
-        Ok(events)
+        Ok((events, transaction_hashes))
     }
 
     /// Fulfills an inflow request intent
@@ -276,28 +336,66 @@ impl HubChainClient {
         intent_addr: &str,
         payment_amount: u64,
     ) -> Result<String> {
-        // Use aptos CLI for compatibility with E2E tests which create aptos profiles
-        let output = Command::new("aptos")
-            .args(&[
-                "move",
-                "run",
+        // Determine CLI based on e2e_mode flag
+        let cli = if self.e2e_mode {
+            "aptos"
+        } else {
+            "movement"
+        };
+
+        // Store formatted strings to avoid lifetime issues
+        let function_id = format!("{}::fa_intent_inflow::fulfill_inflow_intent", self.module_addr);
+        let intent_addr_arg = format!("address:{}", intent_addr);
+        let payment_amount_arg = format!("u64:{}", payment_amount);
+
+        // Prepare private key if needed (for testnet mode)
+        let pk_hex_stripped = if !self.e2e_mode {
+            let pk_hex = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY")
+                .context("MOVEMENT_SOLVER_PRIVATE_KEY not set")?;
+            Some(pk_hex.strip_prefix("0x").unwrap_or(&pk_hex).to_string())
+        } else {
+            None
+        };
+
+        let mut args = vec![
+            "move",
+            "run",
+            "--assume-yes",
+            "--function-id",
+            &function_id,
+            "--args",
+            &intent_addr_arg,
+            &payment_amount_arg,
+        ];
+
+        // Add authentication based on e2e_mode flag
+        if self.e2e_mode {
+            // Use profile for E2E tests
+            args.extend(vec![
                 "--profile",
                 &self.profile,
-                "--assume-yes",
-                "--function-id",
-                &format!("{}::fa_intent_inflow::fulfill_inflow_intent", self.module_addr),
-                "--args",
-                &format!("address:{}", intent_addr),
-                &format!("u64:{}", payment_amount),
-            ])
+            ]);
+        } else {
+            // Use private key directly for testnet
+            args.extend(vec![
+                "--private-key",
+                pk_hex_stripped.as_ref().unwrap(),
+                "--url",
+                &self.base_url,
+            ]);
+        }
+
+        let output = Command::new(cli)
+            .args(&args)
             .output()
-            .context("Failed to execute movement move run")?;
+            .context(format!("Failed to execute {} move run", cli))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
             anyhow::bail!(
-                "movement move run failed:\nstderr: {}\nstdout: {}",
+                "{} move run failed:\nstderr: {}\nstdout: {}",
+                cli,
                 stderr,
                 stdout
             );
@@ -336,45 +434,66 @@ impl HubChainClient {
         // Convert signature bytes to hex string
         let signature_hex = hex::encode(verifier_signature_bytes);
 
-        // Determine CLI and authentication method
-        // For testnet: use movement CLI with --private-key from env
-        // For E2E tests: use aptos CLI with --profile
-        let mut command;
+        // Determine CLI based on e2e_mode flag
+        let cli = if self.e2e_mode {
+            "aptos"
+        } else {
+            "movement"
+        };
+
+        // Store formatted strings to avoid lifetime issues
+        let function_id = format!("{}::fa_intent_outflow::fulfill_outflow_intent", self.module_addr);
+        let intent_addr_arg = format!("address:{}", intent_addr);
+        let signature_hex_arg = format!("hex:{}", signature_hex);
+
+        // Prepare private key if needed (for testnet mode)
+        let pk_hex_stripped = if !self.e2e_mode {
+            let pk_hex = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY")
+                .context("MOVEMENT_SOLVER_PRIVATE_KEY not set")?;
+            Some(pk_hex.strip_prefix("0x").unwrap_or(&pk_hex).to_string())
+        } else {
+            None
+        };
+
         let mut args = vec![
-            "move".to_string(),
-            "run".to_string(),
-            "--assume-yes".to_string(),
-            "--function-id".to_string(),
-            format!("{}::fa_intent_outflow::fulfill_outflow_intent", self.module_addr),
-            "--args".to_string(),
-            format!("address:{}", intent_addr),
-            format!("hex:{}", signature_hex),
+            "move",
+            "run",
+            "--assume-yes",
+            "--function-id",
+            &function_id,
+            "--args",
+            &intent_addr_arg,
+            &signature_hex_arg,
         ];
 
-        if let Ok(pk_hex) = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY") {
-            // Testnet: Use movement CLI with private key
-            command = Command::new("movement");
-            args.push("--private-key".to_string());
-            args.push(pk_hex.strip_prefix("0x").unwrap_or(&pk_hex).to_string());
-            args.push("--url".to_string());
-            args.push(format!("{}/v1", self.base_url));
+        // Add authentication based on e2e_mode flag
+        if self.e2e_mode {
+            // Use profile for E2E tests
+            args.extend(vec![
+                "--profile",
+                &self.profile,
+            ]);
         } else {
-            // E2E tests: Use aptos CLI with profile
-            command = Command::new("aptos");
-            args.push("--profile".to_string());
-            args.push(self.profile.clone());
+            // Use private key directly for testnet
+            args.extend(vec![
+                "--private-key",
+                pk_hex_stripped.as_ref().unwrap(),
+                "--url",
+                &self.base_url,
+            ]);
         }
 
-        let output = command
+        let output = Command::new(cli)
             .args(&args)
             .output()
-            .context("Failed to execute move run")?;
+            .context(format!("Failed to execute {} move run", cli))?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
             anyhow::bail!(
-                "movement move run failed:\nstderr: {}\nstdout: {}",
+                "{} move run failed:\nstderr: {}\nstdout: {}",
+                cli,
                 stderr,
                 stdout
             );
@@ -568,4 +687,5 @@ impl HubChainClient {
         anyhow::bail!("Could not extract transaction hash from registration output: {}", output_str)
     }
 }
+
 

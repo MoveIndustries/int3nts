@@ -117,6 +117,48 @@ impl ConnectedEvmClient {
         })
     }
 
+    /// Gets the current block number from the EVM chain
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(u64)` - Current block number
+    /// * `Err(anyhow::Error)` - Failed to get block number
+    pub async fn get_block_number(&self) -> Result<u64> {
+        use tracing::info;
+        
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "eth_blockNumber".to_string(),
+            params: vec![],
+            id: 1,
+        };
+
+        let response: JsonRpcResponse<String> = self
+            .client
+            .post(&self.base_url)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to send eth_blockNumber request")?
+            .json()
+            .await
+            .context("Failed to parse eth_blockNumber response")?;
+
+        if let Some(error) = response.error {
+            anyhow::bail!("Failed to get block number: {} ({})", error.message, error.code);
+        }
+
+        let block_hex = response.result.unwrap_or_else(|| "0x0".to_string());
+        let block_number = u64::from_str_radix(
+            block_hex.strip_prefix("0x").unwrap_or(&block_hex),
+            16,
+        )
+        .context("Failed to parse block number")?;
+
+        info!("Current EVM block number: {}", block_number);
+        Ok(block_number)
+    }
+
     /// Queries the connected chain for EscrowInitialized events
     ///
     /// Uses eth_getLogs to filter events by contract address and event signature.

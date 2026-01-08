@@ -39,7 +39,7 @@ if [ ! -f "$VERIFIER_CONFIG" ]; then
     echo "   Then populate with actual deployed contract addresses:"
     echo "   - intent_module_addr (hub_chain section)"
     echo "   - escrow_contract_addr (connected_chain_evm section)"
-    echo "   - verifier_addr (connected_chain_evm section)"
+    echo "   - verifier_evm_pubkey_hash (connected_chain_evm section)"
     exit 1
 fi
 
@@ -90,7 +90,7 @@ if grep -qE "(0x123|0x\.\.\.|0xalice|0xbob)" "$VERIFIER_CONFIG"; then
     echo "   Update the config file with actual deployed addresses:"
     echo "   - intent_module_addr (hub_chain section)"
     echo "   - escrow_contract_addr (connected_chain_evm section)"
-    echo "   - verifier_addr (connected_chain_evm section)"
+    echo "   - verifier_evm_pubkey_hash (connected_chain_evm section)"
     echo ""
     echo "   Contract addresses should be read from your deployment logs."
     exit 1
@@ -141,12 +141,12 @@ if [ "$1" = "--release" ]; then
     echo "🚀 Starting verifier (release mode)..."
     echo "   Press Ctrl+C to stop"
     echo ""
-    VERIFIER_CONFIG_PATH="$VERIFIER_CONFIG" RUST_LOG=info ./target/release/trusted-verifier
+    RUST_LOG=info ./target/release/trusted-verifier --testnet
 else
     echo "🚀 Starting verifier (debug mode)..."
     echo "   Press Ctrl+C to stop"
     echo "   (Use --release for faster performance)"
     echo ""
-    nix develop --command bash -c "cd '$PROJECT_ROOT/trusted-verifier' && VERIFIER_CONFIG_PATH='$VERIFIER_CONFIG' RUST_LOG=info cargo run --bin trusted-verifier"
+    nix develop --command bash -c "cd '$PROJECT_ROOT/trusted-verifier' && RUST_LOG=info cargo run --bin trusted-verifier -- --testnet"
 fi
 

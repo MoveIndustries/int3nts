@@ -4,6 +4,7 @@
 //! Configuration includes chain endpoints, verifier keys, API settings, and validation parameters.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 // ============================================================================
 // CONFIGURATION STRUCTURES
@@ -31,6 +32,10 @@ pub struct Config {
     pub verifier: VerifierConfig,
     /// API server configuration (host, port, CORS settings)
     pub api: ApiConfig,
+    /// Default solver acceptance criteria (exchange rates for token pairs)
+    /// Used to provide exchange rate information to frontend
+    #[serde(default)]
+    pub acceptance: Option<AcceptanceConfig>,
 }
 
 /// Configuration for a blockchain connection.
@@ -64,8 +69,10 @@ pub struct EvmChainConfig {
     pub escrow_contract_addr: String,
     /// Chain ID (e.g., 31337 for Hardhat, 1 for Ethereum mainnet)
     pub chain_id: u64,
-    /// Verifier address (ECDSA public key as Ethereum address)
-    pub verifier_addr: String,
+    /// Verifier EVM public key hash (keccak256 hash of ECDSA public key, last 20 bytes)
+    /// This is the Ethereum address derived from the verifier's ECDSA public key
+    #[serde(rename = "verifier_evm_pubkey_hash", alias = "verifier_addr")]
+    pub verifier_evm_pubkey_hash: String,
 }
 
 /// Verifier-specific configuration including cryptographic keys and timing parameters.
@@ -141,6 +148,18 @@ pub struct ApiConfig {
     pub port: u16,
     /// Allowed CORS origins for cross-origin requests
     pub cors_origins: Vec<String>,
+}
+
+/// Acceptance criteria configuration for default solver.
+///
+/// Defines which token pairs are supported and their exchange rates.
+/// Key format: "offered_chain_id:offered_token:desired_chain_id:desired_token"
+/// Value: Exchange rate (how many offered tokens per 1 desired token)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AcceptanceConfig {
+    /// Supported token pairs with exchange rates
+    #[serde(flatten)]
+    pub token_pairs: HashMap<String, f64>,
 }
 
 // ============================================================================
@@ -258,6 +277,7 @@ impl Config {
                 cors_origins: vec!["http://localhost:3333".to_string()],
             },
             connected_chain_evm: None, // Optional connected EVM chain configuration
+            acceptance: None, // Optional acceptance criteria
         }
     }
 }

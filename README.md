@@ -1,10 +1,11 @@
-# Intent Framework
+# int3nts
 
-A framework for creating conditional trading intents with the following components
+A framework for creating cross-chain intents with the following components
 
 - [move-intent-framework](docs/move-intent-framework/README.md)
 - [evm-intent-framework](docs/evm-intent-framework/README.md)
 - [trusted verifier](docs/trusted-verifier/README.md)
+- [frontend](docs/frontend/README.md)
 - [solver tools](docs/solver/README.md)
 - [testing infrastructure](docs/testing-infra/README.md)
 
@@ -31,6 +32,7 @@ nix develop -c bash -c "cd move-intent-framework && movement move test --dev --n
 nix develop -c bash -c "cd evm-intent-framework && npm test"
 RUST_LOG=off nix develop -c bash -c "cd trusted-verifier && cargo test --quiet"
 RUST_LOG=off nix develop -c bash -c "cd solver && cargo test --quiet"
+nix develop -c bash -c "cd frontend && npm test"
 ```
 
 #### E2E Integration Tests (requires Docker)

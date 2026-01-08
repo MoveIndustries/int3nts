@@ -11,6 +11,25 @@ use super::inflow_evm;
 use super::inflow_mvm;
 use crate::monitor::{ChainType, EscrowEvent, IntentEvent};
 
+/// Normalizes a metadata string for comparison.
+/// Metadata is stored as JSON like `{"inner":"0x..."}`. This function extracts the address,
+/// removes leading zeros after 0x prefix, and returns a normalized form for comparison.
+fn normalize_metadata_for_comparison(metadata: &str) -> String {
+    // Try to parse as JSON and extract the "inner" field
+    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(metadata) {
+        if let Some(inner) = parsed.get("inner").and_then(|v| v.as_str()) {
+            // Normalize the address: strip 0x, remove leading zeros, lowercase
+            let addr_no_prefix = inner.strip_prefix("0x").unwrap_or(inner);
+            let addr_trimmed = addr_no_prefix.trim_start_matches('0');
+            // Ensure at least one character (for "0x0" edge case)
+            let addr_trimmed = if addr_trimmed.is_empty() { "0" } else { addr_trimmed };
+            return format!("0x{}", addr_trimmed.to_lowercase());
+        }
+    }
+    // Fallback: return as-is, lowercased
+    metadata.to_lowercase()
+}
+
 /// Validates fulfillment of intent conditions on the connected chain.
 ///
 /// This function performs comprehensive validation to ensure that:
@@ -65,12 +84,16 @@ pub async fn validate_intent_fulfillment(
     }
 
     // Validate the escrow's offered_metadata matches the specified offered_metadata in the hub intent
-    if escrow_event.offered_metadata != intent_event.offered_metadata {
+    // Normalize addresses to handle differences like 0x036c... vs 0x36c... (leading zeros)
+    let escrow_metadata_normalized = normalize_metadata_for_comparison(&escrow_event.offered_metadata);
+    let intent_metadata_normalized = normalize_metadata_for_comparison(&intent_event.offered_metadata);
+    if escrow_metadata_normalized != intent_metadata_normalized {
         return Ok(ValidationResult {
             valid: false,
             message: format!(
-                "Escrow offered metadata '{}' does not match hub intent offered metadata '{}'",
-                escrow_event.offered_metadata, intent_event.offered_metadata
+                "Escrow offered metadata '{}' does not match hub intent offered metadata '{}' (normalized: '{}' vs '{}')",
+                escrow_event.offered_metadata, intent_event.offered_metadata,
+                escrow_metadata_normalized, intent_metadata_normalized
             ),
             timestamp: chrono::Utc::now().timestamp() as u64,
         });

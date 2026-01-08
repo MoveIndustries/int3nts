@@ -139,9 +139,19 @@ impl InflowService {
             }
             ConnectedChainClient::Evm(client) => {
                 // EVM client uses from_block/to_block instead of known_accounts
-                // For now, query from block 0 (all blocks) to latest
-                info!("Querying EVM chain for escrow events (from_block=0)");
-                let events = match client.get_escrow_events(Some(0), None).await {
+                // Query recent blocks to avoid exceeding RPC's block range limit
+                let current_block = client.get_block_number().await
+                    .context("Failed to get current block number")?;
+                
+                // Look back 200 blocks (~7 minutes on Base, same as verifier)
+                let from_block = if current_block > 200 {
+                    current_block - 200
+                } else {
+                    0
+                };
+                
+                info!("Querying EVM chain for escrow events (from_block={}, current_block={})", from_block, current_block);
+                let events = match client.get_escrow_events(Some(from_block), None).await {
                     Ok(events) => {
                         if !events.is_empty() {
                             info!("Found {} EVM escrow events", events.len());

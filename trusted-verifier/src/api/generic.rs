@@ -3,12 +3,12 @@
 //! This module contains shared structures, helper functions, and generic API handlers
 //! that are used across all flow types (inflow/outflow) and chain types (Move VM/EVM).
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info};
-use warp::{http::StatusCode, Filter, Rejection, Reply};
+use warp::{http::{Method, StatusCode}, Filter, Rejection, Reply};
 use warp::hyper::body::Bytes;
 
 use crate::config::Config;
@@ -155,6 +155,47 @@ pub async fn get_approval_by_escrow_handler(
     }
 }
 
+/// Handler for checking if an intent has been approved.
+///
+/// This is a simple endpoint for the frontend to check if an outflow intent
+/// has received approval from the verifier.
+///
+/// # Arguments
+///
+/// * `intent_id` - The intent ID to check
+/// * `monitor` - The event monitor instance
+///
+/// # Returns
+///
+/// * `Ok(warp::Reply)` - JSON response with `{ approved: true/false }`
+pub async fn is_intent_approved_handler(
+    intent_id: String,
+    monitor: Arc<RwLock<EventMonitor>>,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let monitor = monitor.read().await;
+    let normalized = crate::monitor::normalize_intent_id(&intent_id);
+    let approved = monitor.is_intent_approved(&intent_id).await;
+    
+    tracing::info!(
+        "Checking approval status: intent_id={}, normalized={}, approved={}",
+        intent_id,
+        normalized,
+        approved
+    );
+    
+    #[derive(serde::Serialize)]
+    struct ApprovalStatus {
+        intent_id: String,
+        approved: bool,
+    }
+    
+    Ok(warp::reply::json(&ApiResponse {
+        success: true,
+        data: Some(ApprovalStatus { intent_id, approved }),
+        error: None,
+    }))
+}
+
 /// Handler for the approval endpoint.
 ///
 /// This function creates an approval or rejection signature based on
@@ -215,6 +256,105 @@ pub async fn get_public_key_handler(
     Ok(warp::reply::json(&ApiResponse {
         success: true,
         data: Some(public_key),
+        error: None,
+    }))
+}
+
+/// Response structure for exchange rate query
+#[derive(Debug, Serialize)]
+pub struct ExchangeRateResponse {
+    /// Desired token metadata address
+    pub desired_token: String,
+    /// Desired chain ID
+    pub desired_chain_id: u64,
+    /// Exchange rate (how many offered tokens per 1 desired token)
+    pub exchange_rate: f64,
+}
+
+/// Handler for the acceptance/exchange rate endpoint.
+///
+/// Query parameters:
+/// - offered_chain_id: Chain ID of the offered token
+/// - offered_token: Metadata address of the offered token
+/// - desired_chain_id: Chain ID of the desired token (optional - if not provided, returns first match)
+/// - desired_token: Metadata address of the desired token (optional - if not provided, returns first match)
+///
+/// Returns the desired token, desired chain ID, and exchange rate.
+pub async fn get_exchange_rate_handler(
+    config: Arc<crate::config::Config>,
+    query: String,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    use std::collections::HashMap;
+    use url::Url;
+    
+    // Parse query parameters
+    let parsed = Url::parse(&format!("http://dummy?{}", query))
+        .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Invalid query string: {}", e))))?;
+    
+    let params: HashMap<String, String> = parsed
+        .query_pairs()
+        .into_owned()
+        .collect();
+    
+    let offered_chain_id = params.get("offered_chain_id")
+        .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Missing offered_chain_id parameter".to_string())))?;
+    let offered_token = params.get("offered_token")
+        .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Missing offered_token parameter".to_string())))?;
+    
+    let desired_chain_id = params.get("desired_chain_id");
+    let desired_token = params.get("desired_token");
+    
+    // Get acceptance config
+    let acceptance = config.acceptance.as_ref()
+        .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Acceptance criteria not configured".to_string())))?;
+    
+    // Build the full pair key if both desired params are provided
+    let (pair_key_str, exchange_rate) = if let (Some(d_chain_id), Some(d_token)) = (desired_chain_id, desired_token) {
+        // Look for exact match
+        let exact_key = format!("{}:{}:{}:{}", offered_chain_id, offered_token, d_chain_id, d_token);
+        acceptance.token_pairs.get(&exact_key)
+            .map(|rate| (exact_key, *rate))
+            .ok_or_else(|| {
+                warp::reject::custom(JsonDeserializeError(format!(
+                    "No exchange rate found for token pair: {}:{} -> {}:{}",
+                    offered_chain_id, offered_token, d_chain_id, d_token
+                )))
+            })?
+    } else {
+        // Find first matching pair that starts with offered_chain_id:offered_token
+        let pair_key = format!("{}:{}", offered_chain_id, offered_token);
+        acceptance.token_pairs.iter()
+            .find(|(key, _)| key.starts_with(&pair_key))
+            .map(|(key, rate)| (key.clone(), *rate))
+            .ok_or_else(|| {
+                warp::reject::custom(JsonDeserializeError(format!(
+                    "No exchange rate found for offered token {} on chain {}",
+                    offered_token, offered_chain_id
+                )))
+            })?
+    };
+    
+    // Parse the pair key to extract desired chain and token
+    // Format: "offered_chain_id:offered_token:desired_chain_id:desired_token"
+    let parts: Vec<&str> = pair_key_str.split(':').collect();
+    if parts.len() != 4 {
+        return Err(warp::reject::custom(JsonDeserializeError(format!(
+            "Invalid token pair format: {}",
+            pair_key_str
+        ))));
+    }
+    
+    let desired_chain_id = parts[2].parse::<u64>()
+        .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Invalid desired_chain_id: {}", e))))?;
+    let desired_token = parts[3].to_string();
+    
+    Ok(warp::reply::json(&ApiResponse::<ExchangeRateResponse> {
+        success: true,
+        data: Some(ExchangeRateResponse {
+            desired_token,
+            desired_chain_id,
+            exchange_rate,
+        }),
         error: None,
     }))
 }
@@ -288,6 +428,34 @@ pub fn with_validator(
 pub struct JsonDeserializeError(pub String);
 
 impl warp::reject::Reject for JsonDeserializeError {}
+
+// ============================================================================
+// CORS CONFIGURATION
+// ============================================================================
+
+/// Creates a CORS filter based on the configured allowed origins.
+fn create_cors_filter(allowed_origins: &[String]) -> warp::cors::Builder {
+    let methods = vec![
+        Method::GET,
+        Method::POST,
+        Method::PUT,
+        Method::DELETE,
+        Method::OPTIONS,
+    ];
+    
+    if allowed_origins.contains(&"*".to_string()) {
+        warp::cors()
+            .allow_any_origin()
+            .allow_methods(methods.clone())
+            .allow_headers(vec!["content-type"])
+    } else {
+        let origins: Vec<&str> = allowed_origins.iter().map(|s| s.as_str()).collect();
+        warp::cors()
+            .allow_origins(origins)
+            .allow_methods(methods)
+            .allow_headers(vec!["content-type"])
+    }
+}
 
 // ============================================================================
 // REJECTION HANDLER
@@ -400,9 +568,14 @@ impl ApiServer {
         // Create and configure all API routes
         let routes = self.create_routes();
 
+        // Parse host address from config
+        let addr: std::net::SocketAddr = format!("{}:{}", self.config.api.host, self.config.api.port)
+            .parse()
+            .context("Failed to parse API server address")?;
+
         // Start the HTTP server
         warp::serve(routes)
-            .run(([127, 0, 0, 1], self.config.api.port))
+            .run(addr)
             .await;
 
         Ok(())
@@ -459,6 +632,14 @@ impl ApiServer {
             .and(with_monitor(approval_by_escrow_monitor))
             .and_then(get_approval_by_escrow_handler);
 
+        // Check if intent is approved endpoint - simple true/false for frontend polling
+        let is_approved_monitor = monitor.clone();
+        let is_approved = warp::path("approved")
+            .and(warp::path::param())
+            .and(warp::get())
+            .and(with_monitor(is_approved_monitor))
+            .and_then(is_intent_approved_handler);
+
         // Create approval signature endpoint - creates approval/rejection signatures
         let approval = warp::path("approval")
             .and(warp::post())
@@ -471,6 +652,19 @@ impl ApiServer {
             .and(warp::get())
             .and(with_crypto_service(crypto_service.clone()))
             .and_then(get_public_key_handler);
+        
+        // Get exchange rate endpoint - returns desired token and exchange rate for offered token
+        let exchange_rate_config = self.config.clone();
+        let exchange_rate = warp::path("acceptance")
+            .and(warp::get())
+            .and(warp::query::raw())
+            .and_then(move |query: String| {
+                let config = exchange_rate_config.clone();
+                async move {
+                    get_exchange_rate_handler(config, query).await
+                }
+            });
+        
 
         // Outflow validation endpoint - validates connected chain transactions for outflow intents
         // Signature is for hub chain intent fulfillment
@@ -565,18 +759,25 @@ impl ApiServer {
 
         // GET /draftintent/:id/signature - Requester polls for signature
         let get_sig_store = draft_store.clone();
+        let get_sig_config = self.config.clone();
         let get_signature = warp::path("draftintent")
             .and(warp::path::param())
             .and(warp::path("signature"))
             .and(warp::get())
             .and(negotiation::with_draft_store(get_sig_store))
-            .and_then(negotiation::get_signature_handler);
+            .and_then(move |draft_id: String, store: Arc<RwLock<DraftintentStore>>| {
+                let config = get_sig_config.clone();
+                async move {
+                    negotiation::get_signature_handler(draft_id, store, config).await
+                }
+            });
 
         // Combine all routes and apply rejection handler
         health
             .or(events)
             .or(approvals)
             .or(approval_by_escrow)
+            .or(is_approved)
             .or(approval)
             .or(public_key)
             .or(validate_outflow)
@@ -586,6 +787,8 @@ impl ApiServer {
             .or(get_pending)
             .or(submit_signature)
             .or(get_signature)
+            .or(exchange_rate)
+            .with(create_cors_filter(&self.config.api.cors_origins))
             .recover(handle_rejection)
     }
 

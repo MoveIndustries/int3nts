@@ -141,6 +141,12 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                     serde_json::from_value(event.data.clone());
 
                 if let Ok(data) = fulfillment_data_result {
+                    // Parse timestamp
+                    let event_timestamp = data
+                        .timestamp
+                        .parse::<u64>()
+                        .context("Failed to parse timestamp")?;
+                    
                     // Create fulfillment event
                     // Normalize intent_id to 64 hex characters to ensure it can be safely parsed as hex
                     let normalized_intent_id = crate::monitor::generic::normalize_intent_id_to_64_chars(&data.intent_id);
@@ -151,10 +157,7 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                         provided_metadata: serde_json::to_string(&data.provided_metadata)
                             .unwrap_or_default(),
                         provided_amount: parse_amount_with_u64_limit(&data.provided_amount, "Fulfillment provided_amount")?,
-                        timestamp: data
-                            .timestamp
-                            .parse::<u64>()
-                            .context("Failed to parse timestamp")?,
+                        timestamp: event_timestamp,
                     };
 
                     // Cache the fulfillment event

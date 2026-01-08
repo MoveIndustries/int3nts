@@ -46,8 +46,8 @@ pub async fn poll_evm_escrow_events(config: &Config) -> Result<Vec<EscrowEvent>>
 
     // Get current block number to use as "to_block"
     // For "from_block", we could track the last processed block, but for now use a recent block
-    let from_block = if current_block > 1000 {
-        Some(current_block - 1000) // Look back 1000 blocks
+    let from_block = if current_block > 200 {
+        Some(current_block - 200) // Look back 200 blocks (~7 minutes on Base)
     } else {
         Some(0)
     };

@@ -60,6 +60,8 @@ pub struct IntentTracker {
     requester_addresses: Arc<RwLock<std::collections::HashSet<String>>>,
     /// Set of on-chain intent IDs that have been completed (to avoid re-processing)
     completed_intent_ids: Arc<RwLock<std::collections::HashSet<String>>>,
+    /// Set of transaction hashes that have been processed (to avoid re-parsing)
+    processed_transactions: Arc<RwLock<std::collections::HashSet<String>>>,
     /// Hub chain client for querying intent events
     hub_client: HubChainClient,
     /// Hub chain configuration
@@ -84,6 +86,7 @@ impl IntentTracker {
             intents: Arc::new(RwLock::new(HashMap::new())),
             requester_addresses: Arc::new(RwLock::new(std::collections::HashSet::new())),
             completed_intent_ids: Arc::new(RwLock::new(std::collections::HashSet::new())),
+            processed_transactions: Arc::new(RwLock::new(std::collections::HashSet::new())),
             hub_client,
             hub_config: config.hub_chain.clone(),
         })
@@ -151,6 +154,9 @@ impl IntentTracker {
     /// * `Ok(usize)` - Number of intents that transitioned to Created state
     /// * `Err(anyhow::Error)` - Failed to poll
     pub async fn poll_for_created_intents(&self) -> Result<usize> {
+        // Clean up expired intents first
+        self.cleanup_expired_intents().await;
+
         // Get requester addresses from tracked intents
         let requester_addresses: Vec<String> = {
             let addresses = self.requester_addresses.read().await;
@@ -163,14 +169,29 @@ impl IntentTracker {
             return Ok(0);
         }
 
-        tracing::debug!("Polling for intents from {} requester address(es)", requester_addresses.len());
+        // Use trace level for routine polling to reduce log noise
+        tracing::trace!("Polling for intents from {} requester address(es)", requester_addresses.len());
+
+        // Get processed transactions to avoid re-parsing
+        let processed_tx_set = {
+            let processed = self.processed_transactions.read().await;
+            processed.clone()
+        };
 
         // Query hub chain for intent creation events
-        let events = self
+        let (events, transaction_hashes) = self
             .hub_client
-            .get_intent_events(&requester_addresses, None)
+            .get_intent_events(&requester_addresses, None, Some(&processed_tx_set))
             .await
             .context("Failed to query hub chain for intent events")?;
+        
+        // Mark these transactions as processed
+        if !transaction_hashes.is_empty() {
+            let mut processed = self.processed_transactions.write().await;
+            for tx_hash in transaction_hashes {
+                processed.insert(tx_hash);
+            }
+        }
 
         // Filter out already completed intents
         let completed = self.completed_intent_ids.read().await;
@@ -357,6 +378,52 @@ impl IntentTracker {
             Ok(())
         } else {
             anyhow::bail!("Intent not found: {}", draft_id)
+        }
+    }
+
+    /// Cleans up expired intents and removes requester addresses if no active intents remain
+    ///
+    /// Removes intents that have expired and haven't been created on-chain yet.
+    /// Also removes requester addresses if all their intents are expired or fulfilled.
+    async fn cleanup_expired_intents(&self) {
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        let mut intents = self.intents.write().await;
+        let mut addresses_to_check = std::collections::HashSet::new();
+
+        // Remove expired intents that haven't been created on-chain (still in Signed state)
+        intents.retain(|draft_id, intent| {
+            let is_expired = intent.expiry_time < current_time;
+            let is_signed_only = intent.state == IntentState::Signed;
+
+            if is_expired && is_signed_only {
+                tracing::debug!("Removing expired intent {} (draft_id: {})", intent.intent_id, draft_id);
+                addresses_to_check.insert(intent.requester_addr.clone());
+                false // Remove from map
+            } else {
+                true // Keep in map
+            }
+        });
+
+        // Check if requester addresses should be removed (no active intents remaining)
+        if !addresses_to_check.is_empty() {
+            let mut requester_addresses = self.requester_addresses.write().await;
+            for requester_addr in addresses_to_check {
+                // Check if this requester has any active (non-expired, non-fulfilled) intents
+                let has_active = intents.values().any(|i| {
+                    i.requester_addr == requester_addr
+                        && i.expiry_time >= current_time
+                        && i.state != IntentState::Fulfilled
+                });
+
+                if !has_active {
+                    requester_addresses.remove(&requester_addr);
+                    tracing::debug!("Removed requester {} from tracking (all intents expired or fulfilled)", requester_addr);
+                }
+            }
         }
     }
 }
