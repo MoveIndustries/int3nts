@@ -104,10 +104,12 @@ export function MvmWalletConnector() {
 
   if (!mounted) {
     return (
-      <div className="border border-gray-700 rounded p-4 mb-4">
-        <h2 className="text-xl font-bold mb-2">MVM Wallet</h2>
-        <p className="text-sm text-gray-400 mb-2">Loading...</p>
-      </div>
+      <button
+        disabled
+        className="px-3 py-1.5 bg-gray-700 text-gray-400 rounded text-sm cursor-not-allowed"
+      >
+        MVM
+      </button>
     );
   }
 
@@ -117,134 +119,94 @@ export function MvmWalletConnector() {
     throw new Error('Connected but no address available');
   }
 
-  return (
-    <div className="border border-gray-700 rounded p-4 mb-4">
-      <h2 className="text-xl font-bold mb-2">MVM Wallet</h2>
-      {isConnected ? (
-        <div>
-          <p className="text-xs font-mono mb-1">Address: {displayAddress}</p>
-          <button
-            onClick={() => {
-              if (connected) {
-                disconnect();
-              }
-              setDirectNightlyAccount(null);
-              localStorage.removeItem('nightly_connected_address');
-              // Dispatch custom event so other components know
-              window.dispatchEvent(new CustomEvent('nightly_wallet_changed', { detail: { address: null } }));
-            }}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-sm"
-          >
-            Disconnect
-          </button>
-        </div>
-      ) : (
-        <div>
-          <p className="text-sm text-gray-400 mb-2">Not connected</p>
+  const handleConnect = async () => {
+    try {
+      // Try adapter first
+      if (wallets.length > 0) {
+        const nightlyWallet = wallets.find(w => w.name.toLowerCase().includes('nightly'));
+        if (nightlyWallet) {
+          try {
+            await connect(nightlyWallet.name);
+            return;
+          } catch (e) {
+            console.log('Adapter connection failed, trying direct connection');
+          }
+        }
+      }
+
+      // Try direct connection
+      if (detectedWallets.includes('Nightly')) {
+        const nightly = (window as any).nightly?.aptos;
+        if (nightly) {
+          const response = await nightly.connect();
+          console.log('Nightly connected:', response);
           
-          {/* Show detected wallets from adapter */}
-          {wallets.length > 0 && (
-            <div className="mb-4">
-              <p className="text-xs text-gray-500 mb-2">Adapter detected wallets:</p>
-              <div className="space-y-2">
-                {wallets.map((wallet) => (
-                  <button
-                    key={wallet.name}
-                    onClick={() => connect(wallet.name)}
-                    className="block w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm text-left"
-                  >
-                    Connect {wallet.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          let address: string;
+          if (response && response.address) {
+            address = response.address;
+          } else if (Array.isArray(response) && response.length > 0) {
+            const first = response[0];
+            if (first?.address) {
+              address = first.address;
+            } else if (typeof first === 'string') {
+              address = first;
+            } else {
+              throw new Error('Invalid response format: address not found');
+            }
+          } else {
+            throw new Error('Invalid response format: no address in response');
+          }
+          
+          setDirectNightlyAccount(address);
+          localStorage.setItem('nightly_connected_address', address);
+          window.dispatchEvent(new CustomEvent('nightly_wallet_changed', { detail: { address } }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to connect Nightly:', error);
+      alert('Failed to connect Nightly wallet. Check console for details.');
+    }
+  };
 
-          {/* Show wallets detected on window object with direct connect */}
-          {detectedWallets.length > 0 && (
-            <div className="mb-4">
-              <div className="space-y-2">
-                {detectedWallets.map((wallet) => {
-                  if (wallet.includes('Nightly')) {
-                    return (
-                      <button
-                        key={wallet}
-                        onClick={async () => {
-                          try {
-                            const nightly = (window as any).nightly?.aptos;
-                            if (nightly) {
-                              const response = await nightly.connect();
-                              console.log('Nightly connected:', response);
-                              
-                              // Store the connected account
-                              // Response structure: { status: 'Approved', address: '...', publicKey: '...' }
-                              let address: string;
-                              if (response && response.address) {
-                                address = response.address;
-                              } else if (Array.isArray(response) && response.length > 0) {
-                                const first = response[0];
-                                if (first?.address) {
-                                  address = first.address;
-                                } else if (typeof first === 'string') {
-                                  address = first;
-                                } else {
-                                  throw new Error('Invalid response format: address not found');
-                                }
-                              } else {
-                                throw new Error('Invalid response format: no address in response');
-                              }
-                              
-                              setDirectNightlyAccount(address);
-                              // Persist to localStorage
-                              localStorage.setItem('nightly_connected_address', address);
-                              // Dispatch custom event so other components know
-                              window.dispatchEvent(new CustomEvent('nightly_wallet_changed', { detail: { address } }));
-                              
-                              // Also try to connect via adapter if possible
-                              const nightlyWallet = wallets.find(w => w.name.toLowerCase().includes('nightly'));
-                              if (nightlyWallet) {
-                                try {
-                                  await connect(nightlyWallet.name);
-                                } catch (e) {
-                                  console.log('Adapter connection failed, using direct connection');
-                                }
-                              }
-                            }
-                          } catch (error) {
-                            console.error('Failed to connect Nightly:', error);
-                            alert('Failed to connect Nightly wallet. Check console for details.');
-                          }
-                        }}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                      >
-                        Connect Nightly
-                      </button>
-                    );
-                  }
-                  return (
-                    <p key={wallet} className="text-xs font-mono text-gray-400">• {wallet}</p>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+  const handleDisconnect = () => {
+    if (connected) {
+      disconnect();
+    }
+    setDirectNightlyAccount(null);
+    localStorage.removeItem('nightly_connected_address');
+    window.dispatchEvent(new CustomEvent('nightly_wallet_changed', { detail: { address: null } }));
+  };
 
-          {wallets.length === 0 && detectedWallets.length === 0 && (
-            <div>
-              <p className="text-xs text-gray-500 mb-2">No Aptos wallets detected</p>
-              <a 
-                href="https://nightly.app/download" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-xs text-blue-400 hover:underline"
-              >
-                Install Nightly Wallet →
-              </a>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+  if (isConnected) {
+    return (
+      <button
+        onClick={handleDisconnect}
+        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+      >
+        Disconnect MVM
+      </button>
+    );
+  }
+
+  const hasWallet = wallets.length > 0 || detectedWallets.length > 0;
+  if (!hasWallet) {
+    return (
+      <button
+        disabled
+        className="px-3 py-1.5 bg-gray-700 text-gray-400 rounded text-sm cursor-not-allowed"
+      >
+        MVM
+      </button>
+    );
+  }
+
+  return (
+    <button
+      onClick={handleConnect}
+      className="px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded text-sm"
+    >
+      Connect MVM
+    </button>
   );
 }
 

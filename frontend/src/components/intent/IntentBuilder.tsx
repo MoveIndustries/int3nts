@@ -691,6 +691,17 @@ export function IntentBuilder() {
       return;
     }
 
+    // For inflow, EVM wallet is needed for escrow creation
+    // For outflow, EVM wallet is needed for intent creation
+    if (flowType === 'inflow' && !evmAddress) {
+      setError('Please connect your EVM wallet (MetaMask) for inflow intents');
+      return;
+    }
+    if (flowType === 'outflow' && !evmAddress) {
+      setError('Please connect your EVM wallet (MetaMask) for outflow intents');
+      return;
+    }
+
     if (!offeredToken || !desiredToken) {
       setError('Please select both offered and desired tokens');
       return;
@@ -1108,7 +1119,7 @@ export function IntentBuilder() {
             }}
             className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded"
           >
-            Default Inflow
+            Example inflow
           </button>
           <button
             type="button"
@@ -1123,7 +1134,7 @@ export function IntentBuilder() {
             }}
             className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded"
           >
-            Default Outflow
+            Example outflow
           </button>
         </div>
       </div>
@@ -1152,7 +1163,7 @@ export function IntentBuilder() {
             <option value="">Select token...</option>
             {offeredTokens.map((token) => (
               <option key={`${token.chain}::${token.symbol}`} value={`${token.chain}::${token.symbol}`}>
-                {token.name} ({token.symbol})
+                {token.name}
               </option>
             ))}
           </select>
@@ -1215,7 +1226,7 @@ export function IntentBuilder() {
             <option value="">Select token...</option>
             {desiredTokens.map((token) => (
               <option key={`${token.chain}::${token.symbol}`} value={`${token.chain}::${token.symbol}`}>
-                {token.name} ({token.symbol})
+                {token.name}
               </option>
             ))}
           </select>
@@ -1269,19 +1280,19 @@ export function IntentBuilder() {
         <div className="space-y-3">
           <button
             type="submit"
-            disabled={loading || !requesterAddr || !!draftId || desiredAmount === 'not available yet'}
+            disabled={loading || !requesterAddr || !evmAddress || !!draftId || desiredAmount === 'not available yet'}
             className={`w-full px-4 py-2 rounded text-sm font-medium transition-colors ${
               draftId 
                 ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
-                : desiredAmount === 'not available yet'
+                : desiredAmount === 'not available yet' || !requesterAddr || !evmAddress
                   ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
             }`}
           >
-            {loading ? 'Creating Draft Intent...' : draftId ? '✓ Draft Created' : 'Create Draft Intent'}
+            {loading ? 'Requesting...' : draftId ? '✓ Requested' : 'Request'}
           </button>
 
-          {/* Step 2: Create Intent Button */}
+          {/* Step 2: Commit Button */}
           <button
             type="button"
             onClick={handleCreateIntent}
@@ -1295,12 +1306,12 @@ export function IntentBuilder() {
             }`}
           >
             {transactionHash 
-              ? '✓ Intent Created' 
+              ? '✓ Committed' 
               : submittingTransaction 
-                ? 'Creating Intent...' 
+                ? 'Committing...' 
                 : signature 
-                  ? 'Create Intent' 
-                  : 'Create Intent'}
+                  ? 'Commit' 
+                  : 'Commit'}
           </button>
           
           {/* Status note below buttons */}
@@ -1309,9 +1320,14 @@ export function IntentBuilder() {
               Connect your MVM wallet (Nightly) to create an intent
             </p>
           )}
-          {requesterAddr && !draftId && (
+          {requesterAddr && !evmAddress && (
+            <p className="text-xs text-gray-400 text-center">
+              Connect your EVM wallet (MetaMask) to create an intent
+            </p>
+          )}
+          {requesterAddr && evmAddress && !draftId && (
             <p className="text-xs text-gray-500 text-center">
-              Step 1: Create a draft intent for solver approval
+              Step 1: Request intent for solver approval
             </p>
           )}
           {draftId && !signature && pollingSignature && (
@@ -1321,7 +1337,7 @@ export function IntentBuilder() {
           )}
           {signature && !transactionHash && (
             <p className="text-xs text-green-400 text-center">
-              ✅ Solver approved! Click "Create Intent" to submit on-chain
+              ✅ Solver approved! Click "Commit" to submit on-chain
             </p>
           )}
         </div>
