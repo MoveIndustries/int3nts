@@ -1,7 +1,8 @@
-//! Get Ethereum Address from Verifier Config
+//! Get Verifier EVM Public Key Hash
 //!
-//! This binary reads the verifier configuration and outputs the Ethereum address
-//! derived from the ECDSA public key. This address should be used as the verifier
+//! This binary reads the verifier configuration and outputs the EVM public key hash
+//! (keccak256 hash of ECDSA public key, last 20 bytes). This is the Ethereum address
+//! derived from the verifier's ECDSA public key and should be used as the verifier
 //! address in the IntentEscrow contract deployment.
 
 use anyhow::Result;
@@ -15,7 +16,7 @@ fn main() -> Result<()> {
     // Create crypto service
     let crypto = CryptoService::new(&config)?;
 
-    // Get Ethereum address
+    // Get EVM public key hash (Ethereum address derived from ECDSA public key)
     let eth_address = crypto.get_ethereum_address()?;
 
     println!("{}", eth_address);

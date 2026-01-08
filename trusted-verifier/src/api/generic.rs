@@ -173,7 +173,15 @@ pub async fn is_intent_approved_handler(
     monitor: Arc<RwLock<EventMonitor>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let monitor = monitor.read().await;
+    let normalized = crate::monitor::normalize_intent_id(&intent_id);
     let approved = monitor.is_intent_approved(&intent_id).await;
+    
+    tracing::info!(
+        "Checking approval status: intent_id={}, normalized={}, approved={}",
+        intent_id,
+        normalized,
+        approved
+    );
     
     #[derive(serde::Serialize)]
     struct ApprovalStatus {

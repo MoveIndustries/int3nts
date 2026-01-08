@@ -38,23 +38,23 @@ export VERIFIER_CONFIG_PATH="$PROJECT_ROOT/trusted-verifier/config/verifier-e2e-
 CONFIG_PATH="$VERIFIER_CONFIG_PATH"
 
 VERIFIER_ETH_OUTPUT=$(cd "$PROJECT_ROOT" && env HOME="${HOME}" VERIFIER_CONFIG_PATH="$CONFIG_PATH" nix develop -c bash -c "cd trusted-verifier && cargo run --bin get_verifier_eth_address 2>&1" | tee -a "$LOG_FILE")
-VERIFIER_ETH_ADDRESS=$(echo "$VERIFIER_ETH_OUTPUT" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1 | tr -d '\n')
+VERIFIER_EVM_PUBKEY_HASH=$(echo "$VERIFIER_ETH_OUTPUT" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1 | tr -d '\n')
 
-if [ -z "$VERIFIER_ETH_ADDRESS" ]; then
-    log_and_echo "❌ ERROR: Could not compute verifier Ethereum address from config"
+if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then
+    log_and_echo "❌ ERROR: Could not compute verifier EVM pubkey hash from config"
     log_and_echo "   Command output:"
     echo "$VERIFIER_ETH_OUTPUT"
     log_and_echo "   Check that trusted-verifier/config/verifier-e2e-ci-testing.toml has valid keys"
     exit 1
 fi
 
-log "   ✅ Verifier Ethereum address: $VERIFIER_ETH_ADDRESS"
+log "   ✅ Verifier EVM pubkey hash: $VERIFIER_EVM_PUBKEY_HASH"
 log "   RPC URL: http://127.0.0.1:8545"
 
 # Deploy escrow contract (run in nix develop)
 log ""
 log "📤 Deploying IntentEscrow..."
-DEPLOY_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/deploy.js --network localhost" "VERIFIER_ADDRESS='$VERIFIER_ETH_ADDRESS'" 2>&1 | tee -a "$LOG_FILE")
+DEPLOY_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/deploy.js --network localhost" "VERIFIER_ADDRESS='$VERIFIER_EVM_PUBKEY_HASH'" 2>&1 | tee -a "$LOG_FILE")
 
 # Extract contract address from output
 CONTRACT_ADDRESS=$(extract_escrow_contract_address "$DEPLOY_OUTPUT")
@@ -132,7 +132,7 @@ log "   RPC URL:  http://127.0.0.1:8545"
 log "   Chain ID: 31337"
 log "   IntentEscrow: $CONTRACT_ADDRESS"
 log "   USDcon Token: $USDCON_TOKEN_ADDRESS"
-log "   Verifier: $VERIFIER_ETH_ADDRESS"
+log "   Verifier EVM Pubkey Hash: $VERIFIER_EVM_PUBKEY_HASH"
 log ""
 log "📡 API Examples:"
 log "   Check EVM Chain:    curl -X POST http://127.0.0.1:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"

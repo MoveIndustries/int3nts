@@ -27,10 +27,8 @@ pub use generic::{
     ChainType, EscrowApproval, EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent,
 };
 
-// Re-export test utilities (used in integration tests)
-#[doc(hidden)]
-#[allow(unused_imports)] // Only used in tests, not in library code
-pub use generic::{normalize_intent_id, normalize_intent_id_to_64_chars};
+// Re-export utility functions (used in tests and API handlers)
+pub use generic::normalize_intent_id;
 
 // Re-export poll_hub_events for testing
 #[doc(hidden)]

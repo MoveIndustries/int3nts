@@ -79,6 +79,40 @@ async function main() {
   }
   
   try {
+    // Debug: Show what the contract expects vs what we're providing
+    const verifierAddr = await escrow.verifier();
+    console.log("Contract verifier address:", verifierAddr);
+    
+    // Compute message hash the same way the contract does
+    const { ethers } = require("ethers");
+    const messageHash = ethers.keccak256(ethers.toBeArray(intentId));
+    console.log("Message hash (keccak256(intentId)):", messageHash);
+    
+    const ethSignedMessageHash = ethers.keccak256(
+      ethers.concat([
+        ethers.toUtf8Bytes("\x19Ethereum Signed Message:\n32"),
+        messageHash
+      ])
+    );
+    console.log("Eth signed message hash:", ethSignedMessageHash);
+    
+    // Recover signer from signature
+    try {
+      const recoveredAddr = ethers.recoverAddress(ethSignedMessageHash, signature);
+      console.log("Recovered signer from signature:", recoveredAddr);
+      console.log("Signature matches verifier:", recoveredAddr.toLowerCase() === verifierAddr.toLowerCase());
+      
+      if (recoveredAddr.toLowerCase() !== verifierAddr.toLowerCase()) {
+        console.error("❌ MISMATCH: Contract expects verifier:", verifierAddr);
+        console.error("   But signature recovers to:", recoveredAddr);
+        console.error("   Action: Either redeploy contract with correct verifier address,");
+        console.error("   or verify the verifier's EVM address matches the contract.");
+        console.error("   Get verifier EVM address: cargo run --bin get_verifier_eth_address --manifest-path trusted-verifier/Cargo.toml");
+      }
+    } catch (e) {
+      console.log("Failed to recover address:", e.message);
+    }
+    
     const tx = await escrow.connect(solver).claim(intentId, signature);
     const receipt = await tx.wait();
     console.log("Claim transaction hash:", receipt.hash);

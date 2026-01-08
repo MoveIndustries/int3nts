@@ -39,7 +39,7 @@ if [ ! -f "$VERIFIER_CONFIG" ]; then
     echo "   Then populate with actual deployed contract addresses:"
     echo "   - intent_module_addr (hub_chain section)"
     echo "   - escrow_contract_addr (connected_chain_evm section)"
-    echo "   - verifier_addr (connected_chain_evm section)"
+    echo "   - verifier_evm_pubkey_hash (connected_chain_evm section)"
     exit 1
 fi
 
@@ -90,7 +90,7 @@ if grep -qE "(0x123|0x\.\.\.|0xalice|0xbob)" "$VERIFIER_CONFIG"; then
     echo "   Update the config file with actual deployed addresses:"
     echo "   - intent_module_addr (hub_chain section)"
     echo "   - escrow_contract_addr (connected_chain_evm section)"
-    echo "   - verifier_addr (connected_chain_evm section)"
+    echo "   - verifier_evm_pubkey_hash (connected_chain_evm section)"
     echo ""
     echo "   Contract addresses should be read from your deployment logs."
     exit 1

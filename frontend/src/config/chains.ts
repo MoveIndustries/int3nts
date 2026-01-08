@@ -23,7 +23,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     chainId: 84532,
     rpcUrl: 'https://base-sepolia-rpc.publicnode.com',
     name: 'Base Sepolia',
-    escrowContractAddress: '0xEE27186DB79179969156A959FEA61a7B778C8183',
+    escrowContractAddress: '0x90Fb7731edE86f4B2DB37afd132732979cA90015',
   },
   'ethereum-sepolia': {
     id: 'ethereum-sepolia',

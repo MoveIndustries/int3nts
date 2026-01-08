@@ -7,7 +7,7 @@ use trusted_verifier::config::Config;
 
 #[path = "../mod.rs"]
 mod test_helpers;
-use test_helpers::{build_test_config_with_evm, DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_VERIFIER_ADDR_EVM};
+use test_helpers::{build_test_config_with_evm, DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_VERIFIER_EVM_PUBKEY_HASH};
 
 /// Test that EvmChainConfig structure has all required fields
 /// Why: Verify EvmChainConfig struct fields are properly defined
@@ -20,7 +20,7 @@ fn test_evm_chain_config_structure() {
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         chain_id: 31337,
-        verifier_addr: DUMMY_VERIFIER_ADDR_EVM.to_string(),
+        verifier_evm_pubkey_hash: DUMMY_VERIFIER_EVM_PUBKEY_HASH.to_string(),
     };
 
     assert_eq!(evm_config.name, "Connected EVM Chain");
@@ -31,8 +31,8 @@ fn test_evm_chain_config_structure() {
     );
     assert_eq!(evm_config.chain_id, 31337);
     assert_eq!(
-        evm_config.verifier_addr,
-        DUMMY_VERIFIER_ADDR_EVM
+        evm_config.verifier_evm_pubkey_hash,
+        DUMMY_VERIFIER_EVM_PUBKEY_HASH
     );
 }
 
@@ -48,7 +48,7 @@ fn test_connected_chain_evm_with_values() {
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         chain_id: 31337,
-        verifier_addr: DUMMY_VERIFIER_ADDR_EVM.to_string(),
+        verifier_evm_pubkey_hash: DUMMY_VERIFIER_EVM_PUBKEY_HASH.to_string(),
     });
 
     assert!(config.connected_chain_evm.is_some());
@@ -61,8 +61,8 @@ fn test_connected_chain_evm_with_values() {
     );
     assert_eq!(evm_config.chain_id, 31337);
     assert_eq!(
-        evm_config.verifier_addr,
-        DUMMY_VERIFIER_ADDR_EVM
+        evm_config.verifier_evm_pubkey_hash,
+        DUMMY_VERIFIER_EVM_PUBKEY_HASH
     );
 }
 
@@ -89,8 +89,8 @@ fn test_evm_config_serialization() {
     );
     assert_eq!(evm_config.chain_id, 31337);
     assert_eq!(
-        evm_config.verifier_addr,
-        DUMMY_VERIFIER_ADDR_EVM
+        evm_config.verifier_evm_pubkey_hash,
+        DUMMY_VERIFIER_EVM_PUBKEY_HASH
     );
 }
 
@@ -114,7 +114,7 @@ fn test_evm_chain_config_with_all_fields() {
     );
     assert!(evm_config.chain_id > 0, "Chain ID should be set");
     assert!(
-        !evm_config.verifier_addr.is_empty(),
+        !evm_config.verifier_evm_pubkey_hash.is_empty(),
         "Verifier address should be set"
     );
 
@@ -127,8 +127,8 @@ fn test_evm_chain_config_with_all_fields() {
     );
     assert_eq!(evm_config.chain_id, 31337);
     assert_eq!(
-        evm_config.verifier_addr,
-        DUMMY_VERIFIER_ADDR_EVM
+        evm_config.verifier_evm_pubkey_hash,
+        DUMMY_VERIFIER_EVM_PUBKEY_HASH
     );
 }
 
@@ -147,7 +147,7 @@ fn test_evm_config_loading() {
     assert!(!evm_config.rpc_url.is_empty());
     assert!(!evm_config.escrow_contract_addr.is_empty());
     assert!(evm_config.chain_id > 0);
-    assert!(!evm_config.verifier_addr.is_empty());
+    assert!(!evm_config.verifier_evm_pubkey_hash.is_empty());
 
     // Verify config can be cloned (tests structure validity)
     let cloned_config = config.clone();

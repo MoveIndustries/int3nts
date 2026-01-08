@@ -371,7 +371,9 @@ export function IntentBuilder() {
     currentIntentIdRef.current = savedDraftData?.intentId || null;
   }, [savedDraftData?.intentId]);
 
-  // Poll for fulfillment by checking verifier approvals
+  // Poll for fulfillment
+  // - Outflow: Check verifier approval (verifier confirms funds received on connected chain)
+  // - Inflow: Check hub chain fulfillment events (solver fulfilled intent on hub chain)
   useEffect(() => {
     if (!transactionHash || !savedDraftData || pollingFulfillmentRef.current) return;
     
@@ -382,6 +384,12 @@ export function IntentBuilder() {
       
       const maxAttempts = 120; // 120 attempts * 5 seconds = 10 minutes max
       let attempts = 0;
+      
+      // Store initial desired balance for inflow comparison
+      let initialDesiredBalance: number | null = null;
+      if (flowType === 'inflow' && desiredBalance) {
+        initialDesiredBalance = parseFloat(desiredBalance.formatted);
+      }
       
       const poll = async () => {
         try {
@@ -399,21 +407,101 @@ export function IntentBuilder() {
             return;
           }
           
-          console.log('Checking approval status for intent:', currentIntentId);
-          
-          // Use the simple /approved/{intent_id} endpoint
-          const verifierUrl = process.env.NEXT_PUBLIC_VERIFIER_URL || 'http://localhost:3333';
-          const response = await fetch(`${verifierUrl}/approved/${currentIntentId}`);
-          const data = await response.json();
-          
-          console.log('Approval check response:', data);
-          
-          if (data.success && data.data?.approved) {
-            console.log('Intent approved!');
-            setIntentStatus('fulfilled');
-            setPollingFulfillment(false);
-            pollingFulfillmentRef.current = false;
-            return;
+          if (flowType === 'outflow') {
+            // Outflow: Check verifier approval (verifier confirms funds received on connected chain)
+            console.log('Checking approval status for outflow intent:', currentIntentId);
+            
+            const verifierUrl = process.env.NEXT_PUBLIC_VERIFIER_URL || 'http://localhost:3333';
+            const response = await fetch(`${verifierUrl}/approved/${currentIntentId}`);
+            const data = await response.json();
+            
+            console.log('Approval check response:', data);
+            
+            if (data.success && data.data?.approved) {
+              console.log('Intent approved!');
+              setIntentStatus('fulfilled');
+              setPollingFulfillment(false);
+              pollingFulfillmentRef.current = false;
+              return;
+            }
+          } else {
+            // Inflow: Check hub chain for fulfillment events
+            // Query requester's transactions on hub chain to find fulfillment events
+            console.log('Checking hub chain fulfillment for inflow intent:', currentIntentId);
+            
+            if (!mvmAddress) {
+              console.log('No MVM address, waiting...');
+              attempts++;
+              if (attempts < maxAttempts) {
+                setTimeout(poll, 5000);
+              } else {
+                setPollingFulfillment(false);
+                pollingFulfillmentRef.current = false;
+              }
+              return;
+            }
+            
+            // Query hub chain for fulfillment events
+            const hubRpcUrl = 'https://testnet.movementnetwork.xyz/v1';
+            const accountAddress = mvmAddress.startsWith('0x') ? mvmAddress.slice(2) : mvmAddress;
+            const transactionsUrl = `${hubRpcUrl}/accounts/${accountAddress}/transactions?limit=10`;
+            
+            try {
+              const txResponse = await fetch(transactionsUrl);
+              const transactions = await txResponse.json();
+              
+              // Look for fulfillment events in recent transactions
+              let foundFulfillment = false;
+              for (const tx of transactions) {
+                if (tx.events && Array.isArray(tx.events)) {
+                  for (const event of tx.events) {
+                    // Check for LimitOrderFulfillmentEvent
+                    if (event.type?.includes('LimitOrderFulfillmentEvent')) {
+                      const eventIntentId = event.data?.intent_id || event.data?.intent_addr;
+                      // Normalize intent IDs for comparison (remove 0x prefix, lowercase)
+                      const normalizeId = (id: string) => {
+                        const stripped = id?.replace(/^0x/i, '').toLowerCase() || '';
+                        return stripped.replace(/^0+/, '') || '0';
+                      };
+                      
+                      if (eventIntentId && normalizeId(eventIntentId) === normalizeId(currentIntentId)) {
+                        console.log('Found fulfillment event on hub chain!');
+                        foundFulfillment = true;
+                        break;
+                      }
+                    }
+                  }
+                }
+                if (foundFulfillment) break;
+              }
+              
+              // Refresh desired balance to check for increase (backup method)
+              if (!foundFulfillment && desiredToken && mvmAddress) {
+                try {
+                  const refreshedBalance = await fetchTokenBalance(mvmAddress, desiredToken);
+                  if (refreshedBalance && initialDesiredBalance !== null) {
+                    const currentBalance = parseFloat(refreshedBalance.formatted);
+                    if (currentBalance > initialDesiredBalance) {
+                      console.log('Desired balance increased - intent fulfilled!');
+                      setDesiredBalance(refreshedBalance);
+                      foundFulfillment = true;
+                    }
+                  }
+                } catch (balanceError) {
+                  console.error('Error refreshing balance:', balanceError);
+                }
+              }
+              
+              if (foundFulfillment) {
+                console.log('Hub intent fulfilled!');
+                setIntentStatus('fulfilled');
+                setPollingFulfillment(false);
+                pollingFulfillmentRef.current = false;
+                return;
+              }
+            } catch (hubError) {
+              console.error('Error querying hub chain:', hubError);
+            }
           }
           
           attempts++;
@@ -441,10 +529,9 @@ export function IntentBuilder() {
     
     pollFulfillment();
     
-    return () => {
-      pollingFulfillmentRef.current = false;
-    };
-  }, [transactionHash, savedDraftData]);
+    // Don't reset pollingFulfillmentRef in cleanup - it causes re-runs when dependencies change
+    // The ref is only reset explicitly in clearDraft or when polling completes
+  }, [transactionHash, savedDraftData, flowType, mvmAddress]); // Removed desiredBalance - it's captured at start
 
   // Fetch balance when offered token is selected
   useEffect(() => {
@@ -1190,8 +1277,6 @@ export function IntentBuilder() {
             
             {signature && (
               <div className="mt-2">
-                <p className="text-xs font-mono text-gray-400">Solver: {signature.solver_addr.slice(0, 10)}...{signature.solver_addr.slice(-8)}</p>
-                
                 {transactionHash && (
                   <div className="mt-2 space-y-2">
                     <p className="text-xs font-mono break-all text-gray-400">Tx: {transactionHash}</p>

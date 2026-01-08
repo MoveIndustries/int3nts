@@ -509,6 +509,9 @@ impl EventMonitor {
     }
 
     /// Returns all approved intent IDs.
+    ///
+    /// Note: Currently unused but kept for potential future API endpoints or debugging
+    #[allow(dead_code)]
     pub async fn get_approved_intent_ids(&self) -> Vec<String> {
         let approved = self.approved_intent_ids.read().await;
         approved.iter().cloned().collect()

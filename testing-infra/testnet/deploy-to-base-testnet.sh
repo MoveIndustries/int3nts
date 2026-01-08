@@ -35,9 +35,9 @@ if [ -z "$BASE_DEPLOYER_PRIVATE_KEY" ]; then
     exit 1
 fi
 
-if [ -z "$VERIFIER_ETH_ADDRESS" ]; then
-    echo "❌ ERROR: VERIFIER_ETH_ADDRESS not set in .testnet-keys.env"
-    echo "   Run Phase 1.4 to generate verifier Ethereum address"
+if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then
+    echo "❌ ERROR: VERIFIER_EVM_PUBKEY_HASH not set in .testnet-keys.env"
+    echo "   Run: nix develop -c bash -c 'cd trusted-verifier && VERIFIER_CONFIG_PATH=config/verifier_testnet.toml cargo run --bin get_verifier_eth_address'"
     exit 1
 fi
 
@@ -59,7 +59,7 @@ fi
 
 echo "📋 Configuration:"
 echo "   Deployer Address: $BASE_DEPLOYER_ADDRESS"
-echo "   Verifier Address: $VERIFIER_ETH_ADDRESS"
+echo "   Verifier EVM Pubkey Hash: $VERIFIER_EVM_PUBKEY_HASH"
 echo "   Network: Base Sepolia"
 echo "   RPC URL: $BASE_SEPOLIA_RPC_URL"
 echo ""
@@ -76,7 +76,7 @@ cd "$PROJECT_ROOT/evm-intent-framework"
 
 # Export environment variables for Hardhat
 export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"
-export VERIFIER_ADDRESS="$VERIFIER_ETH_ADDRESS"
+export VERIFIER_ADDRESS="$VERIFIER_EVM_PUBKEY_HASH"
 export BASE_SEPOLIA_RPC_URL
 
 echo "📝 Environment configured for Hardhat"

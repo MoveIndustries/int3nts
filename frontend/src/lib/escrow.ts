@@ -18,6 +18,20 @@ export const INTENT_ESCROW_ABI = [
     stateMutability: 'payable',
     type: 'function',
   },
+  {
+    inputs: [{ name: 'intentId', type: 'uint256' }],
+    name: 'getEscrow',
+    outputs: [
+      { name: 'requester', type: 'address' },
+      { name: 'token', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+      { name: 'isClaimed', type: 'bool' },
+      { name: 'expiry', type: 'uint256' },
+      { name: 'reservedSolver', type: 'address' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
 ] as const;
 
 // ERC20 ABI (minimal - only approve)

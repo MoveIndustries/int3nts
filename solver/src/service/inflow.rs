@@ -143,9 +143,9 @@ impl InflowService {
                 let current_block = client.get_block_number().await
                     .context("Failed to get current block number")?;
                 
-                // Look back 1000 blocks (same as verifier)
-                let from_block = if current_block > 1000 {
-                    current_block - 1000
+                // Look back 200 blocks (~7 minutes on Base, same as verifier)
+                let from_block = if current_block > 200 {
+                    current_block - 200
                 } else {
                     0
                 };

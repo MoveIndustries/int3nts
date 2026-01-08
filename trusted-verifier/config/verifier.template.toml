@@ -32,7 +32,7 @@ escrow_module_addr = "0x123"                      # Address of escrow module (re
 # rpc_url = "http://127.0.0.1:8545"
 # escrow_contract_addr = "0x123"
 # chain_id = 31337
-# verifier_addr = "0x123"
+# verifier_evm_pubkey_hash = "0x123"  # keccak256 hash of ECDSA public key (last 20 bytes)
 
 # Verifier Configuration
 # Cryptographic keys and timing parameters for the verifier
