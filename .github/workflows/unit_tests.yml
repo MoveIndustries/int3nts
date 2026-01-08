@@ -27,3 +27,8 @@ jobs:
     with:
       script: "cd trusted-verifier && cargo test"
 
+  frontend:
+    uses: ./.github/workflows/unit-tests-reusable.yml
+    with:
+      script: "cd frontend && npm install && npm test"
+

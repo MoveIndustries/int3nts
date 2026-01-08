@@ -81,8 +81,14 @@ log "     Intent ID (EVM): $INTENT_ID_EVM"
 
 # Create escrow for this intent with USDcon ERC20 token
 log "   - Creating escrow for intent (USDcon ERC20 escrow) with funds..."
-# Reserved solver: Solver - funds will go to Solver when escrow is claimed
-SOLVER_ADDRESS=$(get_hardhat_account_address "2")
+# Reserved solver: Must come from verifier (via exported SOLVER_EVM_ADDRESS)
+if [ -z "$SOLVER_EVM_ADDRESS" ]; then
+    log_and_echo "❌ ERROR: SOLVER_EVM_ADDRESS not set"
+    log_and_echo "   The solver must register with an EVM address"
+    exit 1
+fi
+SOLVER_ADDRESS="$SOLVER_EVM_ADDRESS"
+log "     Using solver EVM address from verifier: $SOLVER_ADDRESS"
 # Escrow amount must match the intent's offered_amount (1 USDcon)
 USDCON_AMOUNT="1000000"  # 1 USDcon = 1_000_000 (6 decimals)
 CREATE_OUTPUT=$(nix develop "$PROJECT_ROOT" -c bash -c "cd '$PROJECT_ROOT/evm-intent-framework' && ESCROW_ADDRESS='$ESCROW_ADDRESS' TOKEN_ADDRESS='$USDCON_TOKEN_ADDRESS' INTENT_ID_EVM='$INTENT_ID_EVM' AMOUNT='$USDCON_AMOUNT' RESERVED_SOLVER='$SOLVER_ADDRESS' npx hardhat run scripts/create-escrow-e2e-tests.js --network localhost" 2>&1 | tee -a "$LOG_FILE")

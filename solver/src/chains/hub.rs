@@ -333,19 +333,24 @@ impl HubChainClient {
         intent_addr: &str,
         payment_amount: u64,
     ) -> Result<String> {
-        // Use aptos CLI for compatibility with E2E tests which create aptos profiles
-        let output = Command::new("aptos")
+        // Require MOVEMENT_SOLVER_PRIVATE_KEY - no fallback
+        let pk_hex = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY")
+            .context("MOVEMENT_SOLVER_PRIVATE_KEY environment variable not set")?;
+
+        let output = Command::new("movement")
             .args(&[
                 "move",
                 "run",
-                "--profile",
-                &self.profile,
                 "--assume-yes",
                 "--function-id",
                 &format!("{}::fa_intent_inflow::fulfill_inflow_intent", self.module_addr),
                 "--args",
                 &format!("address:{}", intent_addr),
                 &format!("u64:{}", payment_amount),
+                "--private-key",
+                pk_hex.strip_prefix("0x").unwrap_or(&pk_hex),
+                "--url",
+                &self.base_url,
             ])
             .output()
             .context("Failed to execute movement move run")?;
@@ -393,39 +398,27 @@ impl HubChainClient {
         // Convert signature bytes to hex string
         let signature_hex = hex::encode(verifier_signature_bytes);
 
-        // Determine CLI and authentication method
-        // For testnet: use movement CLI with --private-key from env
-        // For E2E tests: use aptos CLI with --profile
-        let mut command;
-        let mut args = vec![
-            "move".to_string(),
-            "run".to_string(),
-            "--assume-yes".to_string(),
-            "--function-id".to_string(),
-            format!("{}::fa_intent_outflow::fulfill_outflow_intent", self.module_addr),
-            "--args".to_string(),
-            format!("address:{}", intent_addr),
-            format!("hex:{}", signature_hex),
-        ];
+        // Require MOVEMENT_SOLVER_PRIVATE_KEY - no fallback
+        let pk_hex = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY")
+            .context("MOVEMENT_SOLVER_PRIVATE_KEY environment variable not set")?;
 
-        if let Ok(pk_hex) = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY") {
-            // Testnet: Use movement CLI with private key
-            command = Command::new("movement");
-            args.push("--private-key".to_string());
-            args.push(pk_hex.strip_prefix("0x").unwrap_or(&pk_hex).to_string());
-            args.push("--url".to_string());
-            args.push(format!("{}/v1", self.base_url));
-        } else {
-            // E2E tests: Use aptos CLI with profile
-            command = Command::new("aptos");
-            args.push("--profile".to_string());
-            args.push(self.profile.clone());
-        }
-
-        let output = command
-            .args(&args)
+        let output = Command::new("movement")
+            .args(&[
+                "move",
+                "run",
+                "--assume-yes",
+                "--function-id",
+                &format!("{}::fa_intent_outflow::fulfill_outflow_intent", self.module_addr),
+                "--args",
+                &format!("address:{}", intent_addr),
+                &format!("hex:{}", signature_hex),
+                "--private-key",
+                pk_hex.strip_prefix("0x").unwrap_or(&pk_hex),
+                "--url",
+                &self.base_url,
+            ])
             .output()
-            .context("Failed to execute move run")?;
+            .context("Failed to execute movement move run")?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);

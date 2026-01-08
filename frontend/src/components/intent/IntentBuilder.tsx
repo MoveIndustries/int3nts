@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi';
 import { useWallet } from '@aptos-labs/wallet-adapter-react';
 import { verifierClient } from '@/lib/verifier';
 import type { DraftIntentRequest, DraftIntentSignature } from '@/lib/types';
@@ -11,11 +11,14 @@ import { CHAIN_CONFIGS } from '@/config/chains';
 import { fetchTokenBalance, type TokenBalance } from '@/lib/balances';
 import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
 import { INTENT_MODULE_ADDRESS, hexToBytes, padEvmAddressToMove } from '@/lib/move-transactions';
+import { INTENT_ESCROW_ABI, ERC20_ABI, intentIdToEvmFormat, getEscrowContractAddress } from '@/lib/escrow';
 
 type FlowType = 'inflow' | 'outflow';
 
 export function IntentBuilder() {
   const { address: evmAddress } = useAccount();
+  const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
   const { account: mvmAccount, signAndSubmitTransaction } = useWallet();
   const [directNightlyAddress, setDirectNightlyAddress] = useState<string | null>(null);
   const [offeredBalance, setOfferedBalance] = useState<TokenBalance | null>(null);
@@ -82,6 +85,80 @@ export function IntentBuilder() {
   const pollingFulfillmentRef = useRef(false);
   const currentIntentIdRef = useRef<string | null>(null);
   
+  // Escrow creation state (for inflow intents)
+  const [escrowHash, setEscrowHash] = useState<string | null>(null);
+  const [approvingToken, setApprovingToken] = useState(false);
+  const [creatingEscrow, setCreatingEscrow] = useState(false);
+  
+  // Wagmi hooks for escrow creation
+  const { writeContract: writeApprove, data: approveHash, error: approveError, isPending: isApprovePending, reset: resetApprove } = useWriteContract();
+  const { writeContract: writeCreateEscrow, data: createEscrowHash, error: escrowError, isPending: isEscrowPending, reset: resetEscrow } = useWriteContract();
+  
+  // Wait for approve transaction
+  const { data: approveReceipt, isLoading: isApproving, error: approveReceiptError } = useWaitForTransactionReceipt({
+    hash: approveHash,
+  });
+  
+  // Wait for escrow creation transaction
+  const { data: escrowReceipt, isLoading: isCreatingEscrow, error: escrowReceiptError } = useWaitForTransactionReceipt({
+    hash: createEscrowHash,
+  });
+  
+  // Handle approve errors (user rejected or tx failed)
+  useEffect(() => {
+    if (approveError) {
+      console.error('Approval error:', approveError);
+      setError(`Approval failed: ${approveError.message}`);
+      setApprovingToken(false);
+      resetApprove();
+    }
+  }, [approveError, resetApprove]);
+  
+  // Handle escrow creation errors
+  useEffect(() => {
+    if (escrowError) {
+      console.error('Escrow creation error:', escrowError);
+      setError(`Escrow creation failed: ${escrowError.message}`);
+      setCreatingEscrow(false);
+      resetEscrow();
+    }
+  }, [escrowError, resetEscrow]);
+  
+  // Handle receipt errors
+  useEffect(() => {
+    if (approveReceiptError) {
+      console.error('Approval receipt error:', approveReceiptError);
+      setError(`Approval transaction failed: ${approveReceiptError.message}`);
+      setApprovingToken(false);
+    }
+  }, [approveReceiptError]);
+  
+  useEffect(() => {
+    if (escrowReceiptError) {
+      console.error('Escrow receipt error:', escrowReceiptError);
+      setError(`Escrow transaction failed: ${escrowReceiptError.message}`);
+      setCreatingEscrow(false);
+    }
+  }, [escrowReceiptError]);
+  
+  // Handle approve completion
+  useEffect(() => {
+    if (approveReceipt && !isApproving && !creatingEscrow && !escrowHash) {
+      console.log('Approval confirmed, creating escrow...', approveReceipt.transactionHash);
+      setApprovingToken(false);
+      // After approval, create escrow
+      handleCreateEscrowAfterApproval();
+    }
+  }, [approveReceipt, isApproving, creatingEscrow, escrowHash]);
+  
+  // Handle escrow creation completion
+  useEffect(() => {
+    if (escrowReceipt && !isCreatingEscrow) {
+      console.log('Escrow created:', escrowReceipt.transactionHash);
+      setCreatingEscrow(false);
+      setEscrowHash(escrowReceipt.transactionHash);
+    }
+  }, [escrowReceipt, isCreatingEscrow]);
   
   // Store draft data for transaction building
   const [savedDraftData, setSavedDraftData] = useState<{
@@ -111,16 +188,14 @@ export function IntentBuilder() {
   // Store the fixed expiry time (Unix timestamp in seconds) - never recalculate it
   const [fixedExpiryTime, setFixedExpiryTime] = useState<number | null>(null);
 
-  // Set fixed expiry time when draft is created or restored
-  // Always use expiry_time from the verifier (saved in savedDraftData), never recalculate
+  // Set fixed expiry time based on when draft was created (60 second timeout)
   useEffect(() => {
-    if (savedDraftData?.expiryTime) {
-      // Use the expiry_time from the verifier (Unix timestamp in seconds)
-      setFixedExpiryTime(savedDraftData.expiryTime);
+    if (draftCreatedAt) {
+      setFixedExpiryTime(Math.floor(draftCreatedAt / 1000) + 60);
     } else {
       setFixedExpiryTime(null);
     }
-  }, [savedDraftData?.expiryTime]);
+  }, [draftCreatedAt]);
 
   // Update countdown timer - uses fixed expiry time, never recalculates
   useEffect(() => {
@@ -202,9 +277,22 @@ export function IntentBuilder() {
           }
           
           // If error is "Draft not yet signed", continue polling
-          // If error is something else, log it but continue
-          if (response.error && !response.error.includes('not yet signed')) {
-            console.warn('Polling error:', response.error);
+          // If error is "Draft not found", clear stale localStorage and stop
+          if (response.error) {
+            if (response.error.includes('not found')) {
+              console.log('Draft not found - clearing stale localStorage');
+              localStorage.removeItem('last_draft_id');
+              localStorage.removeItem('last_draft_created_at');
+              setDraftId(null);
+              setDraftCreatedAt(null);
+              setSavedDraftData(null);
+              setPollingSignature(false);
+              pollingActiveRef.current = false;
+              return;
+            }
+            if (!response.error.includes('not yet signed')) {
+              console.warn('Polling error:', response.error);
+            }
           }
           
           attempts++;
@@ -520,71 +608,25 @@ export function IntentBuilder() {
         setDraftId(draftId);
         setError(null);
         
-        // Fetch the draft status to get the actual expiry_time from the verifier
-        // This ensures we use the server's time, not local time
-        try {
-          const statusResponse = await verifierClient.getDraftIntentStatus(draftId);
-          if (statusResponse.success && statusResponse.data) {
-            // Use the expiry_time from the verifier (Unix timestamp in seconds)
-            const verifierExpiryTime = statusResponse.data.expiry_time;
-            const createdAt = Date.now();
-            setDraftCreatedAt(createdAt);
-            
-            // Save draft data for transaction building - use verifier's expiry_time
-            setSavedDraftData({
-              intentId,
-              offeredMetadata: offeredToken.metadata,
-              offeredAmount: offeredAmountSmallest.toString(),
-              offeredChainId: offeredChainId.toString(),
-              desiredMetadata: desiredToken.metadata,
-              desiredAmount: desiredAmountSmallest.toString(),
-              desiredChainId: desiredChainId.toString(),
-              expiryTime: verifierExpiryTime, // Use verifier's expiry_time, not local calculation
-            });
-            
-            // Save to localStorage
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('last_draft_id', draftId);
-              localStorage.setItem('last_draft_created_at', createdAt.toString());
-            }
-          } else {
-            // Fallback: use local expiry_time if status fetch fails
-            const createdAt = Date.now();
-            setDraftCreatedAt(createdAt);
-            setSavedDraftData({
-              intentId,
-              offeredMetadata: offeredToken.metadata,
-              offeredAmount: offeredAmountSmallest.toString(),
-              offeredChainId: offeredChainId.toString(),
-              desiredMetadata: desiredToken.metadata,
-              desiredAmount: desiredAmountSmallest.toString(),
-              desiredChainId: desiredChainId.toString(),
-              expiryTime, // Fallback to local calculation
-            });
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('last_draft_id', draftId);
-              localStorage.setItem('last_draft_created_at', createdAt.toString());
-            }
-          }
-        } catch (statusError) {
-          // Fallback: use local expiry_time if status fetch fails
-          console.error('Failed to fetch draft status, using local expiry_time:', statusError);
-          const createdAt = Date.now();
-          setDraftCreatedAt(createdAt);
-          setSavedDraftData({
-            intentId,
-            offeredMetadata: offeredToken.metadata,
-            offeredAmount: offeredAmountSmallest.toString(),
-            offeredChainId: offeredChainId.toString(),
-            desiredMetadata: desiredToken.metadata,
-            desiredAmount: desiredAmountSmallest.toString(),
-            desiredChainId: desiredChainId.toString(),
-            expiryTime, // Fallback to local calculation
-          });
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('last_draft_id', draftId);
-            localStorage.setItem('last_draft_created_at', createdAt.toString());
-          }
+        const createdAt = Date.now();
+        setDraftCreatedAt(createdAt);
+        
+        // Save draft data for transaction building
+        setSavedDraftData({
+          intentId,
+          offeredMetadata: offeredToken.metadata,
+          offeredAmount: offeredAmountSmallest.toString(),
+          offeredChainId: offeredChainId.toString(),
+          desiredMetadata: desiredToken.metadata,
+          desiredAmount: desiredAmountSmallest.toString(),
+          desiredChainId: desiredChainId.toString(),
+          expiryTime,
+        });
+        
+        // Save to localStorage
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('last_draft_id', draftId);
+          localStorage.setItem('last_draft_created_at', createdAt.toString());
         }
       } else {
         setError(response.error || 'Failed to create draft intent');
@@ -767,15 +809,118 @@ export function IntentBuilder() {
     }
   };
 
+  // Handle escrow creation for inflow intents
+  const handleCreateEscrow = async () => {
+    console.log('handleCreateEscrow called', { savedDraftData, offeredToken, flowType, evmAddress, signature: !!signature, chainId });
+    
+    if (!savedDraftData || !offeredToken || flowType !== 'inflow' || !evmAddress || !signature) {
+      const missing = [];
+      if (!savedDraftData) missing.push('savedDraftData');
+      if (!offeredToken) missing.push('offeredToken');
+      if (flowType !== 'inflow') missing.push(`flowType=${flowType}`);
+      if (!evmAddress) missing.push('evmAddress');
+      if (!signature) missing.push('signature');
+      setError(`Missing required data for escrow creation: ${missing.join(', ')}`);
+      return;
+    }
+
+    try {
+      setError(null);
+      
+      // Check if we're on the right chain (Base Sepolia = 84532)
+      const requiredChainId = offeredToken.chain === 'base-sepolia' ? 84532 : 11155111; // Base Sepolia or Ethereum Sepolia
+      if (chainId !== requiredChainId) {
+        console.log(`Switching chain from ${chainId} to ${requiredChainId}`);
+        try {
+          await switchChain({ chainId: requiredChainId });
+          console.log('Chain switched successfully');
+        } catch (switchError) {
+          console.error('Failed to switch chain:', switchError);
+          setError(`Please switch to ${offeredToken.chain === 'base-sepolia' ? 'Base Sepolia' : 'Ethereum Sepolia'} in your wallet`);
+          return;
+        }
+      }
+      
+      setApprovingToken(true);
+
+      const escrowAddress = getEscrowContractAddress(offeredToken.chain);
+      console.log('Creating escrow with:', { escrowAddress, tokenAddress: offeredToken.metadata, intentId: savedDraftData.intentId, chainId });
+      const tokenAddress = offeredToken.metadata as `0x${string}`;
+      const amount = BigInt(toSmallestUnits(parseFloat(offeredAmount), offeredToken.decimals));
+      const intentIdEvm = intentIdToEvmFormat(savedDraftData.intentId);
+      
+      // Get solver's EVM address from signature response (required for inflow escrows)
+      if (!signature.solver_evm_addr) {
+        throw new Error('Solver has no EVM address registered. The solver must register with an EVM address to fulfill inflow intents.');
+      }
+      const solverAddress = signature.solver_evm_addr;
+      console.log('Solver EVM address:', solverAddress);
+
+      // First approve token (approve a large amount to avoid repeated approvals)
+      const approveAmount = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'); // max uint256
+      
+      console.log('Calling writeApprove with:', {
+        address: tokenAddress,
+        functionName: 'approve',
+        args: [escrowAddress, approveAmount.toString()],
+      });
+      
+      writeApprove({
+        address: tokenAddress,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [escrowAddress, approveAmount],
+      });
+      
+      console.log('writeApprove called - waiting for wallet response');
+    } catch (err) {
+      console.error('handleCreateEscrow error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to start escrow creation');
+      setApprovingToken(false);
+    }
+  };
+
+  // Create escrow after token is approved
+  const handleCreateEscrowAfterApproval = () => {
+    console.log('handleCreateEscrowAfterApproval called');
+    
+    if (!savedDraftData || !offeredToken || flowType !== 'inflow' || !evmAddress || !signature) {
+      console.error('handleCreateEscrowAfterApproval: missing data');
+      return;
+    }
+
+    try {
+      setCreatingEscrow(true);
+
+      const escrowAddress = getEscrowContractAddress(offeredToken.chain);
+      const tokenAddress = offeredToken.metadata as `0x${string}`;
+      const amount = BigInt(toSmallestUnits(parseFloat(offeredAmount), offeredToken.decimals));
+      const intentIdEvm = intentIdToEvmFormat(savedDraftData.intentId);
+      
+      // Get solver's EVM address from signature response (required for inflow escrows)
+      if (!signature.solver_evm_addr) {
+        throw new Error('Solver has no EVM address registered. The solver must register with an EVM address to fulfill inflow intents.');
+      }
+      const solverAddress = signature.solver_evm_addr;
+      
+      console.log('Creating escrow:', { escrowAddress, tokenAddress, amount: amount.toString(), intentIdEvm: intentIdEvm.toString(), solverAddress });
+
+      writeCreateEscrow({
+        address: escrowAddress,
+        abi: INTENT_ESCROW_ABI,
+        functionName: 'createEscrow',
+        args: [intentIdEvm, tokenAddress, amount, solverAddress as `0x${string}`],
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create escrow');
+      setCreatingEscrow(false);
+    }
+  };
+
   return (
     <div className="border border-gray-700 rounded p-6">
       <h2 className="text-2xl font-bold mb-6">Create Intent</h2>
       
-      {/* Expiry Note */}
-      <div className="mb-6 p-3 bg-gray-800/50 border border-gray-700 rounded text-xs text-gray-400">
-        <p>⚠️ Intent expires 60 seconds after creation</p>
-      </div>
-
       {/* Flow Type Selector */}
       <div className="mb-6">
         <label className="block text-sm font-medium mb-2">Flow Type</label>
@@ -1052,6 +1197,36 @@ export function IntentBuilder() {
                     <p className="text-xs font-mono break-all text-gray-400">Tx: {transactionHash}</p>
                     {savedDraftData?.intentId && (
                       <p className="text-xs font-mono break-all text-gray-400">Intent ID: {savedDraftData.intentId}</p>
+                    )}
+                    
+                    {/* Escrow creation for inflow intents */}
+                    {flowType === 'inflow' && transactionHash && !escrowHash && (
+                      <div className="mt-3 p-2 bg-blue-900/30 rounded border border-blue-600/50">
+                        <p className="text-xs text-blue-400 mb-2">
+                          ⚠️ Create escrow on {offeredToken?.chain === 'base-sepolia' ? 'Base Sepolia' : 'EVM chain'} to complete intent
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleCreateEscrow}
+                          disabled={approvingToken || creatingEscrow || isApproving || isCreatingEscrow || isApprovePending || isEscrowPending || !evmAddress || !!escrowHash}
+                          className="w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-xs font-medium"
+                        >
+                          {isApprovePending
+                            ? 'Confirm in wallet...'
+                            : approvingToken || isApproving
+                            ? 'Approving token...'
+                            : isEscrowPending
+                            ? 'Confirm escrow in wallet...'
+                            : creatingEscrow || isCreatingEscrow
+                            ? 'Creating escrow...'
+                            : escrowHash
+                            ? '✓ Escrow Created'
+                            : 'Create Escrow'}
+                        </button>
+                        {escrowHash && (
+                          <p className="mt-1 text-xs font-mono break-all text-gray-400">Escrow Tx: {escrowHash}</p>
+                        )}
+                      </div>
                     )}
                     
                     {intentStatus === 'created' && pollingFulfillment && (

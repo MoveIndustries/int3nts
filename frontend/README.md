@@ -38,6 +38,8 @@ NEXT_PUBLIC_MVM_HUB_RPC=https://testnet.movementnetwork.xyz
 NEXT_PUBLIC_EVM_RPC=https://...
 ```
 
+Note: Chain-specific addresses (intent module address, escrow contract addresses) are configured in `src/config/chains.ts`.
+
 ## Tech Stack
 
 - Next.js 14 (App Router)

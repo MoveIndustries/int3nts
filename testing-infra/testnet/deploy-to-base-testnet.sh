@@ -94,8 +94,11 @@ fi
 echo "📤 Deploying IntentEscrow contract..."
 echo "   (Run this script from within 'nix develop' shell)"
 echo ""
-npx hardhat run scripts/deploy.js --network baseSepolia
+DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network baseSepolia 2>&1)
 DEPLOY_EXIT_CODE=$?
+
+# Show deployment output
+echo "$DEPLOY_OUTPUT"
 
 if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
     echo "❌ Deployment failed with exit code $DEPLOY_EXIT_CODE"
@@ -106,10 +109,34 @@ echo ""
 echo "🎉 Deployment Complete!"
 echo "======================"
 echo ""
-echo "📝 Copy the contract address from the output above"
-echo ""
-echo "💡 Next steps:"
-echo "   1. Update verifier_testnet.toml and solver_testnet.toml with the deployed contract address"
-echo "   2. Run ./testing-infra/testnet/check-testnet-preparedness.sh to verify"
+CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep "Contract address:" | tail -1 | awk '{print $NF}' | tr -d '\n' || echo "")
+
+if [ -n "$CONTRACT_ADDRESS" ]; then
+    echo "📝 Deployed contract address: $CONTRACT_ADDRESS"
+    echo ""
+    echo "💡 Update the following files with this address:"
+    echo ""
+    echo "   1. frontend/src/config/chains.ts"
+    echo "      Line ~26: escrowContractAddress: '$CONTRACT_ADDRESS'"
+    echo "      (in the 'base-sepolia' section)"
+    echo ""
+    echo "   2. trusted-verifier/config/verifier_testnet.toml"
+    echo "      Line ~24: escrow_contract_addr = \"$CONTRACT_ADDRESS\""
+    echo "      (in the [connected_chain_evm] section)"
+    echo ""
+    echo "   3. solver/config/solver_testnet.toml"
+    echo "      Line ~31: escrow_contract_addr = \"$CONTRACT_ADDRESS\""
+    echo "      (in the [connected_chain] section)"
+    echo ""
+    echo "   4. Run ./testing-infra/testnet/check-testnet-preparedness.sh to verify"
+else
+    echo "⚠️  Could not extract contract address from output"
+    echo "   Please copy it manually from the deployment output above"
+    echo ""
+    echo "💡 Update the following files:"
+    echo "   - frontend/src/config/chains.ts (escrowContractAddress in 'base-sepolia' section)"
+    echo "   - trusted-verifier/config/verifier_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
+    echo "   - solver/config/solver_testnet.toml (escrow_contract_addr in [connected_chain] section)"
+fi
 echo ""
 

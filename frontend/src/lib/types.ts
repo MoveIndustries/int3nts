@@ -48,6 +48,7 @@ export interface DraftIntentStatus {
 export interface DraftIntentSignature {
   signature: string;
   solver_addr: string;
+  solver_evm_addr?: string; // Solver's EVM address (for inflow to EVM chains)
   timestamp: number;
 }
 

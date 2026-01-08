@@ -290,8 +290,23 @@ movement move run \
 
 echo ""
 
+# Initialize fa_intent chain info (required for cross-chain intent detection)
+echo "🔧 Step 8: Initializing fa_intent chain info..."
+
+movement move run \
+  --profile "$TEMP_PROFILE" \
+  --function-id "${DEPLOY_ADDRESS_FULL}::fa_intent::initialize" \
+  --args u64:250 \
+  --assume-yes 2>/dev/null && {
+    echo "   ✅ fa_intent chain info initialized (chain_id=250)"
+  } || {
+    echo "   ⚠️  fa_intent chain info may already be initialized (this is OK)"
+  }
+
+echo ""
+
 # Initialize intent registry (required before creating intents)
-echo "🔧 Step 8: Initializing intent registry..."
+echo "🔧 Step 9: Initializing intent registry..."
 
 movement move run \
   --profile "$TEMP_PROFILE" \
@@ -305,7 +320,7 @@ movement move run \
 echo ""
 
 # Initialize verifier config for outflow intents
-echo "🔧 Step 9: Initializing verifier config..."
+echo "🔧 Step 10: Initializing verifier config..."
 
 if [ -z "$VERIFIER_PUBLIC_KEY" ]; then
     echo "❌ ERROR: VERIFIER_PUBLIC_KEY not set in .testnet-keys.env"
@@ -345,8 +360,8 @@ echo ""
 echo "   2. solver/config/solver_testnet.toml:"
 echo "      module_addr = \"$DEPLOY_ADDRESS_FULL\""
 echo ""
-echo "   3. frontend/src/lib/move-transactions.ts:"
-echo "      INTENT_MODULE_ADDRESS = '$DEPLOY_ADDRESS_FULL'"
+echo "   3. frontend/src/config/chains.ts:"
+echo "      intentContractAddress: '$DEPLOY_ADDRESS_FULL' (in Movement chain config)"
 echo ""
 echo "💡 Next steps:"
 echo "   1. Update the config files above with the new module address"

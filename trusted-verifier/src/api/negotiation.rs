@@ -81,8 +81,10 @@ pub struct SignatureSubmissionResponse {
 pub struct SignatureResponse {
     /// Signature in hex format
     pub signature: String,
-    /// Address of the solver who signed (first signer)
+    /// Address of the solver who signed (first signer) - Movement address
     pub solver_addr: String,
+    /// Solver's EVM address (for inflow to EVM chains) - None if not available
+    pub solver_evm_addr: Option<String>,
     /// Timestamp when signature was received
     pub timestamp: u64,
 }
@@ -405,6 +407,7 @@ pub async fn submit_signature_handler(
 ///
 /// * `draft_id` - The draft ID to retrieve signature for
 /// * `store` - The draft intent store
+/// * `config` - Application config for MVM client
 ///
 /// # Returns
 ///
@@ -413,6 +416,7 @@ pub async fn submit_signature_handler(
 pub async fn get_signature_handler(
     draft_id: String,
     store: Arc<RwLock<DraftintentStore>>,
+    config: Arc<Config>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let store_read = store.read().await;
     let draft = store_read.get_draft(&draft_id).await;
@@ -434,13 +438,41 @@ pub async fn get_signature_handler(
 
     match draft.signature {
         Some(sig) => {
-            // Draft is signed - return signature
+            // Draft is signed - look up solver's EVM address from on-chain registry
+            let solver_evm_addr = {
+                let solver_registry_addr = &config.hub_chain.intent_module_addr;
+                
+                match MvmClient::new(&config.hub_chain.rpc_url) {
+                    Ok(mvm_client) => {
+                        match mvm_client.get_solver_evm_address(&sig.solver_addr, solver_registry_addr).await {
+                            Ok(Some(addr)) => {
+                                info!("Found solver EVM address for {}: {}", sig.solver_addr, addr);
+                                Some(addr)
+                            }
+                            Ok(None) => {
+                                warn!("Solver {} has no registered EVM address", sig.solver_addr);
+                                None
+                            }
+                            Err(e) => {
+                                warn!("Failed to look up solver EVM address for {}: {}", sig.solver_addr, e);
+                                None
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to create MvmClient for EVM address lookup: {}", e);
+                        None
+                    }
+                }
+            };
+            
             Ok(warp::reply::with_status(
                 warp::reply::json(&ApiResponse {
                     success: true,
                     data: Some(SignatureResponse {
                         signature: sig.signature,
-                        solver_addr: sig.solver_addr,
+                        solver_addr: sig.solver_addr.clone(),
+                        solver_evm_addr,
                         timestamp: sig.signature_timestamp,
                     }),
                     error: None,

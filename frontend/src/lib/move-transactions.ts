@@ -2,8 +2,10 @@
  * Move transaction building utilities for intent creation
  */
 
-// Intent module address on Movement testnet
-export const INTENT_MODULE_ADDRESS = '0x12212cdf544f2fba164c0c55e6cc8e5bcbc4fbf61b30e7bb63e67e095b0aeb76';
+import { getIntentContractAddress } from '@/config/chains';
+
+// Intent contract address on Movement testnet (re-exported from chains config for backward compatibility)
+export const INTENT_MODULE_ADDRESS = getIntentContractAddress();
 
 /**
  * Convert a hex string to Uint8Array.

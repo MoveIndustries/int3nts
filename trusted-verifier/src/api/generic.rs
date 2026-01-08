@@ -639,12 +639,18 @@ impl ApiServer {
 
         // GET /draftintent/:id/signature - Requester polls for signature
         let get_sig_store = draft_store.clone();
+        let get_sig_config = self.config.clone();
         let get_signature = warp::path("draftintent")
             .and(warp::path::param())
             .and(warp::path("signature"))
             .and(warp::get())
             .and(negotiation::with_draft_store(get_sig_store))
-            .and_then(negotiation::get_signature_handler);
+            .and_then(move |draft_id: String, store: Arc<RwLock<DraftintentStore>>| {
+                let config = get_sig_config.clone();
+                async move {
+                    negotiation::get_signature_handler(draft_id, store, config).await
+                }
+            });
 
         // Combine all routes and apply rejection handler
         health

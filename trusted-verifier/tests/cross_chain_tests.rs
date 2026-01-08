@@ -475,6 +475,56 @@ async fn test_escrow_offered_metadata_complex_json() {
     );
 }
 
+/// Test that verifier accepts escrows where offered_metadata addresses match after normalizing leading zeros
+/// What is tested: Validating an escrow where the escrow's offered_metadata has a leading zero (0x036c...)
+/// but the hub intent's offered_metadata doesn't (0x36c...) should pass after normalization.
+/// Why: EVM addresses may be stored with or without leading zeros, but they represent the same address.
+/// The validation should normalize addresses before comparison.
+#[tokio::test]
+async fn test_escrow_offered_metadata_normalizes_leading_zeros() {
+    // Setup mock server with solver registry
+    let solver_addr = DUMMY_SOLVER_ADDR_MVM_HUB;
+    let solver_connected_chain_mvm_addr = DUMMY_SOLVER_ADDR_MVM_CON;
+    let (_mock_server, validator) = setup_mock_server_with_solver_registry(
+        Some(solver_addr),
+        Some(solver_connected_chain_mvm_addr),
+    )
+    .await;
+
+    // Create a hub intent with offered_metadata without leading zero
+    let hub_intent = IntentEvent {
+        offered_metadata: r#"{"inner":"0x36cbd53842c5426634e7929541ec2318f3dcf7e"}"#.to_string(),
+        reserved_solver_addr: Some(solver_addr.to_string()),
+        ..create_default_intent_mvm()
+    };
+
+    // Create an escrow with offered_metadata with leading zero (same address, different format)
+    let escrow_with_leading_zero = EscrowEvent {
+        offered_metadata: r#"{"inner":"0x036cbd53842c5426634e7929541ec2318f3dcf7e"}"#.to_string(),
+        reserved_solver_addr: Some(solver_connected_chain_mvm_addr.to_string()),
+        ..create_default_escrow_event()
+    };
+
+    let validation_result =
+        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+            &validator,
+            &hub_intent,
+            &escrow_with_leading_zero,
+        )
+        .await
+        .expect("Validation should complete without error");
+
+    assert!(
+        validation_result.valid,
+        "Validation should pass when offered_metadata addresses match after normalizing leading zeros. Message: {}",
+        validation_result.message
+    );
+    assert!(
+        !validation_result.message.contains("offered metadata"),
+        "Error message should not mention offered metadata mismatch when addresses match after normalization"
+    );
+}
+
 /// Test that verifier accepts escrows where desired_amount is 0
 /// Why: Verify that escrow desired_amount validation works correctly for successful cases
 #[tokio::test]
