@@ -13,7 +13,7 @@ export const SUPPORTED_TOKENS: TokenConfig[] = [
   // Movement Bardock Testnet
   {
     symbol: 'MOVE',
-    name: 'MOVE (Native)',
+    name: 'MOVE (Movement)',
     // Note: Native token metadata address - may need to be updated based on actual protocol requirements
     metadata: '0x1', // Placeholder for native token - verify with protocol docs
     decimals: 8,

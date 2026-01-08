@@ -53,10 +53,16 @@ export function IntentBuilder() {
       };
     }
   }, []);
-  const [flowType, setFlowType] = useState<FlowType>('inflow');
   const [offeredToken, setOfferedToken] = useState<TokenConfig | null>(null);
   const [offeredAmount, setOfferedAmount] = useState('');
   const [desiredToken, setDesiredToken] = useState<TokenConfig | null>(null);
+  
+  // Compute flowType dynamically based on selected tokens
+  // If offered token is on Movement (hub), it's outflow; otherwise it's inflow
+  const flowType: FlowType | null = useMemo(() => {
+    if (!offeredToken) return null;
+    return offeredToken.chain === 'movement' ? 'outflow' : 'inflow';
+  }, [offeredToken]);
   // Desired amount is auto-calculated based on solver's exchange rate
   const [desiredAmount, setDesiredAmount] = useState('');
   const [loading, setLoading] = useState(false);
@@ -332,34 +338,26 @@ export function IntentBuilder() {
     };
   }, [draftId]); // Only depend on draftId - don't restart when fixedExpiryTime changes
 
-  // Filter tokens based on flow type
+  // Filter tokens dynamically based on selections
+  // If offeredToken is selected, desiredTokens should exclude tokens from the same chain
+  // If desiredToken is selected, offeredTokens should exclude tokens from the same chain
   const offeredTokens = useMemo(() => {
-    if (flowType === 'inflow') {
-      // Inflow: offered tokens are on connected chain (EVM)
-      return SUPPORTED_TOKENS.filter(t => t.chain === 'base-sepolia' || t.chain === 'ethereum-sepolia');
-    } else {
-      // Outflow: offered tokens are on hub chain (Movement)
-      return SUPPORTED_TOKENS.filter(t => t.chain === 'movement');
+    if (desiredToken) {
+      // If desired token is selected, exclude tokens from the same chain
+      return SUPPORTED_TOKENS.filter(t => t.chain !== desiredToken.chain);
     }
-  }, [flowType]);
+    // If no desired token selected, show all tokens
+    return SUPPORTED_TOKENS;
+  }, [desiredToken]);
 
   const desiredTokens = useMemo(() => {
-    if (flowType === 'inflow') {
-      // Inflow: desired tokens are on hub chain (Movement)
-      return SUPPORTED_TOKENS.filter(t => t.chain === 'movement');
-    } else {
-      // Outflow: desired tokens are on connected chain (EVM)
-      return SUPPORTED_TOKENS.filter(t => t.chain === 'base-sepolia' || t.chain === 'ethereum-sepolia');
+    if (offeredToken) {
+      // If offered token is selected, exclude tokens from the same chain
+      return SUPPORTED_TOKENS.filter(t => t.chain !== offeredToken.chain);
     }
-  }, [flowType]);
-
-  // Reset token selections when flow type changes
-  const handleFlowTypeChange = (newFlowType: FlowType) => {
-    setFlowType(newFlowType);
-    setOfferedToken(null);
-    setDesiredToken(null);
-    setDesiredAmount('');
-  };
+    // If no offered token selected, show all tokens
+    return SUPPORTED_TOKENS;
+  }, [offeredToken]);
 
   // Auto-calculate desired amount based on solver's exchange rate
   // This runs when offered token/amount or desired token changes
@@ -691,19 +689,20 @@ export function IntentBuilder() {
       return;
     }
 
-    // For inflow, EVM wallet is needed for escrow creation
-    // For outflow, EVM wallet is needed for intent creation
-    if (flowType === 'inflow' && !evmAddress) {
-      setError('Please connect your EVM wallet (MetaMask) for inflow intents');
-      return;
-    }
-    if (flowType === 'outflow' && !evmAddress) {
-      setError('Please connect your EVM wallet (MetaMask) for outflow intents');
+    // EVM wallet is always needed
+    if (!evmAddress) {
+      setError('Please connect your EVM wallet (MetaMask)');
       return;
     }
 
     if (!offeredToken || !desiredToken) {
       setError('Please select both offered and desired tokens');
+      return;
+    }
+    
+    // Determine flow type from selected tokens
+    if (!flowType) {
+      setError('Invalid token selection');
       return;
     }
     if (!desiredAmount || desiredAmount === 'not available yet' || parseFloat(desiredAmount) <= 0) {
@@ -1078,68 +1077,6 @@ export function IntentBuilder() {
 
   return (
     <div className="border border-gray-700 rounded p-6">
-      {/* Flow Type Selector */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium mb-2">Flow Type</label>
-        <div className="flex gap-4">
-          <label className="flex items-center">
-            <input
-              type="radio"
-              value="inflow"
-              checked={flowType === 'inflow'}
-              onChange={(e) => handleFlowTypeChange(e.target.value as FlowType)}
-              className="mr-2"
-            />
-            <span>Inflow</span>
-          </label>
-          <label className="flex items-center">
-            <input
-              type="radio"
-              value="outflow"
-              checked={flowType === 'outflow'}
-              onChange={(e) => handleFlowTypeChange(e.target.value as FlowType)}
-              className="mr-2"
-            />
-            <span>Outflow</span>
-          </label>
-        </div>
-        
-        {/* Quick fill buttons for testing */}
-        <div className="flex gap-2 mt-3">
-          <button
-            type="button"
-            onClick={() => {
-              handleFlowTypeChange('inflow');
-              const usdcBase = SUPPORTED_TOKENS.find(t => t.symbol === 'USDC' && t.chain === 'base-sepolia');
-              const usdcMovement = SUPPORTED_TOKENS.find(t => t.symbol === 'USDC.e' && t.chain === 'movement');
-              if (usdcBase) setOfferedToken(usdcBase);
-              if (usdcMovement) setDesiredToken(usdcMovement);
-              setOfferedAmount('0.001');
-              setDesiredAmount('0.001');
-            }}
-            className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded"
-          >
-            Example inflow
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              handleFlowTypeChange('outflow');
-              const usdcMovement = SUPPORTED_TOKENS.find(t => t.symbol === 'USDC.e' && t.chain === 'movement');
-              const usdcBase = SUPPORTED_TOKENS.find(t => t.symbol === 'USDC' && t.chain === 'base-sepolia');
-              if (usdcMovement) setOfferedToken(usdcMovement);
-              if (usdcBase) setDesiredToken(usdcBase);
-              setOfferedAmount('0.001');
-              setDesiredAmount('0.001');
-            }}
-            className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded"
-          >
-            Example outflow
-          </button>
-        </div>
-      </div>
-
-
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Offered Token */}
         <div>
@@ -1156,6 +1093,11 @@ export function IntentBuilder() {
               const [chain, symbol] = e.target.value.split('::');
               const token = offeredTokens.find(t => t.chain === chain && t.symbol === symbol);
               setOfferedToken(token || null);
+              // Clear desired token if it's from the same chain
+              if (desiredToken && desiredToken.chain === chain) {
+                setDesiredToken(null);
+                setDesiredAmount('');
+              }
             }}
             className="w-full px-4 py-2 bg-gray-900 border border-gray-600 rounded text-sm"
             required
@@ -1172,12 +1114,16 @@ export function IntentBuilder() {
         <div>
           <div className="flex items-center gap-2">
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
+              lang="en"
               value={offeredAmount}
-              onChange={(e) => setOfferedAmount(e.target.value)}
+              onChange={(e) => {
+                // Normalize comma to dot for decimal separator
+                const normalized = e.target.value.replace(',', '.');
+                setOfferedAmount(normalized);
+              }}
               placeholder="1"
-              min="0"
-              step="0.000001"
               className="flex-1 px-4 py-2 bg-gray-900 border border-gray-600 rounded text-sm"
               required
             />
@@ -1219,6 +1165,10 @@ export function IntentBuilder() {
               const token = desiredTokens.find(t => t.chain === chain && t.symbol === symbol);
               setDesiredToken(token || null);
               setDesiredAmount(''); // Reset amount when token changes
+              // Clear offered token if it's from the same chain
+              if (offeredToken && offeredToken.chain === chain) {
+                setOfferedToken(null);
+              }
             }}
             className="w-full px-4 py-2 bg-gray-900 border border-gray-600 rounded text-sm"
             required
@@ -1245,7 +1195,7 @@ export function IntentBuilder() {
                     ? '' 
                     : offeredToken && offeredAmount 
                       ? "Calculating..." 
-                      : "Enter offered amount first"
+                      : "Enter send amount first"
                 }
                 className="flex-1 px-4 py-2 bg-gray-800 border border-gray-700 rounded text-sm text-gray-300 cursor-not-allowed"
               />
@@ -1296,7 +1246,7 @@ export function IntentBuilder() {
           <button
             type="button"
             onClick={handleCreateIntent}
-            disabled={!signature || submittingTransaction || !requesterAddr || (flowType === 'outflow' && !evmAddress) || !!transactionHash}
+            disabled={!signature || submittingTransaction || !requesterAddr || !evmAddress || !!transactionHash}
             className={`w-full px-4 py-2 rounded text-sm font-medium transition-colors ${
               transactionHash
                 ? 'bg-gray-600 text-gray-400 cursor-not-allowed'

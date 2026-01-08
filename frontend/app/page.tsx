@@ -14,7 +14,7 @@ export default function Home() {
         <div className="flex justify-between items-start mb-8">
           <div>
             <h1 className="text-4xl font-bold mb-2">int3nts</h1>
-            <p className="text-lg">Movement powered cross-chain intents</p>
+            <p className="text-lg"><span className="text-yellow-400">Movement</span> powered cross-chain intents</p>
           </div>
           {/* Wallet connectors in top right */}
           <div className="flex gap-2">
