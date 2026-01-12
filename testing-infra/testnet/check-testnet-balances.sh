@@ -3,7 +3,7 @@
 # Check Testnet Balances Script
 # Checks balances for all accounts in .testnet-keys.env
 # Supports:
-#   - Movement Bardock Testnet (MOVE, USDC.e)
+#   - Movement Bardock Testnet (MOVE, USDC.e, USDC, USDT, WETH)
 #   - Base Sepolia (ETH, USDC)
 #   - Ethereum Sepolia (ETH, USDC)
 # 
@@ -67,14 +67,27 @@ elif [ -z "$SEPOLIA_USDC_DECIMALS" ]; then
     exit 1
 fi
 
-# Extract Movement USDC address and decimals
-MOVEMENT_USDC_ADDRESS=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
-MOVEMENT_USDC_DECIMALS=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
-if [ -n "$MOVEMENT_USDC_ADDRESS" ] && [ -z "$MOVEMENT_USDC_DECIMALS" ]; then
+# Extract Movement USDC.e address and decimals
+MOVEMENT_USDC_E_ADDRESS=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_e = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+MOVEMENT_USDC_E_DECIMALS=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_e_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
+if [ -n "$MOVEMENT_USDC_E_ADDRESS" ] && [ -z "$MOVEMENT_USDC_E_DECIMALS" ]; then
     echo "❌ ERROR: Movement USDC.e address configured but decimals not found in testnet-assets.toml"
-    echo "   Add usdc_decimals = 6 to [movement_bardock_testnet] section"
+    echo "   Add usdc_e_decimals = 6 to [movement_bardock_testnet] section"
     exit 1
 fi
+
+# Extract new Movement tokens (USDC, USDT, WETH) - FA metadata addresses
+MOVEMENT_USDC=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+MOVEMENT_USDC_DECIMALS=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "6")
+MOVEMENT_USDT=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdt = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+MOVEMENT_USDT_DECIMALS=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdt_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "6")
+MOVEMENT_WETH=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^weth = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+MOVEMENT_WETH_DECIMALS=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^weth_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "18")
+
+# Coin types for CoinStore balance checking (tokens may be in CoinStore instead of FA)
+MOVEMENT_USDC_COIN_TYPE="0xa6cc575a28e9c97d1cec569392fe6f698c593990e7029ef49fed6740a36a31b0::tokens::USDC"
+MOVEMENT_USDT_COIN_TYPE="0xa6cc575a28e9c97d1cec569392fe6f698c593990e7029ef49fed6740a36a31b0::tokens::USDT"
+MOVEMENT_WETH_COIN_TYPE="0xa6cc575a28e9c97d1cec569392fe6f698c593990e7029ef49fed6740a36a31b0::tokens::WETH"
 
 # Extract native token decimals
 MOVEMENT_NATIVE_DECIMALS=$(grep -A 10 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^native_token_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
@@ -159,16 +172,16 @@ get_movement_balance() {
     fi
 }
 
-# Function to get Movement USDC balance (Fungible Asset)
-get_movement_usdc_balance() {
+# Function to get Movement USDC.e balance (Fungible Asset)
+get_movement_usdc_e_balance() {
     local address="$1"
     # Ensure address has 0x prefix
     if [[ ! "$address" =~ ^0x ]]; then
         address="0x${address}"
     fi
     
-    # If USDC address is not configured, return 0
-    if [ -z "$MOVEMENT_USDC_ADDRESS" ] || [ "$MOVEMENT_USDC_ADDRESS" = "" ]; then
+    # If USDC.e address is not configured, return 0
+    if [ -z "$MOVEMENT_USDC_E_ADDRESS" ] || [ "$MOVEMENT_USDC_E_ADDRESS" = "" ]; then
         echo "0"
         return
     fi
@@ -177,10 +190,69 @@ get_movement_usdc_balance() {
     # USDC.e is deployed as a Fungible Asset, use primary_fungible_store::balance
     local balance=$(curl -s --max-time 10 -X POST "${MOVEMENT_RPC_URL}/view" \
         -H "Content-Type: application/json" \
-        -d "{\"function\":\"0x1::primary_fungible_store::balance\",\"type_arguments\":[\"0x1::fungible_asset::Metadata\"],\"arguments\":[\"$address\",\"${MOVEMENT_USDC_ADDRESS}\"]}" \
+        -d "{\"function\":\"0x1::primary_fungible_store::balance\",\"type_arguments\":[\"0x1::fungible_asset::Metadata\"],\"arguments\":[\"$address\",\"${MOVEMENT_USDC_E_ADDRESS}\"]}" \
         | jq -r '.[0] // "0"' 2>/dev/null)
     
     if [ -z "$balance" ] || [ "$balance" = "null" ]; then
+        echo "0"
+    else
+        echo "$balance"
+    fi
+}
+
+# Function to get Movement token FA balance (primary_fungible_store)
+get_movement_fa_balance() {
+    local address="$1"
+    local metadata_addr="$2"  # FA metadata address
+    # Ensure address has 0x prefix
+    if [[ ! "$address" =~ ^0x ]]; then
+        address="0x${address}"
+    fi
+    
+    if [ -z "$metadata_addr" ] || [ "$metadata_addr" = "" ]; then
+        echo "0"
+        return
+    fi
+    
+    local balance=$(curl -s --max-time 10 -X POST "${MOVEMENT_RPC_URL}/view" \
+        -H "Content-Type: application/json" \
+        -d "{\"function\":\"0x1::primary_fungible_store::balance\",\"type_arguments\":[\"0x1::fungible_asset::Metadata\"],\"arguments\":[\"$address\",\"${metadata_addr}\"]}" \
+        | jq -r '.[0] // "0"' 2>/dev/null)
+    
+    if [ -z "$balance" ] || [ "$balance" = "null" ]; then
+        echo "0"
+    else
+        echo "$balance"
+    fi
+}
+
+# Function to get Movement token Coin balance (CoinStore)
+# This checks if CoinStore resource actually exists, not using coin::balance
+# which falls back to FA after migration
+get_movement_coin_balance() {
+    local address="$1"
+    local coin_type="$2"  # Coin type, e.g., "0xa6cc...::tokens::USDC"
+    # Ensure address has 0x prefix
+    if [[ ! "$address" =~ ^0x ]]; then
+        address="0x${address}"
+    fi
+    
+    if [ -z "$coin_type" ] || [ "$coin_type" = "" ]; then
+        echo "0"
+        return
+    fi
+    
+    # Check if CoinStore resource exists by querying the resource directly
+    # If CoinStore was destroyed (after migration), this will return null/error
+    # URL-encode the < and > characters
+    local coin_store_type="0x1::coin::CoinStore%3C${coin_type}%3E"
+    local resource=$(curl -s --max-time 10 "${MOVEMENT_RPC_URL}/accounts/${address}/resource/${coin_store_type}" 2>/dev/null)
+    
+    # Check if we got a valid response with coin value
+    local balance=$(echo "$resource" | jq -r '.data.coin.value // "0"' 2>/dev/null)
+    
+    if [ -z "$balance" ] || [ "$balance" = "null" ] || [ "$balance" = "0" ]; then
+        # CoinStore doesn't exist or is empty
         echo "0"
     else
         echo "$balance"
@@ -257,7 +329,24 @@ get_base_token_balance() {
     get_evm_token_balance "$1" "$2" "$BASE_RPC_URL"
 }
 
-# Format balance for display
+# Format balance for display (number only, no symbol)
+format_balance_number() {
+    local balance="$1"
+    local decimals="$2"
+    
+    local divisor
+    case "$decimals" in
+        18) divisor="1000000000000000000" ;;
+        8)  divisor="100000000" ;;
+        6)  divisor="1000000" ;;
+        *)  divisor="1" ;;
+    esac
+    
+    local formatted=$(echo "scale=6; $balance / $divisor" | bc 2>/dev/null || echo "0")
+    printf "%.6f" "$formatted"
+}
+
+# Format balance for display (with optional symbol)
 format_balance() {
     local balance="$1"
     local decimals="$2"
@@ -295,45 +384,120 @@ echo "   RPC: $MOVEMENT_RPC_URL"
 if [ -z "$MOVEMENT_DEPLOYER_ADDRESS" ]; then
     echo "⚠️  MOVEMENT_DEPLOYER_ADDRESS not set in .testnet-keys.env"
 else
+    echo "   Deployer  ($MOVEMENT_DEPLOYER_ADDRESS)"
+    # MOVE (native)
     balance=$(get_movement_balance "$MOVEMENT_DEPLOYER_ADDRESS")
     formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
-    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_DEPLOYER_ADDRESS")
-    echo "   Deployer  ($MOVEMENT_DEPLOYER_ADDRESS)"
-    if [ -n "$MOVEMENT_USDC_ADDRESS" ]; then
-        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
-        echo "             $formatted, $usdc_formatted"
-    else
-        echo "             $formatted (USDC.e n/a)"
+    echo "             MOVE: $formatted"
+    # USDC.e (FA only)
+    if [ -n "$MOVEMENT_USDC_E_ADDRESS" ]; then
+        usdc_e_balance=$(get_movement_usdc_e_balance "$MOVEMENT_DEPLOYER_ADDRESS")
+        usdc_e_formatted=$(format_balance_number "$usdc_e_balance" "$MOVEMENT_USDC_E_DECIMALS")
+        echo "             USDC.e: $usdc_e_formatted"
+    fi
+    # USDC (FA/Coin)
+    if [ -n "$MOVEMENT_USDC" ]; then
+        usdc_fa=$(get_movement_fa_balance "$MOVEMENT_DEPLOYER_ADDRESS" "$MOVEMENT_USDC")
+        usdc_coin=$(get_movement_coin_balance "$MOVEMENT_DEPLOYER_ADDRESS" "$MOVEMENT_USDC_COIN_TYPE")
+        usdc_fa_fmt=$(format_balance_number "$usdc_fa" "$MOVEMENT_USDC_DECIMALS")
+        usdc_coin_fmt=$(format_balance_number "$usdc_coin" "$MOVEMENT_USDC_DECIMALS")
+        echo "             USDC: $usdc_fa_fmt FA / $usdc_coin_fmt Coin"
+    fi
+    # USDT (FA/Coin)
+    if [ -n "$MOVEMENT_USDT" ]; then
+        usdt_fa=$(get_movement_fa_balance "$MOVEMENT_DEPLOYER_ADDRESS" "$MOVEMENT_USDT")
+        usdt_coin=$(get_movement_coin_balance "$MOVEMENT_DEPLOYER_ADDRESS" "$MOVEMENT_USDT_COIN_TYPE")
+        usdt_fa_fmt=$(format_balance_number "$usdt_fa" "$MOVEMENT_USDT_DECIMALS")
+        usdt_coin_fmt=$(format_balance_number "$usdt_coin" "$MOVEMENT_USDT_DECIMALS")
+        echo "             USDT: $usdt_fa_fmt FA / $usdt_coin_fmt Coin"
+    fi
+    # WETH (FA/Coin)
+    if [ -n "$MOVEMENT_WETH" ]; then
+        weth_fa=$(get_movement_fa_balance "$MOVEMENT_DEPLOYER_ADDRESS" "$MOVEMENT_WETH")
+        weth_coin=$(get_movement_coin_balance "$MOVEMENT_DEPLOYER_ADDRESS" "$MOVEMENT_WETH_COIN_TYPE")
+        weth_fa_fmt=$(format_balance_number "$weth_fa" "$MOVEMENT_WETH_DECIMALS")
+        weth_coin_fmt=$(format_balance_number "$weth_coin" "$MOVEMENT_WETH_DECIMALS")
+        echo "             WETH: $weth_fa_fmt FA / $weth_coin_fmt Coin"
     fi
 fi
 
 if [ -z "$MOVEMENT_REQUESTER_ADDRESS" ]; then
     echo "⚠️  MOVEMENT_REQUESTER_ADDRESS not set in .testnet-keys.env"
 else
+    echo "   Requester ($MOVEMENT_REQUESTER_ADDRESS)"
+    # MOVE (native)
     balance=$(get_movement_balance "$MOVEMENT_REQUESTER_ADDRESS")
     formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
-    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_REQUESTER_ADDRESS")
-    echo "   Requester ($MOVEMENT_REQUESTER_ADDRESS)"
-    if [ -n "$MOVEMENT_USDC_ADDRESS" ]; then
-        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
-        echo "             $formatted, $usdc_formatted"
-    else
-        echo "             $formatted (USDC.e n/a)"
+    echo "             MOVE: $formatted"
+    # USDC.e (FA only)
+    if [ -n "$MOVEMENT_USDC_E_ADDRESS" ]; then
+        usdc_e_balance=$(get_movement_usdc_e_balance "$MOVEMENT_REQUESTER_ADDRESS")
+        usdc_e_formatted=$(format_balance_number "$usdc_e_balance" "$MOVEMENT_USDC_E_DECIMALS")
+        echo "             USDC.e: $usdc_e_formatted"
+    fi
+    # USDC (FA/Coin)
+    if [ -n "$MOVEMENT_USDC" ]; then
+        usdc_fa=$(get_movement_fa_balance "$MOVEMENT_REQUESTER_ADDRESS" "$MOVEMENT_USDC")
+        usdc_coin=$(get_movement_coin_balance "$MOVEMENT_REQUESTER_ADDRESS" "$MOVEMENT_USDC_COIN_TYPE")
+        usdc_fa_fmt=$(format_balance_number "$usdc_fa" "$MOVEMENT_USDC_DECIMALS")
+        usdc_coin_fmt=$(format_balance_number "$usdc_coin" "$MOVEMENT_USDC_DECIMALS")
+        echo "             USDC: $usdc_fa_fmt FA / $usdc_coin_fmt Coin"
+    fi
+    # USDT (FA/Coin)
+    if [ -n "$MOVEMENT_USDT" ]; then
+        usdt_fa=$(get_movement_fa_balance "$MOVEMENT_REQUESTER_ADDRESS" "$MOVEMENT_USDT")
+        usdt_coin=$(get_movement_coin_balance "$MOVEMENT_REQUESTER_ADDRESS" "$MOVEMENT_USDT_COIN_TYPE")
+        usdt_fa_fmt=$(format_balance_number "$usdt_fa" "$MOVEMENT_USDT_DECIMALS")
+        usdt_coin_fmt=$(format_balance_number "$usdt_coin" "$MOVEMENT_USDT_DECIMALS")
+        echo "             USDT: $usdt_fa_fmt FA / $usdt_coin_fmt Coin"
+    fi
+    # WETH (FA/Coin)
+    if [ -n "$MOVEMENT_WETH" ]; then
+        weth_fa=$(get_movement_fa_balance "$MOVEMENT_REQUESTER_ADDRESS" "$MOVEMENT_WETH")
+        weth_coin=$(get_movement_coin_balance "$MOVEMENT_REQUESTER_ADDRESS" "$MOVEMENT_WETH_COIN_TYPE")
+        weth_fa_fmt=$(format_balance_number "$weth_fa" "$MOVEMENT_WETH_DECIMALS")
+        weth_coin_fmt=$(format_balance_number "$weth_coin" "$MOVEMENT_WETH_DECIMALS")
+        echo "             WETH: $weth_fa_fmt FA / $weth_coin_fmt Coin"
     fi
 fi
 
 if [ -z "$MOVEMENT_SOLVER_ADDRESS" ]; then
     echo "⚠️  MOVEMENT_SOLVER_ADDRESS not set in .testnet-keys.env"
 else
+    echo "   Solver    ($MOVEMENT_SOLVER_ADDRESS)"
+    # MOVE (native)
     balance=$(get_movement_balance "$MOVEMENT_SOLVER_ADDRESS")
     formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
-    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_SOLVER_ADDRESS")
-    echo "   Solver    ($MOVEMENT_SOLVER_ADDRESS)"
-    if [ -n "$MOVEMENT_USDC_ADDRESS" ]; then
-        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
-        echo "             $formatted, $usdc_formatted"
-    else
-        echo "             $formatted (USDC.e n/a)"
+    echo "             MOVE: $formatted"
+    # USDC.e (FA only)
+    if [ -n "$MOVEMENT_USDC_E_ADDRESS" ]; then
+        usdc_e_balance=$(get_movement_usdc_e_balance "$MOVEMENT_SOLVER_ADDRESS")
+        usdc_e_formatted=$(format_balance_number "$usdc_e_balance" "$MOVEMENT_USDC_E_DECIMALS")
+        echo "             USDC.e: $usdc_e_formatted"
+    fi
+    # USDC (FA/Coin)
+    if [ -n "$MOVEMENT_USDC" ]; then
+        usdc_fa=$(get_movement_fa_balance "$MOVEMENT_SOLVER_ADDRESS" "$MOVEMENT_USDC")
+        usdc_coin=$(get_movement_coin_balance "$MOVEMENT_SOLVER_ADDRESS" "$MOVEMENT_USDC_COIN_TYPE")
+        usdc_fa_fmt=$(format_balance_number "$usdc_fa" "$MOVEMENT_USDC_DECIMALS")
+        usdc_coin_fmt=$(format_balance_number "$usdc_coin" "$MOVEMENT_USDC_DECIMALS")
+        echo "             USDC: $usdc_fa_fmt FA / $usdc_coin_fmt Coin"
+    fi
+    # USDT (FA/Coin)
+    if [ -n "$MOVEMENT_USDT" ]; then
+        usdt_fa=$(get_movement_fa_balance "$MOVEMENT_SOLVER_ADDRESS" "$MOVEMENT_USDT")
+        usdt_coin=$(get_movement_coin_balance "$MOVEMENT_SOLVER_ADDRESS" "$MOVEMENT_USDT_COIN_TYPE")
+        usdt_fa_fmt=$(format_balance_number "$usdt_fa" "$MOVEMENT_USDT_DECIMALS")
+        usdt_coin_fmt=$(format_balance_number "$usdt_coin" "$MOVEMENT_USDT_DECIMALS")
+        echo "             USDT: $usdt_fa_fmt FA / $usdt_coin_fmt Coin"
+    fi
+    # WETH (FA/Coin)
+    if [ -n "$MOVEMENT_WETH" ]; then
+        weth_fa=$(get_movement_fa_balance "$MOVEMENT_SOLVER_ADDRESS" "$MOVEMENT_WETH")
+        weth_coin=$(get_movement_coin_balance "$MOVEMENT_SOLVER_ADDRESS" "$MOVEMENT_WETH_COIN_TYPE")
+        weth_fa_fmt=$(format_balance_number "$weth_fa" "$MOVEMENT_WETH_DECIMALS")
+        weth_coin_fmt=$(format_balance_number "$weth_coin" "$MOVEMENT_WETH_DECIMALS")
+        echo "             WETH: $weth_fa_fmt FA / $weth_coin_fmt Coin"
     fi
 fi
 
@@ -443,9 +607,9 @@ else
 fi
 
 echo ""
-if [ -z "$MOVEMENT_USDC_ADDRESS" ] || [ "$MOVEMENT_USDC_ADDRESS" = "" ]; then
+if [ -z "$MOVEMENT_USDC_E_ADDRESS" ] || [ "$MOVEMENT_USDC_E_ADDRESS" = "" ]; then
     echo "💡 Note: Movement USDC.e address not configured in testnet-assets.toml"
-    echo "   Add USDC.e deployment address to check Movement USDC.e balances"
+    echo "   Add usdc_e deployment address to check Movement USDC.e balances"
 fi
 echo "   Config file: $ASSETS_CONFIG_FILE"
 echo ""

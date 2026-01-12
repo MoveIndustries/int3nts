@@ -435,11 +435,11 @@ export function IntentBuilder() {
     return SUPPORTED_TOKENS;
   }, [offeredToken]);
 
-  // Helper to organize tokens for dropdown: USDCs first, then separator, then MOVE and ETH
+  // Helper to organize tokens for dropdown: USD tokens (USDC, USDC.e, USDT) first, then separator, then MOVE and ETH
   const organizeTokensForDropdown = (tokens: TokenConfig[]) => {
-    const usdcs = tokens.filter(t => t.symbol === 'USDC' || t.symbol === 'USDC.e');
-    const others = tokens.filter(t => t.symbol !== 'USDC' && t.symbol !== 'USDC.e');
-    return { usdcs, others };
+    const usdTokens = tokens.filter(t => t.symbol === 'USDC' || t.symbol === 'USDC.e' || t.symbol === 'USDT');
+    const others = tokens.filter(t => t.symbol !== 'USDC' && t.symbol !== 'USDC.e' && t.symbol !== 'USDT');
+    return { usdcs: usdTokens, others };
   };
 
   // Auto-calculate desired amount based on solver's exchange rate
@@ -477,10 +477,12 @@ export function IntentBuilder() {
 
         const { exchange_rate } = response.data;
 
-        // Calculate desired amount: desired = offered / exchange_rate
+        // Calculate desired amount, adjusting for decimal differences
+        // The exchange_rate is in smallest units, so we need to adjust for decimals
         const offeredAmountNum = parseFloat(offeredAmount);
-        const desiredAmountNum = offeredAmountNum / exchange_rate;
-        setDesiredAmount(desiredAmountNum.toFixed(6));
+        const decimalAdjustment = Math.pow(10, offeredToken.decimals - desiredToken.decimals);
+        const desiredAmountNum = (offeredAmountNum * decimalAdjustment) / exchange_rate;
+        setDesiredAmount(desiredAmountNum.toFixed(desiredToken.decimals));
         setError(null); // Clear any previous errors
       } catch (err) {
         // Exchange rate not available - show "not available yet" instead of error
