@@ -13,6 +13,7 @@ export interface TokenConfig {
 export const SUPPORTED_TOKENS: TokenConfig[] = [
   // Movement Bardock Testnet
   {
+    
     symbol: 'MOVE',
     name: 'MOVE (Movement)',
     // Note: Native token metadata address - may need to be updated based on actual protocol requirements
@@ -47,7 +48,7 @@ export const SUPPORTED_TOKENS: TokenConfig[] = [
     symbol: 'WETH',
     name: 'WETH (Movement)',
     metadata: '0x2fa1ab0e37fdd22cbf9da880826e9f79f06e8e5d9df9bce774b1f47b708fe121',
-    decimals: 18,
+    decimals: 8,
     chain: 'movement',
     coinType: '0xa6cc575a28e9c97d1cec569392fe6f698c593990e7029ef49fed6740a36a31b0::tokens::WETH',
   },

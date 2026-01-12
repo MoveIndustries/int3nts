@@ -35,7 +35,7 @@ usdt_decimals = 6
 
 # WETH on Movement Testnet (FA metadata address, paired with coin 0xa6cc...::tokens::WETH)
 weth = "0x2fa1ab0e37fdd22cbf9da880826e9f79f06e8e5d9df9bce774b1f47b708fe121"
-weth_decimals = 18
+weth_decimals = 8
 
 # pyUSD on Movement Testnet (Paxos USD)
 # TODO: Update with actual pyUSD deployment address once deployed

@@ -477,10 +477,12 @@ export function IntentBuilder() {
 
         const { exchange_rate } = response.data;
 
-        // Calculate desired amount: desired = offered / exchange_rate
+        // Calculate desired amount, adjusting for decimal differences
+        // The exchange_rate is in smallest units, so we need to adjust for decimals
         const offeredAmountNum = parseFloat(offeredAmount);
-        const desiredAmountNum = offeredAmountNum / exchange_rate;
-        setDesiredAmount(desiredAmountNum.toFixed(6));
+        const decimalAdjustment = Math.pow(10, offeredToken.decimals - desiredToken.decimals);
+        const desiredAmountNum = (offeredAmountNum * decimalAdjustment) / exchange_rate;
+        setDesiredAmount(desiredAmountNum.toFixed(desiredToken.decimals));
         setError(null); // Clear any previous errors
       } catch (err) {
         // Exchange rate not available - show "not available yet" instead of error
