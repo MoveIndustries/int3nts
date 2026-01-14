@@ -40,6 +40,16 @@ EVM_FAILED=$(echo "$EVM_TEST_OUTPUT" | grep -oE "[0-9]+ failing" | awk '{print $
 EVM_PASSED=${EVM_PASSED:-0}
 EVM_FAILED=${EVM_FAILED:-0}
 
+echo "Running SVM tests..."
+SVM_TEST_OUTPUT=$(nix develop -c bash -c "cd svm-intent-framework && anchor test" 2>&1) || {
+    echo "SVM tests failed:"
+    echo "$SVM_TEST_OUTPUT"
+}
+SVM_PASSED=$(echo "$SVM_TEST_OUTPUT" | grep -oE "[0-9]+ passing" | awk '{print $1}')
+SVM_FAILED=$(echo "$SVM_TEST_OUTPUT" | grep -oE "[0-9]+ failing" | awk '{print $1}' || echo "0")
+SVM_PASSED=${SVM_PASSED:-0}
+SVM_FAILED=${SVM_FAILED:-0}
+
 echo "Running Frontend tests..."
 FRONTEND_TEST_OUTPUT=$(nix develop -c bash -c "cd frontend && npm test" 2>&1) || {
     echo "Frontend tests failed:"
@@ -58,6 +68,7 @@ echo "| Verifier (Rust) | $VERIFIER_PASSED | $VERIFIER_FAILED |"
 echo "| Solver (Rust) | $SOLVER_PASSED | $SOLVER_FAILED |"
 echo "| Move | $MOVE_PASSED | $MOVE_FAILED |"
 echo "| EVM | $EVM_PASSED | $EVM_FAILED |"
+echo "| SVM | $SVM_PASSED | $SVM_FAILED |"
 echo "| Frontend | $FRONTEND_PASSED | $FRONTEND_FAILED |"
 echo ""
 
