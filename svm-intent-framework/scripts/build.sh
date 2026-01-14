@@ -32,9 +32,11 @@ fi
 if [ "$CURRENT_ANCHOR_VERSION" != "$ANCHOR_VERSION" ]; then
     # avm can prompt for confirmation, so install non-interactively.
     echo "[build.sh] Ensuring Anchor $ANCHOR_VERSION is installed via avm..."
-    printf 'y\n' | avm install "$ANCHOR_VERSION" >/dev/null 2>&1 || true
+    if ! avm list 2>/dev/null | grep -q "$ANCHOR_VERSION"; then
+        printf 'y\n' | avm install "$ANCHOR_VERSION" >/dev/null 2>&1 || true
+    fi
     echo "[build.sh] Using Anchor $ANCHOR_VERSION via avm..."
-    avm use "$ANCHOR_VERSION"
+    printf 'y\n' | avm use "$ANCHOR_VERSION" >/dev/null 2>&1 || true
 fi
 
 echo "[build.sh] Anchor version: $(anchor --version)"
