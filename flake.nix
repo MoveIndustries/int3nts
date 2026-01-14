@@ -58,11 +58,11 @@
               echo "[nix] Installing Anchor CLI via avm..."
               $HOME/.cargo/bin/cargo install --git https://github.com/coral-xyz/anchor avm --force --locked 2>/dev/null || true
               # Install and use non-interactively (yes provides continuous 'y' for any prompts)
-              # Use rustup's cargo (supports +toolchain syntax required by avm)
+              # Use rustup's cargo (supports +toolchain syntax required by avm) - subshell ensures PATH applies to avm
               echo "[nix] Installing Anchor 0.29.0..."
-              PATH="$HOME/.cargo/bin:$PATH" yes | avm install 0.29.0 2>&1 || true
+              (export PATH="$HOME/.cargo/bin:$PATH"; yes | avm install 0.29.0 2>&1) || true
               echo "[nix] Selecting Anchor 0.29.0..."
-              PATH="$HOME/.cargo/bin:$PATH" yes | avm use 0.29.0 2>&1 || true
+              (export PATH="$HOME/.cargo/bin:$PATH"; yes | avm use 0.29.0 2>&1) || true
             fi
             
             echo "[nix] Dev shell ready: rustc $(rustc --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | cargo $(cargo --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | aptos $(aptos --version 2>/dev/null || echo 'unknown') | movement $(movement --version 2>/dev/null || echo 'unknown') | solana $(solana --version 2>/dev/null | head -1 | awk '{print $2}' || echo 'not installed') | anchor $(anchor --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | node $(node --version 2>/dev/null || echo 'unknown')"
