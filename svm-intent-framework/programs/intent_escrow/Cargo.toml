@@ -14,7 +14,11 @@ no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 default = []
+# Anchor macro features (silence cfg warnings)
+custom-heap = []
+custom-panic = []
+anchor-debug = []
 
 [dependencies]
-anchor-lang = "0.30.0"
-anchor-spl = "0.30.0"
+anchor-lang = "0.29.0"
+anchor-spl = "0.29.0"

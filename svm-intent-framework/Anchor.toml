@@ -2,8 +2,11 @@
 resolution = true
 skip-lint = false
 
+[toolchain]
+anchor_version = "0.29.0"
+
 [programs.localnet]
-intent_escrow = "int3ntsEscrow1111111111111111111111111"
+intent_escrow = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
 
 [registry]
 url = "https://api.apr.dev"

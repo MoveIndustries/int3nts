@@ -236,8 +236,8 @@ pub struct Escrow {
 
 **Commit: `chore: add Solana/Anchor to nix dev shell`**
 
-- [ ] Create `solana.nix` - Nix package for Solana CLI + Anchor CLI
-- [ ] Update `flake.nix` - Add solanaCli to dev shell packages
+- [x] Create `solana.nix` - Nix package for Solana CLI + Anchor CLI
+- [x] Update `flake.nix` - Add solanaCli to dev shell packages
 
 ---
 
