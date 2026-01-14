@@ -57,7 +57,8 @@
             if ! command -v anchor > /dev/null 2>&1; then
               echo "[nix] Installing Anchor CLI via avm..."
               $HOME/.cargo/bin/cargo install --git https://github.com/coral-xyz/anchor avm --force --locked 2>/dev/null || true
-              # Remove any existing anchor binary that might conflict with avm
+              # Uninstall any anchor-cli that cargo installed (avm manages anchor separately)
+              $HOME/.cargo/bin/cargo uninstall anchor-cli 2>/dev/null || true
               rm -f $HOME/.cargo/bin/anchor 2>/dev/null || true
               # Install and use non-interactively (yes provides continuous 'y' for any prompts)
               # Use rustup's cargo (supports +toolchain syntax required by avm) - subshell ensures PATH applies to avm

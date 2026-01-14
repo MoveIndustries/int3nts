@@ -30,7 +30,8 @@ if command -v anchor >/dev/null 2>&1; then
 fi
 
 if [ "$CURRENT_ANCHOR_VERSION" != "$ANCHOR_VERSION" ]; then
-    # Remove any existing anchor binary that might conflict with avm
+    # Uninstall any anchor-cli that cargo installed (avm manages anchor separately)
+    cargo uninstall anchor-cli 2>/dev/null || true
     rm -f "$HOME/.cargo/bin/anchor" 2>/dev/null || true
     # avm can prompt for confirmation, so use 'yes' for continuous 'y' answers
     # Use rustup's cargo (supports +toolchain syntax required by avm) - subshell ensures PATH applies to avm
