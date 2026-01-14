@@ -95,9 +95,7 @@ nix develop -c bash -c "cd svm-intent-framework && anchor test" 2>&1 | grep -oE 
 
 ---
 
-## Phase 1: Project Setup
-
-**STOP: Commit before proceeding to next phase**
+## Phase 1: Project Setup ✅
 
 **Commit: `chore: initialize svm-intent-framework project structure`**
 
@@ -120,13 +118,13 @@ svm-intent-framework/
 
 ---
 
-## Phase 2: Core Program
+## Phase 2: Core Program ✅
 
-**STOP: Commit before proceeding to next phase**
+**Commit: `feat(svm): implement IntentEscrow program with toolchain workarounds`**
 
-**Commit: `feat(svm): implement IntentEscrow program`**
-
-- [ ] Implement IntentEscrow program in `programs/intent_escrow/src/lib.rs`
+- [x] Implement IntentEscrow program in `programs/intent_escrow/src/lib.rs`
+- [x] Add build script with Anchor 0.29.0 / Solana CLI compatibility shims
+- [x] Document toolchain constraints (Cargo.lock v3, edition2024 avoidance)
 
 **Escrow Account Structure:**
 
@@ -156,13 +154,13 @@ pub struct Escrow {
 
 ---
 
-## Phase 3: Test Helpers
+## Phase 3: Test Helpers ✅
 
 **Commit: `test(svm): add test helpers and setup`**
 
-- [ ] Create `tests/helpers/setup.ts` - Test fixtures (provider, program, accounts)
-- [ ] Create `tests/helpers/token.ts` - SPL token utilities (create mint, mint tokens)
-- [ ] Create `tests/helpers/index.ts` - Re-exports
+- [x] Create `tests/helpers/setup.ts` - Test fixtures (provider, program, accounts)
+- [x] Create `tests/helpers/token.ts` - SPL token utilities (create mint, mint tokens)
+- [x] Create `tests/helpers/index.ts` - Re-exports
 
 ---
 
@@ -232,12 +230,13 @@ pub struct Escrow {
 
 ---
 
-## Phase 8: Nix Integration
+## Phase 8: Nix Integration ✅
 
 **Commit: `chore: add Solana/Anchor to nix dev shell`**
 
 - [x] Create `solana.nix` - Nix package for Solana CLI + Anchor CLI
 - [x] Update `flake.nix` - Add solanaCli to dev shell packages
+- [x] Nix Rust for Verifier/Solver, rustup for SVM builds
 
 ---
 
