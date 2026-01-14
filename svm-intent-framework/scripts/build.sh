@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # SVM Intent Framework Build Script
 #
 # This script works around Anchor 0.29.x / Solana CLI compatibility issues:
@@ -30,6 +30,8 @@ if command -v anchor >/dev/null 2>&1; then
 fi
 
 if [ "$CURRENT_ANCHOR_VERSION" != "$ANCHOR_VERSION" ]; then
+    # Remove any existing anchor binary that might conflict with avm
+    rm -f "$HOME/.cargo/bin/anchor" 2>/dev/null || true
     # avm can prompt for confirmation, so use 'yes' for continuous 'y' answers
     # Use rustup's cargo (supports +toolchain syntax required by avm) - subshell ensures PATH applies to avm
     echo "[build.sh] Ensuring Anchor $ANCHOR_VERSION is installed via avm..."
@@ -46,7 +48,7 @@ mkdir -p "$PROJECT_DIR/.bin"
 # Create build-bpf shim that calls build-sbf
 # Note: cargo passes the subcommand name as first arg, so we strip "build-bpf" if present
 cat > "$PROJECT_DIR/.bin/cargo-build-bpf" << 'SHIM'
-#!/bin/bash
+#!/usr/bin/env bash
 # Strip "build-bpf" if it's the first argument (cargo passes it)
 if [ "$1" = "build-bpf" ]; then
     shift

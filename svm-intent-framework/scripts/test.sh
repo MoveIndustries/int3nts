@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # SVM Intent Framework Test Script
 #
 # Builds the program and runs anchor tests.
