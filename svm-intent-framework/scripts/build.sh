@@ -31,10 +31,11 @@ fi
 
 if [ "$CURRENT_ANCHOR_VERSION" != "$ANCHOR_VERSION" ]; then
     # avm can prompt for confirmation, so use 'yes' for continuous 'y' answers
+    # Use rustup's cargo (supports +toolchain syntax required by avm)
     echo "[build.sh] Ensuring Anchor $ANCHOR_VERSION is installed via avm..."
-    yes | avm install "$ANCHOR_VERSION" 2>&1 || true
+    PATH="$HOME/.cargo/bin:$PATH" yes | avm install "$ANCHOR_VERSION" 2>&1 || true
     echo "[build.sh] Using Anchor $ANCHOR_VERSION via avm..."
-    yes | avm use "$ANCHOR_VERSION" 2>&1 || true
+    PATH="$HOME/.cargo/bin:$PATH" yes | avm use "$ANCHOR_VERSION" 2>&1 || true
 fi
 
 echo "[build.sh] Anchor version: $(anchor --version)"
