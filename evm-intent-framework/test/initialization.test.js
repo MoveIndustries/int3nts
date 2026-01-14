@@ -66,5 +66,16 @@ describe("IntentEscrow - Initialization", function () {
       escrow.connect(requester).createEscrow(intentId, token.target, amount, solver.address)
     ).to.be.revertedWith("Escrow already exists");
   });
+
+  /// Test: Zero Amount Prevention
+  /// Verifies that escrows cannot be created with zero amount.
+  /// Why: Zero-amount escrows are invalid.
+  it("Should revert if amount is zero", async function () {
+    const amount = 0n;
+    
+    await expect(
+      escrow.connect(requester).createEscrow(intentId, token.target, amount, solver.address)
+    ).to.be.revertedWith("Amount must be greater than 0");
+  });
 });
 

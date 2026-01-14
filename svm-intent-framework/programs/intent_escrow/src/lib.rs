@@ -14,8 +14,8 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 // CONSTANTS
 // ============================================================================
 
-/// Expiry duration: 2 minutes in seconds (matches EVM EXPIRY_DURATION)
-pub const EXPIRY_DURATION: i64 = 120;
+/// Default expiry duration: 2 minutes in seconds (matches EVM EXPIRY_DURATION)
+pub const DEFAULT_EXPIRY_DURATION: i64 = 120;
 
 // ============================================================================
 // PROGRAM
@@ -41,13 +41,15 @@ pub mod intent_escrow {
 
     /// Create a new escrow and deposit funds atomically
     ///
-    /// Expiry is automatically set to `Clock::get()?.unix_timestamp + EXPIRY_DURATION`.
+    /// Expiry is set to `Clock::get()?.unix_timestamp + expiry_duration`.
+    /// If `expiry_duration` is None or 0, uses `DEFAULT_EXPIRY_DURATION` (120 seconds).
     /// Matches the EVM `createEscrow` function behavior.
     ///
     /// # Arguments
     /// - `ctx`: Context containing escrow accounts
     /// - `intent_id`: Unique 32-byte intent identifier
     /// - `amount`: Amount of tokens to deposit
+    /// - `expiry_duration`: Optional custom expiry duration in seconds (for testing)
     ///
     /// # Returns
     /// - `Ok(())` on success
@@ -59,6 +61,7 @@ pub mod intent_escrow {
         ctx: Context<CreateEscrow>,
         intent_id: [u8; 32],
         amount: u64,
+        expiry_duration: Option<i64>,
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
         let clock = Clock::get()?;
@@ -70,12 +73,16 @@ pub mod intent_escrow {
             EscrowError::InvalidSolver
         );
 
+        // Use custom expiry or default (120 seconds)
+        let duration = expiry_duration.unwrap_or(DEFAULT_EXPIRY_DURATION);
+        let duration = if duration <= 0 { DEFAULT_EXPIRY_DURATION } else { duration };
+
         // Set escrow data
         escrow.requester = ctx.accounts.requester.key();
         escrow.token_mint = ctx.accounts.token_mint.key();
         escrow.amount = amount;
         escrow.is_claimed = false;
-        escrow.expiry = clock.unix_timestamp + EXPIRY_DURATION;
+        escrow.expiry = clock.unix_timestamp + duration;
         escrow.reserved_solver = ctx.accounts.reserved_solver.key();
         escrow.intent_id = intent_id;
         escrow.bump = ctx.bumps.escrow;
@@ -139,13 +146,13 @@ pub mod intent_escrow {
 
         // Verify Ed25519 signature using instruction introspection
         // The Ed25519 signature verification instruction must be included in the transaction
-        let message = intent_id;
-        let pubkey = state.verifier;
+        let expected_message = intent_id;
+        let expected_pubkey = state.verifier;
 
         // Use instruction introspection to verify Ed25519 signature was included
         // The Ed25519 instruction should be at index 0 (before our program instruction)
         let instruction_sysvar_account = &ctx.accounts.instruction_sysvar;
-        let instruction_sysvar = anchor_lang::solana_program::sysvar::instructions::load_instruction_at_checked(
+        let ed25519_ix = anchor_lang::solana_program::sysvar::instructions::load_instruction_at_checked(
             0,
             instruction_sysvar_account,
         )?;
@@ -153,21 +160,41 @@ pub mod intent_escrow {
         // Check that the instruction is an Ed25519 verification instruction
         let ed25519_program_id = anchor_lang::solana_program::ed25519_program::ID;
         require!(
-            instruction_sysvar.program_id == ed25519_program_id,
+            ed25519_ix.program_id == ed25519_program_id,
             EscrowError::InvalidSignature
         );
 
-        // Verify the signature matches the expected verifier and message
-        // Ed25519 instruction data format: [pubkey (32 bytes)][signature (64 bytes)][message (variable)]
-        let instruction_data = &instruction_sysvar.data;
-        require!(instruction_data.len() >= 96, EscrowError::InvalidSignature);
+        // Parse Ed25519 instruction data format:
+        // [num_signatures: u8][padding: u8][offsets: 14 bytes per sig][data...]
+        // Offsets structure (14 bytes):
+        //   signature_offset: u16, signature_instruction_index: u16,
+        //   public_key_offset: u16, public_key_instruction_index: u16,
+        //   message_data_offset: u16, message_data_size: u16, message_instruction_index: u16
+        let data = &ed25519_ix.data;
+        require!(data.len() >= 16, EscrowError::InvalidSignature); // At least header + 1 offset struct
 
-        let instruction_pubkey = &instruction_data[0..32];
-        let instruction_signature = &instruction_data[32..96];
-        let instruction_message = &instruction_data[96..];
+        let num_signatures = data[0];
+        require!(num_signatures >= 1, EscrowError::InvalidSignature);
 
+        // Read offsets for first signature (bytes 2-15)
+        let sig_offset = u16::from_le_bytes([data[2], data[3]]) as usize;
+        let pubkey_offset = u16::from_le_bytes([data[6], data[7]]) as usize;
+        let msg_offset = u16::from_le_bytes([data[10], data[11]]) as usize;
+        let msg_size = u16::from_le_bytes([data[12], data[13]]) as usize;
+
+        // Validate offsets are within bounds
+        require!(data.len() >= sig_offset + 64, EscrowError::InvalidSignature);
+        require!(data.len() >= pubkey_offset + 32, EscrowError::InvalidSignature);
+        require!(data.len() >= msg_offset + msg_size, EscrowError::InvalidSignature);
+
+        // Extract actual data using offsets
+        let instruction_signature = &data[sig_offset..sig_offset + 64];
+        let instruction_pubkey = &data[pubkey_offset..pubkey_offset + 32];
+        let instruction_message = &data[msg_offset..msg_offset + msg_size];
+
+        // Verify the signature, pubkey, and message match expected values
         require!(
-            instruction_pubkey == pubkey.to_bytes().as_slice(),
+            instruction_pubkey == expected_pubkey.to_bytes().as_slice(),
             EscrowError::UnauthorizedVerifier
         );
         require!(
@@ -175,7 +202,7 @@ pub mod intent_escrow {
             EscrowError::InvalidSignature
         );
         require!(
-            instruction_message == message.as_slice(),
+            instruction_message == expected_message.as_slice(),
             EscrowError::InvalidSignature
         );
 

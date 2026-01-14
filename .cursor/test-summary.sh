@@ -41,14 +41,13 @@ EVM_PASSED=${EVM_PASSED:-0}
 EVM_FAILED=${EVM_FAILED:-0}
 
 echo "Running SVM tests..."
-# Use build script for toolchain compatibility
-# Note: anchor test internally runs build, so we use our build script wrapper
-SVM_TEST_OUTPUT=$(cd svm-intent-framework && ./scripts/build.sh 2>&1) || {
+# Build and run tests
+SVM_TEST_OUTPUT=$(cd svm-intent-framework && ./scripts/test.sh 2>&1) || {
     echo "SVM tests failed:"
     echo "$SVM_TEST_OUTPUT"
 }
-# TODO: Add actual test execution once tests are written (Phase 3-5)
-# For now, just report build status - tests will show 0/0
+SVM_PASSED=$(echo "$SVM_TEST_OUTPUT" | grep -oE "[0-9]+ passing" | awk '{print $1}')
+SVM_FAILED=$(echo "$SVM_TEST_OUTPUT" | grep -oE "[0-9]+ failing" | awk '{print $1}' || echo "0")
 SVM_PASSED=${SVM_PASSED:-0}
 SVM_FAILED=${SVM_FAILED:-0}
 

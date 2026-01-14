@@ -26,15 +26,19 @@ describe("IntentEscrow - Cancel", function () {
     await escrow.connect(requester).createEscrow(intentId, token.target, amount, solver.address);
   });
 
+  /// Test: Cancellation Before Expiry Prevention
+  /// Verifies that requesters cannot cancel escrows before expiry.
+  /// Why: Funds must remain locked until expiry to give solvers time to fulfill.
+  it("Should revert if escrow has not expired yet", async function () {
+    await expect(
+      escrow.connect(requester).cancel(intentId)
+    ).to.be.revertedWithCustomError(escrow, "EscrowNotExpiredYet");
+  });
+
   /// Test: Cancellation After Expiry
   /// Verifies that requesters can cancel escrows after expiry and reclaim funds.
   /// Why: Requesters need a way to reclaim funds if fulfillment doesn't occur before expiry.
   it("Should allow requester to cancel and reclaim funds after expiry", async function () {
-    // Cancellation blocked before expiry
-    await expect(
-      escrow.connect(requester).cancel(intentId)
-    ).to.be.revertedWithCustomError(escrow, "EscrowNotExpiredYet");
-
     // Advance time past expiry
     const expiryDuration = await escrow.EXPIRY_DURATION();
     await advanceTime(Number(expiryDuration) + 1);
@@ -78,6 +82,17 @@ describe("IntentEscrow - Cancel", function () {
     await expect(
       escrow.connect(requester).cancel(intentId)
     ).to.be.revertedWithCustomError(escrow, "EscrowAlreadyClaimed");
+  });
+
+  /// Test: Non-Existent Escrow Prevention
+  /// Verifies that canceling a non-existent escrow reverts.
+  /// Why: Prevents invalid operations on non-existent escrows.
+  it("Should revert if escrow does not exist", async function () {
+    const nonExistentIntentId = intentId + 999n;
+
+    await expect(
+      escrow.connect(requester).cancel(nonExistentIntentId)
+    ).to.be.revertedWithCustomError(escrow, "EscrowDoesNotExist");
   });
 });
 

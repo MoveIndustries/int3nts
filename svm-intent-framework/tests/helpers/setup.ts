@@ -47,6 +47,13 @@ export async function initializeProgram(
     program.programId
   );
 
+  // Check if already initialized (account exists with data)
+  const stateAccount = await program.provider.connection.getAccountInfo(statePda);
+  if (stateAccount !== null) {
+    // Already initialized, just return the PDA
+    return { statePda, stateBump };
+  }
+
   await program.methods
     .initialize(verifier)
     .accounts({
@@ -72,10 +79,19 @@ export async function setupIntentEscrowTests(): Promise<TestContext> {
 
   const program = anchor.workspace.IntentEscrow as Program<IntentEscrow>;
 
-  // Generate test keypairs
-  const verifier = Keypair.generate();
-  const requester = Keypair.generate();
-  const solver = Keypair.generate();
+  // Use deterministic keypairs for consistent test state across runs
+  // This ensures the same verifier is used if state is already initialized
+  const verifierSeed = Buffer.alloc(32);
+  verifierSeed.write("intent-escrow-verifier-seed-001");
+  const verifier = Keypair.fromSeed(verifierSeed);
+
+  const requesterSeed = Buffer.alloc(32);
+  requesterSeed.write("intent-escrow-requester-seed-01");
+  const requester = Keypair.fromSeed(requesterSeed);
+
+  const solverSeed = Buffer.alloc(32);
+  solverSeed.write("intent-escrow-solver-seed-00001");
+  const solver = Keypair.fromSeed(solverSeed);
 
   // Airdrop SOL to test accounts
   const airdropAmount = 10 * anchor.web3.LAMPORTS_PER_SOL;

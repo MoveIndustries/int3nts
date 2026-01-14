@@ -164,14 +164,14 @@ pub struct Escrow {
 
 ---
 
-## Phase 4: Core Tests
+## Phase 4: Core Tests ✅
 
 **Commit: `test(svm): add core escrow tests`**
 
-- [ ] Create `tests/initialization.test.ts` - Verifier setup, escrow creation, duplicate prevention
-- [ ] Create `tests/deposit.test.ts` - Token deposits, balance verification
-- [ ] Create `tests/claim.test.ts` - Signature verification, replay prevention, double-claim prevention
-- [ ] Create `tests/cancel.test.ts` - Expiry enforcement, refund flow
+- [x] Create `tests/initialization.test.ts` - Verifier setup, escrow creation, duplicate prevention
+- [x] Create `tests/deposit.test.ts` - Token deposits, balance verification
+- [x] Create `tests/claim.test.ts` - Signature verification, replay prevention, double-claim prevention
+- [x] Create `tests/cancel.test.ts` - Expiry enforcement, refund flow
 
 ---
 

@@ -10,12 +10,9 @@ Solana Anchor program for SVM escrows.
 # Enter dev shell (includes Solana/Anchor)
 nix develop
 
-# Build (uses wrapper script for compatibility)
+# Build and test
 cd svm-intent-framework
-./scripts/build.sh
-
-# Or for testing
-npm install && anchor test
+./scripts/test.sh
 ```
 
 ## Build Script

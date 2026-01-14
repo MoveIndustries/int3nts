@@ -56,5 +56,52 @@ describe("IntentEscrow - Create Escrow (Deposit)", function () {
       escrow.connect(requester).createEscrow(intentId, token.target, amount, solver.address)
     ).to.be.revertedWith("Escrow already exists");
   });
+
+  /// Test: Multiple Escrows with Different Intent IDs
+  /// Verifies that multiple escrows can be created for different intent IDs.
+  /// Why: System must support concurrent escrows.
+  it("Should support multiple escrows with different intent IDs", async function () {
+    const intentId1 = intentId;
+    const intentId2 = intentId + 1n;
+    const amount1 = ethers.parseEther("100");
+    const amount2 = ethers.parseEther("200");
+
+    // Mint and approve for both
+    await token.mint(requester.address, amount1 + amount2);
+    await token.connect(requester).approve(escrow.target, amount1 + amount2);
+
+    // Create first escrow
+    await escrow.connect(requester).createEscrow(intentId1, token.target, amount1, solver.address);
+
+    // Create second escrow
+    await escrow.connect(requester).createEscrow(intentId2, token.target, amount2, solver.address);
+
+    // Verify both escrows exist with correct amounts
+    const escrow1 = await escrow.getEscrow(intentId1);
+    const escrow2 = await escrow.getEscrow(intentId2);
+    
+    expect(escrow1.amount).to.equal(amount1);
+    expect(escrow2.amount).to.equal(amount2);
+    expect(await token.balanceOf(escrow.target)).to.equal(amount1 + amount2);
+  });
+
+  /// Test: Escrow Expiry Timestamp
+  /// Verifies that escrow expiry is set correctly (current time + EXPIRY_DURATION).
+  /// Why: Expiry must be correct for time-based cancel functionality.
+  it("Should set correct expiry timestamp", async function () {
+    const amount = ethers.parseEther("100");
+    await token.mint(requester.address, amount);
+    await token.connect(requester).approve(escrow.target, amount);
+
+    const tx = await escrow.connect(requester).createEscrow(intentId, token.target, amount, solver.address);
+    const receipt = await tx.wait();
+    const block = await ethers.provider.getBlock(receipt.blockNumber);
+    
+    const expiryDuration = await escrow.EXPIRY_DURATION();
+    const expectedExpiry = BigInt(block.timestamp) + expiryDuration;
+
+    const escrowData = await escrow.getEscrow(intentId);
+    expect(escrowData.expiry).to.equal(expectedExpiry);
+  });
 });
 
