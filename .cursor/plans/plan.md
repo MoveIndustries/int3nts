@@ -62,7 +62,7 @@ git commit -m "<type>: <description>
 
 - <more detailed points if needed (optional)>
 
-Tests pass: Move <amount>, EVM <amount>, Verifier (Rust) <number>, Solver (Rust) <number>, Frontend <number>, SVM <number>"
+Tests pass: Verifier (Rust) <number>, Solver (Rust) <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>"
 ```
 
 **If tests were NOT run (e.g., project setup, docs only, no test-affecting changes):**

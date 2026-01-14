@@ -111,9 +111,9 @@ describe("IntentEscrow - Cancel", function () {
 
       const initialBalance = await getTokenBalance(ctx.provider, ctx.requesterTokenAccount);
 
-      // Wait for expiry (2 seconds + 1 second buffer to ensure we're past expiry)
-      console.log("Waiting 3 seconds for escrow to expire...");
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Wait for expiry (2 seconds + 2 second buffer to ensure we're past expiry)
+      console.log("Waiting 4 seconds for escrow to expire...");
+      await new Promise(resolve => setTimeout(resolve, 4000));
 
     await ctx.program.methods
       .cancel(Array.from(shortExpiryIntentId))

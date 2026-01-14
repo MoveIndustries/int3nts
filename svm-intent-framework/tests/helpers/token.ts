@@ -122,15 +122,22 @@ export async function mintTo(
   mint: PublicKey,
   destination: PublicKey,
   authority: Keypair,
-  amount: number
+  amount: number | anchor.BN | bigint
 ): Promise<void> {
+  const amountBigInt =
+    typeof amount === "bigint"
+      ? amount
+      : amount instanceof anchor.BN
+        ? BigInt(amount.toString())
+        : BigInt(amount);
+
   await splMintTo(
     provider.connection,
     authority,
     mint,
     destination,
     authority,
-    amount
+    amountBigInt
   );
 }
 
