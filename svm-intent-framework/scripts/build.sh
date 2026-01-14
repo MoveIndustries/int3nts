@@ -14,12 +14,30 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 REPO_ROOT="$(dirname "$PROJECT_DIR")"
+ANCHOR_VERSION="0.29.0"
 
 # If not in nix shell, re-exec inside nix develop
 if [ -z "$IN_NIX_SHELL" ]; then
     echo "[build.sh] Entering nix develop..."
     exec nix develop "$REPO_ROOT" -c bash "$0" "$@"
 fi
+
+# Ensure a pinned Anchor version is installed and selected.
+# Prefer the Anchor binary provided by the nix shell to avoid avm prompts in CI.
+CURRENT_ANCHOR_VERSION=""
+if command -v anchor >/dev/null 2>&1; then
+    CURRENT_ANCHOR_VERSION="$(anchor --version | awk '{print $2}')"
+fi
+
+if [ "$CURRENT_ANCHOR_VERSION" != "$ANCHOR_VERSION" ]; then
+    # avm can prompt for confirmation, so install non-interactively.
+    echo "[build.sh] Ensuring Anchor $ANCHOR_VERSION is installed via avm..."
+    printf 'y\n' | avm install "$ANCHOR_VERSION" >/dev/null 2>&1 || true
+    echo "[build.sh] Using Anchor $ANCHOR_VERSION via avm..."
+    avm use "$ANCHOR_VERSION"
+fi
+
+echo "[build.sh] Anchor version: $(anchor --version)"
 
 # Create local bin directory for shims
 mkdir -p "$PROJECT_DIR/.bin"
