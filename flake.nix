@@ -57,8 +57,8 @@
             if ! command -v anchor > /dev/null 2>&1; then
               echo "[nix] Installing Anchor CLI via avm..."
               $HOME/.cargo/bin/cargo install --git https://github.com/coral-xyz/anchor avm --force --locked 2>/dev/null || true
-              avm install 0.29.0 2>/dev/null || true
-              avm use 0.29.0 2>/dev/null || true
+              printf 'y\n' | avm install 0.29.0 >/dev/null 2>&1 || true
+              avm use 0.29.0 >/dev/null 2>&1 || true
             fi
             
             echo "[nix] Dev shell ready: rustc $(rustc --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | cargo $(cargo --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | aptos $(aptos --version 2>/dev/null || echo 'unknown') | movement $(movement --version 2>/dev/null || echo 'unknown') | solana $(solana --version 2>/dev/null | head -1 | awk '{print $2}' || echo 'not installed') | anchor $(anchor --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | node $(node --version 2>/dev/null || echo 'unknown')"
