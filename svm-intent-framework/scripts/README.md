@@ -6,7 +6,7 @@ Scripts for building, testing, and CI simulation of the SVM Intent Framework.
 
 ### `build.sh`
 
-Builds the Anchor program with workarounds for Anchor 0.29.x / Solana CLI 2.x compatibility.
+Builds the native Solana program with workarounds for Solana CLI 2.x compatibility.
 
 ```bash
 ./scripts/build.sh
@@ -14,7 +14,7 @@ Builds the Anchor program with workarounds for Anchor 0.29.x / Solana CLI 2.x co
 
 ### `test.sh`
 
-Builds and runs the Anchor test suite.
+Builds and runs the Rust test suite using `solana-program-test`.
 
 ```bash
 ./scripts/test.sh
@@ -35,14 +35,6 @@ Simulates the GitHub Actions CI environment locally using Docker.
 - **Docker** - for `test-docker.sh`
 
 ## Troubleshooting
-
-### "anchor: command not found"
-
-```bash
-cargo install --git https://github.com/coral-xyz/anchor avm --force --locked
-avm install 0.29.0
-avm use 0.29.0
-```
 
 ### Docker build fails
 

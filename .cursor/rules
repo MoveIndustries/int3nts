@@ -73,7 +73,7 @@ nix develop -c bash -c "cd evm-intent-framework && npm test" 2>&1 | grep -oE "[0
 nix develop -c bash -c "cd frontend && npm test" 2>&1 | grep -oE "Tests[[:space:]]+[0-9]+ passed" | grep -oE "[0-9]+"
 
 # SVM tests
-nix develop -c bash -c "cd svm-intent-framework && anchor test" 2>&1 | grep -oE "[0-9]+ passing" | awk '{print $1}'
+nix develop -c bash -c "cd svm-intent-framework && ./scripts/test.sh" 2>&1 | grep -oE "[0-9]+ test" | awk '{print $1}'
 ```
 
 ## Context Requirements

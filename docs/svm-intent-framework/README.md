@@ -76,26 +76,40 @@ See the [component README](../../svm-intent-framework/README.md) for quick start
 ## Usage Example
 
 ```typescript
-import * as anchor from "@coral-xyz/anchor";
-import { Ed25519Program, SYSVAR_INSTRUCTIONS_PUBKEY } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+  Ed25519Program,
+  SYSVAR_INSTRUCTIONS_PUBKEY,
+  sendAndConfirmTransaction,
+} from "@solana/web3.js";
 import * as nacl from "tweetnacl";
+import { buildCreateEscrowInstruction, buildClaimInstruction } from "./helpers";
 
-// Create escrow
-await program.methods
-  .createEscrow(Array.from(intentId), amount)
-  .accounts({
-    escrow: escrowPda,
-    requester: requester.publicKey,
-    tokenMint: tokenMint,
-    requesterTokenAccount: requesterAta,
-    escrowVault: vaultPda,
-    reservedSolver: solver.publicKey,
-    tokenProgram: TOKEN_PROGRAM_ID,
-    systemProgram: SystemProgram.programId,
-    rent: SYSVAR_RENT_PUBKEY,
-  })
-  .signers([requester])
-  .rpc();
+// Derive PDAs
+const [escrowPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("escrow"), intentId],
+  programId
+);
+const [vaultPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("vault"), intentId],
+  programId
+);
+
+// Create escrow instruction
+const createEscrowIx = buildCreateEscrowInstruction(
+  intentId,
+  amount,
+  requester.publicKey,
+  tokenMint,
+  requesterTokenAccount,
+  solver.publicKey
+);
+
+const createTx = new Transaction().add(createEscrowIx);
+await sendAndConfirmTransaction(connection, createTx, [requester]);
 
 // Verifier signs intent_id (off-chain)
 const signature = nacl.sign.detached(intentId, verifier.secretKey);
@@ -106,22 +120,16 @@ const ed25519Ix = Ed25519Program.createInstructionWithPrivateKey({
   message: intentId,
 });
 
-const claimIx = await program.methods
-  .claim(Array.from(intentId), Array.from(signature))
-  .accounts({
-    escrow: escrowPda,
-    state: statePda,
-    escrowVault: vaultPda,
-    solverTokenAccount: solverAta,
-    instructionSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-    tokenProgram: TOKEN_PROGRAM_ID,
-    clock: SYSVAR_CLOCK_PUBKEY,
-  })
-  .instruction();
+const claimIx = buildClaimInstruction(
+  intentId,
+  signature,
+  solverTokenAccount,
+  statePda
+);
 
 // Ed25519 instruction must be first
-const tx = new Transaction().add(ed25519Ix).add(claimIx);
-await provider.sendAndConfirm(tx, [solver]);
+const claimTx = new Transaction().add(ed25519Ix).add(claimIx);
+await sendAndConfirmTransaction(connection, claimTx, [solver]);
 ```
 
 ## Security Considerations

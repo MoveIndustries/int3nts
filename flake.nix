@@ -37,9 +37,9 @@
           ];
 
           shellHook = ''
-            # Solana/Anchor/rustup tools path (added AFTER Nix tools, so Nix Rust takes precedence)
+            # Solana/rustup tools path (added AFTER Nix tools, so Nix Rust takes precedence)
             # SVM build script explicitly uses rustup's cargo when needed
-            export PATH="$PATH:$HOME/.cargo/bin:$HOME/.local/share/solana/install/active_release/bin:$HOME/.avm/bin"
+            export PATH="$PATH:$HOME/.cargo/bin:$HOME/.local/share/solana/install/active_release/bin"
             
             # Install rustup if not already installed (needed for Solana's +toolchain syntax)
             if ! command -v rustup > /dev/null 2>&1; then
@@ -48,23 +48,14 @@
             fi
             
             # Install Solana CLI if not already installed (official installer, writable location)
+            # Required for SVM tests (cargo build-sbf)
             if ! command -v solana > /dev/null 2>&1; then
               echo "[nix] Installing Solana CLI..."
               sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)" 2>/dev/null || true
             fi
             
-            # Install Anchor via avm if not already installed
-            if ! command -v anchor > /dev/null 2>&1; then
-              echo "[nix] Installing Anchor CLI..."
-              # Remove any existing anchor binaries/symlinks
-              $HOME/.cargo/bin/cargo uninstall anchor-cli 2>/dev/null || true
-              rm -f $HOME/.cargo/bin/anchor 2>/dev/null || true
-              rm -f $HOME/.avm/bin/anchor 2>/dev/null || true
-              # Install anchor-cli directly with --force
-              $HOME/.cargo/bin/cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli --force --locked 2>/dev/null || true
-            fi
+            echo "[nix] Dev shell ready: rustc $(rustc --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | cargo $(cargo --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | aptos $(aptos --version 2>/dev/null || echo 'unknown') | movement $(movement --version 2>/dev/null || echo 'unknown') | solana $(solana --version 2>/dev/null | head -1 | awk '{print $2}' || echo 'not installed') | node $(node --version 2>/dev/null || echo 'unknown')"
             
-            echo "[nix] Dev shell ready: rustc $(rustc --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | cargo $(cargo --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | aptos $(aptos --version 2>/dev/null || echo 'unknown') | movement $(movement --version 2>/dev/null || echo 'unknown') | solana $(solana --version 2>/dev/null | head -1 | awk '{print $2}' || echo 'not installed') | anchor $(anchor --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | node $(node --version 2>/dev/null || echo 'unknown')"
             export OPENSSL_DIR=${pkgs.openssl.dev}
             export OPENSSL_LIB_DIR=${pkgs.openssl.out}/lib
             export OPENSSL_INCLUDE_DIR=${pkgs.openssl.dev}/include
