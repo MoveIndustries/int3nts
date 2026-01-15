@@ -55,8 +55,6 @@ Then verify no edition2024 crates snuck in:
 grep -A1 'name = "constant_time_eq"' Cargo.lock  # Should show v0.3.x, not v0.4.x
 ```
 
-See: [anchor#3392](https://github.com/solana-foundation/anchor/issues/3392)
-
 ### When to Remove These Workarounds
 
 Check periodically and remove when **all** conditions are met:

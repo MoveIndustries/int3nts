@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # SVM Intent Framework Build Script
 #
-# Native Solana build (no Anchor)
-# Handles edition2024 compatibility by pinning dependencies
+# Native Solana build with edition2024 compatibility workarounds.
 
 set -e
 

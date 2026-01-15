@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # SVM Intent Framework Test Script
 #
-# Builds the program and runs tests using solana-test-validator + TypeScript tests.
-# No Anchor required.
+# Runs Rust tests using solana-program-test.
 
 set -e
 

@@ -1,7 +1,4 @@
 # SVM Intent Framework Workspace
-#
-# Native Solana (no Anchor)
-# Dependencies are minimal and stable.
 
 [workspace]
 members = [
