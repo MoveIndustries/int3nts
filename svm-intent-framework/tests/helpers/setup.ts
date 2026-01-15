@@ -1,16 +1,31 @@
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
-import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
-import { IntentEscrow } from "../../target/types/intent_escrow";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+  sendAndConfirmTransaction,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
 import { createMint, createTokenAccounts, mintTo } from "./token";
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+// Program ID - must match the one in lib.rs
+export const PROGRAM_ID = new PublicKey(
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+);
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
 export interface TestContext {
-  provider: anchor.AnchorProvider;
-  program: Program<IntentEscrow>;
+  connection: Connection;
+  payer: Keypair;
   verifier: Keypair;
   requester: Keypair;
   solver: Keypair;
@@ -21,66 +36,129 @@ export interface TestContext {
   stateBump: number;
 }
 
+// Instruction tags
+const InstructionTag = {
+  Initialize: 0,
+  CreateEscrow: 1,
+  Claim: 2,
+  Cancel: 3,
+} as const;
+
+// ============================================================================
+// MANUAL SERIALIZATION HELPERS
+// ============================================================================
+
+function serializeInitialize(verifier: PublicKey): Buffer {
+  const buf = Buffer.alloc(1 + 32);
+  buf.writeUInt8(InstructionTag.Initialize, 0);
+  verifier.toBuffer().copy(buf, 1);
+  return buf;
+}
+
+function serializeCreateEscrow(
+  intentId: Uint8Array,
+  amount: bigint,
+  expiryDuration?: bigint
+): Buffer {
+  // 1 byte tag + 32 bytes intentId + 8 bytes amount + 1 byte option flag + 8 bytes optional expiry
+  const hasExpiry = expiryDuration !== undefined;
+  const buf = Buffer.alloc(1 + 32 + 8 + 1 + (hasExpiry ? 8 : 0));
+  let offset = 0;
+
+  buf.writeUInt8(InstructionTag.CreateEscrow, offset);
+  offset += 1;
+
+  Buffer.from(intentId).copy(buf, offset);
+  offset += 32;
+
+  buf.writeBigUInt64LE(amount, offset);
+  offset += 8;
+
+  if (hasExpiry) {
+    buf.writeUInt8(1, offset); // Some
+    offset += 1;
+    buf.writeBigInt64LE(expiryDuration!, offset);
+  } else {
+    buf.writeUInt8(0, offset); // None
+  }
+
+  return buf;
+}
+
+function serializeClaim(intentId: Uint8Array, signature: Uint8Array): Buffer {
+  const buf = Buffer.alloc(1 + 32 + 64);
+  let offset = 0;
+
+  buf.writeUInt8(InstructionTag.Claim, offset);
+  offset += 1;
+
+  Buffer.from(intentId).copy(buf, offset);
+  offset += 32;
+
+  Buffer.from(signature).copy(buf, offset);
+
+  return buf;
+}
+
+function serializeCancel(intentId: Uint8Array): Buffer {
+  const buf = Buffer.alloc(1 + 32);
+  buf.writeUInt8(InstructionTag.Cancel, 0);
+  Buffer.from(intentId).copy(buf, 1);
+  return buf;
+}
+
 // ============================================================================
 // SETUP FUNCTIONS
 // ============================================================================
 
 /**
  * Initialize the IntentEscrow program state with a verifier
- *
- * # Arguments
- * - `program`: The Anchor program instance
- * - `payer`: Keypair to pay for the transaction
- * - `verifier`: Public key of the authorized verifier
- *
- * # Returns
- * - `statePda`: The PDA address of the state account
- * - `stateBump`: The bump seed for the state PDA
  */
 export async function initializeProgram(
-  program: Program<IntentEscrow>,
+  connection: Connection,
   payer: Keypair,
   verifier: PublicKey
 ): Promise<{ statePda: PublicKey; stateBump: number }> {
   const [statePda, stateBump] = PublicKey.findProgramAddressSync(
     [Buffer.from("state")],
-    program.programId
+    PROGRAM_ID
   );
 
-  // Check if already initialized (account exists with data)
-  const stateAccount = await program.provider.connection.getAccountInfo(statePda);
+  // Check if already initialized
+  const stateAccount = await connection.getAccountInfo(statePda);
   if (stateAccount !== null) {
-    // Already initialized, just return the PDA
     return { statePda, stateBump };
   }
 
-  await program.methods
-    .initialize(verifier)
-    .accounts({
-      state: statePda,
-      payer: payer.publicKey,
-      systemProgram: SystemProgram.programId,
-    })
-    .signers([payer])
-    .rpc();
+  const data = serializeInitialize(verifier);
+
+  const ix = new TransactionInstruction({
+    keys: [
+      { pubkey: statePda, isSigner: false, isWritable: true },
+      { pubkey: payer.publicKey, isSigner: true, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    programId: PROGRAM_ID,
+    data,
+  });
+
+  const tx = new Transaction().add(ix);
+  await sendAndConfirmTransaction(connection, tx, [payer]);
 
   return { statePda, stateBump };
 }
 
 /**
  * Set up a complete test environment with all necessary accounts
- *
- * # Returns
- * - `TestContext`: Object containing all test accounts and program references
  */
 export async function setupIntentEscrowTests(): Promise<TestContext> {
-  const provider = anchor.AnchorProvider.env();
-  anchor.setProvider(provider);
-
-  const program = anchor.workspace.IntentEscrow as Program<IntentEscrow>;
+  const connection = new Connection("http://localhost:8899", "confirmed");
 
   // Use deterministic keypairs for consistent test state across runs
-  // This ensures the same verifier is used if state is already initialized
+  const payerSeed = Buffer.alloc(32);
+  payerSeed.write("intent-escrow-payer-seed-00001");
+  const payer = Keypair.fromSeed(payerSeed);
+
   const verifierSeed = Buffer.alloc(32);
   verifierSeed.write("intent-escrow-verifier-seed-001");
   const verifier = Keypair.fromSeed(verifierSeed);
@@ -94,41 +172,42 @@ export async function setupIntentEscrowTests(): Promise<TestContext> {
   const solver = Keypair.fromSeed(solverSeed);
 
   // Airdrop SOL to test accounts
-  const airdropAmount = 10 * anchor.web3.LAMPORTS_PER_SOL;
+  const airdropAmount = 10 * LAMPORTS_PER_SOL;
   await Promise.all([
-    provider.connection.requestAirdrop(verifier.publicKey, airdropAmount),
-    provider.connection.requestAirdrop(requester.publicKey, airdropAmount),
-    provider.connection.requestAirdrop(solver.publicKey, airdropAmount),
+    connection.requestAirdrop(payer.publicKey, airdropAmount),
+    connection.requestAirdrop(verifier.publicKey, airdropAmount),
+    connection.requestAirdrop(requester.publicKey, airdropAmount),
+    connection.requestAirdrop(solver.publicKey, airdropAmount),
   ]);
 
   // Wait for airdrops to confirm
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // Create token mint
-  const tokenMint = await createMint(provider, requester);
+  const tokenMint = await createMint(connection, requester);
 
   // Create token accounts
   const { requesterTokenAccount, solverTokenAccount } = await createTokenAccounts(
-    provider,
+    connection,
     tokenMint,
     requester,
     solver
   );
 
   // Mint tokens to requester
-  const mintAmount = 1_000_000_000; // 1 billion tokens
-  await mintTo(provider, tokenMint, requesterTokenAccount, requester, mintAmount);
+  const mintAmount = 1_000_000_000n; // 1 billion tokens
+  await mintTo(connection, tokenMint, requesterTokenAccount, requester, mintAmount);
 
   // Initialize program state
   const { statePda, stateBump } = await initializeProgram(
-    program,
+    connection,
     requester,
     verifier.publicKey
   );
 
   return {
-    provider,
-    program,
+    connection,
+    payer,
     verifier,
     requester,
     solver,
@@ -141,14 +220,103 @@ export async function setupIntentEscrowTests(): Promise<TestContext> {
 }
 
 // ============================================================================
+// INSTRUCTION BUILDERS
+// ============================================================================
+
+/**
+ * Build a CreateEscrow instruction
+ */
+export function buildCreateEscrowInstruction(
+  intentId: Uint8Array,
+  amount: bigint,
+  requester: PublicKey,
+  tokenMint: PublicKey,
+  requesterTokenAccount: PublicKey,
+  reservedSolver: PublicKey,
+  expiryDuration?: bigint
+): TransactionInstruction {
+  const [escrowPda] = getEscrowPda(PROGRAM_ID, intentId);
+  const [vaultPda] = getVaultPda(PROGRAM_ID, intentId);
+
+  const data = serializeCreateEscrow(intentId, amount, expiryDuration);
+
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: escrowPda, isSigner: false, isWritable: true },
+      { pubkey: requester, isSigner: true, isWritable: true },
+      { pubkey: tokenMint, isSigner: false, isWritable: false },
+      { pubkey: requesterTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: vaultPda, isSigner: false, isWritable: true },
+      { pubkey: reservedSolver, isSigner: false, isWritable: false },
+      { pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: new PublicKey("SysvarRent111111111111111111111111111111111"), isSigner: false, isWritable: false },
+    ],
+    programId: PROGRAM_ID,
+    data,
+  });
+}
+
+/**
+ * Build a Claim instruction
+ */
+export function buildClaimInstruction(
+  intentId: Uint8Array,
+  signature: Uint8Array,
+  solverTokenAccount: PublicKey,
+  statePda: PublicKey
+): TransactionInstruction {
+  const [escrowPda] = getEscrowPda(PROGRAM_ID, intentId);
+  const [vaultPda] = getVaultPda(PROGRAM_ID, intentId);
+
+  const data = serializeClaim(intentId, signature);
+
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: escrowPda, isSigner: false, isWritable: true },
+      { pubkey: statePda, isSigner: false, isWritable: false },
+      { pubkey: vaultPda, isSigner: false, isWritable: true },
+      { pubkey: solverTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: new PublicKey("Sysvar1nstructions1111111111111111111111111"), isSigner: false, isWritable: false },
+      { pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), isSigner: false, isWritable: false },
+    ],
+    programId: PROGRAM_ID,
+    data,
+  });
+}
+
+/**
+ * Build a Cancel instruction
+ */
+export function buildCancelInstruction(
+  intentId: Uint8Array,
+  requester: PublicKey,
+  requesterTokenAccount: PublicKey
+): TransactionInstruction {
+  const [escrowPda] = getEscrowPda(PROGRAM_ID, intentId);
+  const [vaultPda] = getVaultPda(PROGRAM_ID, intentId);
+
+  const data = serializeCancel(intentId);
+
+  return new TransactionInstruction({
+    keys: [
+      { pubkey: escrowPda, isSigner: false, isWritable: true },
+      { pubkey: requester, isSigner: true, isWritable: true },
+      { pubkey: vaultPda, isSigner: false, isWritable: true },
+      { pubkey: requesterTokenAccount, isSigner: false, isWritable: true },
+      { pubkey: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), isSigner: false, isWritable: false },
+    ],
+    programId: PROGRAM_ID,
+    data,
+  });
+}
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
 /**
  * Generate a random 32-byte intent ID
- *
- * # Returns
- * - `Uint8Array`: 32-byte random intent ID
  */
 export function generateIntentId(): Uint8Array {
   return Keypair.generate().publicKey.toBytes();
@@ -156,13 +324,6 @@ export function generateIntentId(): Uint8Array {
 
 /**
  * Convert a hex string to a 32-byte Uint8Array
- * Useful for cross-chain intent ID compatibility
- *
- * # Arguments
- * - `hexString`: Hex string (with or without 0x prefix)
- *
- * # Returns
- * - `Uint8Array`: 32-byte array
  */
 export function hexToBytes32(hexString: string): Uint8Array {
   const hex = hexString.startsWith("0x") ? hexString.slice(2) : hexString;
@@ -176,20 +337,11 @@ export function hexToBytes32(hexString: string): Uint8Array {
 
 /**
  * Advance blockchain time for expiry testing
- * Note: This only works with solana-test-validator in test mode
- *
- * # Arguments
- * - `provider`: Anchor provider
- * - `seconds`: Number of seconds to advance
  */
 export async function advanceTime(
-  provider: anchor.AnchorProvider,
+  connection: Connection,
   seconds: number
 ): Promise<void> {
-  // In Solana, we can't directly advance time like in EVM
-  // For testing expiry, we need to use solana-test-validator with --warp-slot
-  // or wait for actual time to pass
-  // This is a placeholder - actual implementation depends on test environment
   console.warn(
     `advanceTime: Waiting ${seconds}s (Solana doesn't support time manipulation like EVM)`
   );
@@ -198,14 +350,6 @@ export async function advanceTime(
 
 /**
  * Get escrow PDA address for a given intent ID
- *
- * # Arguments
- * - `programId`: The program ID
- * - `intentId`: The 32-byte intent ID
- *
- * # Returns
- * - `escrowPda`: The PDA address
- * - `bump`: The bump seed
  */
 export function getEscrowPda(
   programId: PublicKey,
@@ -219,14 +363,6 @@ export function getEscrowPda(
 
 /**
  * Get vault PDA address for a given intent ID
- *
- * # Arguments
- * - `programId`: The program ID
- * - `intentId`: The 32-byte intent ID
- *
- * # Returns
- * - `vaultPda`: The PDA address
- * - `bump`: The bump seed
  */
 export function getVaultPda(
   programId: PublicKey,
@@ -236,4 +372,39 @@ export function getVaultPda(
     [Buffer.from("vault"), Buffer.from(intentId)],
     programId
   );
+}
+
+// ============================================================================
+// ERROR CODES
+// ============================================================================
+
+/**
+ * Custom error codes from the program (must match error.rs)
+ */
+export const EscrowErrorCode = {
+  EscrowAlreadyClaimed: 0,
+  EscrowDoesNotExist: 1,
+  NoDeposit: 2,
+  UnauthorizedRequester: 3,
+  InvalidSignature: 4,
+  UnauthorizedVerifier: 5,
+  EscrowExpired: 6,
+  EscrowNotExpiredYet: 7,
+  InvalidAmount: 8,
+  InvalidSolver: 9,
+  InvalidInstructionData: 10,
+  AccountNotInitialized: 11,
+  InvalidPDA: 12,
+  InvalidAccountOwner: 13,
+} as const;
+
+/**
+ * Check if an error contains a specific custom error code
+ */
+export function hasErrorCode(error: any, code: number): boolean {
+  const errorStr = error.toString();
+  // Solana formats custom errors as "custom program error: 0xN" in hex
+  const hexCode = `0x${code.toString(16)}`;
+  return errorStr.includes(`custom program error: ${hexCode}`) || 
+         errorStr.includes(`Custom(${code})`);
 }

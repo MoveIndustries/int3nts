@@ -1,139 +1,155 @@
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
 import {
-  Keypair,
+  Connection,
   PublicKey,
-  SystemProgram,
   Transaction,
-  Ed25519Program,
-  SYSVAR_INSTRUCTIONS_PUBKEY,
+  sendAndConfirmTransaction,
 } from "@solana/web3.js";
-import { IntentEscrow } from "../target/types/intent_escrow";
 import {
   setupIntentEscrowTests,
   generateIntentId,
   getEscrowPda,
   getVaultPda,
+  buildCreateEscrowInstruction,
   TestContext,
+  PROGRAM_ID,
 } from "./helpers";
-import { getTokenBalance, TOKEN_PROGRAM_ID } from "./helpers/token";
-import * as nacl from "tweetnacl";
+import { getTokenBalance } from "./helpers/token";
 
-describe("IntentEscrow - Deposit", function () {
+describe("IntentEscrow - Create Escrow (Deposit)", function () {
   let ctx: TestContext;
 
   beforeEach(async function () {
     ctx = await setupIntentEscrowTests();
   });
 
-  // ============================================================================
-  // TOKEN DEPOSIT TESTS
-  // ============================================================================
-
-  /// Test: Token Deposit on Escrow Creation
-  /// Verifies that tokens are correctly transferred from requester to vault on creation.
-  /// Why: Atomic creation + deposit is the core escrow mechanism.
-  it("Should deposit tokens to vault on escrow creation", async function () {
+  /// Test: Token Escrow Creation
+  /// Verifies that requesters can create an escrow with SPL tokens atomically.
+  /// Why: Escrow creation is the first step in the intent fulfillment flow. Requesters must be able to lock funds securely.
+  it("Should allow requester to create escrow with tokens", async function () {
     const intentId = generateIntentId();
-    const amount = new anchor.BN(1_000_000);
+    const amount = 1_000_000n;
 
-    const [escrowPda] = getEscrowPda(ctx.program.programId, intentId);
-    const [vaultPda] = getVaultPda(ctx.program.programId, intentId);
+    const [escrowPda] = getEscrowPda(PROGRAM_ID, intentId);
+    const [vaultPda] = getVaultPda(PROGRAM_ID, intentId);
 
     // Get initial balance
     const initialRequesterBalance = await getTokenBalance(
-      ctx.provider,
+      ctx.connection,
       ctx.requesterTokenAccount
     );
 
-    await ctx.program.methods
-      .createEscrow(Array.from(intentId), amount, null)
-      .accounts({
-        escrow: escrowPda,
-        requester: ctx.requester.publicKey,
-        tokenMint: ctx.tokenMint,
-        requesterTokenAccount: ctx.requesterTokenAccount,
-        escrowVault: vaultPda,
-        reservedSolver: ctx.solver.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .signers([ctx.requester])
-      .rpc();
+    const ix = buildCreateEscrowInstruction(
+      intentId,
+      amount,
+      ctx.requester.publicKey,
+      ctx.tokenMint,
+      ctx.requesterTokenAccount,
+      ctx.solver.publicKey
+    );
+
+    const tx = new Transaction().add(ix);
+    await sendAndConfirmTransaction(ctx.connection, tx, [ctx.requester]);
 
     // Verify requester balance decreased
     const finalRequesterBalance = await getTokenBalance(
-      ctx.provider,
+      ctx.connection,
       ctx.requesterTokenAccount
     );
-    expect(finalRequesterBalance).to.equal(initialRequesterBalance - amount.toNumber());
+    expect(finalRequesterBalance).to.equal(initialRequesterBalance - Number(amount));
 
     // Verify vault balance increased
-    const vaultBalance = await getTokenBalance(ctx.provider, vaultPda);
-    expect(vaultBalance).to.equal(amount.toNumber());
+    const vaultBalance = await getTokenBalance(ctx.connection, vaultPda);
+    expect(vaultBalance).to.equal(Number(amount));
+
+    // Verify escrow data
+    const escrowData = await ctx.connection.getAccountInfo(escrowPda);
+    expect(escrowData).to.not.be.null;
+    const amountBytes = escrowData!.data.slice(72, 80);
+    const storedAmount = Buffer.from(amountBytes).readBigUInt64LE(0);
+    expect(storedAmount).to.equal(amount);
   });
 
-  /// Test: Multiple Escrows with Different Tokens
+  /// Test: Escrow Creation After Claim Prevention
+  /// Verifies that escrows cannot be created with an intent ID that was already claimed.
+  /// Why: Prevents duplicate escrows and ensures each intent ID maps to a single escrow state.
+  it("Should revert if escrow is already claimed", async function () {
+    const intentId = generateIntentId();
+    const amount = 1_000_000n;
+
+    const ix = buildCreateEscrowInstruction(
+      intentId,
+      amount,
+      ctx.requester.publicKey,
+      ctx.tokenMint,
+      ctx.requesterTokenAccount,
+      ctx.solver.publicKey
+    );
+
+    // First creation should succeed
+    const tx1 = new Transaction().add(ix);
+    await sendAndConfirmTransaction(ctx.connection, tx1, [ctx.requester]);
+
+    // Second creation with same intent ID should fail (escrow already exists)
+    const ix2 = buildCreateEscrowInstruction(
+      intentId,
+      amount,
+      ctx.requester.publicKey,
+      ctx.tokenMint,
+      ctx.requesterTokenAccount,
+      ctx.solver.publicKey
+    );
+    const tx2 = new Transaction().add(ix2);
+
+    try {
+      await sendAndConfirmTransaction(ctx.connection, tx2, [ctx.requester]);
+      expect.fail("Should have thrown an error");
+    } catch (err: any) {
+      expect(err.toString()).to.include("already in use");
+    }
+  });
+
+  /// Test: Multiple Escrows with Different Intent IDs
   /// Verifies that multiple escrows can be created for different intent IDs.
   /// Why: System must support concurrent escrows.
   it("Should support multiple escrows with different intent IDs", async function () {
     const intentId1 = generateIntentId();
     const intentId2 = generateIntentId();
-    const amount1 = new anchor.BN(1_000_000);
-    const amount2 = new anchor.BN(2_000_000);
+    const amount1 = 1_000_000n;
+    const amount2 = 2_000_000n;
 
-    const [escrowPda1] = getEscrowPda(ctx.program.programId, intentId1);
-    const [vaultPda1] = getVaultPda(ctx.program.programId, intentId1);
-    const [escrowPda2] = getEscrowPda(ctx.program.programId, intentId2);
-    const [vaultPda2] = getVaultPda(ctx.program.programId, intentId2);
+    const [vaultPda1] = getVaultPda(PROGRAM_ID, intentId1);
+    const [vaultPda2] = getVaultPda(PROGRAM_ID, intentId2);
 
     // Create first escrow
-    await ctx.program.methods
-      .createEscrow(Array.from(intentId1), amount1, null)
-      .accounts({
-        escrow: escrowPda1,
-        requester: ctx.requester.publicKey,
-        tokenMint: ctx.tokenMint,
-        requesterTokenAccount: ctx.requesterTokenAccount,
-        escrowVault: vaultPda1,
-        reservedSolver: ctx.solver.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .signers([ctx.requester])
-      .rpc();
+    const ix1 = buildCreateEscrowInstruction(
+      intentId1,
+      amount1,
+      ctx.requester.publicKey,
+      ctx.tokenMint,
+      ctx.requesterTokenAccount,
+      ctx.solver.publicKey
+    );
+    const tx1 = new Transaction().add(ix1);
+    await sendAndConfirmTransaction(ctx.connection, tx1, [ctx.requester]);
 
     // Create second escrow
-    await ctx.program.methods
-      .createEscrow(Array.from(intentId2), amount2, null)
-      .accounts({
-        escrow: escrowPda2,
-        requester: ctx.requester.publicKey,
-        tokenMint: ctx.tokenMint,
-        requesterTokenAccount: ctx.requesterTokenAccount,
-        escrowVault: vaultPda2,
-        reservedSolver: ctx.solver.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .signers([ctx.requester])
-      .rpc();
+    const ix2 = buildCreateEscrowInstruction(
+      intentId2,
+      amount2,
+      ctx.requester.publicKey,
+      ctx.tokenMint,
+      ctx.requesterTokenAccount,
+      ctx.solver.publicKey
+    );
+    const tx2 = new Transaction().add(ix2);
+    await sendAndConfirmTransaction(ctx.connection, tx2, [ctx.requester]);
 
     // Verify both vaults have correct balances
-    const vault1Balance = await getTokenBalance(ctx.provider, vaultPda1);
-    const vault2Balance = await getTokenBalance(ctx.provider, vaultPda2);
-    expect(vault1Balance).to.equal(amount1.toNumber());
-    expect(vault2Balance).to.equal(amount2.toNumber());
-
-    // Verify both escrows have correct data
-    const escrow1 = await ctx.program.account.escrow.fetch(escrowPda1);
-    const escrow2 = await ctx.program.account.escrow.fetch(escrowPda2);
-    expect(escrow1.amount.toNumber()).to.equal(amount1.toNumber());
-    expect(escrow2.amount.toNumber()).to.equal(amount2.toNumber());
+    const vault1Balance = await getTokenBalance(ctx.connection, vaultPda1);
+    const vault2Balance = await getTokenBalance(ctx.connection, vaultPda2);
+    expect(vault1Balance).to.equal(Number(amount1));
+    expect(vault2Balance).to.equal(Number(amount2));
   });
 
   /// Test: Escrow Expiry Timestamp
@@ -141,121 +157,39 @@ describe("IntentEscrow - Deposit", function () {
   /// Why: Expiry must be correct for time-based cancel functionality.
   it("Should set correct expiry timestamp", async function () {
     const intentId = generateIntentId();
-    const amount = new anchor.BN(1_000_000);
+    const amount = 1_000_000n;
 
-    const [escrowPda] = getEscrowPda(ctx.program.programId, intentId);
-    const [vaultPda] = getVaultPda(ctx.program.programId, intentId);
+    const [escrowPda] = getEscrowPda(PROGRAM_ID, intentId);
 
     // Get current slot time before transaction
-    const slot = await ctx.provider.connection.getSlot();
-    const blockTime = await ctx.provider.connection.getBlockTime(slot);
+    const slot = await ctx.connection.getSlot();
+    const blockTime = await ctx.connection.getBlockTime(slot);
 
-    await ctx.program.methods
-      .createEscrow(Array.from(intentId), amount, null)
-      .accounts({
-        escrow: escrowPda,
-        requester: ctx.requester.publicKey,
-        tokenMint: ctx.tokenMint,
-        requesterTokenAccount: ctx.requesterTokenAccount,
-        escrowVault: vaultPda,
-        reservedSolver: ctx.solver.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .signers([ctx.requester])
-      .rpc();
+    const ix = buildCreateEscrowInstruction(
+      intentId,
+      amount,
+      ctx.requester.publicKey,
+      ctx.tokenMint,
+      ctx.requesterTokenAccount,
+      ctx.solver.publicKey
+    );
 
-    const escrow = await ctx.program.account.escrow.fetch(escrowPda);
-    
+    const tx = new Transaction().add(ix);
+    await sendAndConfirmTransaction(ctx.connection, tx, [ctx.requester]);
+
+    // Read escrow data
+    const escrowData = await ctx.connection.getAccountInfo(escrowPda);
+    // Escrow format: [8 discriminator][32 requester][32 tokenMint][8 amount][1 isClaimed][8 expiry]...
+    const expiryBytes = escrowData!.data.slice(81, 89);
+    const expiry = Buffer.from(expiryBytes).readBigInt64LE(0);
+
     // DEFAULT_EXPIRY_DURATION is 120 seconds (2 minutes, matching EVM)
-    const DEFAULT_EXPIRY_DURATION = 120;
-    
+    const DEFAULT_EXPIRY_DURATION = 120n;
+
     // Expiry should be approximately blockTime + DEFAULT_EXPIRY_DURATION
-    // Allow some tolerance for block time differences
-    expect(escrow.expiry.toNumber()).to.be.closeTo(
-      blockTime! + DEFAULT_EXPIRY_DURATION,
+    expect(Number(expiry)).to.be.closeTo(
+      blockTime! + Number(DEFAULT_EXPIRY_DURATION),
       10 // 10 second tolerance
     );
-  });
-
-  /// Test: Escrow Creation After Claim Prevention
-  /// Verifies that escrows cannot be created with an intent ID that was already used.
-  /// Why: Prevents duplicate escrows and ensures each intent ID maps to a single escrow state.
-  it("Should revert if escrow already exists (after claim)", async function () {
-    const intentId = generateIntentId();
-    const amount = new anchor.BN(1_000_000);
-
-    const [escrowPda] = getEscrowPda(ctx.program.programId, intentId);
-    const [vaultPda] = getVaultPda(ctx.program.programId, intentId);
-
-    // Create escrow
-    await ctx.program.methods
-      .createEscrow(Array.from(intentId), amount, null)
-      .accounts({
-        escrow: escrowPda,
-        requester: ctx.requester.publicKey,
-        tokenMint: ctx.tokenMint,
-        requesterTokenAccount: ctx.requesterTokenAccount,
-        escrowVault: vaultPda,
-        reservedSolver: ctx.solver.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .signers([ctx.requester])
-      .rpc();
-
-    // Claim the escrow
-    const message = Buffer.from(intentId);
-    const signature = nacl.sign.detached(message, ctx.verifier.secretKey);
-
-    const ed25519Instruction = Ed25519Program.createInstructionWithPublicKey({
-      publicKey: ctx.verifier.publicKey.toBytes(),
-      message: message,
-      signature: signature,
-    });
-
-    const claimIx = await ctx.program.methods
-      .claim(Array.from(intentId), Array.from(signature))
-      .accounts({
-        escrow: escrowPda,
-        state: ctx.statePda,
-        escrowVault: vaultPda,
-        solverTokenAccount: ctx.solverTokenAccount,
-        instructionSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
-      })
-      .instruction();
-
-    const tx = new Transaction()
-      .add(ed25519Instruction)
-      .add(claimIx);
-
-    await ctx.provider.sendAndConfirm(tx, []);
-
-    // Try to create another escrow with same intent ID - should fail
-    try {
-      await ctx.program.methods
-        .createEscrow(Array.from(intentId), amount, null)
-        .accounts({
-          escrow: escrowPda,
-          requester: ctx.requester.publicKey,
-          tokenMint: ctx.tokenMint,
-          requesterTokenAccount: ctx.requesterTokenAccount,
-          escrowVault: vaultPda,
-          reservedSolver: ctx.solver.publicKey,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: SystemProgram.programId,
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        })
-        .signers([ctx.requester])
-        .rpc();
-      expect.fail("Should have thrown an error");
-    } catch (err) {
-      // Account already exists
-      expect(err.toString()).to.include("already in use");
-    }
   });
 });

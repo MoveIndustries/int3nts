@@ -10,15 +10,12 @@ name = "intent_escrow"
 
 [features]
 no-entrypoint = []
-no-idl = []
-no-log-ix-name = []
-cpi = ["no-entrypoint"]
-default = []
-# Anchor macro features (silence cfg warnings)
 custom-heap = []
 custom-panic = []
-anchor-debug = []
+default = []
 
 [dependencies]
-anchor-lang = "0.29.0"
-anchor-spl = "0.29.0"
+solana-program = "2.1"
+spl-token = { version = "6.0", features = ["no-entrypoint"] }
+borsh = "0.10"
+thiserror = "1.0"

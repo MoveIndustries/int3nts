@@ -1,4 +1,3 @@
-import * as anchor from "@coral-xyz/anchor";
 import { expect } from "chai";
 import { setupIntentEscrowTests, TestContext } from "./helpers";
 
@@ -35,7 +34,7 @@ describe("SVM Scripts - Utility Functions", function () {
   it("Should have scripts test structure in place", async function () {
     // Placeholder test - will be replaced with actual script tests in Phase 6
     expect(ctx).to.not.be.undefined;
-    expect(ctx.program).to.not.be.undefined;
+    expect(ctx.connection).to.not.be.undefined;
   });
 
   // TODO: Add script tests once Phase 6 (Utility Scripts) is implemented:

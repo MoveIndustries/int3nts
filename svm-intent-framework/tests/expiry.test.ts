@@ -1,180 +1,187 @@
-import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
 import {
-  Keypair,
   PublicKey,
-  SystemProgram,
   Transaction,
   Ed25519Program,
-  SYSVAR_INSTRUCTIONS_PUBKEY,
+  sendAndConfirmTransaction,
 } from "@solana/web3.js";
-import { IntentEscrow } from "../target/types/intent_escrow";
 import {
   setupIntentEscrowTests,
   generateIntentId,
   getEscrowPda,
   getVaultPda,
+  buildCreateEscrowInstruction,
+  buildClaimInstruction,
+  buildCancelInstruction,
   TestContext,
+  PROGRAM_ID,
+  EscrowErrorCode,
+  hasErrorCode,
 } from "./helpers";
-import { getTokenBalance, TOKEN_PROGRAM_ID } from "./helpers/token";
+import { getTokenBalance } from "./helpers/token";
 import * as nacl from "tweetnacl";
 
 describe("IntentEscrow - Expiry Handling", function () {
   let ctx: TestContext;
-  let intentId: Uint8Array;
-  let escrowPda: PublicKey;
-  let vaultPda: PublicKey;
-  const amount = new anchor.BN(1_000_000);
 
   beforeEach(async function () {
     ctx = await setupIntentEscrowTests();
-    intentId = generateIntentId();
-    [escrowPda] = getEscrowPda(ctx.program.programId, intentId);
-    [vaultPda] = getVaultPda(ctx.program.programId, intentId);
   });
-
-  // ============================================================================
-  // EXPIRY CANCELLATION TESTS
-  // ============================================================================
 
   /// Test: Expired Escrow Cancellation
   /// Verifies that requesters can cancel escrows after expiry and reclaim funds.
-  /// Why: Requesters need a way to reclaim funds if fulfillment doesn't occur before expiry.
-  ///
-  /// NOTE: Uses 2-second expiry for fast testing. Production uses 120 seconds.
+  /// Why: Requesters need a way to reclaim funds if fulfillment doesn't occur before expiry. Cancellation before expiry is blocked to ensure funds remain locked until expiry.
   it("Should allow requester to cancel expired escrow", async function () {
-    this.timeout(10000); // 10 second timeout
+    this.timeout(10000);
 
-    // Create escrow with 2-second expiry
-    await ctx.program.methods
-      .createEscrow(Array.from(intentId), amount, new anchor.BN(2))
-      .accounts({
-        escrow: escrowPda,
-        requester: ctx.requester.publicKey,
-        tokenMint: ctx.tokenMint,
-        requesterTokenAccount: ctx.requesterTokenAccount,
-        escrowVault: vaultPda,
-        reservedSolver: ctx.solver.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .signers([ctx.requester])
-      .rpc();
+    const intentId = generateIntentId();
+    const amount = 1_000_000n;
+
+    const [escrowPda] = getEscrowPda(PROGRAM_ID, intentId);
+    const [vaultPda] = getVaultPda(PROGRAM_ID, intentId);
+
+    // Create escrow with short expiry (2 seconds)
+    const createIx = buildCreateEscrowInstruction(
+      intentId,
+      amount,
+      ctx.requester.publicKey,
+      ctx.tokenMint,
+      ctx.requesterTokenAccount,
+      ctx.solver.publicKey,
+      2n // 2 second expiry
+    );
+    const createTx = new Transaction().add(createIx);
+    await sendAndConfirmTransaction(ctx.connection, createTx, [ctx.requester]);
 
     // Cancellation blocked before expiry
+    const cancelIxEarly = buildCancelInstruction(
+      intentId,
+      ctx.requester.publicKey,
+      ctx.requesterTokenAccount
+    );
+    const cancelTxEarly = new Transaction().add(cancelIxEarly);
+
     try {
-      await ctx.program.methods
-        .cancel(Array.from(intentId))
-        .accounts({
-          escrow: escrowPda,
-          requester: ctx.requester.publicKey,
-          escrowVault: vaultPda,
-          requesterTokenAccount: ctx.requesterTokenAccount,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
-        })
-        .signers([ctx.requester])
-        .rpc();
+      await sendAndConfirmTransaction(ctx.connection, cancelTxEarly, [ctx.requester]);
       expect.fail("Should have thrown an error");
-    } catch (err) {
-      expect(err.toString()).to.include("EscrowNotExpiredYet");
+    } catch (err: any) {
+      expect(hasErrorCode(err, EscrowErrorCode.EscrowNotExpiredYet)).to.be.true;
     }
 
-    // Wait for expiry (2 seconds + 2 second buffer)
-    await new Promise((resolve) => setTimeout(resolve, 4000));
+    // Advance time past expiry
+    console.log("Waiting 4 seconds for escrow to expire...");
+    await new Promise(resolve => setTimeout(resolve, 4000));
 
     // Cancellation allowed after expiry
-    const initialBalance = await getTokenBalance(ctx.provider, ctx.requesterTokenAccount);
+    const initialBalance = await getTokenBalance(ctx.connection, ctx.requesterTokenAccount);
 
-    await ctx.program.methods
-      .cancel(Array.from(intentId))
-      .accounts({
-        escrow: escrowPda,
-        requester: ctx.requester.publicKey,
-        escrowVault: vaultPda,
-        requesterTokenAccount: ctx.requesterTokenAccount,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
-      })
-      .signers([ctx.requester])
-      .rpc();
+    const cancelIx = buildCancelInstruction(
+      intentId,
+      ctx.requester.publicKey,
+      ctx.requesterTokenAccount
+    );
+    const cancelTx = new Transaction().add(cancelIx);
+    await sendAndConfirmTransaction(ctx.connection, cancelTx, [ctx.requester]);
 
-    const finalBalance = await getTokenBalance(ctx.provider, ctx.requesterTokenAccount);
-    expect(finalBalance).to.equal(initialBalance + amount.toNumber());
+    // Verify funds returned
+    const finalBalance = await getTokenBalance(ctx.connection, ctx.requesterTokenAccount);
+    expect(finalBalance).to.equal(initialBalance + Number(amount));
 
-    const vaultBalance = await getTokenBalance(ctx.provider, vaultPda);
+    // Verify vault is empty
+    const vaultBalance = await getTokenBalance(ctx.connection, vaultPda);
     expect(vaultBalance).to.equal(0);
 
-    const escrow = await ctx.program.account.escrow.fetch(escrowPda);
-    expect(escrow.isClaimed).to.equal(true);
-    expect(escrow.amount.toNumber()).to.equal(0);
+    // Verify escrow state (isClaimed = true after cancel)
+    const escrowData = await ctx.connection.getAccountInfo(escrowPda);
+    const isClaimed = escrowData!.data[80];
+    expect(isClaimed).to.equal(1);
   });
 
   /// Test: Expiry Timestamp Validation
   /// Verifies that expiry timestamp is correctly calculated and stored.
   /// Why: Correct expiry calculation is critical for time-based cancellation logic.
   it("Should verify expiry timestamp is stored correctly", async function () {
+    const intentId = generateIntentId();
+    const amount = 1_000_000n;
+
+    const [escrowPda] = getEscrowPda(PROGRAM_ID, intentId);
+
     // Get current slot time before transaction
-    const slot = await ctx.provider.connection.getSlot();
-    const blockTime = await ctx.provider.connection.getBlockTime(slot);
+    const slot = await ctx.connection.getSlot();
+    const blockTime = await ctx.connection.getBlockTime(slot);
 
-    await ctx.program.methods
-      .createEscrow(Array.from(intentId), amount, null)
-      .accounts({
-        escrow: escrowPda,
-        requester: ctx.requester.publicKey,
-        tokenMint: ctx.tokenMint,
-        requesterTokenAccount: ctx.requesterTokenAccount,
-        escrowVault: vaultPda,
-        reservedSolver: ctx.solver.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .signers([ctx.requester])
-      .rpc();
+    const ix = buildCreateEscrowInstruction(
+      intentId,
+      amount,
+      ctx.requester.publicKey,
+      ctx.tokenMint,
+      ctx.requesterTokenAccount,
+      ctx.solver.publicKey
+    );
 
-    const escrow = await ctx.program.account.escrow.fetch(escrowPda);
-    const DEFAULT_EXPIRY_DURATION = 120; // 2 minutes
-    const expectedExpiry = blockTime! + DEFAULT_EXPIRY_DURATION;
+    const tx = new Transaction().add(ix);
+    await sendAndConfirmTransaction(ctx.connection, tx, [ctx.requester]);
 
-    expect(escrow.expiry.toNumber()).to.be.closeTo(expectedExpiry, 10); // 10 second tolerance
+    // Read escrow data
+    const escrowData = await ctx.connection.getAccountInfo(escrowPda);
 
-    expect(escrow.requester.toBase58()).to.equal(ctx.requester.publicKey.toBase58());
-    expect(escrow.tokenMint.toBase58()).to.equal(ctx.tokenMint.toBase58());
-    expect(escrow.amount.toNumber()).to.equal(amount.toNumber());
-    expect(escrow.isClaimed).to.equal(false);
+    // Verify requester
+    const requesterBytes = escrowData!.data.slice(8, 40);
+    const storedRequester = new PublicKey(requesterBytes);
+    expect(storedRequester.toBase58()).to.equal(ctx.requester.publicKey.toBase58());
+
+    // Verify token mint
+    const tokenMintBytes = escrowData!.data.slice(40, 72);
+    const storedTokenMint = new PublicKey(tokenMintBytes);
+    expect(storedTokenMint.toBase58()).to.equal(ctx.tokenMint.toBase58());
+
+    // Verify amount
+    const amountBytes = escrowData!.data.slice(72, 80);
+    const storedAmount = Buffer.from(amountBytes).readBigUInt64LE(0);
+    expect(storedAmount).to.equal(amount);
+
+    // Verify isClaimed = false
+    const isClaimed = escrowData!.data[80];
+    expect(isClaimed).to.equal(0);
+
+    // Verify expiry
+    const expiryBytes = escrowData!.data.slice(81, 89);
+    const expiry = Buffer.from(expiryBytes).readBigInt64LE(0);
+    const DEFAULT_EXPIRY_DURATION = 120n;
+    expect(Number(expiry)).to.be.closeTo(
+      blockTime! + Number(DEFAULT_EXPIRY_DURATION),
+      10
+    );
   });
 
   /// Test: Expired Escrow Claim Prevention
   /// Verifies that expired escrows cannot be claimed, even with valid verifier signatures.
   /// Why: Expired escrows should only be cancellable by the requester, not claimable by solvers.
-  ///
-  /// NOTE: Uses 2-second expiry for fast testing. Production uses 120 seconds.
   it("Should prevent claim on expired escrow", async function () {
-    this.timeout(10000); // 10 second timeout
+    this.timeout(10000);
 
-    // Create escrow with 2-second expiry
-    await ctx.program.methods
-      .createEscrow(Array.from(intentId), amount, new anchor.BN(2))
-      .accounts({
-        escrow: escrowPda,
-        requester: ctx.requester.publicKey,
-        tokenMint: ctx.tokenMint,
-        requesterTokenAccount: ctx.requesterTokenAccount,
-        escrowVault: vaultPda,
-        reservedSolver: ctx.solver.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .signers([ctx.requester])
-      .rpc();
+    const intentId = generateIntentId();
+    const amount = 1_000_000n;
 
-    // Wait for expiry (2 seconds + 2 second buffer)
-    await new Promise((resolve) => setTimeout(resolve, 4000));
+    const [escrowPda] = getEscrowPda(PROGRAM_ID, intentId);
+    const [vaultPda] = getVaultPda(PROGRAM_ID, intentId);
+
+    // Create escrow with short expiry (2 seconds)
+    const createIx = buildCreateEscrowInstruction(
+      intentId,
+      amount,
+      ctx.requester.publicKey,
+      ctx.tokenMint,
+      ctx.requesterTokenAccount,
+      ctx.solver.publicKey,
+      2n // 2 second expiry
+    );
+    const createTx = new Transaction().add(createIx);
+    await sendAndConfirmTransaction(ctx.connection, createTx, [ctx.requester]);
+
+    // Advance time past expiry
+    console.log("Waiting 4 seconds for escrow to expire...");
+    await new Promise(resolve => setTimeout(resolve, 4000));
 
     // Claims blocked after expiry
     const message = Buffer.from(intentId);
@@ -186,36 +193,35 @@ describe("IntentEscrow - Expiry Handling", function () {
       signature: signature,
     });
 
-    const claimIx = await ctx.program.methods
-      .claim(Array.from(intentId), Array.from(signature))
-      .accounts({
-        escrow: escrowPda,
-        state: ctx.statePda,
-        escrowVault: vaultPda,
-        solverTokenAccount: ctx.solverTokenAccount,
-        instructionSysvar: SYSVAR_INSTRUCTIONS_PUBKEY,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
-      })
-      .instruction();
+    const claimIx = buildClaimInstruction(
+      intentId,
+      signature,
+      ctx.solverTokenAccount,
+      ctx.statePda
+    );
 
-    const tx = new Transaction().add(ed25519Instruction).add(claimIx);
+    const tx = new Transaction()
+      .add(ed25519Instruction)
+      .add(claimIx);
 
     try {
-      await ctx.provider.sendAndConfirm(tx, []);
+      await sendAndConfirmTransaction(ctx.connection, tx, [ctx.solver]);
       expect.fail("Should have thrown an error");
-    } catch (err) {
-      expect(err.toString()).to.include("EscrowExpired");
+    } catch (err: any) {
+      expect(hasErrorCode(err, EscrowErrorCode.EscrowExpired)).to.be.true;
     }
 
-    const vaultBalance = await getTokenBalance(ctx.provider, vaultPda);
-    expect(vaultBalance).to.equal(amount.toNumber());
+    // Verify vault still has funds
+    const vaultBalance = await getTokenBalance(ctx.connection, vaultPda);
+    expect(vaultBalance).to.equal(Number(amount));
 
-    const solverBalance = await getTokenBalance(ctx.provider, ctx.solverTokenAccount);
+    // Verify solver didn't receive funds
+    const solverBalance = await getTokenBalance(ctx.connection, ctx.solverTokenAccount);
     expect(solverBalance).to.equal(0);
 
-    const escrow = await ctx.program.account.escrow.fetch(escrowPda);
-    expect(escrow.isClaimed).to.equal(false);
-    expect(escrow.amount.toNumber()).to.equal(amount.toNumber());
+    // Verify escrow state unchanged
+    const escrowData = await ctx.connection.getAccountInfo(escrowPda);
+    const isClaimed = escrowData!.data[80];
+    expect(isClaimed).to.equal(0);
   });
 });

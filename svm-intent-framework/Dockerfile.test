@@ -1,0 +1,58 @@
+# Dockerfile for SVM Intent Framework CI testing
+# Simulates GitHub Actions ubuntu-latest with Nix
+#
+# Build: docker build -f Dockerfile.test -t svm-test .
+# Run:   docker run --rm -v $(pwd)/..:/workspace svm-test
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install base dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    xz-utils \
+    git \
+    ca-certificates \
+    sudo \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create nixbld group and users for Nix
+RUN groupadd -r nixbld && \
+    for i in $(seq 1 10); do \
+      useradd -r -g nixbld -G nixbld -d /var/empty -s /sbin/nologin "nixbld$i"; \
+    done
+
+# Create /nix directory
+RUN mkdir -p /nix
+
+# Install Nix (single-user)
+RUN curl -L https://nixos.org/nix/install | sh -s -- --no-daemon
+
+# Add nix to PATH
+ENV PATH="/root/.nix-profile/bin:${PATH}"
+
+# Install rustup
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install Solana CLI
+RUN sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+ENV PATH="/root/.local/share/solana/install/active_release/bin:${PATH}"
+
+# Install avm (Anchor Version Manager)
+# Note: We don't pre-install anchor here - build.sh handles that with proper error handling
+RUN cargo install --git https://github.com/coral-xyz/anchor avm --force --locked
+ENV PATH="/root/.avm/bin:${PATH}"
+
+# Configure git to trust mounted workspace
+RUN git config --global --add safe.directory /workspace
+
+WORKDIR /workspace
+
+# Default command runs tests
+CMD ["bash", "-c", "nix develop /workspace --extra-experimental-features 'nix-command flakes' -c bash -c 'cd /workspace/svm-intent-framework && ./scripts/test.sh'"]
+

@@ -1,5 +1,5 @@
 /**
- * Test Helpers for SVM Intent Escrow
+ * Test Helpers for SVM Intent Escrow (Native Solana)
  *
  * Provides common fixtures and utilities for testing the IntentEscrow program.
  */
@@ -7,6 +7,7 @@
 // Setup and test context
 export {
   TestContext,
+  PROGRAM_ID,
   setupIntentEscrowTests,
   initializeProgram,
   generateIntentId,
@@ -14,6 +15,11 @@ export {
   advanceTime,
   getEscrowPda,
   getVaultPda,
+  buildCreateEscrowInstruction,
+  buildClaimInstruction,
+  buildCancelInstruction,
+  EscrowErrorCode,
+  hasErrorCode,
 } from "./setup";
 
 // Token utilities

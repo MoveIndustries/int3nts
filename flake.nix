@@ -55,17 +55,13 @@
             
             # Install Anchor via avm if not already installed
             if ! command -v anchor > /dev/null 2>&1; then
-              echo "[nix] Installing Anchor CLI via avm..."
-              $HOME/.cargo/bin/cargo install --git https://github.com/coral-xyz/anchor avm --force --locked 2>/dev/null || true
-              # Uninstall any anchor-cli that cargo installed (avm manages anchor separately)
+              echo "[nix] Installing Anchor CLI..."
+              # Remove any existing anchor binaries/symlinks
               $HOME/.cargo/bin/cargo uninstall anchor-cli 2>/dev/null || true
               rm -f $HOME/.cargo/bin/anchor 2>/dev/null || true
-              # Install and use non-interactively (yes provides continuous 'y' for any prompts)
-              # Use rustup's cargo (supports +toolchain syntax required by avm) - subshell ensures PATH applies to avm
-              echo "[nix] Installing Anchor 0.29.0..."
-              (export PATH="$HOME/.cargo/bin:$PATH"; yes | avm install 0.29.0 2>&1) || true
-              echo "[nix] Selecting Anchor 0.29.0..."
-              (export PATH="$HOME/.cargo/bin:$PATH"; yes | avm use 0.29.0 2>&1) || true
+              rm -f $HOME/.avm/bin/anchor 2>/dev/null || true
+              # Install anchor-cli directly with --force
+              $HOME/.cargo/bin/cargo install --git https://github.com/coral-xyz/anchor --tag v0.29.0 anchor-cli --force --locked 2>/dev/null || true
             fi
             
             echo "[nix] Dev shell ready: rustc $(rustc --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | cargo $(cargo --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | aptos $(aptos --version 2>/dev/null || echo 'unknown') | movement $(movement --version 2>/dev/null || echo 'unknown') | solana $(solana --version 2>/dev/null | head -1 | awk '{print $2}' || echo 'not installed') | anchor $(anchor --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | node $(node --version 2>/dev/null || echo 'unknown')"

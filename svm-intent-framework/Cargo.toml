@@ -1,24 +1,7 @@
 # SVM Intent Framework Workspace
 #
-# IMPORTANT: Toolchain Constraints (as of Jan 2026)
-# ================================================
-# Solana's bundled Rust (1.84.0) does NOT support:
-#   - Cargo.lock version 4 (requires Rust 1.85+)
-#   - Crates using `edition = "2024"` (requires Rust 1.85+)
-#
-# Why Anchor 0.29.0?
-#   - Anchor 0.30+ pulls blake3 → constant_time_eq v0.4.x (edition2024)
-#   - Anchor 0.29.0 has older deps that avoid edition2024 crates
-#   - Trade-off: 0.29.x calls `cargo build-bpf` (deprecated in Solana 2.x)
-#   - Solution: scripts/build.sh creates a shim: build-bpf → build-sbf
-#
-# Workarounds (automated by scripts/build.sh):
-#   1. Cargo.lock MUST remain version 3 (not 4)
-#   2. Do NOT regenerate Cargo.lock blindly - always inspect after
-#   3. If regenerating: `cargo generate-lockfile && sed -i 's/version = 4/version = 3/' Cargo.lock`
-#   4. Check for edition2024 crates: `grep -A1 'name = "constant_time_eq"' Cargo.lock`
-#
-# See: https://github.com/solana-foundation/anchor/issues/3392
+# Native Solana (no Anchor)
+# Dependencies are minimal and stable.
 
 [workspace]
 members = [
@@ -35,3 +18,7 @@ codegen-units = 1
 opt-level = 3
 incremental = false
 codegen-units = 1
+
+# NOTE: blake3 must be pinned to 1.8.2 (not 1.8.3+) to avoid edition2024
+# Use: cargo update -p blake3 --precise 1.8.2
+# Use: cargo update -p constant_time_eq --precise 0.3.1

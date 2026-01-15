@@ -1,4 +1,8 @@
-import * as anchor from "@coral-xyz/anchor";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+} from "@solana/web3.js";
 import {
   createMint as splCreateMint,
   createAssociatedTokenAccount,
@@ -7,7 +11,6 @@ import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { Keypair, PublicKey } from "@solana/web3.js";
 
 // ============================================================================
 // MINT FUNCTIONS
@@ -15,24 +18,16 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 
 /**
  * Create a new SPL token mint
- *
- * # Arguments
- * - `provider`: Anchor provider
- * - `payer`: Keypair to pay for the transaction
- * - `decimals`: Token decimals (default: 9)
- *
- * # Returns
- * - `PublicKey`: The mint address
  */
 export async function createMint(
-  provider: anchor.AnchorProvider,
+  connection: Connection,
   payer: Keypair,
   decimals: number = 9
 ): Promise<PublicKey> {
   const mintKeypair = Keypair.generate();
 
   const mint = await splCreateMint(
-    provider.connection,
+    connection,
     payer,
     payer.publicKey, // mint authority
     payer.publicKey, // freeze authority
@@ -49,19 +44,9 @@ export async function createMint(
 
 /**
  * Create token accounts for requester and solver
- *
- * # Arguments
- * - `provider`: Anchor provider
- * - `mint`: Token mint address
- * - `requester`: Requester keypair
- * - `solver`: Solver keypair
- *
- * # Returns
- * - `requesterTokenAccount`: Requester's associated token account
- * - `solverTokenAccount`: Solver's associated token account
  */
 export async function createTokenAccounts(
-  provider: anchor.AnchorProvider,
+  connection: Connection,
   mint: PublicKey,
   requester: Keypair,
   solver: Keypair
@@ -70,14 +55,14 @@ export async function createTokenAccounts(
   solverTokenAccount: PublicKey;
 }> {
   const requesterTokenAccount = await createAssociatedTokenAccount(
-    provider.connection,
+    connection,
     requester,
     mint,
     requester.publicKey
   );
 
   const solverTokenAccount = await createAssociatedTokenAccount(
-    provider.connection,
+    connection,
     solver,
     mint,
     solver.publicKey
@@ -88,13 +73,6 @@ export async function createTokenAccounts(
 
 /**
  * Get the associated token address for an owner
- *
- * # Arguments
- * - `mint`: Token mint address
- * - `owner`: Owner public key
- *
- * # Returns
- * - `PublicKey`: The associated token account address
  */
 export async function getTokenAddress(
   mint: PublicKey,
@@ -109,30 +87,18 @@ export async function getTokenAddress(
 
 /**
  * Mint tokens to a destination account
- *
- * # Arguments
- * - `provider`: Anchor provider
- * - `mint`: Token mint address
- * - `destination`: Destination token account
- * - `authority`: Mint authority keypair
- * - `amount`: Amount to mint (in base units)
  */
 export async function mintTo(
-  provider: anchor.AnchorProvider,
+  connection: Connection,
   mint: PublicKey,
   destination: PublicKey,
   authority: Keypair,
-  amount: number | anchor.BN | bigint
+  amount: number | bigint
 ): Promise<void> {
-  const amountBigInt =
-    typeof amount === "bigint"
-      ? amount
-      : amount instanceof anchor.BN
-        ? BigInt(amount.toString())
-        : BigInt(amount);
+  const amountBigInt = typeof amount === "bigint" ? amount : BigInt(amount);
 
   await splMintTo(
-    provider.connection,
+    connection,
     authority,
     mint,
     destination,
@@ -147,19 +113,12 @@ export async function mintTo(
 
 /**
  * Get the token balance of an account
- *
- * # Arguments
- * - `provider`: Anchor provider
- * - `tokenAccount`: Token account address
- *
- * # Returns
- * - `number`: Token balance in base units
  */
 export async function getTokenBalance(
-  provider: anchor.AnchorProvider,
+  connection: Connection,
   tokenAccount: PublicKey
 ): Promise<number> {
-  const balance = await provider.connection.getTokenAccountBalance(tokenAccount);
+  const balance = await connection.getTokenAccountBalance(tokenAccount);
   return Number(balance.value.amount);
 }
 
