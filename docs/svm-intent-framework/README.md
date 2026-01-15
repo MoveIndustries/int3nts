@@ -150,22 +150,3 @@ await sendAndConfirmTransaction(connection, claimTx, [solver]);
 Tests cover escrow initialization, deposits, claiming, cancellation, expiry enforcement, and error cases.
 
 See [svm-intent-framework/README.md](../../svm-intent-framework/README.md) for toolchain constraints and workarounds.
-
-### Docker Testing (CI Simulation)
-
-To simulate the GitHub Actions CI environment locally (useful for debugging CI failures):
-
-```bash
-cd svm-intent-framework
-./scripts/test-docker.sh
-```
-
-This runs tests in a Docker container with:
-
-- `--platform linux/amd64` to match GitHub Actions (x86_64)
-- `nixos/nix` image with Nix flakes support
-- Sandbox disabled to avoid seccomp issues with QEMU emulation
-
-**Requirements:** Docker Desktop running.
-
-**Note:** On ARM Macs, this uses x86_64 emulation which is slower and may have quirks. Native Linux x86_64 systems provide the most accurate CI simulation.

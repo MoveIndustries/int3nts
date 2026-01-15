@@ -20,27 +20,11 @@ Builds and runs the Rust test suite using `solana-program-test`.
 ./scripts/test.sh
 ```
 
-### `test-docker.sh`
-
-Simulates the GitHub Actions CI environment locally using Docker.
-
-```bash
-./scripts/test-docker.sh           # Run tests (builds image on first run)
-./scripts/test-docker.sh --rebuild # Force rebuild of Docker image
-```
-
 ## Requirements
 
 - **Nix** - for `build.sh` and `test.sh`
-- **Docker** - for `test-docker.sh`
 
 ## Troubleshooting
-
-### Docker build fails
-
-```bash
-./scripts/test-docker.sh --rebuild
-```
 
 ### Cargo.lock issues
 

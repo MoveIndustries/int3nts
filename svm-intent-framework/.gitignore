@@ -5,14 +5,8 @@ target/
 # Dependencies
 node_modules/
 
-# Anchor
-.anchor/
-
 # IDL
 *.json
-!package.json
-!tsconfig.json
-!Anchor.toml
 
 # Test artifacts
 test-ledger/
