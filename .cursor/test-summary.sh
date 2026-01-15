@@ -46,10 +46,9 @@ SVM_TEST_OUTPUT=$(cd svm-intent-framework && ./scripts/test.sh 2>&1) || {
     echo "SVM tests failed:"
     echo "$SVM_TEST_OUTPUT"
 }
-SVM_PASSED=$(echo "$SVM_TEST_OUTPUT" | grep -oE "[0-9]+ passing" | awk '{print $1}')
-SVM_FAILED=$(echo "$SVM_TEST_OUTPUT" | grep -oE "[0-9]+ failing" | awk '{print $1}' || echo "0")
-SVM_PASSED=${SVM_PASSED:-0}
-SVM_FAILED=${SVM_FAILED:-0}
+# Parse cargo test output (e.g., "test result: ok. 3 passed; 0 failed;")
+SVM_PASSED=$(echo "$SVM_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum+0}')
+SVM_FAILED=$(echo "$SVM_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
 
 echo "Running Frontend tests..."
 FRONTEND_TEST_OUTPUT=$(nix develop -c bash -c "cd frontend && npm test" 2>&1) || {
