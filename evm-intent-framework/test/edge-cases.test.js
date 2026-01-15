@@ -20,7 +20,11 @@ describe("IntentEscrow - Edge Cases", function () {
     intentId = fixtures.intentId;
   });
 
-  /// Test: Maximum uint256 Values
+  // ============================================================================
+  // EDGE CASE TESTS
+  // ============================================================================
+
+  /// Test: Maximum Values
   /// Verifies that createEscrow handles maximum uint256 values for both amounts and intent IDs.
   /// Why: Edge case testing ensures the contract handles boundary values without overflow or underflow.
   it("Should handle maximum uint256 values for amounts and intent IDs", async function () {

@@ -20,6 +20,10 @@ describe("IntentEscrow - Integration Tests", function () {
     intentId = fixtures.intentId;
   });
 
+  // ============================================================================
+  // INTEGRATION TESTS
+  // ============================================================================
+
   /// Test: Complete Deposit to Claim Workflow
   /// Verifies the full workflow from escrow creation through claim.
   /// Why: Integration test ensures all components work together correctly in the happy path.

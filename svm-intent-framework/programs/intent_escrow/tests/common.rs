@@ -6,6 +6,7 @@ use solana_program::program_pack::Pack;
 use solana_program_test::{processor, ProgramTest, ProgramTestContext};
 use solana_sdk::system_instruction;
 use solana_sdk::{
+    ed25519_instruction::new_ed25519_instruction_with_signature,
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{Keypair, Signer},
@@ -365,3 +366,65 @@ pub async fn setup_basic_env(context: &mut ProgramTestContext) -> TestEnv {
         state_pda,
     }
 }
+
+// ============================================================================
+// ED25519 SIGNATURE HELPERS
+// ============================================================================
+
+/// Helper: Create an Ed25519 verify instruction for signature verification
+/// The signature must be created by signing the message with the verifier's keypair
+pub fn create_ed25519_instruction(
+    message: &[u8],
+    signature: &[u8; 64],
+    public_key: &Pubkey,
+) -> Instruction {
+    new_ed25519_instruction_with_signature(message, signature, &public_key.to_bytes())
+}
+
+// ============================================================================
+// INTENT ID HELPERS
+// ============================================================================
+
+/// Helper: Generate a random 32-byte intent ID
+pub fn generate_intent_id() -> [u8; 32] {
+    use rand::RngCore;
+    let mut id = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut id);
+    id
+}
+
+/// Helper: Convert a hex string to a 32-byte array
+/// Useful for cross-chain intent ID compatibility
+/// Supports hex strings with or without 0x prefix
+/// Left-pads with zeros if hex string is shorter than 32 bytes
+/// Handles odd-length hex strings by prepending a '0'
+pub fn hex_to_bytes32(hex_string: &str) -> [u8; 32] {
+    let hex = hex_string.strip_prefix("0x").unwrap_or(hex_string);
+    // Ensure even length by prepending '0' if needed
+    let hex = if hex.len() % 2 == 1 {
+        format!("0{}", hex)
+    } else {
+        hex.to_string()
+    };
+    let mut bytes = [0u8; 32];
+    match hex::decode(&hex) {
+        Ok(hex_bytes) => {
+            let start = 32usize.saturating_sub(hex_bytes.len());
+            if start < 32 {
+                bytes[start..].copy_from_slice(&hex_bytes);
+            }
+        }
+        Err(_) => {
+            // If hex decode fails, panic with helpful message
+            panic!("Invalid hex string: {}", hex_string);
+        }
+    }
+    bytes
+}
+
+// ============================================================================
+// ERROR CHECKING HELPERS
+// ============================================================================
+
+// Note: Error code checking helper removed - use result.is_err() for now
+// Specific error code checking can be added later if needed by inspecting error messages

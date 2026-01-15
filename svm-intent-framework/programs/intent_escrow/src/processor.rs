@@ -50,7 +50,7 @@ impl Processor {
                 Self::process_create_escrow(program_id, accounts, intent_id, amount, expiry_duration)
             }
             EscrowInstruction::Claim { intent_id, signature } => {
-                msg!("Instruction: Claim");
+                msg!("Instruction: Claim - intent_id={:?}", &intent_id[..8]);
                 Self::process_claim(program_id, accounts, intent_id, signature)
             }
             EscrowInstruction::Cancel { intent_id } => {
