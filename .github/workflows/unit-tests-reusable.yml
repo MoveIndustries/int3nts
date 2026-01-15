@@ -7,6 +7,10 @@ on:
         required: true
         type: string
         description: "Command to run in nix develop"
+      needs:
+        required: true
+        type: string
+        description: "Comma-separated list of tools needed (move,evm,svm,solver,verifier,frontend)"
 
 jobs:
   run-test:
@@ -20,5 +24,7 @@ jobs:
           nix_path: nixpkgs=channel:nixpkgs-unstable
       
       - name: Run tests
+        env:
+          INTENT_FRAMEWORK_NEEDS: ${{ inputs.needs }}
         run: nix develop --command bash -c '${{ inputs.script }}'
 
