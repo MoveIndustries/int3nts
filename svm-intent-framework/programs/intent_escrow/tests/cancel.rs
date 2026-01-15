@@ -18,7 +18,7 @@ use bincode::deserialize;
 // EXPIRY TESTS
 // ============================================================================
 
-/// Test: Cancellation Before Expiry Prevention
+/// 1. Test: Cancellation Before Expiry Prevention
 /// Verifies that requesters cannot cancel escrows before expiry.
 /// Why: Funds must remain locked until expiry to give solvers time to fulfill.
 #[tokio::test]
@@ -76,7 +76,7 @@ async fn test_revert_if_escrow_has_not_expired_yet() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// Test: Cancellation After Expiry
+/// 2. Test: Cancellation After Expiry
 /// Verifies that requesters can cancel escrows after expiry and reclaim funds.
 /// Why: Requesters need a way to reclaim funds if fulfillment doesn't occur.
 ///
@@ -169,7 +169,7 @@ async fn test_cancel_after_expiry() {
 // AUTHORIZATION TESTS
 // ============================================================================
 
-/// Test: Unauthorized Cancellation Prevention
+/// 3. Test: Unauthorized Cancellation Prevention
 /// Verifies that only the requester can cancel their escrow.
 /// Why: Security requirement - only the escrow creator should be able to cancel.
 #[tokio::test]
@@ -228,7 +228,7 @@ async fn test_revert_if_not_requester() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// Test: Cancellation After Claim Prevention
+/// 4. Test: Cancellation After Claim Prevention
 /// Verifies that attempting to cancel an already-claimed escrow reverts.
 /// Why: Once funds are claimed, they cannot be cancelled.
 #[tokio::test]
@@ -317,7 +317,7 @@ async fn test_revert_if_already_claimed() {
 // NON-EXISTENT ESCROW TESTS
 // ============================================================================
 
-/// Test: Non-Existent Escrow Prevention
+/// 5. Test: Non-Existent Escrow Prevention
 /// Verifies that canceling a non-existent escrow reverts.
 /// Why: Prevents invalid operations on non-existent escrows.
 #[tokio::test]

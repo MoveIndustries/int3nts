@@ -46,6 +46,9 @@ pub enum EscrowError {
 
     #[error("Invalid account owner")]
     InvalidAccountOwner,
+
+    #[error("Escrow already exists")]
+    EscrowAlreadyExists,
 }
 
 impl From<EscrowError> for ProgramError {

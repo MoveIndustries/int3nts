@@ -18,7 +18,7 @@ use bincode::deserialize;
 // INTEGRATION TESTS
 // ============================================================================
 
-/// Test: Complete Deposit to Claim Workflow
+/// 1. Test: Complete Deposit to Claim Workflow
 /// Verifies the full workflow from escrow creation through claim.
 /// Why: Integration test ensures all components work together correctly in the happy path.
 #[tokio::test]
@@ -103,21 +103,21 @@ async fn test_complete_full_deposit_to_claim_workflow() {
     assert!(escrow.is_claimed);
 }
 
-/// Test: Multi-Token Scenarios
+/// 2. Test: Multi-Token Scenarios
 /// Verifies that the escrow works with different token types.
 /// Why: The escrow must support any token type, not just a single token.
 ///
 /// NOTE: N/A for SVM - All escrows use SPL tokens. Multiple token types would require multiple mints, which is covered by the program design but not tested here.
 // EVM: evm-intent-framework/test/integration.test.js - "Should handle multiple different ERC20 tokens"
 
-/// Test: Comprehensive Event Emission
+/// 3. Test: Comprehensive Event Emission
 /// Verifies that all events are emitted with correct parameters.
 /// Why: Events are critical for off-chain monitoring and indexing. Incorrect events break integrations.
 ///
 /// NOTE: N/A for SVM - Solana programs use program logs (msg!) instead of events. Log verification is covered in individual test files.
 // EVM: evm-intent-framework/test/integration.test.js - "Should emit all events with correct parameters"
 
-/// Test: Complete Cancellation Workflow
+/// 4. Test: Complete Cancellation Workflow
 /// Verifies the full workflow from escrow creation through cancellation after expiry.
 /// Why: Integration test ensures the cancellation flow works end-to-end after expiry.
 #[tokio::test]

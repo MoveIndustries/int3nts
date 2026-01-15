@@ -145,6 +145,17 @@ impl Processor {
             return Err(EscrowError::InvalidPDA.into());
         }
 
+        // Check if escrow already exists
+        if escrow_account.data_len() > 0 {
+            // Account exists, try to deserialize it
+            if let Ok(existing_escrow) = Escrow::try_from_slice(&escrow_account.data.borrow()) {
+                // Check if it's a valid escrow (has correct discriminator)
+                if existing_escrow.discriminator == Escrow::DISCRIMINATOR {
+                    return Err(EscrowError::EscrowAlreadyExists.into());
+                }
+            }
+        }
+
         // Calculate expiry
         let clock = Clock::get()?;
         let duration = expiry_duration.unwrap_or(DEFAULT_EXPIRY_DURATION);

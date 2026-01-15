@@ -11,7 +11,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 // VERIFIER INITIALIZATION TESTS
 // ============================================================================
 
-/// Test: Verifier Address Initialization
+/// 1. Test: Verifier Address Initialization
 /// Verifies that the escrow is initialized with the correct verifier address.
 /// Why: The verifier address is critical for signature validation.
 #[tokio::test]
@@ -43,7 +43,7 @@ async fn test_initialize_verifier_address() {
 // ESCROW CREATION TESTS
 // ============================================================================
 
-/// Test: Escrow Creation
+/// 2. Test: Escrow Creation
 /// Verifies that requesters can create a new escrow with funds atomically.
 /// Why: Escrow creation must be atomic and set expiry correctly.
 #[tokio::test]
@@ -97,7 +97,7 @@ async fn test_allow_requester_to_create_escrow() {
     assert_eq!(vault_balance, amount);
 }
 
-/// Test: Duplicate Creation Prevention
+/// 3. Test: Duplicate Creation Prevention
 /// Verifies that attempting to create an escrow with an existing intent ID reverts.
 /// Why: Each intent ID must map to a single escrow.
 #[tokio::test]
@@ -129,6 +129,9 @@ async fn test_revert_if_escrow_already_exists() {
     );
     context.banks_client.process_transaction(tx1).await.unwrap();
 
+    // Warp to next slot to ensure clean transaction processing
+    context.warp_to_slot(100).unwrap();
+
     // Try to create second escrow with same intent ID
     let ix2 = create_escrow_ix(
         env.program_id,
@@ -153,7 +156,7 @@ async fn test_revert_if_escrow_already_exists() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// Test: Zero Amount Prevention
+/// 4. Test: Zero Amount Prevention
 /// Verifies that escrows cannot be created with zero amount.
 /// Why: Zero-amount escrows are invalid.
 #[tokio::test]

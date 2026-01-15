@@ -22,7 +22,7 @@ describe("IntentEscrow - Cross-Chain Intent ID Conversion", function () {
   // CROSS-CHAIN INTENT ID CONVERSION TESTS
   // ============================================================================
 
-  /// Test: Hex Intent ID Conversion
+  /// 1. Test: Hex Intent ID Conversion
   /// Verifies that intent IDs from hex format can be converted and used in escrow operations.
   /// Why: Cross-chain intents require intent ID conversion between different formats (hex to uint256).
   it("Should handle hex intent ID conversion to uint256", async function () {
@@ -45,7 +45,7 @@ describe("IntentEscrow - Cross-Chain Intent ID Conversion", function () {
     expect(await token.balanceOf(escrow.target)).to.equal(amount);
   });
 
-  /// Test: Intent ID Boundary Values
+  /// 2. Test: Intent ID Boundary Values
   /// Verifies that the contract handles boundary intent ID values correctly.
   /// Why: Intent IDs from different chains may have different formats. Boundary testing ensures compatibility.
   it("Should handle intent ID boundary values", async function () {
@@ -75,7 +75,7 @@ describe("IntentEscrow - Cross-Chain Intent ID Conversion", function () {
     expect(edgeEscrowData.amount).to.equal(amount);
   });
 
-  /// Test: Intent ID Zero Padding
+  /// 3. Test: Intent ID Zero Padding
   /// Verifies that shorter intent IDs are properly left-padded with zeros.
   /// Why: Intent IDs from other chains may be shorter than 32 bytes. Zero padding ensures correct uint256 conversion.
   it("Should handle intent ID zero padding correctly", async function () {
@@ -108,7 +108,7 @@ describe("IntentEscrow - Cross-Chain Intent ID Conversion", function () {
     }
   });
 
-  /// Test: Multiple Intent IDs from Different Formats
+  /// 4. Test: Multiple Intent IDs from Different Formats
   /// Verifies that multiple escrows can be created with intent IDs from different formats.
   /// Why: Real-world usage involves intent IDs in various formats. The contract must handle all valid formats.
   it("Should handle multiple intent IDs from different formats", async function () {

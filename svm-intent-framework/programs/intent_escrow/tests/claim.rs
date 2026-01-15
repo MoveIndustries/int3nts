@@ -15,7 +15,7 @@ use solana_sdk::{
 // CLAIM TESTS
 // ============================================================================
 
-/// Test: Valid Claim with Verifier Signature
+/// 1. Test: Valid Claim with Verifier Signature
 /// Verifies that solvers can claim escrow funds when provided with a valid verifier signature.
 /// Why: Claiming is the core fulfillment mechanism. Solvers must be able to receive funds after verifier approval.
 #[tokio::test]
@@ -93,7 +93,7 @@ async fn test_claim_with_valid_verifier_signature() {
     assert_eq!(escrow.amount, 0);
 }
 
-/// Test: Invalid Signature Rejection
+/// 2. Test: Invalid Signature Rejection
 /// Verifies that claims with invalid signatures are rejected with UnauthorizedVerifier error.
 /// Why: Security requirement - only verifier-approved fulfillments should allow fund release.
 #[tokio::test]
@@ -164,7 +164,7 @@ async fn test_revert_with_invalid_signature() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// Test: Signature Replay Prevention
+/// 3. Test: Signature Replay Prevention
 /// Verifies that a signature for one intent_id cannot be reused on a different escrow with a different intent_id.
 /// Why: Signatures must be bound to specific intent_ids to prevent replay attacks across different escrows.
 #[tokio::test]
@@ -269,7 +269,7 @@ async fn test_prevent_signature_replay_across_different_intent_ids() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// Test: Duplicate Claim Prevention
+/// 4. Test: Duplicate Claim Prevention
 /// Verifies that attempting to claim an already-claimed escrow reverts.
 /// Why: Prevents double-spending - each escrow can only be claimed once.
 #[tokio::test]
@@ -379,7 +379,7 @@ async fn test_revert_if_escrow_already_claimed() {
     assert!(result.is_err(), "Should have thrown an error - escrow already claimed");
 }
 
-/// Test: Non-Existent Escrow Rejection
+/// 5. Test: Non-Existent Escrow Rejection
 /// Verifies that attempting to claim a non-existent escrow reverts with EscrowDoesNotExist error.
 /// Why: Prevents claims on non-existent escrows and ensures proper error handling.
 #[tokio::test]

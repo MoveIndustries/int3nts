@@ -12,7 +12,7 @@ use bincode::deserialize;
 // ESCROW CREATION TESTS
 // ============================================================================
 
-/// Test: Token Escrow Creation
+/// 1. Test: Token Escrow Creation
 /// Verifies that requesters can create an escrow with tokens atomically.
 /// Why: Escrow creation is the first step in the intent fulfillment flow.
 #[tokio::test]
@@ -72,7 +72,7 @@ async fn test_create_escrow_with_tokens() {
     assert!(!escrow.is_claimed);
 }
 
-/// Test: Escrow Creation After Claim Prevention
+/// 2. Test: Escrow Creation After Claim Prevention
 /// Verifies that escrows cannot be created with an intent ID that was already claimed.
 /// Why: Prevents duplicate escrows and ensures each intent ID maps to a single escrow state.
 #[tokio::test]
@@ -131,7 +131,7 @@ async fn test_revert_if_escrow_already_claimed() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// Test: Multiple Escrows with Different Intent IDs
+/// 3. Test: Multiple Escrows with Different Intent IDs
 /// Verifies that multiple escrows can be created for different intent IDs.
 /// Why: System must support concurrent escrows.
 #[tokio::test]
@@ -199,7 +199,7 @@ async fn test_support_multiple_escrows_with_different_intent_ids() {
     assert_eq!(vault2_balance, amount2);
 }
 
-/// Test: Escrow Expiry Timestamp
+/// 4. Test: Escrow Expiry Timestamp
 /// Verifies that escrow expiry is set correctly (current time + EXPIRY_DURATION).
 /// Why: Expiry must be correct for time-based cancel functionality.
 #[tokio::test]

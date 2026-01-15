@@ -18,7 +18,7 @@ use bincode::deserialize;
 // EXPIRY HANDLING TESTS
 // ============================================================================
 
-/// Test: Expired Escrow Cancellation
+/// 1. Test: Expired Escrow Cancellation
 /// Verifies that requesters can cancel escrows after expiry and reclaim funds.
 /// Why: Requesters need a way to reclaim funds if fulfillment doesn't occur before expiry. Cancellation before expiry is blocked to ensure funds remain locked until expiry.
 #[tokio::test]
@@ -138,7 +138,7 @@ async fn test_allow_requester_to_cancel_expired_escrow() {
     assert!(escrow.is_claimed);
 }
 
-/// Test: Expiry Timestamp Validation
+/// 2. Test: Expiry Timestamp Validation
 /// Verifies that expiry timestamp is correctly calculated and stored.
 /// Why: Correct expiry calculation is critical for time-based cancellation logic.
 #[tokio::test]
@@ -213,7 +213,7 @@ async fn test_verify_expiry_timestamp_is_stored_correctly() {
     );
 }
 
-/// Test: Expired Escrow Claim Prevention
+/// 3. Test: Expired Escrow Claim Prevention
 /// Verifies that expired escrows cannot be claimed, even with valid verifier signatures.
 /// Why: Expired escrows should only be cancellable by the requester, not claimable by solvers.
 #[tokio::test]
