@@ -12,23 +12,26 @@ use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 // ============================================================================
 
 /// 1. Test: Maximum Values
-/// Verifies that createEscrow handles maximum values for amounts.
-/// Why: Edge case testing ensures the program doesn't overflow or fail on boundary values.
+/// Verifies that createEscrow handles maximum values for both amounts and intent IDs.
+/// Why: Edge case testing ensures the program handles boundary values without overflow or underflow.
 #[tokio::test]
-async fn test_handle_maximum_values_for_amounts() {
+async fn test_handle_maximum_values_for_amounts_and_intent_ids() {
     let program_test = program_test();
     let mut context = program_test.start_with_context().await;
     let env = setup_basic_env(&mut context).await;
 
-    let intent_id = generate_intent_id();
-    // Use a large but reasonable amount (not u64::MAX to avoid balance issues)
-    let large_amount = 100_000_000_000u64; // 100 billion tokens
+    // Use maximum intent ID (all 0xFF bytes)
+    let max_intent_id: [u8; 32] = [0xFF; 32];
+    // Use the available balance (1_000_000 tokens minted in setup)
+    let amount = 500_000u64;
 
-    // This will fail due to insufficient balance, which is expected behavior
+    let (escrow_pda, _) =
+        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &max_intent_id], &env.program_id);
+
     let ix = create_escrow_ix(
         env.program_id,
-        intent_id,
-        large_amount,
+        max_intent_id,
+        amount,
         env.requester.pubkey(),
         env.mint,
         env.requester_token,
@@ -43,10 +46,18 @@ async fn test_handle_maximum_values_for_amounts() {
         &[&env.requester],
         blockhash,
     );
+    context.banks_client.process_transaction(tx).await.unwrap();
 
-    let result = context.banks_client.process_transaction(tx).await;
-    // Expected - insufficient balance
-    assert!(result.is_err(), "Should have thrown an error due to insufficient balance");
+    // Verify escrow was created with max intent ID
+    let escrow_account = context
+        .banks_client
+        .get_account(escrow_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let escrow = read_escrow(&escrow_account);
+    assert_eq!(escrow.amount, amount);
+    assert_eq!(escrow.requester, env.requester.pubkey());
 }
 
 /// 2. Test: Empty Deposit Scenarios

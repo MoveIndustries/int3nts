@@ -1,6 +1,10 @@
 mod common;
 
-use common::{create_escrow_ix, generate_intent_id, program_test, setup_basic_env};
+use common::{
+    create_cancel_ix, create_escrow_ix, create_mint, create_token_account, generate_intent_id,
+    initialize_program, mint_to, program_test, read_escrow, send_tx, setup_basic_env,
+};
+use intent_escrow::state::seeds;
 use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 
 /// 1. Test: Zero Amount Rejection
@@ -47,11 +51,83 @@ async fn test_reject_zero_amount() {
 // EVM: evm-intent-framework/test/error-conditions.test.js - "Should revert with insufficient ERC20 allowance"
 
 /// 3. Test: Maximum Value Edge Case
-/// Verifies that createEscrow handles maximum values correctly.
+/// Verifies that createEscrow handles maximum u64 values correctly.
 /// Why: Edge case testing ensures the program doesn't overflow or fail on boundary values.
-///
-/// NOTE: N/A for SVM - Covered in edge_cases.rs. Solana uses u64 for amounts
-// EVM: evm-intent-framework/test/error-conditions.test.js - "Should handle maximum uint256 value in createEscrow"
+#[tokio::test]
+async fn test_handle_maximum_u64_value_in_create_escrow() {
+    let program_test = program_test();
+    let mut context = program_test.start_with_context().await;
+    let payer = context.payer.insecure_clone();
+    let program_id = intent_escrow::id();
+
+    // Create fresh accounts for this test to avoid overflow from existing balances
+    let requester = solana_sdk::signature::Keypair::new();
+    let solver = solana_sdk::signature::Keypair::new();
+    let verifier = solana_sdk::signature::Keypair::new();
+    let mint_authority = solana_sdk::signature::Keypair::new();
+
+    // Fund requester
+    let fund_ix = solana_sdk::system_instruction::transfer(
+        &payer.pubkey(),
+        &requester.pubkey(),
+        2_000_000_000,
+    );
+    send_tx(&mut context, &payer, &[fund_ix], &[]).await;
+
+    // Create fresh mint and token accounts
+    let mint = create_mint(&mut context, &payer, &mint_authority, 6).await;
+    let requester_token = create_token_account(&mut context, &payer, mint, requester.pubkey()).await;
+
+    // Initialize program with fresh verifier
+    initialize_program(&mut context, &requester, program_id, verifier.pubkey()).await;
+
+    let intent_id = generate_intent_id();
+    let max_amount = u64::MAX;
+
+    // Mint maximum amount directly to fresh token account (no prior balance to overflow)
+    mint_to(
+        &mut context,
+        &payer,
+        mint,
+        &mint_authority,
+        requester_token,
+        max_amount,
+    )
+    .await;
+
+    let (escrow_pda, _) =
+        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &program_id);
+
+    let ix = create_escrow_ix(
+        program_id,
+        intent_id,
+        max_amount,
+        requester.pubkey(),
+        mint,
+        requester_token,
+        solver.pubkey(),
+        None,
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&requester.pubkey()),
+        &[&requester],
+        blockhash,
+    );
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // Verify escrow was created with max amount
+    let escrow_account = context
+        .banks_client
+        .get_account(escrow_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let escrow = read_escrow(&escrow_account);
+    assert_eq!(escrow.amount, max_amount);
+}
 
 /// 4. Test: Native Currency Escrow Creation with address(0)
 /// Verifies that createEscrow accepts address(0) for native currency deposits.
@@ -84,9 +160,43 @@ async fn test_reject_zero_amount() {
 /// 8. Test: Non-Existent Escrow Cancellation Rejection
 /// Verifies that cancel reverts with EscrowDoesNotExist for non-existent escrows.
 /// Why: Prevents cancellation of non-existent escrows and ensures proper error handling.
-///
-/// NOTE: N/A for SVM - Already covered in cancel.rs - "test_revert_if_escrow_does_not_exist"
-// EVM: evm-intent-framework/test/error-conditions.test.js - "Should revert cancel on non-existent escrow"
+#[tokio::test]
+async fn test_revert_cancel_on_non_existent_escrow() {
+    let program_test = program_test();
+    let mut context = program_test.start_with_context().await;
+    let env = setup_basic_env(&mut context).await;
+
+    let non_existent_intent_id = generate_intent_id();
+
+    let (escrow_pda, _) = Pubkey::find_program_address(
+        &[seeds::ESCROW_SEED, &non_existent_intent_id],
+        &env.program_id,
+    );
+    let (vault_pda, _) = Pubkey::find_program_address(
+        &[seeds::VAULT_SEED, &non_existent_intent_id],
+        &env.program_id,
+    );
+
+    let cancel_ix = create_cancel_ix(
+        env.program_id,
+        non_existent_intent_id,
+        env.requester.pubkey(),
+        env.requester_token,
+        escrow_pda,
+        vault_pda,
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[cancel_ix],
+        Some(&env.requester.pubkey()),
+        &[&env.requester],
+        blockhash,
+    );
+
+    let result = context.banks_client.process_transaction(tx).await;
+    assert!(result.is_err(), "Should have thrown EscrowDoesNotExist error");
+}
 
 /// 9. Test: Zero Solver Address Rejection
 /// Verifies that escrows cannot be created with zero/default solver address.

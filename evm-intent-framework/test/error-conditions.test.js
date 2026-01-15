@@ -140,22 +140,44 @@ describe("IntentEscrow - Error Conditions", function () {
   /// 9. Test: Zero Solver Address Rejection
   /// Verifies that escrows cannot be created with zero/default solver address.
   /// Why: A valid solver must be specified for claims.
-  ///
-  /// NOTE: N/A for EVM - Solidity address type cannot be zero by default, and require() checks prevent zero addresses
-  // SVM: svm-intent-framework/programs/intent_escrow/tests/error_conditions.rs - "test_reject_zero_solver_address"
+  it("Should revert with zero solver address", async function () {
+    const amount = ethers.parseEther("100");
+    await token.mint(requester.address, amount);
+    await token.connect(requester).approve(escrow.target, amount);
+
+    await expect(
+      escrow.connect(requester).createEscrow(intentId, token.target, amount, ethers.ZeroAddress)
+    ).to.be.revertedWith("Reserved solver must be specified");
+  });
 
   /// 10. Test: Duplicate Intent ID Rejection
   /// Verifies that escrows with duplicate intent IDs are rejected.
   /// Why: Each intent ID must map to exactly one escrow.
-  ///
-  /// NOTE: N/A for EVM - Already covered in initialization.test.js - "Should revert if escrow already exists"
-  // SVM: svm-intent-framework/programs/intent_escrow/tests/error_conditions.rs - "test_reject_duplicate_intent_id"
+  it("Should revert with duplicate intent ID", async function () {
+    const amount = ethers.parseEther("100");
+    await token.mint(requester.address, amount * 2n);
+    await token.connect(requester).approve(escrow.target, amount * 2n);
+
+    // Create first escrow
+    await escrow.connect(requester).createEscrow(intentId, token.target, amount, solver.address);
+
+    // Try to create second escrow with same intent ID
+    await expect(
+      escrow.connect(requester).createEscrow(intentId, token.target, amount, solver.address)
+    ).to.be.revertedWith("Escrow already exists");
+  });
 
   /// 11. Test: Insufficient Token Balance Rejection
   /// Verifies that escrow creation fails if requester has insufficient tokens.
   /// Why: Cannot deposit more tokens than available.
-  ///
-  /// NOTE: N/A for EVM - ERC20 transferFrom() automatically reverts on insufficient balance, so explicit test not needed
-  // SVM: svm-intent-framework/programs/intent_escrow/tests/error_conditions.rs - "test_reject_if_requester_has_insufficient_balance"
+  it("Should revert with insufficient token balance", async function () {
+    const amount = ethers.parseEther("100");
+    // Do NOT mint tokens - requester has no balance
+    await token.connect(requester).approve(escrow.target, amount);
+
+    await expect(
+      escrow.connect(requester).createEscrow(intentId, token.target, amount, solver.address)
+    ).to.be.reverted;
+  });
 });
 

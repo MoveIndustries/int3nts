@@ -2,7 +2,8 @@ mod common;
 
 use common::{
     create_claim_ix, create_cancel_ix, create_ed25519_instruction, create_escrow_ix,
-    generate_intent_id, get_token_balance, program_test, read_escrow, setup_basic_env,
+    create_mint, create_token_account, generate_intent_id, get_token_balance, initialize_program,
+    mint_to, program_test, read_escrow, send_tx, setup_basic_env,
 };
 use intent_escrow::state::seeds;
 use solana_sdk::{
@@ -104,18 +105,142 @@ async fn test_complete_full_deposit_to_claim_workflow() {
 }
 
 /// 2. Test: Multi-Token Scenarios
-/// Verifies that the escrow works with different token types.
-/// Why: The escrow must support any token type, not just a single token.
-///
-/// NOTE: N/A for SVM - All escrows use SPL tokens. Multiple token types would require multiple mints, which is covered by the program design but not tested here.
-// EVM: evm-intent-framework/test/integration.test.js - "Should handle multiple different ERC20 tokens"
+/// Verifies that the escrow works with different SPL token types.
+/// Why: The escrow must support any SPL token, not just a single token type.
+#[tokio::test]
+async fn test_handle_multiple_different_spl_tokens() {
+    let program_test = program_test();
+    let mut context = program_test.start_with_context().await;
+    let payer = context.payer.insecure_clone();
+    let program_id = intent_escrow::id();
 
-/// 3. Test: Comprehensive Event Emission
-/// Verifies that all events are emitted with correct parameters.
-/// Why: Events are critical for off-chain monitoring and indexing. Incorrect events break integrations.
+    // Create fresh accounts
+    let requester = solana_sdk::signature::Keypair::new();
+    let solver = solana_sdk::signature::Keypair::new();
+    let verifier = solana_sdk::signature::Keypair::new();
+    let mint_authority = solana_sdk::signature::Keypair::new();
+
+    // Fund requester
+    let fund_ix = solana_sdk::system_instruction::transfer(
+        &payer.pubkey(),
+        &requester.pubkey(),
+        5_000_000_000,
+    );
+    send_tx(&mut context, &payer, &[fund_ix], &[]).await;
+
+    // Initialize program
+    initialize_program(&mut context, &requester, program_id, verifier.pubkey()).await;
+
+    // Create 3 different token mints with different decimals
+    let mint1 = create_mint(&mut context, &payer, &mint_authority, 6).await;
+    let mint2 = create_mint(&mut context, &payer, &mint_authority, 9).await;
+    let mint3 = create_mint(&mut context, &payer, &mint_authority, 18).await;
+
+    // Create token accounts for requester
+    let requester_token1 = create_token_account(&mut context, &payer, mint1, requester.pubkey()).await;
+    let requester_token2 = create_token_account(&mut context, &payer, mint2, requester.pubkey()).await;
+    let requester_token3 = create_token_account(&mut context, &payer, mint3, requester.pubkey()).await;
+
+    // Mint different amounts to each token account
+    let amount1 = 100_000u64;
+    let amount2 = 200_000u64;
+    let amount3 = 300_000u64;
+
+    mint_to(&mut context, &payer, mint1, &mint_authority, requester_token1, amount1).await;
+    mint_to(&mut context, &payer, mint2, &mint_authority, requester_token2, amount2).await;
+    mint_to(&mut context, &payer, mint3, &mint_authority, requester_token3, amount3).await;
+
+    // Create escrows with different tokens
+    let intent_id1 = generate_intent_id();
+    let intent_id2 = generate_intent_id();
+    let intent_id3 = generate_intent_id();
+
+    // Create escrow 1 with mint1
+    let (escrow_pda1, _) = Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id1], &program_id);
+    let (vault_pda1, _) = Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id1], &program_id);
+
+    let ix1 = create_escrow_ix(
+        program_id,
+        intent_id1,
+        amount1,
+        requester.pubkey(),
+        mint1,
+        requester_token1,
+        solver.pubkey(),
+        None,
+    );
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx1 = Transaction::new_signed_with_payer(&[ix1], Some(&requester.pubkey()), &[&requester], blockhash);
+    context.banks_client.process_transaction(tx1).await.unwrap();
+
+    // Create escrow 2 with mint2
+    let (escrow_pda2, _) = Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id2], &program_id);
+    let (vault_pda2, _) = Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id2], &program_id);
+
+    let ix2 = create_escrow_ix(
+        program_id,
+        intent_id2,
+        amount2,
+        requester.pubkey(),
+        mint2,
+        requester_token2,
+        solver.pubkey(),
+        None,
+    );
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx2 = Transaction::new_signed_with_payer(&[ix2], Some(&requester.pubkey()), &[&requester], blockhash);
+    context.banks_client.process_transaction(tx2).await.unwrap();
+
+    // Create escrow 3 with mint3
+    let (escrow_pda3, _) = Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id3], &program_id);
+    let (vault_pda3, _) = Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id3], &program_id);
+
+    let ix3 = create_escrow_ix(
+        program_id,
+        intent_id3,
+        amount3,
+        requester.pubkey(),
+        mint3,
+        requester_token3,
+        solver.pubkey(),
+        None,
+    );
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx3 = Transaction::new_signed_with_payer(&[ix3], Some(&requester.pubkey()), &[&requester], blockhash);
+    context.banks_client.process_transaction(tx3).await.unwrap();
+
+    // Verify all escrows were created correctly
+    let escrow1 = read_escrow(&context.banks_client.get_account(escrow_pda1).await.unwrap().unwrap());
+    let escrow2 = read_escrow(&context.banks_client.get_account(escrow_pda2).await.unwrap().unwrap());
+    let escrow3 = read_escrow(&context.banks_client.get_account(escrow_pda3).await.unwrap().unwrap());
+
+    assert_eq!(escrow1.token_mint, mint1);
+    assert_eq!(escrow1.amount, amount1);
+    assert_eq!(escrow2.token_mint, mint2);
+    assert_eq!(escrow2.amount, amount2);
+    assert_eq!(escrow3.token_mint, mint3);
+    assert_eq!(escrow3.amount, amount3);
+
+    // Verify vault balances
+    assert_eq!(get_token_balance(&mut context, vault_pda1).await, amount1);
+    assert_eq!(get_token_balance(&mut context, vault_pda2).await, amount2);
+    assert_eq!(get_token_balance(&mut context, vault_pda3).await, amount3);
+}
+
+/// 3. Test: Comprehensive Log Emission
+/// Verifies that all program logs are emitted with correct parameters.
+/// Why: Logs are critical for off-chain monitoring and debugging. Incorrect logs break integrations.
 ///
-/// NOTE: N/A for SVM - Solana programs use program logs (msg!) instead of events. Log verification is covered in individual test files.
-// EVM: evm-intent-framework/test/integration.test.js - "Should emit all events with correct parameters"
+/// NOTE: N/A for SVM - solana-program-test does not capture msg!() output in transaction metadata.
+/// The msg!() logs are emitted to stdout during test execution but cannot be programmatically
+/// asserted. On a real validator, these logs would be captured and queryable via RPC.
+/// The program DOES emit structured logs (visible in test output):
+///   - "Instruction: CreateEscrow"
+///   - "Escrow created: intent_id=..., amount=..., expiry=..."
+///   - "Instruction: Claim"
+///   - "Escrow claimed: intent_id=..., amount=..."
+///   - "Instruction: Cancel"
+///   - "Escrow cancelled: intent_id=..., amount=..."
 
 /// 4. Test: Complete Cancellation Workflow
 /// Verifies the full workflow from escrow creation through cancellation after expiry.

@@ -40,32 +40,34 @@ Use section headers for test files that group multiple related tests:
 ```
 
 **When to use section headers:**
+
 - `edge-cases` / `edge_cases` - "EDGE CASE TESTS"
 - `integration` - "INTEGRATION TESTS"
 - `cross-chain` / `cross_chain` - "CROSS-CHAIN INTENT ID CONVERSION TESTS"
 
 **When NOT to use section headers:**
-- `error-conditions` / `error_conditions` - Do not create "SVM-SPECIFIC TESTS" or "EVM-SPECIFIC TESTS" sections. Platform-specific tests should be placed at the end with numbered positions, and N/A comments should be inline at the same positions in other frameworks.
 
-**When NOT to use section headers:**
 - `initialization`, `deposit`, `claim`, `cancel`, `expiry` - These files are straightforward and don't need section headers
-- `error-conditions` / `error_conditions` - Platform-specific tests should be numbered and placed at the end without section headers
+- `error-conditions` / `error_conditions` - Do not create "SVM-SPECIFIC TESTS" or "EVM-SPECIFIC TESTS" sections. Platform-specific tests should be placed at the end with numbered positions, and N/A comments should be inline at the same positions in other frameworks.
 
 ### Test Descriptions
 
 **Use generic, platform-appropriate terminology:**
 
 ✅ **Good:**
+
 - "Verifies that escrows cannot be created with zero amount"
 - "Verifies that the program handles boundary intent ID values correctly"
 - "Verifies that escrow creation fails if requester has insufficient tokens"
 
 ❌ **Bad:**
+
 - "Verifies that createEscrow reverts when ERC20 allowance is insufficient" (too EVM-specific)
 - "Verifies that intent IDs from Aptos hex format can be converted to EVM uint256" (mentions other platforms)
 - "Verifies that the contract handles boundary values" (use "program" for SVM, "contract" for EVM)
 
 **Test description format:**
+
 ```rust
 /// Test: [Test Name]
 /// Verifies that [what the test does].
@@ -75,11 +77,13 @@ Use section headers for test files that group multiple related tests:
 ### Test Order and Numbering
 
 **Maintain the exact same test order and numbering across all frameworks.** This ensures:
+
 - Easy comparison between frameworks
 - Consistent test numbering
 - Clear alignment of functionality
 
 **Numbering format:**
+
 - Each test should be numbered: `1. Test:`, `2. Test:`, etc.
 - Numbers must match across all frameworks at the same position
 - If a test is N/A for a framework, it still gets the same number with an N/A comment
@@ -90,74 +94,97 @@ Use section headers for test files that group multiple related tests:
 
 Each test file uses independent numbering starting from 1. At the end of the implementation, check that all tests are numbered correctly and match the below list.
 
+**Legend:** ✅ = Implemented | N/A = Not applicable to platform | ⚠️ = Not yet implemented
+
 #### initialization.test.js / initialization.rs
 
-1. Should initialize escrow with verifier address
-2. Should allow requester to create an escrow
-3. Should revert if escrow already exists
-4. Should revert if amount is zero
+| # | Test | EVM | SVM |
+| --- | ------ | ----- | ----- |
+| 1 | Should initialize escrow with verifier address | ✅ | ✅ |
+| 2 | Should allow requester to create an escrow | ✅ | ✅ |
+| 3 | Should revert if escrow already exists | ✅ | ✅ |
+| 4 | Should revert if amount is zero | ✅ | ✅ |
 
 #### deposit.test.js / deposit.rs
 
-1. Should allow requester to create escrow with tokens
-2. Should revert if escrow is already claimed
-3. Should support multiple escrows with different intent IDs
-4. Should set correct expiry timestamp
+| # | Test | EVM | SVM |
+| --- | ------ | ----- | ----- |
+| 1 | Should allow requester to create escrow with tokens | ✅ | ✅ |
+| 2 | Should revert if escrow is already claimed | ✅ | ✅ |
+| 3 | Should support multiple escrows with different intent IDs | ✅ | ✅ |
+| 4 | Should set correct expiry timestamp | ✅ | ✅ |
 
 #### claim.test.js / claim.rs
 
-1. Should allow solver to claim with valid verifier signature
-2. Should revert with invalid signature
-3. Should prevent signature replay across different intent_ids
-4. Should revert if escrow already claimed
-5. Should revert if escrow does not exist
+| # | Test | EVM | SVM |
+| --- | ------ | ----- | ----- |
+| 1 | Should allow solver to claim with valid verifier signature | ✅ | ✅ |
+| 2 | Should revert with invalid signature | ✅ | ✅ |
+| 3 | Should prevent signature replay across different intent_ids | ✅ | ✅ |
+| 4 | Should revert if escrow already claimed | ✅ | ✅ |
+| 5 | Should revert if escrow does not exist | ✅ | ✅ |
 
 #### cancel.test.js / cancel.rs
 
-1. Should revert if escrow has not expired yet
-2. Should allow requester to cancel and reclaim funds after expiry
-3. Should revert if not requester
-4. Should revert if already claimed
-5. Should revert if escrow does not exist
+| # | Test | EVM | SVM |
+| --- | ------ | ----- | ----- |
+| 1 | Should revert if escrow has not expired yet | ✅ | ✅ |
+| 2 | Should allow requester to cancel and reclaim funds after expiry | ✅ | ✅ |
+| 3 | Should revert if not requester | ✅ | ✅ |
+| 4 | Should revert if already claimed | ✅ | ✅ |
+| 5 | Should revert if escrow does not exist | ✅ | ✅ |
 
 #### expiry.test.js / expiry.rs
 
-1. Should allow requester to cancel expired escrow
-2. Should verify expiry timestamp is stored correctly
-3. Should prevent claim on expired escrow
+| # | Test | EVM | SVM |
+| --- | ------ | ----- | ----- |
+| 1 | Should allow requester to cancel expired escrow | ✅ | ✅ |
+| 2 | Should verify expiry timestamp is stored correctly | ✅ | ✅ |
+| 3 | Should prevent claim on expired escrow | ✅ | ✅ |
 
 #### cross-chain.test.js / cross_chain.rs
 
-1. Should handle hex intent ID conversion to uint256/bytes32
-2. Should handle intent ID boundary values
-3. Should handle intent ID zero padding correctly
-4. Should handle multiple intent IDs from different formats
+| # | Test | EVM | SVM |
+| --- | ------ | ----- | ----- |
+| 1 | Should handle hex intent ID conversion to uint256/bytes32 | ✅ | ✅ |
+| 2 | Should handle intent ID boundary values | ✅ | ✅ |
+| 3 | Should handle intent ID zero padding correctly | ✅ | ✅ |
+| 4 | Should handle multiple intent IDs from different formats | ✅ | ✅ |
 
 #### edge-cases.test.js / edge_cases.rs
 
-1. Should handle maximum values for amounts (and intent IDs if applicable)
-2. Should handle minimum deposit amount
-3. Should allow requester to create multiple escrows
-4. Should handle gas/compute consumption for large operations
-5. Should handle concurrent escrow operations
+| # | Test | EVM | SVM |
+| --- | ------ | ----- | ----- |
+| 1 | Should handle maximum values for amounts | ✅ | ✅ |
+| 2 | Should handle minimum deposit amount | ✅ | ✅ |
+| 3 | Should allow requester to create multiple escrows | ✅ | ✅ |
+| 4 | Should handle gas/compute consumption for large operations | ✅ | ✅ |
+| 5 | Should handle concurrent escrow operations | ✅ | ✅ |
 
 #### error-conditions.test.js / error_conditions.rs
 
-1. Should revert with zero amount in createEscrow
-2. Should revert with insufficient token allowance (if applicable)
-3. Should handle maximum value in createEscrow (if applicable)
-4. Should allow native currency escrow creation (if applicable)
-5. Should revert with native currency amount mismatch (if applicable)
-6. Should revert when native currency sent with token address (if applicable)
-7. Should revert with invalid signature length (if applicable)
-8. Should revert cancel on non-existent escrow
+| # | Test | EVM | SVM |
+| --- | ------ | ----- | ----- |
+| 1 | Should revert with zero amount in createEscrow | ✅ | ✅ |
+| 2 | Should revert with insufficient token allowance | ✅ | N/A |
+| 3 | Should handle maximum value in createEscrow | ✅ | ✅ |
+| 4 | Should allow native currency escrow creation | ✅ | N/A |
+| 5 | Should revert with native currency amount mismatch | ✅ | N/A |
+| 6 | Should revert when native currency sent with token address | ✅ | N/A |
+| 7 | Should revert with invalid signature length | ✅ | N/A |
+| 8 | Should revert cancel on non-existent escrow | ✅ | ✅ |
+| 9 | Should reject zero solver address | ✅ | ✅ |
+| 10 | Should reject duplicate escrow creation | ✅ | ✅ |
+| 11 | Should reject insufficient token balance | ✅ | ✅ |
 
 #### integration.test.js / integration.rs
 
-1. Should complete full deposit to claim workflow
-2. Should handle multiple different token types (if applicable)
-3. Should emit all events/logs with correct parameters (if applicable)
-4. Should complete full cancellation workflow
+| # | Test | EVM | SVM |
+| --- | ------ | ----- | ----- |
+| 1 | Should complete full deposit to claim workflow | ✅ | ✅ |
+| 2 | Should handle multiple different token types | ✅ | ✅ |
+| 3 | Should emit all events/logs with correct parameters | ✅ | N/A |
+| 4 | Should complete full cancellation workflow | ✅ | ✅ |
 
 ## Handling Platform Differences
 
@@ -166,6 +193,7 @@ Each test file uses independent numbering starting from 1. At the end of the imp
 When a test from another framework doesn't apply to your platform, add a comment-only entry in the same position:
 
 **In SVM (for EVM-specific tests):**
+
 ```rust
 /// Test: Insufficient Allowance Rejection
 /// Verifies that createEscrow reverts when token allowance is insufficient.
@@ -176,6 +204,7 @@ When a test from another framework doesn't apply to your platform, add a comment
 ```
 
 **In EVM (for SVM-specific tests):**
+
 ```javascript
 /// Test: Zero Solver Address Rejection
 /// Verifies that escrows cannot be created with zero/default solver address.
@@ -190,6 +219,7 @@ When a test from another framework doesn't apply to your platform, add a comment
 If your platform has tests that don't exist in other frameworks, add them at the end of the appropriate test file (maintaining the numbered sequence):
 
 **Example (SVM-specific tests in error_conditions.rs):**
+
 ```rust
 /// 9. Test: Zero Solver Address Rejection
 /// Verifies that escrows cannot be created with zero/default solver address.
@@ -213,6 +243,7 @@ async fn test_reject_zero_solver_address() {
 **Example:** If you add a new test as "12. Test: New Feature Validation" in the EVM framework:
 
 **In EVM (error-conditions.test.js):**
+
 ```javascript
 /// 12. Test: New Feature Validation
 /// Verifies that new feature works correctly.
@@ -223,6 +254,7 @@ it("Should validate new feature", async function () {
 ```
 
 **In SVM (error_conditions.rs) - at the same position:**
+
 ```rust
 /// 12. Test: New Feature Validation
 /// Verifies that new feature works correctly.
@@ -233,6 +265,7 @@ it("Should validate new feature", async function () {
 ```
 
 **Key points:**
+
 - The test number must match across all frameworks
 - N/A comments must be at the same index/position as the actual test
 - The N/A comment must clearly explain why the test doesn't apply to that framework
@@ -243,11 +276,13 @@ it("Should validate new feature", async function () {
 ### Avoid Historical Change Comments
 
 ❌ **Bad:**
+
 ```rust
 let amount = 100_000u64; // Reduced to allow 6 escrows with initial 1M tokens
 ```
 
 ✅ **Good:**
+
 ```rust
 let amount = 100_000u64; // Amount chosen to allow 6 escrows within test token budget
 ```
