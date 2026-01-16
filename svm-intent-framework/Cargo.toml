@@ -2,7 +2,8 @@
 
 [workspace]
 members = [
-    "programs/*"
+    "programs/*",
+    "tools/*"
 ]
 resolver = "2"
 

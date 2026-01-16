@@ -2,9 +2,9 @@
 
 ## Overview
 
-Replicate the EVM Intent Framework for Solana SVM using the Anchor framework. This includes the escrow program, all tests, utility scripts, documentation, and E2E test infrastructure.
+Replicate the EVM Intent Framework for Solana SVM using native Solana development. This includes the escrow program, all tests, utility scripts, documentation, and E2E test infrastructure.
 
-**Structured in 9 phases with committable checkpoints.**
+**Structured in 11 phases with committable checkpoints.**
 
 ## Architecture
 
@@ -12,16 +12,16 @@ Replicate the EVM Intent Framework for Solana SVM using the Anchor framework. Th
 flowchart LR
     subgraph EVM [EVM Framework]
         EVMContract[IntentEscrow.sol]
-        EVMTests[test/*.js]
+        EVMTests[test/*.test.js]
         EVMScripts[scripts/*.js]
         HardhatConfig[hardhat.config.js]
     end
     
-    subgraph SVM [SVM Framework - NEW]
-        SVMProgram[intent_escrow/lib.rs]
-        SVMTests[tests/*.ts]
-        SVMScripts[scripts/*.ts]
-        AnchorConfig[Anchor.toml]
+    subgraph SVM [SVM Framework]
+        SVMProgram[intent_escrow/src/*.rs]
+        SVMTests[tests/*.rs]
+        SVMScripts[scripts/*.sh]
+        CargoConfig[Cargo.toml]
     end
     
     EVM -->|Replicate| SVM
@@ -30,12 +30,13 @@ flowchart LR
 ## Key Technical Differences
 
 | Aspect | EVM | SVM |
-|--------|-----|-----|
+| ------ | --- | --- |
 | Token Standard | ERC20 | SPL Token |
 | Signatures | ECDSA (secp256k1) | Ed25519 |
 | Amount Type | uint256 | u64 |
 | Storage | Mapping | PDA Accounts |
 | Time | block.timestamp | Clock sysvar |
+| Test Framework | Hardhat/Mocha | solana-program-test |
 
 ---
 
@@ -57,6 +58,7 @@ flowchart LR
 Follow the conventions in [`.cursor/rules`](../.cursor/rules):
 
 **If tests were run:**
+
 ```bash
 git commit -m "<type>: <description>
 
@@ -66,6 +68,7 @@ Tests pass: Verifier (Rust) <number>, Solver (Rust) <number>, Move <amount>, EVM
 ```
 
 **If tests were NOT run (e.g., project setup, docs only, no test-affecting changes):**
+
 ```bash
 git commit -m "<type>: <description>
 
@@ -73,6 +76,7 @@ git commit -m "<type>: <description>
 ```
 
 **Important:**
+
 - **NEVER run `git add` or `git add -A`** - files must be staged by the user
 - **Only run tests if the changes affect existing test code** (e.g., adding new tests, modifying code that has tests)
 - **Do NOT run tests for:** project setup, documentation-only changes, configuration files, or other non-code changes
@@ -83,14 +87,16 @@ git commit -m "<type>: <description>
 ### Getting Test Counts
 
 Run test summary script:
+
 ```bash
 ./.cursor/test-summary.sh
 ```
 
 Or get individual counts:
+
 ```bash
-# SVM tests (when implemented)
-nix develop -c bash -c "cd svm-intent-framework && anchor test" 2>&1 | grep -oE "[0-9]+ passing" | awk '{print $1}'
+# SVM tests
+nix develop -c bash -c "cd svm-intent-framework && ./scripts/test.sh" 2>&1 | grep -oE "[0-9]+ test" | awk '{print $1}'
 ```
 
 ---
@@ -102,34 +108,37 @@ nix develop -c bash -c "cd svm-intent-framework && anchor test" 2>&1 | grep -oE 
 - [x] Save this plan to `.cursor/plans/plan.md`
 - [x] Create `svm-intent-framework/` directory structure:
 
-```
+```text
 svm-intent-framework/
-├── Anchor.toml
 ├── Cargo.toml
-├── package.json
-├── tsconfig.json
 ├── README.md
+├── scripts/
+│   ├── build.sh
+│   └── test.sh
 └── programs/
     └── intent_escrow/
         ├── Cargo.toml
         └── src/
-            └── lib.rs (stub)
+            ├── lib.rs
+            ├── instruction.rs
+            ├── processor.rs
+            ├── state.rs
+            └── error.rs
 ```
 
 ---
 
 ## Phase 2: Core Program ✅
 
-**Commit: `feat(svm): implement IntentEscrow program with toolchain workarounds`**
+**Commit: `feat(svm): implement IntentEscrow program`**
 
-- [x] Implement IntentEscrow program in `programs/intent_escrow/src/lib.rs`
-- [x] Add build script with Anchor 0.29.0 / Solana CLI compatibility shims
+- [x] Implement IntentEscrow program in `programs/intent_escrow/src/`
+- [x] Add build script with Solana CLI compatibility workarounds
 - [x] Document toolchain constraints (Cargo.lock v3, edition2024 avoidance)
 
 **Escrow Account Structure:**
 
 ```rust
-#[account]
 pub struct Escrow {
     pub requester: Pubkey,
     pub token_mint: Pubkey,
@@ -138,7 +147,6 @@ pub struct Escrow {
     pub expiry: i64,
     pub reserved_solver: Pubkey,
     pub intent_id: [u8; 32],
-    pub bump: u8,
 }
 ```
 
@@ -148,7 +156,7 @@ pub struct Escrow {
 - `claim(signature)` - Ed25519 signature verification
 - `cancel()` - Refund after expiry
 
-**Events:** EscrowInitialized, EscrowClaimed, EscrowCancelled
+**Events:** Program logs via `msg!()` - EscrowInitialized, EscrowClaimed, EscrowCancelled
 
 **Errors:** EscrowAlreadyClaimed, EscrowDoesNotExist, NoDeposit, UnauthorizedRequester, InvalidSignature, UnauthorizedVerifier, EscrowExpired, EscrowNotExpiredYet
 
@@ -156,11 +164,10 @@ pub struct Escrow {
 
 ## Phase 3: Test Helpers ✅
 
-**Commit: `test(svm): add test helpers and setup`**
+**Commit: `test(svm): add Rust test helpers`**
 
-- [x] Create `tests/helpers/setup.ts` - Test fixtures (provider, program, accounts)
-- [x] Create `tests/helpers/token.ts` - SPL token utilities (create mint, mint tokens)
-- [x] Create `tests/helpers/index.ts` - Re-exports
+- [x] Create `tests/common.rs` - Test fixtures, SPL token utilities, instruction builders
+- [x] Helper functions: `program_test()`, `setup_basic_env()`, `create_escrow_ix()`, etc.
 
 ---
 
@@ -168,54 +175,112 @@ pub struct Escrow {
 
 **Commit: `test(svm): add core escrow tests`**
 
-- [x] Create `tests/initialization.test.ts` - Verifier setup, escrow creation, duplicate prevention
-- [x] Create `tests/deposit.test.ts` - Token deposits, balance verification
-- [x] Create `tests/claim.test.ts` - Signature verification, replay prevention, double-claim prevention
-- [x] Create `tests/cancel.test.ts` - Expiry enforcement, refund flow
+- [x] Create `tests/initialization.rs` - Verifier setup, escrow creation, duplicate prevention
+- [x] Create `tests/deposit.rs` - Token deposits, balance verification
+- [x] Create `tests/claim.rs` - Signature verification, replay prevention, double-claim prevention
+- [x] Create `tests/cancel.rs` - Expiry enforcement, refund flow
 
 ---
 
-## Phase 5: Extended Tests
+## Phase 5: Extended Tests ✅
 
 **Commit: `test(svm): add extended test coverage`**
 
-- [ ] Create `tests/expiry.test.ts` - Time-based logic
-- [ ] Create `tests/cross-chain.test.ts` - Intent ID format handling
-- [ ] Create `tests/edge-cases.test.ts` - Boundary values, concurrent operations
-- [ ] Create `tests/error-conditions.test.ts` - Error handling
-- [ ] Create `tests/integration.test.ts` - Full workflows
-- [ ] Create `tests/scripts.test.ts` - Script functionality
+- [x] Create `tests/expiry.rs` - Time-based logic
+- [x] Create `tests/cross_chain.rs` - Intent ID format handling
+- [x] Create `tests/edge_cases.rs` - Boundary values, concurrent operations
+- [x] Create `tests/error_conditions.rs` - Error handling
+- [x] Create `tests/integration.rs` - Full workflows
+- [x] Create `tests/scripts.rs` - Script functionality placeholder
 
 ---
 
-## Phase 6: Utility Scripts
+## Phase 6: Utility Scripts ✅
 
-**Commit: `feat(svm): add utility scripts`**
+**Commit: `feat(svm): add CLI and utility scripts`**
 
-- [ ] Create `scripts/deploy.ts` - Deploy IntentEscrow program
-- [ ] Create `scripts/create-escrow.ts` - Create escrow for intent
-- [ ] Create `scripts/claim-escrow.ts` - Claim with verifier signature
-- [ ] Create `scripts/get-escrow-status.ts` - Query escrow state
-- [ ] Create `scripts/mint-token.ts` - Mint test SPL tokens
-- [ ] Create `scripts/get-token-balance.ts` - Check SPL token balance
-- [ ] Create `scripts/transfer-with-intent-id.ts` - Transfer with intent ID in memo
+- [x] Create deployment script (`svm-intent-framework/scripts/deploy.sh`)
+- [x] Create escrow interaction scripts (`svm-intent-framework/scripts/*-escrow.sh`)
+- [x] Add CLI tool for on-chain interactions (`svm-intent-framework/tools/intent_escrow_cli`)
 
 ---
 
-## Phase 7: E2E Infrastructure
+## Phase 7: Integration (Verifier + Solver)
 
-**Commit: `test(svm): add E2E test infrastructure`**
+**Commit: `feat: add SVM support to verifier and solver`**
 
-**chain-connected-svm/**
+**Documentation:** Update `docs/` and `taskmaster/docs/` to reflect SVM integration.
+
+### Verifier
+
+New files (following EVM/MVM pattern):
+
+- [ ] `src/svm_client.rs` - SVM RPC client
+  - Solana JSON-RPC calls (`getAccountInfo`, `getSlot`, etc.)
+  - Parse Borsh-serialized escrow PDA state
+  - Ed25519 signature generation for intent IDs
+- [ ] `src/api/inflow_svm.rs` - Inflow SVM API handlers
+- [ ] `src/api/outflow_svm.rs` - Outflow SVM API handlers
+- [ ] `src/monitor/inflow_svm.rs` - Poll SVM escrow events
+- [ ] `src/monitor/outflow_svm.rs` - Monitor SVM escrow state changes
+- [ ] `src/validator/inflow_svm.rs` - Validate SVM escrow solver matches registry
+- [ ] `src/validator/outflow_svm.rs` - Validate SVM outflow fulfillment
+
+Updates to existing files:
+
+- [ ] `src/config/mod.rs` - Add `SvmChainConfig` struct
+- [ ] `config/verifier.template.toml` - Add SVM chain config section
+- [ ] `src/api/mod.rs` - Register SVM routes
+- [ ] `src/monitor/mod.rs` - Register SVM monitor
+- [ ] `src/validator/mod.rs` - Register SVM validators
+
+Tests:
+
+- [ ] `tests/svm/` - SVM-specific test directory
+- [ ] `tests/svm/crypto_tests.rs` - Ed25519 signature tests
+- [ ] `tests/svm/validator_tests.rs` - SVM validation tests
+- [ ] `tests/svm/escrow_parsing_tests.rs` - Borsh escrow parsing tests
+
+### Solver
+
+New files (following EVM pattern):
+
+- [ ] `src/chains/connected_svm.rs` - SVM chain client
+  - Query escrow PDA state via RPC
+  - Build claim transactions (with Ed25519 verify instruction)
+  - SPL token balance checking
+  - Transaction signing and submission
+
+Updates to existing files:
+
+- [ ] `src/config.rs` - Add `SvmChainConfig` struct
+- [ ] `config/solver.template.toml` - Add SVM chain config section
+- [ ] `src/chains/mod.rs` - Register SVM chain
+- [ ] `src/service/inflow.rs` - Handle SVM inflow intents
+- [ ] `src/service/outflow.rs` - Handle SVM outflow intents
+
+Tests:
+
+- [ ] `tests/svm_chain_client_tests.rs` - SVM client tests
+
+---
+
+## Phase 8: E2E Infrastructure
+
+**Commit: `test: add SVM E2E test infrastructure`**
+
+**Documentation:** Update `docs/` and `taskmaster/docs/` to reflect SVM E2E testing.
+
+### chain-connected-svm
 
 - [ ] Create `testing-infra/ci-e2e/chain-connected-svm/setup-chain.sh` - Start solana-test-validator
 - [ ] Create `testing-infra/ci-e2e/chain-connected-svm/stop-chain.sh` - Stop validator
 - [ ] Create `testing-infra/ci-e2e/chain-connected-svm/cleanup.sh` - Full cleanup
-- [ ] Create `testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh` - Deploy Anchor program
+- [ ] Create `testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh` - Deploy program
 - [ ] Create `testing-infra/ci-e2e/chain-connected-svm/setup-requester-solver.sh` - Fund test accounts
 - [ ] Create `testing-infra/ci-e2e/chain-connected-svm/utils.sh` - SVM-specific utilities
 
-**e2e-tests-svm/**
+### e2e-tests-svm
 
 - [ ] Create `testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh` - Full inflow E2E test
 - [ ] Create `testing-infra/ci-e2e/e2e-tests-svm/run-tests-outflow.sh` - Full outflow E2E test
@@ -224,46 +289,87 @@ pub struct Escrow {
 - [ ] Create `testing-infra/ci-e2e/e2e-tests-svm/start-solver.sh` - Start solver
 - [ ] Create `testing-infra/ci-e2e/e2e-tests-svm/README.md` - Documentation
 
-**Shared utilities**
+### Shared utilities
 
 - [ ] Create `testing-infra/ci-e2e/util_svm.sh` - SVM-specific shell utilities
 
+### CI Integration
+
+- [ ] Update `.github/workflows/e2e_tests.yml` - Add SVM E2E jobs
+  - `svm-chain-inflow` job using `run-tests-inflow.sh`
+  - `svm-chain-outflow` job using `run-tests-outflow.sh`
+
 ---
 
-## Phase 8: Nix Integration ✅
+## Phase 9: Frontend Integration
 
-**Commit: `chore: add Solana/Anchor to nix dev shell`**
+**Commit: `feat: add SVM support to frontend`**
 
-- [x] Create `solana.nix` - Nix package for Solana CLI + Anchor CLI
-- [x] Update `flake.nix` - Add solanaCli to dev shell packages
+**Documentation:** Update `docs/` and `taskmaster/docs/` to reflect SVM frontend support.
+
+### Dependencies
+
+- [ ] Add `@solana/web3.js` - Solana SDK
+- [ ] Add `@solana/wallet-adapter-*` - Wallet adapter packages
+- [ ] Add `@solana/spl-token` - SPL token utilities
+
+### New files
+
+- [ ] `src/components/wallet/SvmWalletConnector.tsx` - Phantom wallet connection component
+- [ ] `src/lib/svm-escrow.ts` - SVM escrow utilities
+  - PDA derivation for escrow and vault
+  - Instruction building (CreateEscrow, Claim, Cancel)
+  - Intent ID formatting for SVM
+- [ ] `src/lib/svm-transactions.ts` - SVM transaction signing/submission via Phantom
+
+### Updates to existing files
+
+- [ ] `src/config/chains.ts` - Add SVM chain configs (devnet, program ID)
+- [ ] `src/config/tokens.ts` - Add SPL token configurations
+- [ ] `src/lib/balances.ts` - Add `fetchSvmBalance()` for SPL tokens
+- [ ] `src/lib/types.ts` - Add SVM-specific types
+- [ ] `src/components/providers.tsx` - Add Solana wallet adapter provider
+- [ ] `src/components/intent/IntentBuilder.tsx` - Handle SVM inflow/outflow flows
+  - SVM wallet state management
+  - SVM escrow creation flow
+  - SVM transaction submission
+  - SVM escrow status display
+
+---
+
+## Phase 10: Nix Integration ✅
+
+**Commit: `chore: add Solana to nix dev shell`**
+
+- [x] Update `flake.nix` - Add Solana CLI installation via rustup
 - [x] Nix Rust for Verifier/Solver, rustup for SVM builds
 
 ---
 
-## Phase 9: Documentation
+## Phase 11: Documentation ✅
 
 **Commit: `docs: add SVM framework documentation`**
 
-- [ ] Create `docs/svm-intent-framework/README.md` - Full SVM framework docs
-- [ ] Update root `README.md` with:
-  - SVM component link
-  - SVM unit test command
-  - SVM E2E test commands
+- [x] Create `docs/svm-intent-framework/README.md` - Full SVM framework docs
+- [x] Update root `README.md` with SVM component link and test commands
+- [x] Create `docs/framework-extension-guide.md` - Guide for adding new frameworks
+- [x] Add SVM tests to CI workflow
 
 ---
 
-## Commands After Implementation
+## Commands
 
 ```bash
-# Enter dev shell (includes Solana/Anchor)
+# Enter dev shell (includes Solana)
 nix develop
 
-# Build and test
+# Build program
 cd svm-intent-framework
-anchor build
-anchor test
+./scripts/build.sh
 
-# E2E tests
-./testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh
-./testing-infra/ci-e2e/e2e-tests-svm/run-tests-outflow.sh
+# Run tests
+./scripts/test.sh
+
+# Or directly with cargo
+cargo test -p intent_escrow --tests
 ```
