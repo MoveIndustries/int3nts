@@ -14,61 +14,76 @@
 pub const DUMMY_DRAFT_ID: &str = "11111111-1111-1111-1111-111111111111";
 
 /// Dummy intent ID (64 hex characters, same across all chains)
-pub const DUMMY_INTENT_ID: &str = "0x1111111111111111111111111111111111111111111111111111111111111111";
+pub const DUMMY_INTENT_ID: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000001";
 
 /// Dummy escrow ID (EVM format, 40 hex characters)
-pub const DUMMY_ESCROW_ID_EVM: &str = "0x2222222222222222222222222222222222222222";
+pub const DUMMY_ESCROW_ID_EVM: &str = "0x0000000000000000000000000000000000000002";
 
 /// Dummy escrow ID (Move VM format, 64 hex characters)
-pub const DUMMY_ESCROW_ID_MVM: &str = "0x2222222222222222222222222222222222222222222222222222222222222222";
+pub const DUMMY_ESCROW_ID_MVM: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000003";
 
 // -------------------------------- USERS ---------------------------------
 
 /// Dummy requester address on hub chain (Move VM format, 64 hex characters)
-pub const DUMMY_REQUESTER_ADDR_MVM_HUB: &str = "0x3333333333333333333333333333333333333333333333333333333333333333";
+pub const DUMMY_REQUESTER_ADDR_MVM_HUB: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000004";
 
 /// Dummy requester address on connected chain (Move VM format, 64 hex characters)
-pub const DUMMY_REQUESTER_ADDR_MVM_CON: &str = "0x4444444444444444444444444444444444444444444444444444444444444444";
+pub const DUMMY_REQUESTER_ADDR_MVM_CON: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000005";
 
 /// Dummy requester address (EVM format, 40 hex characters)
-pub const DUMMY_REQUESTER_ADDR_EVM: &str = "0x5555555555555555555555555555555555555555";
+pub const DUMMY_REQUESTER_ADDR_EVM: &str = "0x0000000000000000000000000000000000000006";
 
 /// Dummy solver address on hub chain (Move VM format, 64 hex characters)
-pub const DUMMY_SOLVER_ADDR_MVM_HUB: &str = "0x6666666666666666666666666666666666666666666666666666666666666666";
+pub const DUMMY_SOLVER_ADDR_MVM_HUB: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000007";
 
 /// Dummy solver address on connected chain (Move VM format, 64 hex characters)
-pub const DUMMY_SOLVER_ADDR_MVM_CON: &str = "0x7777777777777777777777777777777777777777777777777777777777777777";
+pub const DUMMY_SOLVER_ADDR_MVM_CON: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000008";
 
 /// Dummy solver address (EVM format, 40 hex characters)
-pub const DUMMY_SOLVER_ADDR_EVM: &str = "0x8888888888888888888888888888888888888888";
+pub const DUMMY_SOLVER_ADDR_EVM: &str = "0x0000000000000000000000000000000000000009";
 
 // ------------------------- TOKENS AND CONTRACTS -------------------------
 
 /// Dummy token address (EVM format, 40 hex characters)
-pub const DUMMY_TOKEN_ADDR_EVM: &str = "0x9999999999999999999999999999999999999999";
+pub const DUMMY_TOKEN_ADDR_EVM: &str = "0x000000000000000000000000000000000000000a";
 
 /// Dummy token address on hub chain (Move VM format, 64 hex characters)
-pub const DUMMY_TOKEN_ADDR_MVM_HUB: &str = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+pub const DUMMY_TOKEN_ADDR_MVM_HUB: &str =
+    "0x000000000000000000000000000000000000000000000000000000000000000b";
 
 /// Dummy token address on connected chain (Move VM format, 64 hex characters)
-pub const DUMMY_TOKEN_ADDR_MVM_CON: &str = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+pub const DUMMY_TOKEN_ADDR_MVM_CON: &str =
+    "0x000000000000000000000000000000000000000000000000000000000000000c";
 
 /// Dummy escrow contract address (EVM format, 40 hex characters)
-pub const DUMMY_ESCROW_CONTRACT_ADDR_EVM: &str = "0xcccccccccccccccccccccccccccccccccccccccc";
+pub const DUMMY_ESCROW_CONTRACT_ADDR_EVM: &str = "0x000000000000000000000000000000000000000d";
 
 /// Dummy intent address (Move VM format, 64 hex characters, used for intent object address on hub chain)
-pub const DUMMY_INTENT_ADDR_MVM: &str = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+pub const DUMMY_INTENT_ADDR_MVM: &str =
+    "0x000000000000000000000000000000000000000000000000000000000000000e";
 
-/// Dummy module address for hub chain (short format)
-pub const DUMMY_MODULE_ADDR_HUB: &str = "0x1";
+/// Dummy escrow program id (valid base58 pubkey string)
+pub const DUMMY_SVM_ESCROW_PROGRAM_ID: &str = "11111111111111111111111111111111";
 
-/// Dummy module address for connected chain (short format)
-pub const DUMMY_MODULE_ADDR_CON: &str = "0x2";
+/// Dummy module address for hub chain
+pub const DUMMY_MODULE_ADDR_HUB: &str =
+    "0x000000000000000000000000000000000000000000000000000000000000000f";
+
+/// Dummy module address for connected chain
+pub const DUMMY_MODULE_ADDR_CON: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000010";
 
 // -------------------------------- OTHER ---------------------------------
 
 /// Dummy transaction hash (64 hex characters)
-pub const DUMMY_TX_HASH: &str = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+pub const DUMMY_TX_HASH: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000011";
 
 /// Dummy expiry timestamp (far future timestamp for tests)
 pub const DUMMY_EXPIRY: u64 = 9999999999;

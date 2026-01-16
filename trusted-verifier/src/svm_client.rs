@@ -6,7 +6,7 @@
 
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use borsh::BorshDeserialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
@@ -17,7 +17,7 @@ use std::time::Duration;
 // ACCOUNT STRUCTURES
 // ============================================================================
 
-#[derive(BorshDeserialize, Debug, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
 pub struct EscrowAccount {
     pub discriminator: [u8; 8],
     pub requester: Pubkey,
@@ -71,6 +71,7 @@ struct RpcAccount {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct AccountInfoResult {
     value: Option<RpcAccount>,
 }
@@ -103,14 +104,17 @@ impl SvmClient {
         })
     }
 
+    #[allow(dead_code)]
     pub fn program_id(&self) -> Pubkey {
         self.program_id
     }
 
+    #[allow(dead_code)]
     pub fn escrow_pda(&self, intent_id: &[u8; 32]) -> Pubkey {
         Pubkey::find_program_address(&[b"escrow", intent_id], &self.program_id).0
     }
 
+    #[allow(dead_code)]
     pub async fn get_escrow_by_intent_id(&self, intent_id: &[u8; 32]) -> Result<Option<EscrowAccount>> {
         let escrow_pda = self.escrow_pda(intent_id);
         let result = self.get_account_info(&escrow_pda).await?;
@@ -159,6 +163,7 @@ impl SvmClient {
         Ok(escrows)
     }
 
+    #[allow(dead_code)]
     async fn get_account_info(&self, pubkey: &Pubkey) -> Result<Option<EscrowWithPubkey>> {
         let params = serde_json::json!([
             pubkey.to_string(),

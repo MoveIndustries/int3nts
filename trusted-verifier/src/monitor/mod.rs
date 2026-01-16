@@ -21,7 +21,6 @@ mod hub_mvm;
 mod inflow_evm;
 mod inflow_mvm;
 mod inflow_svm;
-mod outflow_evm;
 
 // Re-export public types and functions
 pub use generic::{

@@ -11,7 +11,9 @@
 use base64::{engine::general_purpose, Engine as _};
 use ed25519_dalek::SigningKey;
 use rand::{Rng, RngCore};
-use trusted_verifier::config::{ApiConfig, ChainConfig, Config, EvmChainConfig, VerifierConfig};
+use trusted_verifier::config::{
+    ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, VerifierConfig,
+};
 use trusted_verifier::evm_client::EvmTransaction;
 use trusted_verifier::monitor::{ChainType, EscrowEvent, FulfillmentEvent, IntentEvent};
 use trusted_verifier::mvm_client::MvmTransaction;
@@ -24,58 +26,82 @@ use trusted_verifier::validator::FulfillmentTransactionParams;
 // --------------------------------- IDs ----------------------------------
 
 /// Dummy intent ID (64 hex characters, valid hex format)
-pub const DUMMY_INTENT_ID: &str = "0x1111111111111111111111111111111111111111111111111111111111111111";
+pub const DUMMY_INTENT_ID: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000001";
 
 /// Dummy escrow ID (Move VM format, 64 hex characters)
-pub const DUMMY_ESCROW_ID_MVM: &str = "0x2222222222222222222222222222222222222222222222222222222222222222";
+pub const DUMMY_ESCROW_ID_MVM: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000002";
 
 // -------------------------------- USERS ---------------------------------
 
 /// Dummy requester address on hub chain (Move VM format, 32 bytes)
-pub const DUMMY_REQUESTER_ADDR_MVM_HUB: &str = "0x3333333333333333333333333333333333333333333333333333333333333333";
+pub const DUMMY_REQUESTER_ADDR_MVM_HUB: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000003";
 
 /// Dummy requester address on connected chain (Move VM format, 32 bytes)
-pub const DUMMY_REQUESTER_ADDR_MVM_CON: &str = "0x4444444444444444444444444444444444444444444444444444444444444444";
+pub const DUMMY_REQUESTER_ADDR_MVM_CON: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000004";
 
 /// Dummy requester address (EVM format, 20 bytes)
-pub const DUMMY_REQUESTER_ADDR_EVM: &str = "0x5555555555555555555555555555555555555555";
+pub const DUMMY_REQUESTER_ADDR_EVM: &str = "0x0000000000000000000000000000000000000005";
 
 /// Dummy solver address on hub chain (Move VM format, 32 bytes)
-pub const DUMMY_SOLVER_ADDR_MVM_HUB: &str = "0x6666666666666666666666666666666666666666666666666666666666666666";
+pub const DUMMY_SOLVER_ADDR_MVM_HUB: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000006";
 
 /// Dummy solver address on connected chain (Move VM format, 32 bytes)
-pub const DUMMY_SOLVER_ADDR_MVM_CON: &str = "0x7777777777777777777777777777777777777777777777777777777777777777";
+pub const DUMMY_SOLVER_ADDR_MVM_CON: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000007";
 
 /// Dummy solver address (EVM format, 20 bytes)
-pub const DUMMY_SOLVER_ADDR_EVM: &str = "0x8888888888888888888888888888888888888888";
+pub const DUMMY_SOLVER_ADDR_EVM: &str = "0x0000000000000000000000000000000000000008";
+
+/// Dummy requester address (SVM format, 32 bytes)
+#[allow(dead_code)]
+pub const DUMMY_REQUESTER_ADDR_SVM: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000009";
+
+/// Dummy solver address (SVM format, 32 bytes)
+#[allow(dead_code)]
+pub const DUMMY_SOLVER_ADDR_SVM: &str =
+    "0x000000000000000000000000000000000000000000000000000000000000000a";
 
 /// Dummy verifier EVM public key hash (keccak256 hash of ECDSA public key, last 20 bytes)
 #[allow(dead_code)]
-pub const DUMMY_VERIFIER_EVM_PUBKEY_HASH: &str = "0x9999999999999999999999999999999999999999";
+pub const DUMMY_VERIFIER_EVM_PUBKEY_HASH: &str = "0x000000000000000000000000000000000000000b";
 
 // ------------------------- TOKENS AND CONTRACTS -------------------------
 
 /// Dummy intent address (Move VM format, 64 hex characters)
 /// This represents the Move VM object address of an intent on the hub chain
 #[allow(dead_code)]
-pub const DUMMY_INTENT_ADDR_MVM: &str = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+pub const DUMMY_INTENT_ADDR_MVM: &str =
+    "0x000000000000000000000000000000000000000000000000000000000000000c";
 
 /// Dummy token address (EVM format, 20 bytes)
-pub const DUMMY_TOKEN_ADDR_EVM: &str = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+pub const DUMMY_TOKEN_ADDR_EVM: &str = "0x000000000000000000000000000000000000000d";
 
 /// Dummy escrow contract address (EVM format, 20 bytes)
 #[allow(dead_code)]
-pub const DUMMY_ESCROW_CONTRACT_ADDR_EVM: &str = "0xcccccccccccccccccccccccccccccccccccccccc";
+pub const DUMMY_ESCROW_CONTRACT_ADDR_EVM: &str = "0x000000000000000000000000000000000000000e";
 
 /// Dummy metadata object address (Move VM format, 32 bytes)
 #[allow(dead_code)]
-pub const DUMMY_METADATA_ADDR_MVM: &str = "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+pub const DUMMY_METADATA_ADDR_MVM: &str =
+    "0x000000000000000000000000000000000000000000000000000000000000000f";
 
 // -------------------------------- OTHER ---------------------------------
 
 /// Dummy transaction hash (64 hex characters)
 #[allow(dead_code)]
-pub const DUMMY_TX_HASH: &str = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee";
+pub const DUMMY_TX_HASH: &str =
+    "0x0000000000000000000000000000000000000000000000000000000000000010";
+
+/// Dummy escrow program id (valid base58 pubkey string).
+/// Base58 is required for Solana program ids; this is not a 0x hex value.
+#[allow(dead_code)]
+pub const DUMMY_SVM_ESCROW_PROGRAM_ID: &str = "11111111111111111111111111111111";
 
 /// Dummy timestamp for solver registration (arbitrary test value)
 #[allow(dead_code)]
@@ -163,6 +189,20 @@ pub fn build_test_config_with_evm() -> Config {
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         chain_id: 31337,
         verifier_evm_pubkey_hash: DUMMY_VERIFIER_EVM_PUBKEY_HASH.to_string(),
+    });
+    config
+}
+
+/// Build a test configuration with SVM chain configuration.
+/// Extends build_test_config_with_mvm() to include a populated connected_chain_svm field.
+#[allow(dead_code)]
+pub fn build_test_config_with_svm() -> Config {
+    let mut config = build_test_config_with_mvm();
+    config.connected_chain_svm = Some(SvmChainConfig {
+        name: "Connected SVM Chain".to_string(),
+        rpc_url: "http://127.0.0.1:8899".to_string(),
+        chain_id: 4,
+        escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
     });
     config
 }

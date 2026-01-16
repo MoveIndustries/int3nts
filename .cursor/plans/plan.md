@@ -205,7 +205,7 @@ pub struct Escrow {
 
 ---
 
-## Phase 7: Integration (Verifier + Solver)
+## Phase 7: Integration (Verifier + Solver) ✅
 
 **Commit: `feat: add SVM support to verifier and solver`**
 
@@ -215,37 +215,37 @@ pub struct Escrow {
 
 New files (following EVM/MVM pattern):
 
-- [ ] `src/svm_client.rs` - SVM RPC client
+- [x] `src/svm_client.rs` - SVM RPC client
   - Solana JSON-RPC calls (`getAccountInfo`, `getSlot`, etc.)
   - Parse Borsh-serialized escrow PDA state
   - Ed25519 signature generation for intent IDs
-- [ ] `src/api/inflow_svm.rs` - Inflow SVM API handlers
-- [ ] `src/api/outflow_svm.rs` - Outflow SVM API handlers
-- [ ] `src/monitor/inflow_svm.rs` - Poll SVM escrow events
-- [ ] `src/monitor/outflow_svm.rs` - Monitor SVM escrow state changes
-- [ ] `src/validator/inflow_svm.rs` - Validate SVM escrow solver matches registry
-- [ ] `src/validator/outflow_svm.rs` - Validate SVM outflow fulfillment
+- [x] `src/api/inflow_svm.rs` - Inflow SVM API handlers
+- [x] `src/api/outflow_svm.rs` - Outflow SVM API handlers
+- [x] `src/monitor/inflow_svm.rs` - Poll SVM escrow events
+- [x] `src/monitor/outflow_svm.rs` - Monitor SVM escrow state changes
+- [x] `src/validator/inflow_svm.rs` - Validate SVM escrow solver matches registry
+- [x] `src/validator/outflow_svm.rs` - Validate SVM outflow fulfillment
 
 Updates to existing files:
 
-- [ ] `src/config/mod.rs` - Add `SvmChainConfig` struct
-- [ ] `config/verifier.template.toml` - Add SVM chain config section
-- [ ] `src/api/mod.rs` - Register SVM routes
-- [ ] `src/monitor/mod.rs` - Register SVM monitor
-- [ ] `src/validator/mod.rs` - Register SVM validators
+- [x] `src/config/mod.rs` - Add `SvmChainConfig` struct
+- [x] `config/verifier.template.toml` - Add SVM chain config section
+- [x] `src/api/mod.rs` - Register SVM routes
+- [x] `src/monitor/mod.rs` - Register SVM monitor
+- [x] `src/validator/mod.rs` - Register SVM validators
 
 Tests:
 
-- [ ] `tests/svm/` - SVM-specific test directory
-- [ ] `tests/svm/crypto_tests.rs` - Ed25519 signature tests
-- [ ] `tests/svm/validator_tests.rs` - SVM validation tests
-- [ ] `tests/svm/escrow_parsing_tests.rs` - Borsh escrow parsing tests
+- [x] `tests/svm/` - SVM-specific test directory
+- [x] `tests/svm/crypto_tests.rs` - Ed25519 signature tests
+- [x] `tests/svm/validator_tests.rs` - SVM validation tests
+- [x] `tests/svm/escrow_parsing_tests.rs` - Borsh escrow parsing tests
 
 ### Solver
 
 New files (following EVM pattern):
 
-- [ ] `src/chains/connected_svm.rs` - SVM chain client
+- [x] `src/chains/connected_svm.rs` - SVM chain client
   - Query escrow PDA state via RPC
   - Build claim transactions (with Ed25519 verify instruction)
   - SPL token balance checking
@@ -253,15 +253,15 @@ New files (following EVM pattern):
 
 Updates to existing files:
 
-- [ ] `src/config.rs` - Add `SvmChainConfig` struct
-- [ ] `config/solver.template.toml` - Add SVM chain config section
-- [ ] `src/chains/mod.rs` - Register SVM chain
-- [ ] `src/service/inflow.rs` - Handle SVM inflow intents
-- [ ] `src/service/outflow.rs` - Handle SVM outflow intents
+- [x] `src/config.rs` - Add `SvmChainConfig` struct
+- [x] `config/solver.template.toml` - Add SVM chain config section
+- [x] `src/chains/mod.rs` - Register SVM chain
+- [x] `src/service/inflow.rs` - Handle SVM inflow intents
+- [x] `src/service/outflow.rs` - Handle SVM outflow intents
 
 Tests:
 
-- [ ] `tests/svm_chain_client_tests.rs` - SVM client tests
+- [x] `tests/svm_chain_client_tests.rs` - SVM client tests
 
 ---
 

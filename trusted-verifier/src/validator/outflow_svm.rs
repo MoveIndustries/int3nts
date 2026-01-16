@@ -13,7 +13,6 @@ const TOKEN_PROGRAM: &str = "spl-token";
 
 #[derive(Debug)]
 struct ParsedTransfer {
-    source: String,
     destination: String,
     authority: String,
     mint: String,
@@ -138,10 +137,6 @@ fn extract_transfer_checked(instructions: &[serde_json::Value]) -> Result<Parsed
             if let Some(info) = parsed.get("info") {
                 let amount = parse_amount(info)
                     .context("Missing transferChecked amount")?;
-                let source = info
-                    .get("source")
-                    .and_then(|v| v.as_str())
-                    .context("Missing transferChecked source")?;
                 let destination = info
                     .get("destination")
                     .and_then(|v| v.as_str())
@@ -155,7 +150,6 @@ fn extract_transfer_checked(instructions: &[serde_json::Value]) -> Result<Parsed
                     .and_then(|v| v.as_str())
                     .context("Missing transferChecked mint")?;
                 transfers.push(ParsedTransfer {
-                    source: source.to_string(),
                     destination: destination.to_string(),
                     authority: authority.to_string(),
                     mint: mint.to_string(),
@@ -191,14 +185,14 @@ fn parse_amount(info: &serde_json::Value) -> Result<u64> {
         if let Some(amount_num) = amount.as_u64() {
             return Ok(amount_num);
         }
-    }
+    };
     if let Some(token_amount) = info.get("tokenAmount") {
         if let Some(amount_str) = token_amount.get("amount").and_then(|v| v.as_str()) {
             return amount_str
                 .parse::<u64>()
                 .context("Invalid transfer amount");
         }
-    }
+    };
     anyhow::bail!("Missing transfer amount");
 }
 
@@ -214,14 +208,12 @@ fn parse_amount(info: &serde_json::Value) -> Result<u64> {
 /// * `Err(anyhow::Error)` - Memo format or hex invalid
 fn parse_intent_id(memo: &str) -> Result<String> {
     let memo = memo.trim();
-    let Some(rest) = memo.strip_prefix("intent_id=") else {
-        anyhow::bail!("Invalid memo format (expected intent_id=0x...)");
-    };
-    let intent_id = if let Some(hex) = rest.strip_prefix("0x") {
-        hex
-    } else {
-        anyhow::bail!("Intent ID must be 0x-prefixed");
-    };
+    let rest = memo
+        .strip_prefix("intent_id=")
+        .ok_or_else(|| anyhow::anyhow!("Invalid memo format (expected intent_id=0x...)"))?;
+    let intent_id = rest
+        .strip_prefix("0x")
+        .ok_or_else(|| anyhow::anyhow!("Intent ID must be 0x-prefixed"))?;
     if intent_id.len() != 64 {
         anyhow::bail!("Intent ID must be 32 bytes (64 hex chars)");
     }

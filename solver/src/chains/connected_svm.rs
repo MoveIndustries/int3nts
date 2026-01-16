@@ -5,7 +5,7 @@
 
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
-use borsh::BorshDeserialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use reqwest::Client;
 use serde::Deserialize;
 use solana_client::rpc_client::RpcClient;
@@ -31,7 +31,7 @@ use crate::config::SvmChainConfig;
 const MEMO_PROGRAM_ID: &str = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 const ASSOCIATED_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 
-#[derive(BorshDeserialize, Debug, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
 pub struct EscrowAccount {
     pub discriminator: [u8; 8],
     pub requester: Pubkey,
@@ -420,4 +420,52 @@ fn build_memo_instruction(data: &[u8]) -> Result<Instruction> {
         accounts: Vec::new(),
         data: data.to_vec(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test that memo instructions use the expected program id and payload
+    /// Why: Memo data must be encoded correctly for outflow verification
+    #[test]
+    fn test_build_memo_instruction() {
+        let memo = b"intent_id=0x01";
+        let ix = build_memo_instruction(memo).expect("build memo instruction");
+        assert_eq!(ix.program_id.to_string(), MEMO_PROGRAM_ID);
+        assert!(ix.accounts.is_empty(), "Memo instruction has no accounts");
+        assert_eq!(ix.data, memo);
+    }
+
+    /// Test that associated token program id parses to a valid pubkey
+    /// Why: ATA derivation depends on a correct program id
+    #[test]
+    fn test_associated_token_program_id() {
+        let program_id = associated_token_program_id().expect("ATA program id");
+        assert_eq!(program_id.to_string(), ASSOCIATED_TOKEN_PROGRAM_ID);
+    }
+
+    /// Test that escrow parsing succeeds for valid Borsh data
+    /// Why: Escrow scanning relies on correctly decoding account data
+    #[test]
+    fn test_parse_escrow_data() {
+        let escrow = EscrowAccount {
+            discriminator: [7u8; 8],
+            requester: Pubkey::new_from_array([1u8; 32]),
+            token_mint: Pubkey::new_from_array([2u8; 32]),
+            amount: 42,
+            is_claimed: false,
+            expiry: 123456,
+            reserved_solver: Pubkey::new_from_array([3u8; 32]),
+            intent_id: [4u8; 32],
+            bump: 1,
+        };
+
+        let data = escrow.try_to_vec().expect("serialize escrow");
+        let encoded = STANDARD.encode(data);
+        let parsed = parse_escrow_data(&encoded).expect("parse escrow");
+        assert_eq!(parsed.intent_id, escrow.intent_id);
+        assert_eq!(parsed.amount, escrow.amount);
+        assert_eq!(parsed.requester, escrow.requester);
+    }
 }

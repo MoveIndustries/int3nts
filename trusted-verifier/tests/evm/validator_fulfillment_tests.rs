@@ -4,7 +4,7 @@
 //! from EVM transactions for outflow fulfillment validation.
 
 use trusted_verifier::evm_client::EvmTransaction;
-use trusted_verifier::monitor::IntentEvent;
+use trusted_verifier::monitor::{normalize_intent_id, IntentEvent};
 use trusted_verifier::validator::CrossChainValidator;
 use trusted_verifier::validator::{
     extract_evm_fulfillment_params, validate_outflow_fulfillment, FulfillmentTransactionParams,
@@ -62,10 +62,7 @@ fn test_extract_evm_fulfillment_params_success() {
         DUMMY_REQUESTER_ADDR_EVM
     );
     assert_eq!(params.amount, 25000000); // 0x17d7840 in decimal
-    assert_eq!(
-        params.intent_id,
-        DUMMY_INTENT_ID
-    );
+    assert_eq!(params.intent_id, normalize_intent_id(DUMMY_INTENT_ID));
     assert_eq!(params.solver_addr, DUMMY_SOLVER_ADDR_EVM);
     assert_eq!(
         params.token_metadata,
