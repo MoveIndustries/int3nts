@@ -8,6 +8,8 @@ use std::str::FromStr;
 
 use crate::validator::generic::FulfillmentTransactionParams;
 
+// SPL Memo program id from Solana program registry (mainnet/devnet).
+// https://spl.solana.com/memo
 const MEMO_PROGRAM_ID: &str = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 const TOKEN_PROGRAM: &str = "spl-token";
 

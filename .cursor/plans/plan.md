@@ -269,33 +269,33 @@ Tests:
 
 **Commit: `test: add SVM E2E test infrastructure`**
 
-**Documentation:** Update `docs/` and `taskmaster/docs/` to reflect SVM E2E testing.
+**Documentation:** ✅ Updated `docs/` and `taskmaster/docs/` to reflect SVM E2E testing.
 
 ### chain-connected-svm
 
-- [ ] Create `testing-infra/ci-e2e/chain-connected-svm/setup-chain.sh` - Start solana-test-validator
-- [ ] Create `testing-infra/ci-e2e/chain-connected-svm/stop-chain.sh` - Stop validator
-- [ ] Create `testing-infra/ci-e2e/chain-connected-svm/cleanup.sh` - Full cleanup
-- [ ] Create `testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh` - Deploy program
-- [ ] Create `testing-infra/ci-e2e/chain-connected-svm/setup-requester-solver.sh` - Fund test accounts
-- [ ] Create `testing-infra/ci-e2e/chain-connected-svm/utils.sh` - SVM-specific utilities
+- [x] Create `testing-infra/ci-e2e/chain-connected-svm/setup-chain.sh` - Start solana-test-validator
+- [x] Create `testing-infra/ci-e2e/chain-connected-svm/stop-chain.sh` - Stop validator
+- [x] Create `testing-infra/ci-e2e/chain-connected-svm/cleanup.sh` - Full cleanup
+- [x] Create `testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh` - Deploy program
+- [x] Create `testing-infra/ci-e2e/chain-connected-svm/setup-requester-solver.sh` - Fund test accounts
+- [x] Create `testing-infra/ci-e2e/chain-connected-svm/utils.sh` - SVM-specific utilities
 
 ### e2e-tests-svm
 
-- [ ] Create `testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh` - Full inflow E2E test
-- [ ] Create `testing-infra/ci-e2e/e2e-tests-svm/run-tests-outflow.sh` - Full outflow E2E test
-- [ ] Create `testing-infra/ci-e2e/e2e-tests-svm/balance-check.sh` - SPL token balance verification
-- [ ] Create `testing-infra/ci-e2e/e2e-tests-svm/start-verifier.sh` - Start verifier
-- [ ] Create `testing-infra/ci-e2e/e2e-tests-svm/start-solver.sh` - Start solver
-- [ ] Create `testing-infra/ci-e2e/e2e-tests-svm/README.md` - Documentation
+- [x] Create `testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh` - Full inflow E2E test
+- [x] Create `testing-infra/ci-e2e/e2e-tests-svm/run-tests-outflow.sh` - Full outflow E2E test
+- [x] Create `testing-infra/ci-e2e/e2e-tests-svm/balance-check.sh` - SPL token balance verification
+- [x] Create `testing-infra/ci-e2e/e2e-tests-svm/start-verifier.sh` - Start verifier
+- [x] Create `testing-infra/ci-e2e/e2e-tests-svm/start-solver.sh` - Start solver
+- [x] Create `testing-infra/ci-e2e/e2e-tests-svm/README.md` - Documentation
 
 ### Shared utilities
 
-- [ ] Create `testing-infra/ci-e2e/util_svm.sh` - SVM-specific shell utilities
+- [x] Create `testing-infra/ci-e2e/util_svm.sh` - SVM-specific shell utilities
 
 ### CI Integration
 
-- [ ] Update `.github/workflows/e2e_tests.yml` - Add SVM E2E jobs
+- [x] Update `.github/workflows/e2e_tests.yml` - Add SVM E2E jobs
   - `svm-chain-inflow` job using `run-tests-inflow.sh`
   - `svm-chain-outflow` job using `run-tests-outflow.sh`
 
