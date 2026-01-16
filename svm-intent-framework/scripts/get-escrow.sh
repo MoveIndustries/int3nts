@@ -12,7 +12,7 @@ REPO_ROOT="$(dirname "$PROJECT_DIR")"
 # If not in nix shell, re-exec inside nix develop
 if [ -z "$IN_NIX_SHELL" ]; then
     echo "[get-escrow.sh] Entering nix develop..."
-    exec nix develop "$REPO_ROOT" -c bash "$0" "$@"
+    exec env NIX_CONFIG="warn-dirty = false" nix develop "$REPO_ROOT" -c bash "$0" "$@"
 fi
 
 SVM_RPC_URL="${SVM_RPC_URL:-http://localhost:8899}"

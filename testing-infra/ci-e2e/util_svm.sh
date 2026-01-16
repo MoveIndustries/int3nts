@@ -19,7 +19,7 @@ svm_cmd() {
     if [ -z "$PROJECT_ROOT" ]; then
         setup_project_root
     fi
-    nix develop "$PROJECT_ROOT" -c bash -c "$cmd"
+    NIX_CONFIG="warn-dirty = false" nix develop "$PROJECT_ROOT" -c bash -c "$cmd"
 }
 
 # Check if SVM chain is running

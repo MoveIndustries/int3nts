@@ -3,6 +3,7 @@
 # Common utilities for testing infrastructure scripts
 # Source this file in other scripts with: source "$(dirname "$0")/util.sh" or similar
 
+
 # Get project root - can be called from any script location
 # Usage: Call this function to set PROJECT_ROOT and optionally change to it
 # Note: If SCRIPT_DIR is already set by the calling script, use that; otherwise derive from BASH_SOURCE
