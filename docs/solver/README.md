@@ -10,7 +10,7 @@ See the [component README](../../solver/README.md) for quick start commands.
 
 The solver provides both **command-line utilities** and a **continuous service**:
 
-### Solver Service
+### Solver Service Overview
 
 A continuous service that automatically:
 
@@ -57,7 +57,8 @@ solver/
 │   ├── chains/            # Chain clients
 │   │   ├── hub.rs        # Hub chain client (Movement)
 │   │   ├── connected_mvm.rs  # Connected MVM chain client
-│   │   └── connected_evm.rs   # Connected EVM chain client
+│   │   ├── connected_evm.rs   # Connected EVM chain client
+│   │   └── connected_svm.rs   # Connected SVM chain client
 │   ├── acceptance.rs      # Token pair acceptance logic
 │   ├── config.rs          # Configuration management
 │   ├── crypto/            # Cryptographic operations (hashing, signing)
@@ -80,6 +81,8 @@ cp solver/config/solver.template.toml solver.toml
 ```
 
 See `solver/config/solver.template.toml` for the complete configuration template with all available options and examples.
+
+SVM configuration requires a solver keypair path via `connected_chain.keypair_path_env` to sign connected-chain transactions.
 
 ### Running the Service
 
@@ -123,10 +126,11 @@ The solver automatically fulfills **inflow intents** (tokens locked on connected
 2. **Fulfill Intent**: Calls hub chain `fulfill_inflow_intent` when escrow is detected
 3. **Release Escrow**: Polls verifier for approval signature, then releases escrow on connected chain
 
-### Supported Chains
+### Supported Chains (Inflow)
 
 - **Move VM Chains**: Uses `complete_escrow_from_fa` entry function
 - **EVM Chains**: Uses Hardhat script `claim-escrow.js` (calls `IntentEscrow.claim()`)
+- **SVM Chains**: Uses Solana escrow program claim instruction
 
 **Note**: EVM escrow claiming currently uses Hardhat scripts. Future improvement: implement directly using Rust Ethereum libraries (`ethers-rs` or `alloy`) for better error handling and type safety.
 
@@ -138,10 +142,11 @@ The solver automatically fulfills **outflow intents** (tokens locked on hub, des
 2. **Get Verifier Approval**: Calls verifier `/validate-outflow-fulfillment` with transaction hash
 3. **Fulfill Intent**: Calls hub chain `fulfill_outflow_intent` with verifier signature
 
-### Supported Chains
+### Supported Chains (Outflow)
 
 - **Move VM Chains**: Uses `transfer_with_intent_id` entry function
 - **EVM Chains**: Executes ERC20 transfer with `intent_id` encoded in calldata
+- **SVM Chains**: Executes SPL `transferChecked` with memo `intent_id=0x...`, using `desired_token` as the mint
 
 **Note**: EVM transfer execution currently uses Hardhat scripts. Future improvement: implement directly using Rust Ethereum libraries (`ethers-rs` or `alloy`) for better integration and error handling.
 
@@ -227,6 +232,13 @@ cargo run --bin connected_chain_tx_template -- \
 
 The binary prints parameters that must match the hub intent and the command/calldata to execute the transfer.
 
+**SVM:**
+
+SVM outflow transfers are executed by the solver service. The connected-chain transaction must include:
+
+- First instruction: SPL memo `intent_id=0x...` (32-byte hex).
+- Exactly one SPL `transferChecked` instruction.
+
 **Note:** For Move VM, `--metadata` must be a hex address (object address of Metadata), not a module path. The intent framework module must be deployed on the connected chain.
 
 ## Chain Clients
@@ -252,3 +264,8 @@ The solver includes chain clients for interacting with different blockchain type
 - **Transfer with Intent ID**: `transfer_with_intent_id()` - Placeholder for ERC20 transfer with embedded `intent_id` (requires Ethereum signing library)
 
 **Note**: EVM operations currently use Hardhat scripts for transaction execution. Future improvement: implement directly using Rust Ethereum libraries (`ethers-rs` or `alloy`) for better integration and error handling.
+
+### Connected SVM Client (`chains/connected_svm.rs`)
+
+- **Query Escrow Events**: `get_escrow_events()` - Queries escrow PDA accounts via RPC
+- **Transfer with Intent ID**: `transfer_with_intent_id()` - Executes SPL `transferChecked` with memo `intent_id=0x...`

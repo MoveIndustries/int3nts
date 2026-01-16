@@ -32,6 +32,24 @@ Uses Solana's Ed25519 instruction introspection:
 2. Program reads instruction via sysvar
 3. Verifies pubkey, signature, and message match expected values
 
+## Outflow Transfer Attribution (SVM)
+
+For SVM outflow transfers, we use a **Memo-based convention** to attach the `intent_id` to the transaction. This keeps implementation simple and avoids new on-chain programs, but it has tradeoffs:
+
+- **Pros:** No program changes, fast to implement, standard Solana tooling.
+- **Cons:** The verifier must parse and trust a memo format; it is weaker than a PDA-backed record or a custom program instruction.
+
+**Alternative:** Use a dedicated program instruction (or PDA record) to write `intent_id` and transfer metadata on-chain. This provides stronger verification guarantees but requires additional on-chain code, deployment, and verifier parsing updates.
+
+**Effort to switch:** medium—new instruction definitions, program changes, deployment update, and verifier/parser changes, plus new tests.
+
+**Verifier requirements (current memo approach):**
+
+- The memo must be the first instruction and formatted as `intent_id=0x...`.
+- The transaction must include exactly one SPL `transferChecked` instruction.
+- The transfer authority must be a signer and match the solver address.
+- The transfer destination, amount, and mint must match the intent.
+
 ## Program Interface
 
 ### Instructions

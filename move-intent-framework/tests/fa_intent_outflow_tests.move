@@ -2,6 +2,7 @@
 module mvmt_intent::fa_intent_outflow_tests {
     use std::signer;
     use std::option;
+    use std::vector;
     use std::bcs;
     use aptos_framework::timestamp;
     use aptos_framework::object::{Self as object, Object};
@@ -62,7 +63,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         let evm_addr = test_utils::create_test_evm_address(0);
         
         // Register solver in registry
-        solver_registry::register_solver(solver_signer, solver_public_key_bytes, evm_addr, @0x0);
+        solver_registry::register_solver(solver_signer, solver_public_key_bytes, evm_addr, @0x0, vector::empty<u8>());
         
         // Generate verifier key pair (need secret key for signing intent_id later)
         let (verifier_secret_key, validated_verifier_pk) = ed25519::generate_keys();
@@ -240,7 +241,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         let (_, validated_solver_pk) = ed25519::generate_keys();
         let solver_public_key_bytes = ed25519::validated_public_key_to_bytes(&validated_solver_pk);
         let evm_addr = test_utils::create_test_evm_address(0);
-        solver_registry::register_solver(solver_signer, solver_public_key_bytes, evm_addr, @0x0);
+        solver_registry::register_solver(solver_signer, solver_public_key_bytes, evm_addr, @0x0, vector::empty<u8>());
         
         let (verifier_secret_key, validated_verifier_pk) = ed25519::generate_keys();
         let verifier_public_key = ed25519::public_key_to_unvalidated(&validated_verifier_pk);

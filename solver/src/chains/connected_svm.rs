@@ -1,0 +1,423 @@
+//! Connected SVM Chain Client
+//!
+//! Client for interacting with connected SVM chains to query escrow accounts
+//! and release escrows after verifier approval.
+
+use anyhow::{Context, Result};
+use base64::{engine::general_purpose::STANDARD, Engine as _};
+use borsh::BorshDeserialize;
+use reqwest::Client;
+use serde::Deserialize;
+use solana_client::rpc_client::RpcClient;
+use solana_program::{
+    program_pack::Pack,
+    pubkey::Pubkey,
+};
+use solana_sdk::{
+    commitment_config::CommitmentConfig,
+    instruction::{AccountMeta, Instruction},
+    signature::{read_keypair_file, Keypair, Signer},
+    sysvar,
+    transaction::Transaction,
+};
+use solana_sdk_ids::system_program;
+use spl_token::{instruction::transfer_checked, state::Mint};
+use std::str::FromStr;
+use std::time::Duration;
+
+use crate::config::SvmChainConfig;
+
+// Well-known program IDs from Solana mainnet/devnet docs.
+const MEMO_PROGRAM_ID: &str = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
+const ASSOCIATED_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+
+#[derive(BorshDeserialize, Debug, Clone)]
+pub struct EscrowAccount {
+    pub discriminator: [u8; 8],
+    pub requester: Pubkey,
+    pub token_mint: Pubkey,
+    pub amount: u64,
+    pub is_claimed: bool,
+    pub expiry: i64,
+    pub reserved_solver: Pubkey,
+    pub intent_id: [u8; 32],
+    pub bump: u8,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct ProgramAccountResult {
+    pubkey: String,
+    account: RpcAccount,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct RpcAccount {
+    data: (String, String),
+}
+
+#[derive(Debug, Clone)]
+pub struct EscrowEvent {
+    pub intent_id: String,
+    pub escrow_id: String,
+}
+
+pub struct ConnectedSvmClient {
+    client: Client,
+    rpc_url: String,
+    program_id: Pubkey,
+    rpc_client: RpcClient,
+    /// Env var name that stores the solver keypair path for signing SVM txs.
+    /// This mirrors MVM and EVM signing:
+    /// - MVM: store the CLI profile name, and the Aptos CLI loads the keypair when signing.
+    /// - EVM: read the private key from an env var at call time for the Hardhat signer.
+    /// Here we keep the env var name and load the keypair when we need to sign.
+    keypair_path_env: String,
+}
+
+impl ConnectedSvmClient {
+    /// Creates a new connected SVM client.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - Connected chain configuration
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(ConnectedSvmClient)` - Initialized client
+    /// * `Err(anyhow::Error)` - Invalid config values
+    pub fn new(config: &SvmChainConfig) -> Result<Self> {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .no_proxy()
+            .build()
+            .context("Failed to create HTTP client")?;
+
+        let program_id = Pubkey::from_str(&config.escrow_program_id)
+            .context("Invalid SVM escrow_program_id")?;
+
+        let rpc_client = RpcClient::new_with_commitment(
+            config.rpc_url.clone(),
+            CommitmentConfig::confirmed(),
+        );
+
+        Ok(Self {
+            client,
+            rpc_url: config.rpc_url.clone(),
+            program_id,
+            rpc_client,
+            keypair_path_env: config.keypair_path_env.clone(),
+        })
+    }
+
+    /// Queries SVM for escrow accounts and returns intent/escrow ids.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Vec<EscrowEvent>)` - Escrow events with intent ids
+    /// * `Err(anyhow::Error)` - RPC or parsing failure
+    pub async fn get_escrow_events(&self) -> Result<Vec<EscrowEvent>> {
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getProgramAccounts",
+            "params": [
+                self.program_id.to_string(),
+                { "encoding": "base64" }
+            ]
+        });
+
+        let response: serde_json::Value = self
+            .client
+            .post(&self.rpc_url)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to call getProgramAccounts")?
+            .json()
+            .await
+            .context("Failed to parse getProgramAccounts response")?;
+
+        if let Some(error) = response.get("error") {
+            return Err(anyhow::anyhow!("SVM RPC error: {}", error));
+        }
+
+        let result = response
+            .get("result")
+            .and_then(|r| r.as_array())
+            .ok_or_else(|| anyhow::anyhow!("Invalid getProgramAccounts response"))?;
+
+        let mut events = Vec::new();
+        for entry in result {
+            let account: ProgramAccountResult = serde_json::from_value(entry.clone())
+                .context("Failed to parse program account entry")?;
+            if let Some(escrow) = parse_escrow_data(&account.account.data.0) {
+                let intent_id = format!("0x{}", hex::encode(escrow.intent_id));
+                let escrow_id = pubkey_to_hex(&account.pubkey)?;
+                events.push(EscrowEvent { intent_id, escrow_id });
+            }
+        }
+
+        Ok(events)
+    }
+
+    /// Claims an escrow using a verifier signature (not yet implemented).
+    ///
+    /// # Arguments
+    ///
+    /// * `escrow_id` - Escrow PDA address
+    /// * `intent_id` - Intent id
+    /// * `signature` - Verifier signature bytes
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Transaction signature
+    /// * `Err(anyhow::Error)` - Unimplemented or RPC failure
+    pub async fn claim_escrow(
+        &self,
+        _escrow_id: &str,
+        _intent_id: &str,
+        _signature: &[u8],
+    ) -> Result<String> {
+        Err(anyhow::anyhow!(
+            "SVM escrow claim not implemented yet"
+        ))
+    }
+
+    /// Transfers SPL tokens with an intent_id memo for outflow fulfillment.
+    ///
+    /// # Arguments
+    ///
+    /// * `recipient` - Recipient wallet address
+    /// * `mint` - SPL token mint address
+    /// * `amount` - Amount in base units
+    /// * `intent_id` - 0x-prefixed intent id
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Transaction signature
+    /// * `Err(anyhow::Error)` - RPC or signing failure
+    pub async fn transfer_with_intent_id(
+        &self,
+        recipient: &str,
+        mint: &str,
+        amount: u64,
+        intent_id: &str,
+    ) -> Result<String> {
+        let payer = self.load_solver_keypair()?;
+        let mint_pubkey = Pubkey::from_str(mint).context("Invalid SPL mint address")?;
+        let recipient_pubkey = Pubkey::from_str(recipient)
+            .context("Invalid recipient pubkey")?;
+
+        let memo = format!("intent_id={}", intent_id);
+        let memo_ix = build_memo_instruction(memo.as_bytes())?;
+
+        let payer_token = get_associated_token_address(&payer.pubkey(), &mint_pubkey)?;
+        let recipient_token = get_associated_token_address(&recipient_pubkey, &mint_pubkey)?;
+
+        let mut instructions = vec![memo_ix];
+
+        if self.rpc_client.get_account(&recipient_token).is_err() {
+            let create_ata_ix = create_associated_token_account_instruction(
+                &payer.pubkey(),
+                &recipient_pubkey,
+                &mint_pubkey,
+            )?;
+            instructions.push(create_ata_ix);
+        }
+
+        let mint_account = self
+            .rpc_client
+            .get_account(&mint_pubkey)
+            .context("Failed to fetch mint account")?;
+        let mint_state = Mint::unpack(&mint_account.data)
+            .context("Failed to parse mint account")?;
+
+        let transfer_ix = transfer_checked(
+            &spl_token::id(),
+            &payer_token,
+            &mint_pubkey,
+            &recipient_token,
+            &payer.pubkey(),
+            &[],
+            amount,
+            mint_state.decimals,
+        )?;
+        instructions.push(transfer_ix);
+
+        let blockhash = self.rpc_client.get_latest_blockhash()?;
+        let tx = Transaction::new_signed_with_payer(
+            &instructions,
+            Some(&payer.pubkey()),
+            &[&payer],
+            blockhash,
+        );
+
+        let signature = self
+            .rpc_client
+            .send_and_confirm_transaction(&tx)
+            .context("Failed to submit SVM transfer")?;
+
+        Ok(signature.to_string())
+    }
+}
+
+impl ConnectedSvmClient {
+    /// Loads the solver keypair from the env var path.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Keypair)` - Loaded keypair
+    /// * `Err(anyhow::Error)` - Missing env var or invalid keypair file
+    fn load_solver_keypair(&self) -> Result<Keypair> {
+        let keypair_path = std::env::var(&self.keypair_path_env).with_context(|| {
+            format!(
+                "Missing solver keypair path env var: {}",
+                self.keypair_path_env
+            )
+        })?;
+        read_keypair_file(&keypair_path)
+            .map_err(|e| anyhow::anyhow!(e.to_string()))
+            .context("Failed to read solver keypair file")
+    }
+}
+
+/// Converts a base58 pubkey string into a 0x-prefixed hex string.
+///
+/// # Arguments
+///
+/// * `pubkey_str` - Base58-encoded pubkey
+///
+/// # Returns
+///
+/// * `Ok(String)` - 0x-prefixed hex string
+/// * `Err(anyhow::Error)` - Invalid pubkey string
+fn pubkey_to_hex(pubkey_str: &str) -> Result<String> {
+    let pubkey = Pubkey::from_str(pubkey_str)
+        .context("Invalid pubkey string")?;
+    Ok(format!("0x{}", hex::encode(pubkey.to_bytes())))
+}
+
+/// Parses escrow account data from base64-encoded bytes.
+///
+/// # Arguments
+///
+/// * `data_base64` - Base64-encoded account data
+///
+/// # Returns
+///
+/// * `Some(EscrowAccount)` - Parsed escrow account
+/// * `None` - Invalid or unparsable data
+fn parse_escrow_data(data_base64: &str) -> Option<EscrowAccount> {
+    let data = STANDARD.decode(data_base64).ok()?;
+    EscrowAccount::try_from_slice(&data).ok()
+}
+
+/// Derives the associated token account (ATA) for an owner and mint.
+///
+/// # Arguments
+///
+/// * `owner` - Token account owner
+/// * `mint` - SPL token mint
+///
+/// # Returns
+///
+/// * `Ok(Pubkey)` - Derived ATA address
+/// * `Err(anyhow::Error)` - Invalid associated token program id
+fn get_associated_token_address(owner: &Pubkey, mint: &Pubkey) -> Result<Pubkey> {
+    let program_id = associated_token_program_id()?;
+    Ok(get_associated_token_address_with_program_id(
+        owner,
+        mint,
+        &program_id,
+    ))
+}
+
+/// Derives the ATA address using an explicit associated token program id.
+///
+/// # Arguments
+///
+/// * `owner` - Token account owner
+/// * `mint` - SPL token mint
+/// * `program_id` - Associated token program id
+///
+/// # Returns
+///
+/// * `Pubkey` - Derived ATA address
+fn get_associated_token_address_with_program_id(
+    owner: &Pubkey,
+    mint: &Pubkey,
+    program_id: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[owner.as_ref(), spl_token::id().as_ref(), mint.as_ref()],
+        program_id,
+    )
+    .0
+}
+
+/// Builds a CreateAssociatedTokenAccount instruction.
+///
+/// # Arguments
+///
+/// * `payer` - Fee payer
+/// * `owner` - Token account owner
+/// * `mint` - SPL token mint
+///
+/// # Returns
+///
+/// * `Ok(Instruction)` - ATA creation instruction
+/// * `Err(anyhow::Error)` - Invalid associated token program id
+fn create_associated_token_account_instruction(
+    payer: &Pubkey,
+    owner: &Pubkey,
+    mint: &Pubkey,
+) -> Result<Instruction> {
+    let program_id = associated_token_program_id()?;
+    let ata = get_associated_token_address_with_program_id(owner, mint, &program_id);
+
+    Ok(Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(*payer, true),
+            AccountMeta::new(ata, false),
+            AccountMeta::new_readonly(*owner, false),
+            AccountMeta::new_readonly(*mint, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data: vec![],
+    })
+}
+
+/// Returns the associated token program id as a Pubkey.
+///
+/// # Returns
+///
+/// * `Ok(Pubkey)` - Associated token program id
+/// * `Err(anyhow::Error)` - Invalid program id constant
+fn associated_token_program_id() -> Result<Pubkey> {
+    Pubkey::from_str(ASSOCIATED_TOKEN_PROGRAM_ID)
+        .context("Invalid associated token program id")
+}
+
+/// Builds a memo instruction for the SPL memo program.
+///
+/// # Arguments
+///
+/// * `data` - Memo bytes
+///
+/// # Returns
+///
+/// * `Ok(Instruction)` - Memo instruction
+/// * `Err(anyhow::Error)` - Invalid memo program id
+fn build_memo_instruction(data: &[u8]) -> Result<Instruction> {
+    let program_id = Pubkey::from_str(MEMO_PROGRAM_ID)
+        .context("Invalid memo program id")?;
+
+    Ok(Instruction {
+        program_id,
+        accounts: Vec::new(),
+        data: data.to_vec(),
+    })
+}

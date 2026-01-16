@@ -106,7 +106,12 @@ async fn main() -> Result<()> {
             
             // Get EVM address and MVM address from environment variables
             // These are set by sourcing the keys file (e.g., .testnet-keys.env or .e2e-tests-keys.env)
-            let (evm_address, mvm_address): (Vec<u8>, Option<String>) = match &config.connected_chain {
+            let (evm_address, mvm_address, svm_address): (Vec<u8>, Option<String>, Vec<u8>) = match &config.connected_chain {
+                solver::config::ConnectedChainConfig::Mvm(_) => {
+                    // For MVM connected chains, read solver's MVM address from env var
+                    let mvm_addr = std::env::var("SOLVER_CONNECTED_MVM_ADDRESS").ok();
+                    (vec![], mvm_addr, vec![])
+                }
                 solver::config::ConnectedChainConfig::Evm(_) => {
                     // For EVM connected chains, read solver's EVM address from env var
                     let evm_addr = std::env::var("SOLVER_EVM_ADDRESS")
@@ -117,12 +122,17 @@ async fn main() -> Result<()> {
                             hex::decode(addr).ok()
                         })
                         .unwrap_or_default();
-                    (evm_addr, None)
+                    (evm_addr, None, vec![])
                 }
-                solver::config::ConnectedChainConfig::Mvm(_) => {
-                    // For MVM connected chains, read solver's MVM address from env var
-                    let mvm_addr = std::env::var("SOLVER_CONNECTED_MVM_ADDRESS").ok();
-                    (vec![], mvm_addr)
+                solver::config::ConnectedChainConfig::Svm(_) => {
+                    let svm_addr = std::env::var("SOLVER_SVM_ADDRESS")
+                        .ok()
+                        .and_then(|addr| {
+                            let addr = addr.strip_prefix("0x").unwrap_or(&addr);
+                            hex::decode(addr).ok()
+                        })
+                        .unwrap_or_default();
+                    (vec![], None, svm_addr)
                 }
             };
             
@@ -133,7 +143,13 @@ async fn main() -> Result<()> {
             } else {
                 None
             };
-            match hub_client.register_solver(&public_key_bytes, &evm_address, mvm_address.as_deref(), pk_for_registration) {
+            match hub_client.register_solver(
+                &public_key_bytes,
+                &evm_address,
+                mvm_address.as_deref(),
+                &svm_address,
+                pk_for_registration,
+            ) {
                 Ok(tx_hash) => {
                     info!("✅ Solver registered successfully. Transaction: {}", tx_hash);
                 }

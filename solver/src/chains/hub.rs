@@ -577,6 +577,7 @@ impl HubChainClient {
     /// * `public_key_bytes` - Ed25519 public key as bytes (32 bytes)
     /// * `evm_addr` - EVM address on connected chain (20 bytes), or empty vec if not applicable
     /// * `mvm_addr` - Move VM address on connected chain, or None if not applicable
+    /// * `svm_addr` - SVM address on connected chain (32 bytes), or empty vec if not applicable
     /// * `private_key` - Optional private key bytes. If provided, uses --private-key flag with movement CLI.
     ///                   If None, uses --profile flag with aptos CLI (for E2E tests).
     ///
@@ -589,6 +590,7 @@ impl HubChainClient {
         public_key_bytes: &[u8],
         evm_addr: &[u8],
         mvm_addr: Option<&str>,
+        svm_addr: &[u8],
         private_key: Option<&[u8; 32]>,
     ) -> Result<String> {
         // Convert public key to hex
@@ -614,6 +616,16 @@ impl HubChainClient {
             format!("hex:{}", evm_addr_hex)
         };
         let mvm_addr_arg = format!("address:{}", mvm_addr_normalized);
+        let svm_addr_hex = if svm_addr.is_empty() {
+            "".to_string()
+        } else {
+            hex::encode(svm_addr)
+        };
+        let svm_addr_arg = if svm_addr_hex.is_empty() {
+            "hex:".to_string()
+        } else {
+            format!("hex:{}", svm_addr_hex)
+        };
         
         // Format private key if provided
         let private_key_hex = private_key.map(|pk| format!("0x{}", hex::encode(pk)));
@@ -637,6 +649,7 @@ impl HubChainClient {
                     &public_key_arg,
                     &evm_addr_arg,
                     &mvm_addr_arg,
+                    &svm_addr_arg,
                 ],
             )
         } else {
@@ -655,6 +668,7 @@ impl HubChainClient {
                     &public_key_arg,
                     &evm_addr_arg,
                     &mvm_addr_arg,
+                    &svm_addr_arg,
                 ],
             )
         };

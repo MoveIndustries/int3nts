@@ -23,7 +23,7 @@ e2e_mode = false                          # E2E testing mode: true = use aptos C
 
 # Connected Chain Configuration
 # The connected chain is where escrows occur
-# Choose either "mvm" or "evm" type
+# Choose either "mvm", "evm", or "svm" type
 
 # Option 1: Move VM Chain
 [connected_chain]
@@ -43,6 +43,15 @@ e2e_mode = false                          # E2E testing mode: true = use aptos C
 # chain_id = 84532                         # Chain ID (e.g., 84532 for Base Sepolia)
 # escrow_contract_addr = "0x..."         # Address of the IntentEscrow contract
 # private_key_env = "BASE_SOLVER_PRIVATE_KEY"  # Environment variable containing EVM private key
+
+# Option 3: SVM Chain (uncomment and use instead of MVM config above)
+# [connected_chain]
+# type = "svm"
+# name = "Connected SVM Chain"            # Human-readable name for the chain
+# rpc_url = "http://127.0.0.1:8899"       # RPC endpoint URL for SVM chain
+# chain_id = 1001                         # Chain ID (arbitrary routing ID)
+# escrow_program_id = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+# keypair_path_env = "SVM_SOLVER_KEYPAIR_PATH" # Environment variable containing solver keypair path
 
 # Acceptance Criteria
 # Defines which token pairs are supported and their exchange rates

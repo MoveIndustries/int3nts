@@ -12,6 +12,7 @@ serde_json = "1.0"
 serde_yaml = "0.9"
 toml = "0.8"
 hex = "0.4"
+borsh = "0.10"
 clap = { version = "4.5", features = ["derive"] }
 ethereum-types = "0.14"
 
@@ -22,6 +23,11 @@ reqwest = { version = "0.11", features = ["json", "blocking"] }
 ed25519-dalek = "2.1.0"
 base64 = "0.21"
 sha3 = "0.10"
+solana-program = "2.3"
+solana-client = "2.3"
+solana-sdk = "2.3"
+solana-sdk-ids = "2.2"
+spl-token = "6.0"
 
 # Error handling
 anyhow = "1.0"

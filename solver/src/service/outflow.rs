@@ -7,7 +7,7 @@
 //! 2. **Get Verifier Approval**: Call verifier `/validate-outflow-fulfillment` with transaction hash
 //! 3. **Fulfill Intent**: Call hub chain `fulfill_outflow_intent` with verifier signature
 
-use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, HubChainClient};
+use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient, HubChainClient};
 use crate::config::{ConnectedChainConfig, SolverConfig};
 use crate::service::tracker::{IntentTracker, TrackedIntent};
 use crate::verifier_client::{ValidateOutflowFulfillmentRequest, VerifierClient};
@@ -31,6 +31,7 @@ pub struct OutflowService {
 enum ConnectedChainClient {
     Mvm(ConnectedMvmClient),
     Evm(ConnectedEvmClient),
+    Svm(ConnectedSvmClient),
 }
 
 impl OutflowService {
@@ -57,6 +58,9 @@ impl OutflowService {
             }
             ConnectedChainConfig::Evm(chain_config) => {
                 ConnectedChainClient::Evm(ConnectedEvmClient::new(chain_config)?)
+            }
+            ConnectedChainConfig::Svm(chain_config) => {
+                ConnectedChainClient::Svm(ConnectedSvmClient::new(chain_config)?)
             }
         };
 
@@ -146,6 +150,12 @@ impl OutflowService {
                 // EVM: Use transfer_with_intent_id via Hardhat script
                 // Same approach as inflow's claim_escrow
                 client.transfer_with_intent_id(desired_token, recipient, desired_amount, &intent.intent_id).await
+            }
+            ConnectedChainClient::Svm(client) => {
+                // SVM: Use SPL memo + transferChecked flow
+                client
+                    .transfer_with_intent_id(recipient, desired_token, desired_amount, &intent.intent_id)
+                    .await
             }
         }
     }
@@ -277,6 +287,7 @@ impl OutflowService {
                         let chain_type = match &self.connected_client {
                             ConnectedChainClient::Mvm(_) => "mvm",
                             ConnectedChainClient::Evm(_) => "evm",
+                            ConnectedChainClient::Svm(_) => "svm",
                         };
 
                         match self.get_verifier_approval(&tx_hash, chain_type, &intent.intent_id).await {
