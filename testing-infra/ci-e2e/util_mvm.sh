@@ -723,29 +723,27 @@ display_balances_connected_mvm() {
 }
 
 # Register solver in the solver registry
-# Usage: register_solver <profile> <chain_addr> <public_key_hex> <evm_addr_hex> [connected_chain_mvm_addr] [log_file]
-# Example: register_solver "solver-chain1" "$CHAIN1_ADDRESS" "$SOLVER_PUBLIC_KEY_HEX" "0x0000000000000000000000000000000000000001"
-# Example with MVM address: register_solver "solver-chain1" "$CHAIN1_ADDRESS" "$SOLVER_PUBLIC_KEY_HEX" "0x0000000000000000000000000000000000000001" "$SOLVER_CHAIN2_ADDRESS"
+# Usage: register_solver <profile> <chain_addr> <public_key_hex> <mvm_addr> <evm_addr_hex> [log_file]
+# Example: register_solver "solver-chain1" "$CHAIN1_ADDRESS" "$SOLVER_PUBLIC_KEY_HEX" "0x0" "0x0000000000000000000000000000000000000001"
+# Example with MVM address: register_solver "solver-chain1" "$CHAIN1_ADDRESS" "$SOLVER_PUBLIC_KEY_HEX" "$SOLVER_CHAIN2_ADDRESS" "0x0000000000000000000000000000000000000001"
 # Exits on error
 register_solver() {
     local profile="$1"
     local chain_addr="$2"
     local public_key_hex="$3"
-    local evm_addr_hex="$4"
-    local connected_chain_mvm_addr="${5:-}"  # Optional: Move VM address on connected chain
+    local connected_chain_mvm_addr="$4"
+    local evm_addr_hex="$5"
     local log_file="${6:-$LOG_FILE}"
 
-    if [ -z "$profile" ] || [ -z "$chain_addr" ] || [ -z "$public_key_hex" ] || [ -z "$evm_addr_hex" ]; then
-        log_and_echo "❌ ERROR: register_solver() requires profile, chain_addr, public_key_hex, and evm_addr_hex"
+    if [ -z "$profile" ] || [ -z "$chain_addr" ] || [ -z "$public_key_hex" ] || [ -z "$connected_chain_mvm_addr" ] || [ -z "$evm_addr_hex" ]; then
+        log_and_echo "❌ ERROR: register_solver() requires profile, chain_addr, public_key_hex, mvm_addr, and evm_addr_hex"
         exit 1
     fi
 
     # Remove 0x prefix if present
     public_key_hex="${public_key_hex#0x}"
     evm_addr_hex="${evm_addr_hex#0x}"
-    if [ -n "$connected_chain_mvm_addr" ]; then
-        connected_chain_mvm_addr="${connected_chain_mvm_addr#0x}"
-    fi
+    connected_chain_mvm_addr="${connected_chain_mvm_addr#0x}"
 
     log "     Registering solver in registry..."
     
@@ -754,11 +752,11 @@ register_solver() {
     log "       profile: $profile"
     log "       chain_addr: $chain_addr"
     log "       public_key_hex (length): ${#public_key_hex} chars"
+    log "       connected_chain_mvm_addr: $connected_chain_mvm_addr"
     log "       evm_addr_hex: $evm_addr_hex (length: ${#evm_addr_hex} chars)"
-    log "       connected_chain_mvm_addr: ${connected_chain_mvm_addr:-<empty>}"
     
-    # Build arguments: public_key, evm_addr, mvm_addr
-    # Use sentinel values: empty vector (hex:) for EVM address if not provided, 0x0 for MVM address if not provided
+    # Build arguments: public_key, mvm_addr, evm_addr
+    # Use sentinel values: 0x0 for MVM address if not provided, empty vector (hex:) for EVM address if not provided
     local evm_arg
     if [ -n "$evm_addr_hex" ]; then
         evm_arg="hex:${evm_addr_hex}"
@@ -768,31 +766,26 @@ register_solver() {
     fi
     
     local mvm_arg
-    if [ -n "$connected_chain_mvm_addr" ]; then
-        mvm_arg="address:0x${connected_chain_mvm_addr}"
-    else
-        # Use sentinel: zero address
-        mvm_arg="address:0x0"
-    fi
+    mvm_arg="address:0x${connected_chain_mvm_addr}"
     
     # Debug: Log built arguments
     log "     DEBUG: Built arguments:"
     log "       public_key: hex:${public_key_hex:0:20}... (${#public_key_hex} chars)"
-    log "       evm_addr: $evm_arg"
     log "       mvm_addr: $mvm_arg"
+    log "       evm_addr: $evm_arg"
     log "     DEBUG: Full command:"
     log "       aptos move run --profile $profile --assume-yes \\"
     log "         --function-id 0x${chain_addr}::solver_registry::register_solver \\"
-    log "         --args \"hex:${public_key_hex}\" \"$evm_arg\" \"$mvm_arg\""
+    log "         --args \"hex:${public_key_hex}\" \"$mvm_arg\" \"$evm_arg\""
     
     if [ -n "$log_file" ]; then
         aptos move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::solver_registry::register_solver" \
-            --args "hex:${public_key_hex}" "$evm_arg" "$mvm_arg" >> "$log_file" 2>&1
+            --args "hex:${public_key_hex}" "$mvm_arg" "$evm_arg" >> "$log_file" 2>&1
     else
         aptos move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::solver_registry::register_solver" \
-            --args "hex:${public_key_hex}" "$evm_arg" "$mvm_arg"
+            --args "hex:${public_key_hex}" "$mvm_arg" "$evm_arg"
     fi
 
     if [ $? -eq 0 ]; then

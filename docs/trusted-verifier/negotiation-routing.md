@@ -22,8 +22,8 @@ The negotiation routing system enables:
 
 ### Requester Prerequisites
 
-- Must have a Move VM address (for `requester_addr`)
-- Must prepare draft data matching the `Draftintent` structure from Move
+- Must have an MVM address (for `requester_addr`)
+- Must prepare draft data matching the `Draftintent` structure from the MVM framework
 
 ## Requester Workflow
 
@@ -92,7 +92,7 @@ Register your solver on-chain with public key and addresses:
 ```bash
 movement move run \
   --function-id "0x<module>::solver_registry::register_solver" \
-  --args "vector<u8>:<public_key_bytes>" "address:<evm_address>" "address:<mvm_address>"
+  --args "vector<u8>:<public_key_bytes>" "address:<mvm_address>" "address:<evm_address>" "vector<u8>:<svm_address>"
 ```
 
 ### 2. Poll for Pending Drafts

@@ -144,7 +144,7 @@ Validates a connected chain transaction for an outflow intent and returns an app
 ```json
 {
   "transaction_hash": "0x...",
-  "chain_type": "mvm" | "evm",
+  "chain_type": "mvm" | "evm" | "svm",
   "intent_id": "0x..." (optional)
 }
 ```
@@ -170,7 +170,7 @@ Validates a connected chain transaction for an outflow intent and returns an app
 
 **Usage in Outflow Fulfillment**
 
-1) Solver transfers tokens on connected chain (includes `intent_id` in transaction)
+1) Solver transfers tokens on connected chain (includes `intent_id` in transaction; memo for SVM)
 2) Solver calls `/validate-outflow-fulfillment` with transaction hash
 3) If validation passes, convert base64 signature to hex and submit hub chain entry: `fulfill_outflow_intent(intent, signature_hex)`
 

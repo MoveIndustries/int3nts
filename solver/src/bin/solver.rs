@@ -145,8 +145,8 @@ async fn main() -> Result<()> {
             };
             match hub_client.register_solver(
                 &public_key_bytes,
-                &evm_address,
                 mvm_address.as_deref(),
+                &evm_address,
                 &svm_address,
                 pk_for_registration,
             ) {

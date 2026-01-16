@@ -24,7 +24,7 @@ A continuous service that automatically:
 ### Command-Line Utilities
 
 1. **Generate Signatures**: Sign `IntentToSign` structures for reserved intents
-2. **Build Transaction Templates**: Generate Move VM/EVM payload templates with embedded `intent_id` for outflow fulfillment
+2. **Build Transaction Templates**: Generate MVM/EVM payload templates with embedded `intent_id` for outflow fulfillment
 
 ## Architecture
 
@@ -38,9 +38,9 @@ Components:
 - **Intent Tracker**: Monitors signed intents and tracks their lifecycle from draft to on-chain creation
 - **Inflow Fulfillment Service**: Monitors escrow deposits on connected chains and fulfills inflow intents on hub chain
 - **Outflow Fulfillment Service**: Executes transfers on connected chains and fulfills outflow intents on hub chain
-- **Chain Clients**: Clients for interacting with hub chain (Movement) and connected chains (MVM/EVM)
+- **Chain Clients**: Clients for interacting with hub chain (Movement) and connected chains (MVM/EVM/SVM)
 - **Signature Generator**: Creates Ed25519 signatures for `IntentToSign` structures
-- **Transaction Template Generator**: Produces Move/EVM templates with embedded `intent_id`
+- **Transaction Template Generator**: Produces MVM/EVM templates with embedded `intent_id`
 - **Key Management**: Reads solver private keys from Movement/Aptos configuration
 
 ## Project Structure
@@ -128,7 +128,7 @@ The solver automatically fulfills **inflow intents** (tokens locked on connected
 
 ### Supported Chains (Inflow)
 
-- **Move VM Chains**: Uses `complete_escrow_from_fa` entry function
+- **MVM Chains**: Uses `complete_escrow_from_fa` entry function
 - **EVM Chains**: Uses Hardhat script `claim-escrow.js` (calls `IntentEscrow.claim()`)
 - **SVM Chains**: Uses Solana escrow program claim instruction
 
@@ -144,7 +144,7 @@ The solver automatically fulfills **outflow intents** (tokens locked on hub, des
 
 ### Supported Chains (Outflow)
 
-- **Move VM Chains**: Uses `transfer_with_intent_id` entry function
+- **MVM Chains**: Uses `transfer_with_intent_id` entry function
 - **EVM Chains**: Executes ERC20 transfer with `intent_id` encoded in calldata
 - **SVM Chains**: Executes SPL `transferChecked` with memo `intent_id=0x...`, using `desired_token` as the mint
 
@@ -207,9 +207,9 @@ For more details on the reserved intent flow, see [Protocol Documentation](../pr
 
 ## Connected Chain Outflow Fulfillment Transaction Templates
 
-Outflow intents require solvers to execute a transfer on the connected chain with the hub `intent_id` encoded. The `connected_chain_tx_template` binary produces templates for Move VM and EVM transfers.
+Outflow intents require solvers to execute a transfer on the connected chain with the hub `intent_id` encoded. The `connected_chain_tx_template` binary produces templates for MVM and EVM transfers.
 
-**Move VM:**
+**MVM:**
 
 ```bash
 cargo run --bin connected_chain_tx_template -- \
@@ -239,7 +239,7 @@ SVM outflow transfers are executed by the solver service. The connected-chain tr
 - First instruction: SPL memo `intent_id=0x...` (32-byte hex).
 - Exactly one SPL `transferChecked` instruction.
 
-**Note:** For Move VM, `--metadata` must be a hex address (object address of Metadata), not a module path. The intent framework module must be deployed on the connected chain.
+**Note:** For MVM, `--metadata` must be a hex address (object address of Metadata), not a module path. The intent framework module must be deployed on the connected chain.
 
 ## Chain Clients
 

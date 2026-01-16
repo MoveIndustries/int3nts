@@ -1,6 +1,6 @@
 # Framework Extension Guide
 
-This guide explains how to add a new blockchain framework (e.g., SVM, EVM, Move) to the Intent Framework while maintaining consistency and test coverage across all platforms.
+This guide explains how to add a new blockchain framework (e.g., MVM, EVM, SVM) to the Intent Framework while maintaining consistency and test coverage across all platforms.
 
 ## Overview
 

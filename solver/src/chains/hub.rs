@@ -575,8 +575,8 @@ impl HubChainClient {
     /// # Arguments
     ///
     /// * `public_key_bytes` - Ed25519 public key as bytes (32 bytes)
-    /// * `evm_addr` - EVM address on connected chain (20 bytes), or empty vec if not applicable
     /// * `mvm_addr` - Move VM address on connected chain, or None if not applicable
+    /// * `evm_addr` - EVM address on connected chain (20 bytes), or empty vec if not applicable
     /// * `svm_addr` - SVM address on connected chain (32 bytes), or empty vec if not applicable
     /// * `private_key` - Optional private key bytes. If provided, uses --private-key flag with movement CLI.
     ///                   If None, uses --profile flag with aptos CLI (for E2E tests).
@@ -588,14 +588,17 @@ impl HubChainClient {
     pub fn register_solver(
         &self,
         public_key_bytes: &[u8],
-        evm_addr: &[u8],
         mvm_addr: Option<&str>,
+        evm_addr: &[u8],
         svm_addr: &[u8],
         private_key: Option<&[u8; 32]>,
     ) -> Result<String> {
         // Convert public key to hex
         let public_key_hex = hex::encode(public_key_bytes);
         
+        // Prepare MVM address (use 0x0 if None)
+        let mvm_addr_normalized = mvm_addr.unwrap_or("0x0");
+
         // Convert EVM address to hex (pad to 20 bytes if needed)
         let evm_addr_hex = if evm_addr.is_empty() {
             "".to_string()
@@ -603,19 +606,16 @@ impl HubChainClient {
             hex::encode(evm_addr)
         };
         
-        // Prepare MVM address (use 0x0 if None)
-        let mvm_addr_normalized = mvm_addr.unwrap_or("0x0");
-        
         // Build command arguments - store formatted strings to avoid temporary value issues
         // Movement CLI expects 'hex:' for vector<u8> types, not 'vector<u8>:'
         let function_id = format!("{}::solver_registry::register_solver", self.module_addr);
         let public_key_arg = format!("hex:{}", public_key_hex);
+        let mvm_addr_arg = format!("address:{}", mvm_addr_normalized);
         let evm_addr_arg = if evm_addr_hex.is_empty() {
             "hex:".to_string()
         } else {
             format!("hex:{}", evm_addr_hex)
         };
-        let mvm_addr_arg = format!("address:{}", mvm_addr_normalized);
         let svm_addr_hex = if svm_addr.is_empty() {
             "".to_string()
         } else {
@@ -647,8 +647,8 @@ impl HubChainClient {
                     &function_id,
                     "--args",
                     &public_key_arg,
-                    &evm_addr_arg,
                     &mvm_addr_arg,
+                    &evm_addr_arg,
                     &svm_addr_arg,
                 ],
             )
@@ -666,8 +666,8 @@ impl HubChainClient {
                     &function_id,
                     "--args",
                     &public_key_arg,
-                    &evm_addr_arg,
                     &mvm_addr_arg,
+                    &evm_addr_arg,
                     &svm_addr_arg,
                 ],
             )
