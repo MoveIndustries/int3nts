@@ -15,6 +15,7 @@ use solana_program::{
 };
 use solana_sdk::{
     commitment_config::CommitmentConfig,
+    ed25519_instruction::new_ed25519_instruction_with_signature,
     instruction::{AccountMeta, Instruction},
     signature::{read_keypair_file, Keypair, Signer},
     sysvar,
@@ -42,6 +43,27 @@ pub struct EscrowAccount {
     pub reserved_solver: Pubkey,
     pub intent_id: [u8; 32],
     pub bump: u8,
+}
+
+#[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
+pub struct EscrowState {
+    pub discriminator: [u8; 8],
+    pub verifier: Pubkey,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+pub enum EscrowInstruction {
+    Initialize { verifier: Pubkey },
+    CreateEscrow {
+        intent_id: [u8; 32],
+        amount: u64,
+        expiry_duration: Option<i64>,
+    },
+    Claim {
+        intent_id: [u8; 32],
+        signature: [u8; 64],
+    },
+    Cancel { intent_id: [u8; 32] },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -174,13 +196,97 @@ impl ConnectedSvmClient {
     /// * `Err(anyhow::Error)` - Unimplemented or RPC failure
     pub async fn claim_escrow(
         &self,
-        _escrow_id: &str,
-        _intent_id: &str,
-        _signature: &[u8],
+        escrow_id: &str,
+        intent_id: &str,
+        signature: &[u8],
     ) -> Result<String> {
-        Err(anyhow::anyhow!(
-            "SVM escrow claim not implemented yet"
-        ))
+        let intent_bytes = parse_intent_id(intent_id)?;
+        let signature_bytes = parse_signature(signature)?;
+        let escrow_pubkey = pubkey_from_hex(escrow_id)?;
+
+        let escrow_account = self
+            .rpc_client
+            .get_account(&escrow_pubkey)
+            .context("Failed to fetch escrow account")?;
+        let escrow = EscrowAccount::try_from_slice(&escrow_account.data)
+            .context("Failed to parse escrow account")?;
+
+        let state_pda =
+            Pubkey::find_program_address(&[b"state"], &self.program_id).0;
+        let vault_pda =
+            Pubkey::find_program_address(&[b"vault", &intent_bytes], &self.program_id).0;
+
+        let solver_token =
+            get_associated_token_address(&escrow.reserved_solver, &escrow.token_mint)?;
+
+        let payer = self.load_solver_keypair()?;
+        if self.rpc_client.get_account(&solver_token).is_err() {
+            let create_ata_ix = create_associated_token_account_instruction(
+                &payer.pubkey(),
+                &escrow.reserved_solver,
+                &escrow.token_mint,
+            )?;
+            let blockhash = self
+                .rpc_client
+                .get_latest_blockhash()
+                .context("Failed to get latest blockhash")?;
+            let tx = Transaction::new_signed_with_payer(
+                &[create_ata_ix],
+                Some(&payer.pubkey()),
+                &[&payer],
+                blockhash,
+            );
+            self.rpc_client
+                .send_and_confirm_transaction(&tx)
+                .context("Failed to create solver ATA")?;
+        }
+
+        let state_account = self
+            .rpc_client
+            .get_account(&state_pda)
+            .context("Failed to fetch state account")?;
+        let state = EscrowState::try_from_slice(&state_account.data)
+            .context("Failed to parse state account")?;
+
+        let ed25519_ix = new_ed25519_instruction_with_signature(
+            &intent_bytes,
+            &signature_bytes,
+            &state.verifier.to_bytes(),
+        );
+
+        let claim_ix = Instruction {
+            program_id: self.program_id,
+            accounts: vec![
+                AccountMeta::new(escrow_pubkey, false),
+                AccountMeta::new_readonly(state_pda, false),
+                AccountMeta::new(vault_pda, false),
+                AccountMeta::new(solver_token, false),
+                AccountMeta::new_readonly(sysvar::instructions::id(), false),
+                AccountMeta::new_readonly(spl_token::id(), false),
+            ],
+            data: EscrowInstruction::Claim {
+                intent_id: intent_bytes,
+                signature: signature_bytes,
+            }
+            .try_to_vec()
+            .context("Failed to serialize claim instruction")?,
+        };
+
+        let blockhash = self
+            .rpc_client
+            .get_latest_blockhash()
+            .context("Failed to get latest blockhash")?;
+        let tx = Transaction::new_signed_with_payer(
+            &[ed25519_ix, claim_ix],
+            Some(&payer.pubkey()),
+            &[&payer],
+            blockhash,
+        );
+        let sig = self
+            .rpc_client
+            .send_and_confirm_transaction(&tx)
+            .context("Failed to send claim transaction")?;
+        Ok(sig.to_string())
     }
 
     /// Transfers SPL tokens with an intent_id memo for outflow fulfillment.
@@ -295,6 +401,40 @@ fn pubkey_to_hex(pubkey_str: &str) -> Result<String> {
     let pubkey = Pubkey::from_str(pubkey_str)
         .context("Invalid pubkey string")?;
     Ok(format!("0x{}", hex::encode(pubkey.to_bytes())))
+}
+
+/// Parses a 0x-prefixed hex pubkey into a Pubkey.
+fn pubkey_from_hex(value: &str) -> Result<Pubkey> {
+    let stripped = value.strip_prefix("0x").unwrap_or(value);
+    let bytes = hex::decode(stripped).context("Invalid hex pubkey")?;
+    if bytes.len() != 32 {
+        anyhow::bail!("Invalid pubkey length: {}", bytes.len());
+    }
+    let mut array = [0u8; 32];
+    array.copy_from_slice(&bytes);
+    Ok(Pubkey::new_from_array(array))
+}
+
+/// Parse a 0x hex intent id into a 32-byte array.
+fn parse_intent_id(value: &str) -> Result<[u8; 32]> {
+    let stripped = value.strip_prefix("0x").unwrap_or(value);
+    if stripped.len() > 64 {
+        anyhow::bail!("Intent id too long");
+    }
+    let padded = format!("{:0>64}", stripped);
+    let bytes = hex::decode(padded).context("Invalid intent id hex")?;
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&bytes);
+    Ok(out)
+}
+
+fn parse_signature(signature: &[u8]) -> Result<[u8; 64]> {
+    if signature.len() != 64 {
+        anyhow::bail!("Invalid signature length: {}", signature.len());
+    }
+    let mut out = [0u8; 64];
+    out.copy_from_slice(signature);
+    Ok(out)
 }
 
 /// Parses escrow account data from base64-encoded bytes.

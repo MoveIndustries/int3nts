@@ -63,8 +63,9 @@ log "   ✅ Solver token account:    $SOLVER_TOKEN"
 
 log ""
 log "🪙 Minting tokens..."
-mint_svm_tokens "$MINT_ADDR" 1000000 "$REQUESTER_TOKEN" "$PAYER_KEYPAIR" "$SVM_RPC_URL"
-mint_svm_tokens "$MINT_ADDR" 1000000 "$SOLVER_TOKEN" "$PAYER_KEYPAIR" "$SVM_RPC_URL"
+# mint_svm_tokens takes UI amount (tokens). 1 token = 1_000_000 base units.
+mint_svm_tokens "$MINT_ADDR" 1 "$REQUESTER_TOKEN" "$PAYER_KEYPAIR" "$SVM_RPC_URL"
+mint_svm_tokens "$MINT_ADDR" 1 "$SOLVER_TOKEN" "$PAYER_KEYPAIR" "$SVM_RPC_URL"
 
 log ""
 log "📝 Saving chain info..."

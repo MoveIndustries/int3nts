@@ -116,6 +116,6 @@ if start_solver "$LOG_DIR/solver.log" "info" "$SOLVER_CONFIG"; then
     log_and_echo "   Logs: $LOG_DIR/solver.log"
 else
     log ""
-    log_and_echo "⚠️  Solver failed to start"
+    log_and_echo "❌ ERROR: Solver failed to start"
     exit 1
 fi

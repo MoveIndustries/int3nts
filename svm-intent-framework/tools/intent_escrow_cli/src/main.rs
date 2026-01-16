@@ -1,4 +1,4 @@
-use borsh::BorshDeserialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use intent_escrow::{
     instruction::EscrowInstruction,
     state::{seeds, Escrow, EscrowState},
@@ -12,6 +12,7 @@ use solana_sdk::{
     sysvar,
     transaction::Transaction,
 };
+use solana_program::program_pack::Pack;
 use spl_token::state::Account as TokenAccount;
 use std::{collections::HashMap, env, error::Error, str::FromStr};
 

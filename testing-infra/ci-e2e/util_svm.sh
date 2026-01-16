@@ -56,52 +56,66 @@ ensure_svm_keypair() {
 # Usage: get_svm_pubkey <keypair_path>
 get_svm_pubkey() {
     local keypair_path="$1"
-    svm_cmd "solana-keygen pubkey \"$keypair_path\""
+    # nix develop prints a banner; capture only the actual pubkey
+    svm_cmd "solana-keygen pubkey \"$keypair_path\"" | tail -n 1
 }
 
 # Convert base58 pubkey to 0x-hex string
 # Usage: svm_pubkey_to_hex <base58_pubkey>
 svm_pubkey_to_hex() {
-    python - "$1" <<'PY'
-import sys
-alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-def b58decode(s):
-    num = 0
-    for c in s:
-        num *= 58
-        num += alphabet.index(c)
-    combined = num.to_bytes((num.bit_length() + 7) // 8, "big")
-    # handle leading zeros
-    n_pad = len(s) - len(s.lstrip("1"))
-    return b"\x00" * n_pad + combined
-
-pubkey = sys.argv[1]
-raw = b58decode(pubkey)
-print("0x" + raw.hex())
-PY
+    # Use node inside nix develop to avoid relying on system python
+    svm_cmd "node - \"$1\" <<'JS'
+const alphabet = \"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz\";
+function b58decode(str) {
+  let num = 0n;
+  for (const c of str) {
+    const idx = BigInt(alphabet.indexOf(c));
+    num = num * 58n + idx;
+  }
+  let bytes = [];
+  while (num > 0n) {
+    bytes.push(Number(num & 0xffn));
+    num >>= 8n;
+  }
+  bytes = bytes.reverse();
+  let nPad = 0;
+  for (const c of str) {
+    if (c !== \"1\") break;
+    nPad++;
+  }
+  const out = Buffer.concat([Buffer.alloc(nPad), Buffer.from(bytes)]);
+  console.log(\"0x\" + out.toString(\"hex\"));
+}
+const input = process.argv[2];
+b58decode(input);
+JS" | tail -n 1
 }
 
 # Convert base64-encoded public key bytes to base58
 # Usage: svm_base64_to_base58 <base64_pubkey>
 svm_base64_to_base58() {
-    python - "$1" <<'PY'
-import base64
-import sys
-
-alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
-def b58encode(data: bytes) -> str:
-    num = int.from_bytes(data, "big")
-    enc = ""
-    while num > 0:
-        num, rem = divmod(num, 58)
-        enc = alphabet[rem] + enc
-    # handle leading zeros
-    n_pad = len(data) - len(data.lstrip(b"\x00"))
-    return "1" * n_pad + enc
-
-raw = base64.b64decode(sys.argv[1])
-print(b58encode(raw))
-PY
+    svm_cmd "node - \"$1\" <<'JS'
+const alphabet = \"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz\";
+function b58encode(buf) {
+  let num = 0n;
+  for (const b of buf) num = (num << 8n) + BigInt(b);
+  let enc = \"\";
+  while (num > 0n) {
+    const rem = num % 58n;
+    num = num / 58n;
+    enc = alphabet[Number(rem)] + enc;
+  }
+  let nPad = 0;
+  for (const b of buf) {
+    if (b !== 0) break;
+    nPad++;
+  }
+  return \"1\".repeat(nPad) + enc;
+}
+const input = process.argv[2];
+const raw = Buffer.from(input, \"base64\");
+console.log(b58encode(raw));
+JS" | tail -n 1
 }
 
 # Airdrop SOL to a pubkey
@@ -119,7 +133,7 @@ create_svm_mint() {
     local payer_keypair="$1"
     local rpc_url="${2:-http://127.0.0.1:8899}"
     svm_cmd "spl-token create-token --decimals 6 --url \"$rpc_url\" --fee-payer \"$payer_keypair\" \
-        | awk '/Creating token/ {print \$3}'"
+        | awk '/Creating token/ {print \$3}'" | tail -n 1
 }
 
 # Create an SPL token account
@@ -130,7 +144,7 @@ create_svm_token_account() {
     local payer_keypair="$3"
     local rpc_url="${4:-http://127.0.0.1:8899}"
     svm_cmd "spl-token create-account \"$mint\" --owner \"$owner\" --url \"$rpc_url\" --fee-payer \"$payer_keypair\" \
-        | awk '/Creating account/ {print \$3}'"
+        | awk '/Creating account/ {print \$3}'" | tail -n 1
 }
 
 # Mint tokens to an account

@@ -91,8 +91,14 @@ fi
 log_and_echo "✅ Solver fulfilled the intent automatically!"
 log_and_echo ""
 
-log_and_echo "⚠️  NOTE: SVM escrow claim is not automated yet."
-log_and_echo "   The escrow remains locked until a manual claim is performed."
+./testing-infra/ci-e2e/e2e-tests-svm/wait-for-escrow-claim.sh
+
+log_and_echo ""
+log_and_echo "💰 Final Balance Validation"
+log_and_echo "=========================================="
+# Inflow: Solver transfers to hub requester (0 on hub, 2000000 on hub requester)
+#         Solver receives escrow on SVM (2000000), requester escrow balance 0
+./testing-infra/ci-e2e/e2e-tests-svm/balance-check.sh 0 2000000 2000000 0
 
 log_and_echo ""
 log_and_echo "🧹 Step 6: Cleaning up chains, accounts and processes..."

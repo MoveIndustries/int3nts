@@ -49,6 +49,8 @@ setup_logging() {
     LOG_DIR="$PROJECT_ROOT/.tmp/e2e-tests"
     mkdir -p "$LOG_DIR"
     LOG_FILE="$LOG_DIR/${script_name}.log"
+    # Truncate log file for a clean run
+    : > "$LOG_FILE"
     
     export LOG_DIR LOG_FILE
 }

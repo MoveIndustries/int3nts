@@ -24,13 +24,29 @@ else
     display_balances_hub
 fi
 
+get_svm_balance() {
+    local token_account="$1"
+    SVM_TOKEN_ACCOUNT="$token_account" SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:8899}" \
+        bash "$PROJECT_ROOT/svm-intent-framework/scripts/get-token-balance.sh" \
+        | grep -Eo 'Balance: [0-9]+' | awk '{print $2}' | tail -1 | tr -d '\n'
+}
+
+if [ -z "$SVM_SOLVER_TOKEN" ] || [ -z "$SVM_REQUESTER_TOKEN" ]; then
+    log_and_echo "❌ ERROR: SVM token accounts not found in chain-info.env"
+    log_and_echo "   SVM_SOLVER_TOKEN: ${SVM_SOLVER_TOKEN:-missing}"
+    log_and_echo "   SVM_REQUESTER_TOKEN: ${SVM_REQUESTER_TOKEN:-missing}"
+    exit 1
+fi
+
+SOLVER_CHAIN_CONNECTED_ACTUAL=$(get_svm_balance "$SVM_SOLVER_TOKEN")
+REQUESTER_CHAIN_CONNECTED_ACTUAL=$(get_svm_balance "$SVM_REQUESTER_TOKEN")
+
+log_and_echo ""
+log_and_echo "   Chain 4 (Connected SVM):"
+log_and_echo "      Requester: ${REQUESTER_CHAIN_CONNECTED_ACTUAL} 10e-6.USDsvm"
+log_and_echo "      Solver:   ${SOLVER_CHAIN_CONNECTED_ACTUAL} 10e-6.USDsvm"
+
 if [ -n "$SOLVER_CHAIN_CONNECTED_EXPECTED" ] && [ "$SOLVER_CHAIN_CONNECTED_EXPECTED" != "-1" ]; then
-    if [ -z "$SVM_SOLVER_TOKEN" ]; then
-        log_and_echo "❌ ERROR: SVM_SOLVER_TOKEN not found in chain-info.env"
-        exit 1
-    fi
-    SOLVER_CHAIN_CONNECTED_ACTUAL=$(SVM_TOKEN_ACCOUNT="$SVM_SOLVER_TOKEN" SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:8899}" \
-        "$PROJECT_ROOT/svm-intent-framework/scripts/get-token-balance.sh" | tail -1 | tr -d '\n')
     if [ "$SOLVER_CHAIN_CONNECTED_ACTUAL" != "$SOLVER_CHAIN_CONNECTED_EXPECTED" ]; then
         log_and_echo "❌ ERROR: Solver balance mismatch on Connected SVM!"
         log_and_echo "   Actual:   $SOLVER_CHAIN_CONNECTED_ACTUAL"
@@ -42,12 +58,6 @@ if [ -n "$SOLVER_CHAIN_CONNECTED_EXPECTED" ] && [ "$SOLVER_CHAIN_CONNECTED_EXPEC
 fi
 
 if [ -n "$REQUESTER_CHAIN_CONNECTED_EXPECTED" ] && [ "$REQUESTER_CHAIN_CONNECTED_EXPECTED" != "-1" ]; then
-    if [ -z "$SVM_REQUESTER_TOKEN" ]; then
-        log_and_echo "❌ ERROR: SVM_REQUESTER_TOKEN not found in chain-info.env"
-        exit 1
-    fi
-    REQUESTER_CHAIN_CONNECTED_ACTUAL=$(SVM_TOKEN_ACCOUNT="$SVM_REQUESTER_TOKEN" SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:8899}" \
-        "$PROJECT_ROOT/svm-intent-framework/scripts/get-token-balance.sh" | tail -1 | tr -d '\n')
     if [ "$REQUESTER_CHAIN_CONNECTED_ACTUAL" != "$REQUESTER_CHAIN_CONNECTED_EXPECTED" ]; then
         log_and_echo "❌ ERROR: Requester balance mismatch on Connected SVM!"
         log_and_echo "   Actual:   $REQUESTER_CHAIN_CONNECTED_ACTUAL"

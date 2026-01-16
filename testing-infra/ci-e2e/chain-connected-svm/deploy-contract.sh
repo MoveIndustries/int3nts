@@ -42,8 +42,18 @@ fi
 log "   Deploying to $SVM_RPC_URL..."
 svm_cmd "solana program deploy --url \"$SVM_RPC_URL\" --keypair \"$SVM_PAYER_KEYPAIR\" \"$PROGRAM_SO\" --program-id \"$PROGRAM_KEYPAIR\"" >> "$LOG_FILE" 2>&1
 
-PROGRAM_ID=$(svm_cmd "solana address -k \"$PROGRAM_KEYPAIR\"")
+PROGRAM_ID=$(svm_cmd "solana address -k \"$PROGRAM_KEYPAIR\"" | tail -n 1)
 log "   ✅ Program deployed: $PROGRAM_ID"
+
+# Wait for program account to be available before initializing
+log "   ⏳ Waiting for program account to be available..."
+for i in {1..10}; do
+    if svm_cmd "solana account \"$PROGRAM_ID\" --url \"$SVM_RPC_URL\"" >/dev/null 2>&1; then
+        log "   ✅ Program account ready"
+        break
+    fi
+    sleep 1
+done
 
 log ""
 log "🔐 Initializing program state..."
@@ -53,8 +63,21 @@ fi
 
 SVM_VERIFIER_PUBKEY=$(svm_base64_to_base58 "$E2E_VERIFIER_PUBLIC_KEY")
 SVM_PROGRAM_ID="$PROGRAM_ID"
+log "   ⏳ Waiting briefly before initialize..."
+sleep 2
 
-nix develop "$PROJECT_ROOT" -c bash -c "cd \"$PROGRAM_DIR\" && SVM_VERIFIER_PUBKEY=\"$SVM_VERIFIER_PUBKEY\" SVM_PROGRAM_ID=\"$SVM_PROGRAM_ID\" SVM_RPC_URL=\"$SVM_RPC_URL\" SVM_PAYER_KEYPAIR=\"$SVM_PAYER_KEYPAIR\" ./scripts/initialize.sh" >> "$LOG_FILE" 2>&1
+set +e
+for attempt in 1 2 3 4 5; do
+    nix develop "$PROJECT_ROOT" -c bash -c "cd \"$PROGRAM_DIR\" && SVM_VERIFIER_PUBKEY=\"$SVM_VERIFIER_PUBKEY\" SVM_PROGRAM_ID=\"$SVM_PROGRAM_ID\" SVM_RPC_URL=\"$SVM_RPC_URL\" SVM_PAYER_KEYPAIR=\"$SVM_PAYER_KEYPAIR\" bash ./scripts/initialize.sh" >> "$LOG_FILE" 2>&1
+    status=$?
+    if [ "$status" -eq 0 ]; then
+        log "   ✅ Program initialized"
+        break
+    fi
+    log "   Initialize failed (attempt $attempt), retrying..."
+    sleep 2
+done
+set -e
 
 log ""
 log "📝 Saving chain info..."
