@@ -132,7 +132,7 @@ airdrop_svm() {
 create_svm_mint() {
     local payer_keypair="$1"
     local rpc_url="${2:-http://127.0.0.1:8899}"
-    svm_cmd "spl-token create-token --decimals 6 --url \"$rpc_url\" --fee-payer \"$payer_keypair\" \
+    svm_cmd "spl-token create-token --decimals 6 --url \"$rpc_url\" --fee-payer \"$payer_keypair\" --mint-authority \"$payer_keypair\" \
         | awk '/Creating token/ {print \$3}'" | tail -n 1
 }
 
@@ -155,5 +155,5 @@ mint_svm_tokens() {
     local account="$3"
     local payer_keypair="$4"
     local rpc_url="${5:-http://127.0.0.1:8899}"
-    svm_cmd "spl-token mint \"$mint\" \"$amount\" \"$account\" --url \"$rpc_url\" --fee-payer \"$payer_keypair\""
+    svm_cmd "spl-token mint \"$mint\" \"$amount\" \"$account\" --url \"$rpc_url\" --fee-payer \"$payer_keypair\" --mint-authority \"$payer_keypair\""
 }
