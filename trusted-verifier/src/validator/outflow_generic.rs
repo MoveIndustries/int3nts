@@ -4,12 +4,14 @@
 //! Outflow intents have tokens locked on the hub chain and request tokens on the connected chain.
 
 use anyhow::{Context, Result};
+use solana_program::pubkey::Pubkey;
+use std::str::FromStr;
 use tracing::info;
 
 use super::generic::{
     validate_address_format, CrossChainValidator, FulfillmentTransactionParams, ValidationResult,
 };
-use crate::monitor::IntentEvent;
+use crate::monitor::{ChainType, IntentEvent};
 
 /// Validates an outflow fulfillment transaction against a intent
 ///
@@ -236,6 +238,18 @@ fn validate_recipient_matches(
         return None;
     }
 
+    if chain_type == ChainType::Svm {
+        // SVM transfers use token accounts as destinations. If the intent stores
+        // the requester's wallet pubkey, accept the derived ATA as a match.
+        if let Ok(ata_hex) = derive_svm_ata_hex(&normalized_requester_addr, &tx_params.token_metadata) {
+            let ata_raw = ata_hex.strip_prefix("0x").unwrap_or(&ata_hex);
+            let ata = format!("{:0>64}", ata_raw).to_lowercase();
+            if tx_recipient == ata {
+                return None;
+            }
+        }
+    }
+
     Some(ValidationResult {
         valid: false,
         message: format!(
@@ -244,6 +258,39 @@ fn validate_recipient_matches(
         ),
         timestamp: chrono::Utc::now().timestamp() as u64,
     })
+}
+
+const ASSOCIATED_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+
+fn derive_svm_ata_hex(owner_hex: &str, mint_hex: &str) -> Result<String> {
+    let owner = svm_hex_to_pubkey(owner_hex)?;
+    let mint = svm_hex_to_pubkey(mint_hex)?;
+    let program_id = Pubkey::from_str(ASSOCIATED_TOKEN_PROGRAM_ID)
+        .context("Invalid associated token program id")?;
+    let token_program = Pubkey::from_str(TOKEN_PROGRAM_ID)
+        .context("Invalid token program id")?;
+    let ata = Pubkey::find_program_address(
+        &[owner.as_ref(), token_program.as_ref(), mint.as_ref()],
+        &program_id,
+    )
+    .0;
+    Ok(format!("0x{}", hex::encode(ata.to_bytes())))
+}
+
+fn svm_hex_to_pubkey(address: &str) -> Result<Pubkey> {
+    let raw = address.strip_prefix("0x").unwrap_or(address);
+    let bytes = hex::decode(raw).context("Invalid hex address")?;
+    if bytes.len() != 32 {
+        anyhow::bail!(
+            "Invalid SVM address length: expected 32 bytes, got {}",
+            bytes.len()
+        );
+    }
+    let array: [u8; 32] = bytes
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("Failed to convert address bytes to pubkey"))?;
+    Ok(Pubkey::new_from_array(array))
 }
 
 /// Validates the transaction amount matches the intent desired amount.

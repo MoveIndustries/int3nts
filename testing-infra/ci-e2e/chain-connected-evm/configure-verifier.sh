@@ -46,7 +46,7 @@ cat > "$TEMP_FILE" << EOF
 name = "Connected EVM Chain"
 rpc_url = "http://127.0.0.1:8545"
 escrow_contract_addr = "$CONTRACT_ADDRESS"
-chain_id = 31337
+chain_id = 3
 verifier_evm_pubkey_hash = "$VERIFIER_ADDRESS"
 EOF
 

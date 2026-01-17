@@ -81,11 +81,16 @@ log "$SOLVER_MINT_OUTPUT"
 log ""
 log " Post-mint token balances (base units):"
 
+# Balance reads can lag immediately after mint. Retry to avoid false negatives.
+BALANCE_ATTEMPTS=15
+BALANCE_RETRY_DELAY=2
+
 fetch_svm_balance_with_retry() {
     local label="$1"
     local token_account="$2"
-    local attempts="${3:-5}"
-    local expected="${4:-1000000}"
+    local attempts="${3:-$BALANCE_ATTEMPTS}"
+    local delay_seconds="${4:-$BALANCE_RETRY_DELAY}"
+    local expected="${5:-1000000}"
     local attempt=1
     local output=""
     local status=1
@@ -105,18 +110,20 @@ fetch_svm_balance_with_retry() {
         fi
 
         log "   ${label} balance attempt ${attempt}/${attempts} failed; retrying..."
-        sleep 1
+        sleep "$delay_seconds"
         attempt=$((attempt + 1))
     done
 
     echo "$output"
-    return "$status"
+    return 1
 }
 
+set +e
 REQUESTER_BALANCE_OUTPUT=$(fetch_svm_balance_with_retry "Requester" "$REQUESTER_SVM_TOKEN_ACCOUNT")
 REQUESTER_BALANCE_STATUS=$?
 SOLVER_BALANCE_OUTPUT=$(fetch_svm_balance_with_retry "Solver" "$SOLVER_SVM_TOKEN_ACCOUNT")
 SOLVER_BALANCE_STATUS=$?
+set -e
 
 log "   Requester balance output:"
 log "$REQUESTER_BALANCE_OUTPUT"

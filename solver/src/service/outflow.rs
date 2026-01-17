@@ -94,6 +94,14 @@ impl OutflowService {
         let mut executed_transfers = Vec::new();
 
         for intent in pending_intents {
+            if intent.outflow_attempted {
+                warn!(
+                    "Skipping outflow intent {}: transfer already attempted",
+                    intent.intent_id
+                );
+                continue;
+            }
+
             // Get requester_addr_connected_chain from intent
             // TODO: Query intent object on hub chain to get requester_addr_connected_chain
             // For now, we'll need to store this in TrackedIntent or query it
@@ -105,6 +113,14 @@ impl OutflowService {
                     continue;
                 }
             };
+
+            if let Err(e) = self.tracker.mark_outflow_attempted(&intent.intent_id).await {
+                error!(
+                    "Failed to mark outflow intent {} as attempted: {}",
+                    intent.intent_id, e
+                );
+                continue;
+            }
 
             // Execute transfer on connected chain
             let tx_hash = match self.execute_connected_transfer(&intent, &requester_addr_connected_chain).await {

@@ -7,6 +7,7 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
 source "$SCRIPT_DIR/../util_mvm.sh"
+source "$SCRIPT_DIR/../util_svm.sh"
 
 setup_project_root
 
@@ -31,6 +32,16 @@ get_svm_balance() {
         | grep -Eo 'Balance: [0-9]+' | awk '{print $2}' | tail -1 | tr -d '\n'
 }
 
+get_svm_sol_balance() {
+    local pubkey="$1"
+    if [ -z "$pubkey" ]; then
+        echo "0"
+        return
+    fi
+    svm_cmd "solana balance \"$pubkey\" --url \"${SVM_RPC_URL:-http://127.0.0.1:8899}\"" \
+        | awk '{print $1}' | tail -n 1
+}
+
 if [ -z "$SOLVER_SVM_TOKEN_ACCOUNT" ] || [ -z "$REQUESTER_SVM_TOKEN_ACCOUNT" ]; then
     log_and_echo "❌ ERROR: SVM token accounts not found in chain-info.env"
     log_and_echo "   SOLVER_SVM_TOKEN_ACCOUNT: ${SOLVER_SVM_TOKEN_ACCOUNT:-missing}"
@@ -40,11 +51,13 @@ fi
 
 SOLVER_CHAIN_CONNECTED_ACTUAL=$(get_svm_balance "$SOLVER_SVM_TOKEN_ACCOUNT")
 REQUESTER_CHAIN_CONNECTED_ACTUAL=$(get_svm_balance "$REQUESTER_SVM_TOKEN_ACCOUNT")
+REQUESTER_SVM_SOL=$(get_svm_sol_balance "$REQUESTER_SVM_PUBKEY")
+SOLVER_SVM_SOL=$(get_svm_sol_balance "$SOLVER_SVM_PUBKEY")
 
 log_and_echo ""
 log_and_echo "   Chain 4 (Connected SVM):"
-log_and_echo "      Requester: ${REQUESTER_CHAIN_CONNECTED_ACTUAL} 10e-6.USDsvm"
-log_and_echo "      Solver:   ${SOLVER_CHAIN_CONNECTED_ACTUAL} 10e-6.USDsvm"
+log_and_echo "      Requester: ${REQUESTER_SVM_SOL} SOL, ${REQUESTER_CHAIN_CONNECTED_ACTUAL} 10e-6.USDsvm"
+log_and_echo "      Solver:   ${SOLVER_SVM_SOL} SOL, ${SOLVER_CHAIN_CONNECTED_ACTUAL} 10e-6.USDsvm"
 
 if [ -n "$SOLVER_CHAIN_CONNECTED_EXPECTED" ] && [ "$SOLVER_CHAIN_CONNECTED_EXPECTED" != "-1" ]; then
     if [ "$SOLVER_CHAIN_CONNECTED_ACTUAL" != "$SOLVER_CHAIN_CONNECTED_EXPECTED" ]; then
