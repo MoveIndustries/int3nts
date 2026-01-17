@@ -49,9 +49,14 @@
             
             # Install Solana CLI if not already installed (official installer, writable location)
             # Required for SVM tests (cargo build-sbf)
-            if ! command -v solana > /dev/null 2>&1; then
-              echo "[nix] Installing Solana CLI..."
-              sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)" 2>/dev/null || true
+            # Set SKIP_SOLANA=1 to skip installation (e.g., for EVM/MVM CI jobs)
+            if [ -z "''${SKIP_SOLANA:-}" ]; then
+              if ! command -v solana > /dev/null 2>&1; then
+                echo "[nix] Installing Solana CLI..."
+                sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)" 2>/dev/null || true
+              fi
+            else
+              echo "[nix] Skipping Solana CLI install (SKIP_SOLANA is set)"
             fi
             
             echo "[nix] Dev shell ready: rustc $(rustc --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | cargo $(cargo --version 2>/dev/null | awk '{print $2}' || echo 'not installed') | aptos $(aptos --version 2>/dev/null || echo 'unknown') | movement $(movement --version 2>/dev/null || echo 'unknown') | solana $(solana --version 2>/dev/null | head -1 | awk '{print $2}' || echo 'not installed') | node $(node --version 2>/dev/null || echo 'unknown')"
