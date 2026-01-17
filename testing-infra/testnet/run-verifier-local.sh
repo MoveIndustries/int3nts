@@ -23,7 +23,7 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
 
-echo "🔍 Running Verifier Locally (Testnet Mode)"
+echo " Running Verifier Locally (Testnet Mode)"
 echo "==========================================="
 echo ""
 
@@ -105,13 +105,13 @@ ESCROW_CONTRACT=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "
 
 # Check for API key placeholders in RPC URLs
 if [[ "$HUB_RPC" == *"ALCHEMY_API_KEY"* ]] || [[ "$EVM_RPC" == *"ALCHEMY_API_KEY"* ]]; then
-    echo "⚠️  WARNING: RPC URLs contain API key placeholders (ALCHEMY_API_KEY)"
+    echo "️  WARNING: RPC URLs contain API key placeholders (ALCHEMY_API_KEY)"
     echo "   The verifier service does not substitute placeholders - use full URLs in config"
     echo "   Or use the public RPC URLs from testnet-assets.toml"
     echo ""
 fi
 
-echo "📋 Configuration:"
+echo " Configuration:"
 echo "   Config file: $VERIFIER_CONFIG"
 echo "   Keys file:   $TESTNET_KEYS_FILE"
 echo ""
@@ -135,15 +135,15 @@ export VERIFIER_PUBLIC_KEY
 
 # Check if --release flag is passed
 if [ "$1" = "--release" ]; then
-    echo "🔨 Building release binary..."
+    echo " Building release binary..."
     nix develop --command bash -c "cd '$PROJECT_ROOT/trusted-verifier' && cargo build --release"
     echo ""
-    echo "🚀 Starting verifier (release mode)..."
+    echo " Starting verifier (release mode)..."
     echo "   Press Ctrl+C to stop"
     echo ""
     RUST_LOG=info ./target/release/trusted-verifier --testnet
 else
-    echo "🚀 Starting verifier (debug mode)..."
+    echo " Starting verifier (debug mode)..."
     echo "   Press Ctrl+C to stop"
     echo "   (Use --release for faster performance)"
     echo ""

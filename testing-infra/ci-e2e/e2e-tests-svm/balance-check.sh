@@ -15,11 +15,11 @@ REQUESTER_CHAIN_HUB_EXPECTED="${2:-}"
 SOLVER_CHAIN_CONNECTED_EXPECTED="${3:-}"
 REQUESTER_CHAIN_CONNECTED_EXPECTED="${4:-}"
 
-TEST_TOKENS_CHAIN1=$(get_profile_address "test-tokens-chain1" 2>/dev/null) || true
+TEST_TOKENS_HUB=$(get_profile_address "test-tokens-chain1" 2>/dev/null) || true
 source "$PROJECT_ROOT/.tmp/chain-info.env" 2>/dev/null || true
 
-if [ -n "$TEST_TOKENS_CHAIN1" ]; then
-    display_balances_hub "0x$TEST_TOKENS_CHAIN1"
+if [ -n "$TEST_TOKENS_HUB" ]; then
+    display_balances_hub "0x$TEST_TOKENS_HUB"
 else
     display_balances_hub
 fi
@@ -31,15 +31,15 @@ get_svm_balance() {
         | grep -Eo 'Balance: [0-9]+' | awk '{print $2}' | tail -1 | tr -d '\n'
 }
 
-if [ -z "$SVM_SOLVER_TOKEN" ] || [ -z "$SVM_REQUESTER_TOKEN" ]; then
+if [ -z "$SOLVER_SVM_TOKEN_ACCOUNT" ] || [ -z "$REQUESTER_SVM_TOKEN_ACCOUNT" ]; then
     log_and_echo "❌ ERROR: SVM token accounts not found in chain-info.env"
-    log_and_echo "   SVM_SOLVER_TOKEN: ${SVM_SOLVER_TOKEN:-missing}"
-    log_and_echo "   SVM_REQUESTER_TOKEN: ${SVM_REQUESTER_TOKEN:-missing}"
+    log_and_echo "   SOLVER_SVM_TOKEN_ACCOUNT: ${SOLVER_SVM_TOKEN_ACCOUNT:-missing}"
+    log_and_echo "   REQUESTER_SVM_TOKEN_ACCOUNT: ${REQUESTER_SVM_TOKEN_ACCOUNT:-missing}"
     exit 1
 fi
 
-SOLVER_CHAIN_CONNECTED_ACTUAL=$(get_svm_balance "$SVM_SOLVER_TOKEN")
-REQUESTER_CHAIN_CONNECTED_ACTUAL=$(get_svm_balance "$SVM_REQUESTER_TOKEN")
+SOLVER_CHAIN_CONNECTED_ACTUAL=$(get_svm_balance "$SOLVER_SVM_TOKEN_ACCOUNT")
+REQUESTER_CHAIN_CONNECTED_ACTUAL=$(get_svm_balance "$REQUESTER_SVM_TOKEN_ACCOUNT")
 
 log_and_echo ""
 log_and_echo "   Chain 4 (Connected SVM):"
@@ -69,8 +69,8 @@ if [ -n "$REQUESTER_CHAIN_CONNECTED_EXPECTED" ] && [ "$REQUESTER_CHAIN_CONNECTED
 fi
 
 # Hub checks (optional)
-if [ -n "$SOLVER_CHAIN_HUB_EXPECTED" ] && [ "$SOLVER_CHAIN_HUB_EXPECTED" != "-1" ] && [ -n "$TEST_TOKENS_CHAIN1" ]; then
-    SOLVER_CHAIN_HUB_ACTUAL=$(get_usdxyz_balance "solver-chain1" "1" "0x$TEST_TOKENS_CHAIN1" 2>/dev/null || echo "0")
+if [ -n "$SOLVER_CHAIN_HUB_EXPECTED" ] && [ "$SOLVER_CHAIN_HUB_EXPECTED" != "-1" ] && [ -n "$TEST_TOKENS_HUB" ]; then
+    SOLVER_CHAIN_HUB_ACTUAL=$(get_usdxyz_balance "solver-chain1" "1" "0x$TEST_TOKENS_HUB" 2>/dev/null || echo "0")
     if [ "$SOLVER_CHAIN_HUB_ACTUAL" != "$SOLVER_CHAIN_HUB_EXPECTED" ]; then
         log_and_echo "❌ ERROR: Solver balance mismatch on Hub!"
         log_and_echo "   Actual:   $SOLVER_CHAIN_HUB_ACTUAL"
@@ -81,8 +81,8 @@ if [ -n "$SOLVER_CHAIN_HUB_EXPECTED" ] && [ "$SOLVER_CHAIN_HUB_EXPECTED" != "-1"
     log_and_echo "✅ Solver balance validated on Hub: $SOLVER_CHAIN_HUB_ACTUAL"
 fi
 
-if [ -n "$REQUESTER_CHAIN_HUB_EXPECTED" ] && [ "$REQUESTER_CHAIN_HUB_EXPECTED" != "-1" ] && [ -n "$TEST_TOKENS_CHAIN1" ]; then
-    REQUESTER_CHAIN_HUB_ACTUAL=$(get_usdxyz_balance "requester-chain1" "1" "0x$TEST_TOKENS_CHAIN1" 2>/dev/null || echo "0")
+if [ -n "$REQUESTER_CHAIN_HUB_EXPECTED" ] && [ "$REQUESTER_CHAIN_HUB_EXPECTED" != "-1" ] && [ -n "$TEST_TOKENS_HUB" ]; then
+    REQUESTER_CHAIN_HUB_ACTUAL=$(get_usdxyz_balance "requester-chain1" "1" "0x$TEST_TOKENS_HUB" 2>/dev/null || echo "0")
     if [ "$REQUESTER_CHAIN_HUB_ACTUAL" != "$REQUESTER_CHAIN_HUB_EXPECTED" ]; then
         log_and_echo "❌ ERROR: Requester balance mismatch on Hub!"
         log_and_echo "   Actual:   $REQUESTER_CHAIN_HUB_ACTUAL"

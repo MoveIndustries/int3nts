@@ -12,12 +12,12 @@ setup_logging "verifier-start-svm"
 cd "$PROJECT_ROOT"
 
 log ""
-log "🚀 Starting Trusted Verifier Service..."
+log " Starting Trusted Verifier Service..."
 log "========================================"
-log_and_echo "📝 All output logged to: $LOG_FILE"
+log_and_echo " All output logged to: $LOG_FILE"
 log ""
 
-log "🔧 Configuring verifier..."
+log " Configuring verifier..."
 source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-hub/configure-verifier.sh"
 source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-svm/configure-verifier.sh"
 

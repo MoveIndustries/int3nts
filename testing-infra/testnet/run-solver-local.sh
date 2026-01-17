@@ -26,7 +26,7 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
 
-echo "🔍 Running Solver Locally (Testnet Mode)"
+echo " Running Solver Locally (Testnet Mode)"
 echo "========================================="
 echo ""
 
@@ -102,13 +102,13 @@ fi
 
 # Check for API key placeholders in RPC URLs
 if [[ "$HUB_RPC" == *"ALCHEMY_API_KEY"* ]] || ([ "$CONNECTED_TYPE" = "evm" ] && [[ "$CONNECTED_RPC" == *"ALCHEMY_API_KEY"* ]]); then
-    echo "⚠️  WARNING: RPC URLs contain API key placeholders (ALCHEMY_API_KEY)"
+    echo "️  WARNING: RPC URLs contain API key placeholders (ALCHEMY_API_KEY)"
     echo "   The solver service does not substitute placeholders - use full URLs in config"
     echo "   Or use the public RPC URLs from testnet-assets.toml"
     echo ""
 fi
 
-echo "📋 Configuration:"
+echo " Configuration:"
 echo "   Config file: $SOLVER_CONFIG"
 echo "   Keys file:   $TESTNET_KEYS_FILE"
 echo ""
@@ -136,7 +136,7 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$VERIFIER_URL/h
 if [ "$HTTP_CODE" = "200" ]; then
     echo "   ✅ Verifier is healthy"
 else
-    echo "   ⚠️  Verifier not responding at $VERIFIER_URL (HTTP $HTTP_CODE)"
+    echo "   ️  Verifier not responding at $VERIFIER_URL (HTTP $HTTP_CODE)"
     echo ""
     echo "   Make sure verifier is running first:"
     echo "   ./testing-infra/testnet/run-verifier-local.sh"
@@ -158,7 +158,7 @@ if [ -n "$SOLVER_PROFILE" ]; then
     if movement config show-profiles --profile "$SOLVER_PROFILE" &>/dev/null; then
         echo "   ✅ Profile exists"
     else
-        echo "   ⚠️  Profile '$SOLVER_PROFILE' not found"
+        echo "   ️  Profile '$SOLVER_PROFILE' not found"
         echo ""
         echo "   Create it with:"
         echo "   movement init --profile $SOLVER_PROFILE \\"
@@ -212,15 +212,15 @@ fi
 
 # Check if --release flag is passed
 if [ "$1" = "--release" ]; then
-    echo "🔨 Building release binary..."
+    echo " Building release binary..."
     nix develop --command bash -c "cargo build --release --manifest-path solver/Cargo.toml"
     echo ""
-    echo "🚀 Starting solver (release mode)..."
+    echo " Starting solver (release mode)..."
     echo "   Press Ctrl+C to stop"
     echo ""
     eval "$ENV_VARS ./solver/target/release/solver"
 else
-    echo "🚀 Starting solver (debug mode)..."
+    echo " Starting solver (debug mode)..."
     echo "   Press Ctrl+C to stop"
     echo "   (Use --release for faster performance)"
     echo ""

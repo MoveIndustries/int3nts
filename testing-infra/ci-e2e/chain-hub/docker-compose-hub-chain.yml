@@ -1,5 +1,5 @@
 services:
-  # Aptos Localnet Chain 1 - following the single-validator approach
+  # Aptos Localnet Hub - following the single-validator approach
   aptos-localnet-chain1:
     image: aptoslabs/tools:nightly
     container_name: aptos-localnet-chain1
@@ -9,7 +9,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     command: >
       sh -c "
-        echo 'Starting Aptos Localnet Chain 1 with faucet (fresh start)...' &&
+        echo 'Starting Aptos Localnet Hub with faucet (fresh start)...' &&
         aptos node run-localnet --with-faucet --force-restart --assume-yes
       "
     restart: unless-stopped

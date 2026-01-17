@@ -20,10 +20,10 @@ if [ ! -f "$PROJECT_ROOT/.tmp/intent-info.env" ]; then
 fi
 source "$PROJECT_ROOT/.tmp/intent-info.env"
 
-ESCROW_ADDRESS="${CHAIN2_ESCROW_ADDRESS:-}"
+ESCROW_ADDRESS="${MVM_CON_ESCROW_ADDRESS:-}"
 
 if [ -z "$ESCROW_ADDRESS" ]; then
-    log_and_echo "❌ PANIC: CHAIN2_ESCROW_ADDRESS not set in intent-info.env"
+    log_and_echo "❌ PANIC: MVM_CON_ESCROW_ADDRESS not set in intent-info.env"
     exit 1
 fi
 

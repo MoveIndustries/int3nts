@@ -11,7 +11,7 @@ setup_project_root
 setup_logging "cleanup-svm"
 cd "$PROJECT_ROOT"
 
-log_and_echo "🧹 Cleaning up SVM chain and temp files..."
+log_and_echo " Cleaning up SVM chain and temp files..."
 
 stop_verifier || true
 stop_solver || true

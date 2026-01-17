@@ -22,7 +22,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk_ids::system_program;
-use spl_token::{instruction::transfer_checked, state::Mint};
+use spl_token::{instruction::transfer_checked, state::{Account as TokenAccount, Mint}};
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -310,8 +310,8 @@ impl ConnectedSvmClient {
         intent_id: &str,
     ) -> Result<String> {
         let payer = self.load_solver_keypair()?;
-        let mint_pubkey = Pubkey::from_str(mint).context("Invalid SPL mint address")?;
-        let recipient_pubkey = Pubkey::from_str(recipient)
+        let mint_pubkey = parse_svm_pubkey(mint).context("Invalid SPL mint address")?;
+        let recipient_pubkey = parse_svm_pubkey(recipient)
             .context("Invalid recipient pubkey")?;
 
         let memo = format!("intent_id={}", intent_id);
@@ -319,6 +319,24 @@ impl ConnectedSvmClient {
 
         let payer_token = get_associated_token_address(&payer.pubkey(), &mint_pubkey)?;
         let recipient_token = get_associated_token_address(&recipient_pubkey, &mint_pubkey)?;
+
+        if let Ok(account) = self.rpc_client.get_account(&payer_token) {
+            if let Ok(token_state) = TokenAccount::unpack(&account.data) {
+                tracing::info!(
+                    "SVM transfer solver={} solver_balance={} token_account={} mint={}",
+                    payer.pubkey(),
+                    token_state.amount,
+                    payer_token,
+                    mint_pubkey
+                );
+            }
+        } else {
+            tracing::info!(
+                "SVM transfer solver={} token_account={} not found",
+                payer.pubkey(),
+                payer_token
+            );
+        }
 
         let mut instructions = vec![memo_ix];
 
@@ -361,7 +379,7 @@ impl ConnectedSvmClient {
         let signature = self
             .rpc_client
             .send_and_confirm_transaction(&tx)
-            .context("Failed to submit SVM transfer")?;
+            .map_err(|e| anyhow::anyhow!("Failed to submit SVM transfer: {}", e))?;
 
         Ok(signature.to_string())
     }
@@ -401,6 +419,15 @@ fn pubkey_to_hex(pubkey_str: &str) -> Result<String> {
     let pubkey = Pubkey::from_str(pubkey_str)
         .context("Invalid pubkey string")?;
     Ok(format!("0x{}", hex::encode(pubkey.to_bytes())))
+}
+
+/// Parses a pubkey from base58 or 0x-hex into a Pubkey.
+fn parse_svm_pubkey(value: &str) -> Result<Pubkey> {
+    if value.starts_with("0x") {
+        pubkey_from_hex(value)
+    } else {
+        Pubkey::from_str(value).context("Invalid base58 pubkey")
+    }
 }
 
 /// Parses a 0x-prefixed hex pubkey into a Pubkey.

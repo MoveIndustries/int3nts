@@ -19,22 +19,22 @@ setup_project_root
 setup_logging "run-tests-evm-outflow"
 cd "$PROJECT_ROOT"
 
-log_and_echo "🧪 E2E Test for Connected EVM Chain - OUTFLOW"
+log_and_echo " E2E Test for Connected EVM Chain - OUTFLOW"
 log_and_echo "=============================================="
-log_and_echo "📝 All output logged to: $LOG_FILE"
+log_and_echo " All output logged to: $LOG_FILE"
 log_and_echo ""
 
-log_and_echo "🧹 Step 1: Cleaning up any existing chains, accounts and processes..."
+log_and_echo " Step 1: Cleaning up any existing chains, accounts and processes..."
 log_and_echo "=========================================================="
 ./testing-infra/ci-e2e/chain-connected-evm/cleanup.sh
 
 log_and_echo ""
-log_and_echo "🔑 Step 1b: Generating verifier keys..."
+log_and_echo " Step 1b: Generating verifier keys..."
 log_and_echo "======================================="
 generate_verifier_keys
 
 log_and_echo ""
-log_and_echo "🔨 Step 2: Building Rust services (verifier and solver)..."
+log_and_echo " Step 2: Building Rust services (verifier and solver)..."
 log_and_echo "==========================================================="
 pushd "$PROJECT_ROOT/trusted-verifier" > /dev/null
 cargo build --bin trusted-verifier 2>&1 | tail -5
@@ -47,7 +47,7 @@ popd > /dev/null
 log_and_echo "   ✅ Solver built"
 log_and_echo ""
 
-log_and_echo "🚀 Step 3: Setting up chains and deploying contracts..."
+log_and_echo " Step 3: Setting up chains and deploying contracts..."
 log_and_echo "======================================================"
 ./testing-infra/ci-e2e/chain-connected-evm/setup-chain.sh
 ./testing-infra/ci-e2e/chain-connected-evm/setup-requester-solver.sh
@@ -57,13 +57,13 @@ log_and_echo "======================================================"
 ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
 
 log_and_echo ""
-log_and_echo "🚀 Step 4: Configuring and starting verifier (for negotiation routing)..."
+log_and_echo " Step 4: Configuring and starting verifier (for negotiation routing)..."
 log_and_echo "=========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-evm/start-verifier.sh
 
 # Start solver service for automatic signing and fulfillment
 log_and_echo ""
-log_and_echo "🚀 Step 4b: Starting solver service..."
+log_and_echo " Step 4b: Starting solver service..."
 log_and_echo "======================================="
 ./testing-infra/ci-e2e/e2e-tests-evm/start-solver.sh
 
@@ -71,11 +71,11 @@ log_and_echo "======================================="
 ./testing-infra/ci-e2e/verify-solver-running.sh
 
 log_and_echo ""
-log_and_echo "🚀 Step 5: Testing OUTFLOW intents (hub chain → connected EVM chain)..."
+log_and_echo " Step 5: Testing OUTFLOW intents (hub chain → connected EVM chain)..."
 log_and_echo "====================================================================="
 log_and_echo "   Submitting outflow cross-chain intents via verifier negotiation routing..."
 log_and_echo ""
-log_and_echo "💰 Pre-Intent Balance Validation"
+log_and_echo " Pre-Intent Balance Validation"
 log_and_echo "=========================================="
 log_and_echo "   Everybody starts with 1 USDhub/USDcon on each chain"
 ./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 1000000 1000000 1000000 1000000
@@ -89,7 +89,7 @@ if ! load_intent_info "INTENT_ID"; then
 fi
 
 log_and_echo ""
-log_and_echo "🤖 Step 5b: Waiting for solver to automatically fulfill..."
+log_and_echo " Step 5b: Waiting for solver to automatically fulfill..."
 log_and_echo "==========================================================="
 log_and_echo "   The solver service is running and will:"
 log_and_echo "   1. Detect the intent on hub chain"
@@ -107,7 +107,7 @@ fi
 log_and_echo "✅ Solver fulfilled the intent automatically!"
 
 log_and_echo ""
-log_and_echo "💰 Final Balance View"
+log_and_echo " Final Balance View"
 log_and_echo "=========================================="
 # Outflow: Solver gets from hub intent (2000000 on hub, 0 on EVM transferred to requester)
 #          Requester receives on EVM (0 on hub locked in intent, 2000000 on EVM)
@@ -117,7 +117,7 @@ log_and_echo ""
 log_and_echo "✅ E2E outflow test completed!"
 log_and_echo ""
 
-log_and_echo "🧹 Step 6: Cleaning up chains, accounts and processes..."
+log_and_echo " Step 6: Cleaning up chains, accounts and processes..."
 log_and_echo "========================================================"
 ./testing-infra/ci-e2e/chain-connected-evm/cleanup.sh
 

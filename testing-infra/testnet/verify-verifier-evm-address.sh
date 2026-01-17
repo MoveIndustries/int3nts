@@ -44,7 +44,7 @@ if [ -z "$VERIFIER_PRIVATE_KEY" ]; then
     exit 1
 fi
 
-echo "🔍 Verifying Verifier EVM Address"
+echo " Verifying Verifier EVM Address"
 echo "=================================="
 echo ""
 echo "   Config file: $ENV_FILE"
@@ -110,7 +110,7 @@ if [ -f "$VERIFIER_CONFIG" ]; then
         RPC_ERROR=$(echo "$RPC_RESPONSE" | jq -r '.error.message // empty' 2>/dev/null)
         
         if [ -n "$RPC_ERROR" ]; then
-            echo "⚠️  RPC error: $RPC_ERROR"
+            echo "️  RPC error: $RPC_ERROR"
         elif [ -n "$ONCHAIN_VERIFIER" ] && [ "$ONCHAIN_VERIFIER" != "null" ] && [ "$ONCHAIN_VERIFIER" != "" ] && [ "${#ONCHAIN_VERIFIER}" -ge 42 ]; then
             # Extract address from result (last 40 hex chars = 20 bytes = address)
             # Result is 0x + 64 hex chars (32 bytes), we want last 40 chars (20 bytes)
@@ -131,7 +131,7 @@ if [ -f "$VERIFIER_CONFIG" ]; then
                 echo "   Action: Redeploy IntentEscrow contract with correct verifier address"
             fi
         else
-            echo "⚠️  Could not query on-chain contract"
+            echo "️  Could not query on-chain contract"
             if [ -n "$ONCHAIN_VERIFIER" ]; then
                 echo "   Response: $ONCHAIN_VERIFIER"
             fi
@@ -148,7 +148,7 @@ if [ "$ENV_MATCH" = true ] && [ "$ONCHAIN_MATCH" = true ]; then
     echo "   - On-chain contract matches computed address"
     exit 0
 elif [ "$ENV_MATCH" = true ]; then
-    echo "⚠️  WARNING: Config file is correct, but on-chain contract may need redeployment"
+    echo "️  WARNING: Config file is correct, but on-chain contract may need redeployment"
     exit 0
 else
     echo "❌ FAILED: Config file does not match computed address"

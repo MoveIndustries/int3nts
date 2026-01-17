@@ -238,7 +238,7 @@ save_intent_info() {
         log "   SOLVER_EVM_ADDRESS not set or null, skipping save"
     fi
     
-    log "   📝 Intent info saved to: $INTENT_INFO_FILE"
+    log "    Intent info saved to: $INTENT_INFO_FILE"
 }
 
 # Load intent information from file
@@ -298,7 +298,7 @@ stop_verifier() {
     log "   Checking for existing verifiers..."
     
     if pgrep -f "cargo.*trusted-verifier" > /dev/null || pgrep -f "target/debug/trusted-verifier" > /dev/null; then
-        log "   ⚠️  Found existing verifier processes, stopping them..."
+        log "   ️  Found existing verifier processes, stopping them..."
         pkill -f "cargo.*trusted-verifier" || true
         pkill -f "target/debug/trusted-verifier" || true
         sleep 2
@@ -356,7 +356,7 @@ verify_verifier_running() {
     fi
     
     log ""
-    log "🔍 Verifying verifier is running..."
+    log " Verifying verifier is running..."
     
     # Try to load VERIFIER_PID from file if not set
     if [ -z "$VERIFIER_PID" ] && [ -n "$LOG_DIR" ] && [ -f "$LOG_DIR/verifier.pid" ]; then
@@ -404,7 +404,7 @@ verify_solver_running() {
     fi
     
     log ""
-    log "🔍 Verifying solver is running..."
+    log " Verifying solver is running..."
     
     # Try to load SOLVER_PID from file if not set
     if [ -z "$SOLVER_PID" ] && [ -n "$LOG_DIR" ] && [ -f "$LOG_DIR/solver.pid" ]; then
@@ -443,29 +443,29 @@ display_service_logs() {
     local error_timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.%NZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")
     
     log_and_echo ""
-    log_and_echo "📋 Service Logs ($context)"
+    log_and_echo " Service Logs ($context)"
     log_and_echo "=========================================="
     log_and_echo "⏰ Error occurred at: $error_timestamp"
     log_and_echo ""
     
     if [ -f "$verifier_log" ]; then
         log_and_echo ""
-        log_and_echo "🔍 Verifier logs (last 100 lines):"
+        log_and_echo " Verifier logs (last 100 lines):"
         log_and_echo "-----------------------------------"
         tail -100 "$verifier_log" | sed 's/^/   /'
     else
         log_and_echo ""
-        log_and_echo "⚠️  Verifier log not found: $verifier_log"
+        log_and_echo "️  Verifier log not found: $verifier_log"
     fi
     
     if [ -f "$solver_log" ]; then
         log_and_echo ""
-        log_and_echo "🔍 Solver logs (last 100 lines):"
+        log_and_echo " Solver logs (last 100 lines):"
         log_and_echo "-----------------------------------"
         tail -100 "$solver_log" | sed 's/^/   /'
     else
         log_and_echo ""
-        log_and_echo "⚠️  Solver log not found: $solver_log"
+        log_and_echo "️  Solver log not found: $solver_log"
     fi
     
     log_and_echo ""
@@ -585,7 +585,7 @@ stop_solver() {
     log "   Checking for existing solvers..."
     
     if pgrep -f "cargo.*solver" > /dev/null || pgrep -f "target/debug/solver" > /dev/null; then
-        log "   ⚠️  Found existing solver processes, stopping them..."
+        log "   ️  Found existing solver processes, stopping them..."
         pkill -f "cargo.*solver" || true
         pkill -f "target/debug/solver" || true
         sleep 2
@@ -931,7 +931,7 @@ submit_signature_to_verifier() {
         local error=$(echo "$response" | jq -r '.error // "Unknown error"')
         # Check if it's a 409 Conflict (already signed)
         if echo "$error" | grep -qi "already signed\|conflict"; then
-            log "     ⚠️  Draft already signed by another solver (FCFS)"
+            log "     ️  Draft already signed by another solver (FCFS)"
             return 1
         fi
         log_and_echo "❌ ERROR: Failed to submit signature"
@@ -1141,7 +1141,7 @@ wait_for_solver_fulfillment() {
     log ""
     log_and_echo "⏰ Timeout waiting for solver fulfillment after ${timeout_seconds}s"
     log ""
-    log "🔍 Diagnostic Information:"
+    log " Diagnostic Information:"
     log "========================================"
     
     # Show solver logs (solver_log_file already declared above)

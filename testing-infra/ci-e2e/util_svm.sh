@@ -19,7 +19,14 @@ svm_cmd() {
     if [ -z "$PROJECT_ROOT" ]; then
         setup_project_root
     fi
-    NIX_CONFIG="warn-dirty = false" nix develop "$PROJECT_ROOT" -c bash -c "$cmd"
+    # Filter nix develop banners from stdout while preserving the command status.
+    local status
+    set +e
+    NIX_CONFIG="warn-dirty = false" nix develop "$PROJECT_ROOT" -c bash -c "$cmd" \
+        | sed -e '/^\[nix\] Dev shell ready:/d' -e '/^warning: Git tree/d'
+    status=${PIPESTATUS[0]}
+    set -e
+    return "$status"
 }
 
 # Check if SVM chain is running
@@ -143,8 +150,20 @@ create_svm_token_account() {
     local owner="$2"
     local payer_keypair="$3"
     local rpc_url="${4:-http://127.0.0.1:8899}"
-    svm_cmd "spl-token create-account \"$mint\" --owner \"$owner\" --url \"$rpc_url\" --fee-payer \"$payer_keypair\" \
-        | awk '/Creating account/ {print \$3}'" | tail -n 1
+    local ata
+    ata=$(get_svm_associated_token_address "$mint" "$owner" "$rpc_url")
+    svm_cmd "spl-token create-account \"$mint\" --owner \"$owner\" --url \"$rpc_url\" --fee-payer \"$payer_keypair\" >/dev/null"
+    echo "$ata"
+}
+
+# Get the associated token address (ATA) for an owner and mint
+# Usage: get_svm_associated_token_address <mint> <owner_pubkey> [rpc_url]
+get_svm_associated_token_address() {
+    local mint="$1"
+    local owner="$2"
+    local rpc_url="${3:-http://127.0.0.1:8899}"
+    svm_cmd "spl-token address --verbose --owner \"$owner\" --token \"$mint\" --url \"$rpc_url\" \
+        | awk '/Associated token address:/ {print \$NF} /Address:/ {print \$NF}'" | tail -n 1
 }
 
 # Mint tokens to an account

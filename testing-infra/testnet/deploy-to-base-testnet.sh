@@ -13,7 +13,7 @@ export PROJECT_ROOT
 # Source utilities from testing-infra (for CI testing infrastructure)
 source "$PROJECT_ROOT/testing-infra/ci-e2e/util.sh" 2>/dev/null || true
 
-echo "🚀 Deploying IntentEscrow to Base Sepolia Testnet"
+echo " Deploying IntentEscrow to Base Sepolia Testnet"
 echo "=================================================="
 echo ""
 
@@ -57,7 +57,7 @@ if [ -z "$BASE_SEPOLIA_RPC_URL" ]; then
     exit 1
 fi
 
-echo "📋 Configuration:"
+echo " Configuration:"
 echo "   Deployer Address: $BASE_DEPLOYER_ADDRESS"
 echo "   Verifier EVM Pubkey Hash: $VERIFIER_EVM_PUBKEY_HASH"
 echo "   Network: Base Sepolia"
@@ -79,19 +79,19 @@ export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"
 export VERIFIER_ADDRESS="$VERIFIER_EVM_PUBKEY_HASH"
 export BASE_SEPOLIA_RPC_URL
 
-echo "📝 Environment configured for Hardhat"
+echo " Environment configured for Hardhat"
 echo ""
 
 # Install dependencies if needed
 if [ ! -d "node_modules" ]; then
-    echo "📦 Installing dependencies..."
+    echo " Installing dependencies..."
     npm install
     echo "✅ Dependencies installed"
     echo ""
 fi
 
 # Deploy contract (run from within nix develop shell)
-echo "📤 Deploying IntentEscrow contract..."
+echo " Deploying IntentEscrow contract..."
 echo "   (Run this script from within 'nix develop' shell)"
 echo ""
 DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network baseSepolia 2>&1)
@@ -106,15 +106,15 @@ if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
 fi
 
 echo ""
-echo "🎉 Deployment Complete!"
+echo " Deployment Complete!"
 echo "======================"
 echo ""
 CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep "Contract address:" | tail -1 | awk '{print $NF}' | tr -d '\n' || echo "")
 
 if [ -n "$CONTRACT_ADDRESS" ]; then
-    echo "📝 Deployed contract address: $CONTRACT_ADDRESS"
+    echo " Deployed contract address: $CONTRACT_ADDRESS"
     echo ""
-    echo "💡 Update the following files with this address:"
+    echo " Update the following files with this address:"
     echo ""
     echo "   1. frontend/src/config/chains.ts"
     echo "      Line ~26: escrowContractAddress: '$CONTRACT_ADDRESS'"
@@ -130,10 +130,10 @@ if [ -n "$CONTRACT_ADDRESS" ]; then
     echo ""
     echo "   4. Run ./testing-infra/testnet/check-testnet-preparedness.sh to verify"
 else
-    echo "⚠️  Could not extract contract address from output"
+    echo "️  Could not extract contract address from output"
     echo "   Please copy it manually from the deployment output above"
     echo ""
-    echo "💡 Update the following files:"
+    echo " Update the following files:"
     echo "   - frontend/src/config/chains.ts (escrowContractAddress in 'base-sepolia' section)"
     echo "   - trusted-verifier/config/verifier_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
     echo "   - solver/config/solver_testnet.toml (escrow_contract_addr in [connected_chain] section)"

@@ -24,7 +24,7 @@ export PROJECT_ROOT
 # Source utilities (for error handling only, not logging)
 source "$PROJECT_ROOT/testing-infra/ci-e2e/util.sh" 2>/dev/null || true
 
-echo "🔍 Checking Testnet Preparedness"
+echo " Checking Testnet Preparedness"
 echo "================================="
 echo ""
 
@@ -54,7 +54,7 @@ fi
 BASE_USDC_ADDRESS=$(grep -A 20 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 BASE_USDC_DECIMALS=$(grep -A 20 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
 if [ -z "$BASE_USDC_ADDRESS" ]; then
-    echo "⚠️  WARNING: Base Sepolia USDC address not found in testnet-assets.toml"
+    echo "️  WARNING: Base Sepolia USDC address not found in testnet-assets.toml"
     echo "   Base Sepolia USDC balance checks will be skipped"
 elif [ -z "$BASE_USDC_DECIMALS" ]; then
     echo "❌ ERROR: Base Sepolia USDC decimals not found in testnet-assets.toml"
@@ -66,7 +66,7 @@ fi
 SEPOLIA_USDC_ADDRESS=$(grep -A 20 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 SEPOLIA_USDC_DECIMALS=$(grep -A 20 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
 if [ -z "$SEPOLIA_USDC_ADDRESS" ]; then
-    echo "⚠️  WARNING: Ethereum Sepolia USDC address not found in testnet-assets.toml"
+    echo "️  WARNING: Ethereum Sepolia USDC address not found in testnet-assets.toml"
     echo "   Ethereum Sepolia USDC balance checks will be skipped"
 elif [ -z "$SEPOLIA_USDC_DECIMALS" ]; then
     echo "❌ ERROR: Ethereum Sepolia USDC decimals not found in testnet-assets.toml"
@@ -108,13 +108,13 @@ fi
 # Extract RPC URLs
 MOVEMENT_RPC_URL=$(grep -A 5 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 if [ -z "$MOVEMENT_RPC_URL" ]; then
-    echo "⚠️  WARNING: Movement RPC URL not found in testnet-assets.toml"
+    echo "️  WARNING: Movement RPC URL not found in testnet-assets.toml"
     echo "   Movement balance checks will fail"
 fi
 
 BASE_RPC_URL=$(grep -A 5 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 if [ -z "$BASE_RPC_URL" ]; then
-    echo "⚠️  WARNING: Base Sepolia RPC URL not found in testnet-assets.toml"
+    echo "️  WARNING: Base Sepolia RPC URL not found in testnet-assets.toml"
     echo "   Base Sepolia balance checks will fail"
 fi
 
@@ -123,14 +123,14 @@ if [[ "$BASE_RPC_URL" == *"ALCHEMY_API_KEY"* ]]; then
     if [ -n "$ALCHEMY_BASE_SEPOLIA_API_KEY" ]; then
         BASE_RPC_URL="${BASE_RPC_URL/ALCHEMY_API_KEY/$ALCHEMY_BASE_SEPOLIA_API_KEY}"
     else
-        echo "⚠️  WARNING: ALCHEMY_BASE_SEPOLIA_API_KEY not set in .testnet-keys.env"
+        echo "️  WARNING: ALCHEMY_BASE_SEPOLIA_API_KEY not set in .testnet-keys.env"
         echo "   Base Sepolia balance checks will fail"
     fi
 fi
 
 SEPOLIA_RPC_URL=$(grep -A 5 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 if [ -z "$SEPOLIA_RPC_URL" ]; then
-    echo "⚠️  WARNING: Ethereum Sepolia RPC URL not found in testnet-assets.toml"
+    echo "️  WARNING: Ethereum Sepolia RPC URL not found in testnet-assets.toml"
     echo "   Ethereum Sepolia balance checks will fail"
 fi
 
@@ -139,7 +139,7 @@ if [[ "$SEPOLIA_RPC_URL" == *"ALCHEMY_API_KEY"* ]]; then
     if [ -n "$ALCHEMY_ETH_SEPOLIA_API_KEY" ]; then
         SEPOLIA_RPC_URL="${SEPOLIA_RPC_URL/ALCHEMY_API_KEY/$ALCHEMY_ETH_SEPOLIA_API_KEY}"
     else
-        echo "⚠️  WARNING: ALCHEMY_ETH_SEPOLIA_API_KEY not set in .testnet-keys.env"
+        echo "️  WARNING: ALCHEMY_ETH_SEPOLIA_API_KEY not set in .testnet-keys.env"
         echo "   Ethereum Sepolia balance checks will fail"
     fi
 fi
@@ -295,12 +295,12 @@ format_balance() {
 }
 
 # Check Movement balances
-echo "📊 Movement Bardock Testnet"
+echo " Movement Bardock Testnet"
 echo "----------------------------"
 echo "   RPC: $MOVEMENT_RPC_URL"
 
 if [ -z "$MOVEMENT_DEPLOYER_ADDRESS" ]; then
-    echo "⚠️  MOVEMENT_DEPLOYER_ADDRESS not set in .testnet-keys.env"
+    echo "️  MOVEMENT_DEPLOYER_ADDRESS not set in .testnet-keys.env"
 else
     balance=$(get_movement_balance "$MOVEMENT_DEPLOYER_ADDRESS")
     formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
@@ -315,7 +315,7 @@ else
 fi
 
 if [ -z "$MOVEMENT_REQUESTER_ADDRESS" ]; then
-    echo "⚠️  MOVEMENT_REQUESTER_ADDRESS not set in .testnet-keys.env"
+    echo "️  MOVEMENT_REQUESTER_ADDRESS not set in .testnet-keys.env"
 else
     balance=$(get_movement_balance "$MOVEMENT_REQUESTER_ADDRESS")
     formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
@@ -330,7 +330,7 @@ else
 fi
 
 if [ -z "$MOVEMENT_SOLVER_ADDRESS" ]; then
-    echo "⚠️  MOVEMENT_SOLVER_ADDRESS not set in .testnet-keys.env"
+    echo "️  MOVEMENT_SOLVER_ADDRESS not set in .testnet-keys.env"
 else
     balance=$(get_movement_balance "$MOVEMENT_SOLVER_ADDRESS")
     formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
@@ -347,12 +347,12 @@ fi
 echo ""
 
 # Check Base Sepolia balances
-echo "📊 Base Sepolia"
+echo " Base Sepolia"
 echo "---------------"
 echo "   RPC: $BASE_RPC_URL"
 
 if [ -z "$BASE_DEPLOYER_ADDRESS" ]; then
-    echo "⚠️  BASE_DEPLOYER_ADDRESS not set in .testnet-keys.env"
+    echo "️  BASE_DEPLOYER_ADDRESS not set in .testnet-keys.env"
 else
     eth_balance=$(get_base_eth_balance "$BASE_DEPLOYER_ADDRESS")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
@@ -367,7 +367,7 @@ else
 fi
 
 if [ -z "$BASE_REQUESTER_ADDRESS" ]; then
-    echo "⚠️  BASE_REQUESTER_ADDRESS not set in .testnet-keys.env"
+    echo "️  BASE_REQUESTER_ADDRESS not set in .testnet-keys.env"
 else
     eth_balance=$(get_base_eth_balance "$BASE_REQUESTER_ADDRESS")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
@@ -382,7 +382,7 @@ else
 fi
 
 if [ -z "$BASE_SOLVER_ADDRESS" ]; then
-    echo "⚠️  BASE_SOLVER_ADDRESS not set in .testnet-keys.env"
+    echo "️  BASE_SOLVER_ADDRESS not set in .testnet-keys.env"
 else
     eth_balance=$(get_base_eth_balance "$BASE_SOLVER_ADDRESS")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
@@ -399,13 +399,13 @@ fi
 echo ""
 
 # Check Ethereum Sepolia balances (using same addresses as Base - EVM addresses work across chains)
-echo "📊 Ethereum Sepolia"
+echo " Ethereum Sepolia"
 echo "-------------------"
 echo "   RPC: $SEPOLIA_RPC_URL"
 echo "   (Using same addresses as Base Sepolia)"
 
 if [ -z "$BASE_DEPLOYER_ADDRESS" ]; then
-    echo "⚠️  BASE_DEPLOYER_ADDRESS not set in .testnet-keys.env"
+    echo "️  BASE_DEPLOYER_ADDRESS not set in .testnet-keys.env"
 else
     eth_balance=$(get_evm_eth_balance "$BASE_DEPLOYER_ADDRESS" "$SEPOLIA_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
@@ -420,7 +420,7 @@ else
 fi
 
 if [ -z "$BASE_REQUESTER_ADDRESS" ]; then
-    echo "⚠️  BASE_REQUESTER_ADDRESS not set in .testnet-keys.env"
+    echo "️  BASE_REQUESTER_ADDRESS not set in .testnet-keys.env"
 else
     eth_balance=$(get_evm_eth_balance "$BASE_REQUESTER_ADDRESS" "$SEPOLIA_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
@@ -435,7 +435,7 @@ else
 fi
 
 if [ -z "$BASE_SOLVER_ADDRESS" ]; then
-    echo "⚠️  BASE_SOLVER_ADDRESS not set in .testnet-keys.env"
+    echo "️  BASE_SOLVER_ADDRESS not set in .testnet-keys.env"
 else
     eth_balance=$(get_evm_eth_balance "$BASE_SOLVER_ADDRESS" "$SEPOLIA_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
@@ -455,7 +455,7 @@ echo ""
 # CONTRACT DEPLOYMENT STATUS
 # =============================================================================
 
-echo "📦 Deployed Contracts"
+echo " Deployed Contracts"
 echo "---------------------"
 
 # Check Movement Intent Module
@@ -535,7 +535,7 @@ echo ""
 # SUMMARY
 # =============================================================================
 
-echo "📋 Summary"
+echo " Summary"
 echo "----------"
 
 # Count readiness
@@ -585,7 +585,7 @@ echo "   Readiness: $ready_count/$total_count checks passed"
 
 if [ -z "$MOVEMENT_USDC_ADDRESS" ] || [ "$MOVEMENT_USDC_ADDRESS" = "" ]; then
     echo ""
-    echo "💡 Note: Movement USDC.e address not configured in testnet-assets.toml"
+    echo " Note: Movement USDC.e address not configured in testnet-assets.toml"
 fi
 
 echo ""

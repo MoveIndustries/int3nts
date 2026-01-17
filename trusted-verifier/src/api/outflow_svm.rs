@@ -3,8 +3,12 @@
 //! This module contains SVM-specific transaction querying and parameter extraction
 //! for outflow fulfillment validation on SVM connected chains.
 
-use crate::validator::{extract_svm_fulfillment_params, CrossChainValidator, FulfillmentTransactionParams};
+use crate::validator::{
+    extract_svm_fulfillment_params, CrossChainValidator, FulfillmentTransactionParams,
+};
 use anyhow::{Context, Result};
+use std::time::{Duration, Instant};
+use tokio::time::sleep;
 
 /// Queries an SVM transaction and extracts fulfillment parameters for outflow validation.
 ///
@@ -33,29 +37,43 @@ pub async fn query_svm_fulfillment_transaction(
     });
 
     let client = reqwest::Client::new();
-    let response: serde_json::Value = client
-        .post(&chain_config.rpc_url)
-        .json(&request)
-        .send()
-        .await
-        .context("Failed to call getTransaction")
-        .map_err(|e| e.to_string())?
-        .json()
-        .await
-        .context("Failed to parse getTransaction response")
-        .map_err(|e| e.to_string())?;
+    let timeout_ms = validator.config.verifier.validation_timeout_ms;
+    let start = Instant::now();
+    let mut response: serde_json::Value;
+    loop {
+        response = client
+            .post(&chain_config.rpc_url)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to call getTransaction")
+            .map_err(|e| e.to_string())?
+            .json()
+            .await
+            .context("Failed to parse getTransaction response")
+            .map_err(|e| e.to_string())?;
 
-    if let Some(error) = response.get("error") {
-        return Err(format!("SVM RPC error: {}", error));
+        if let Some(error) = response.get("error") {
+            return Err(format!("SVM RPC error: {}", error));
+        }
+
+        let result = response
+            .get("result")
+            .ok_or_else(|| "Missing getTransaction result".to_string())?;
+        if !result.is_null() {
+            break;
+        }
+
+        if start.elapsed() >= Duration::from_millis(timeout_ms) {
+            return Err("Transaction not found".to_string());
+        }
+
+        sleep(Duration::from_millis(500)).await;
     }
 
     let result = response
         .get("result")
         .ok_or_else(|| "Missing getTransaction result".to_string())?;
-    if result.is_null() {
-        return Err("Transaction not found".to_string());
-    }
-
     let meta = result.get("meta");
     let is_success = meta
         .and_then(|m| m.get("err"))

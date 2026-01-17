@@ -2,7 +2,7 @@
 
 Browser UI for the cross-chain intent protocol.
 
-📚 **Full documentation: [docs/frontend/](../docs/frontend/README.md)**
+ **Full documentation: [docs/frontend/](../docs/frontend/README.md)**
 
 ## Quick Start
 

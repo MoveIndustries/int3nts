@@ -2,7 +2,7 @@
 
 Native Solana program for SVM escrows.
 
-📚 **Full documentation: [docs/svm-intent-framework/](../docs/svm-intent-framework/README.md)**
+ **Full documentation: [docs/svm-intent-framework/](../docs/svm-intent-framework/README.md)**
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ cd svm-intent-framework
 
 You can pass arguments through: `./scripts/build.sh --verifiable`
 
-## ⚠️ Toolchain Constraints
+## ️ Toolchain Constraints
 
 > **Design Decision**: This project intentionally constrains its dependency graph to remain compatible with Solana's pinned Rust toolchain (1.84.x). Newer crates with `edition2024` dependencies violate this constraint. This is not accidental tech debt—remove these workarounds when Solana bumps to Rust 1.85+.
 

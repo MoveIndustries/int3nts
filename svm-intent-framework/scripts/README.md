@@ -59,7 +59,7 @@ Creates a new escrow and deposits tokens atomically.
 
 Required environment variables:
 
-- `SVM_TOKEN_MINT` (required)
+- `USD_CON_SVM_MINT_ADDRESS` (required)
 - `SVM_REQUESTER_TOKEN` (required)
 - `SVM_SOLVER_PUBKEY` (required)
 - `SVM_INTENT_ID` (required, hex)

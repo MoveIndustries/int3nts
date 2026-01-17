@@ -14,17 +14,17 @@ setup_project_root
 setup_logging "setup-chain-svm"
 cd "$PROJECT_ROOT"
 
-log "🔗 SVM CHAIN SETUP"
+log " SVM CHAIN SETUP"
 log "=================="
-log_and_echo "📝 All output logged to: $LOG_FILE"
+log_and_echo " All output logged to: $LOG_FILE"
 
 log ""
-log "🧹 Stopping any existing solana-test-validator..."
+log " Stopping any existing solana-test-validator..."
 pkill -f "solana-test-validator" || true
 sleep 2
 
 log ""
-log "🚀 Starting solana-test-validator on port 8899..."
+log " Starting solana-test-validator on port 8899..."
 
 LEDGER_DIR="$PROJECT_ROOT/.tmp/solana-test-validator"
 mkdir -p "$LEDGER_DIR"

@@ -12,8 +12,8 @@ setup_project_root
 setup_logging "deploy-svm-program"
 cd "$PROJECT_ROOT"
 
-log "🚀 Deploying SVM intent escrow program..."
-log_and_echo "📝 All output logged to: $LOG_FILE"
+log " Deploying SVM intent escrow program..."
+log_and_echo " All output logged to: $LOG_FILE"
 
 SVM_RPC_URL="http://127.0.0.1:8899"
 CHAIN_INFO="$PROJECT_ROOT/.tmp/chain-info.env"
@@ -56,7 +56,7 @@ for i in {1..10}; do
 done
 
 log ""
-log "🔐 Initializing program state..."
+log " Initializing program state..."
 if [ -z "$E2E_VERIFIER_PUBLIC_KEY" ]; then
     load_verifier_keys
 fi
@@ -80,7 +80,7 @@ done
 set -e
 
 log ""
-log "📝 Saving chain info..."
+log " Saving chain info..."
 cat >> "$CHAIN_INFO" << EOF
 SVM_PROGRAM_ID=$PROGRAM_ID
 EOF

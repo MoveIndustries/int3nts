@@ -82,7 +82,7 @@ if ! [[ "$AMOUNT" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-echo "🔍 Creating $FLOW_TYPE Intent on Movement Testnet"
+echo " Creating $FLOW_TYPE Intent on Movement Testnet"
 echo "=================================================="
 echo ""
 
@@ -250,7 +250,7 @@ INTENT_ID="0x$(openssl rand -hex 32)"
 EXPIRY_TIME=$(date -u +%s)
 EXPIRY_TIME=$((EXPIRY_TIME + 60))  # 1 minute from now (for testing)
 
-echo "📋 Intent Configuration:"
+echo " Intent Configuration:"
 echo "   Flow Type:        $FLOW_TYPE"
 echo "   Intent ID:        $INTENT_ID"
 echo "   Amount:           $AMOUNT (1 USDC = 1000000)"
@@ -308,7 +308,7 @@ INITIAL_MOVEMENT_BALANCE=""
 HUB_RPC="https://testnet.movementnetwork.xyz/v1"
 BASE_SEPOLIA_RPC_URL=$(grep -A 5 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 
-echo "📊 Initial Balances:"
+echo " Initial Balances:"
 
 # Get Movement USDC.e balance
 INITIAL_MOVEMENT_BALANCE=$(get_movement_usdc_balance "$MOVEMENT_REQUESTER_ADDRESS" "$USDC_MOVEMENT_METADATA" "$HUB_RPC")
@@ -322,7 +322,7 @@ fi
 echo ""
 
 # Step 1: Submit draft intent to verifier
-echo "🔄 Step 1: Submitting draft intent to verifier..."
+echo " Step 1: Submitting draft intent to verifier..."
 
 # Build draft data JSON
 DRAFT_DATA=$(jq -n \
@@ -372,7 +372,7 @@ echo "   ✅ Draft submitted (ID: $DRAFT_ID)"
 echo ""
 
 # Step 2: Wait for solver to sign
-echo "🔄 Step 2: Waiting for solver to sign draft..."
+echo " Step 2: Waiting for solver to sign draft..."
 echo "   (Solver service polls verifier automatically)"
 echo "   This may take a few seconds..."
 
@@ -411,7 +411,7 @@ echo "   ✅ Signature received from solver: $RETRIEVED_SOLVER"
 echo ""
 
 # Step 3: Create intent on-chain
-echo "🔄 Step 3: Creating intent on-chain..."
+echo " Step 3: Creating intent on-chain..."
 
 SOLVER_SIGNATURE_HEX="${RETRIEVED_SIGNATURE#0x}"
 VERIFIER_PUBLIC_KEY_HEX_CLEAN="${VERIFIER_PUBLIC_KEY#0x}"
@@ -454,7 +454,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "✅ Intent created on Movement!"
     echo ""
-    echo "📋 Intent Details:"
+    echo " Intent Details:"
     echo "   Intent ID:        $INTENT_ID"
     echo "   Draft ID:         $DRAFT_ID"
     echo "   Flow Type:        $FLOW_TYPE"
@@ -463,24 +463,24 @@ if [ $? -eq 0 ]; then
     
     if [ "$FLOW_TYPE" = "inflow" ]; then
         # Step 4: Create escrow on Base Sepolia for inflow intents
-        echo "🔄 Step 4: Creating escrow on Base Sepolia..."
+        echo " Step 4: Creating escrow on Base Sepolia..."
         
         # Check required variables for escrow creation
         if [ -z "$BASE_REQUESTER_PRIVATE_KEY" ]; then
-            echo "⚠️  WARNING: BASE_REQUESTER_PRIVATE_KEY not set in .testnet-keys.env"
+            echo "️  WARNING: BASE_REQUESTER_PRIVATE_KEY not set in .testnet-keys.env"
             echo "   Cannot automatically create escrow. Manual steps required:"
             echo ""
-            echo "💡 Next steps (manual):"
+            echo " Next steps (manual):"
             echo "   1. Create escrow on Base Sepolia with intent ID: $INTENT_ID"
             echo "   2. Solver will fulfill intent when escrow is deposited"
             exit 0
         fi
         
         if [ -z "$BASE_SOLVER_ADDRESS" ]; then
-            echo "⚠️  WARNING: BASE_SOLVER_ADDRESS not set in .testnet-keys.env"
+            echo "️  WARNING: BASE_SOLVER_ADDRESS not set in .testnet-keys.env"
             echo "   Cannot automatically create escrow. Manual steps required:"
             echo ""
-            echo "💡 Next steps (manual):"
+            echo " Next steps (manual):"
             echo "   1. Create escrow on Base Sepolia with intent ID: $INTENT_ID"
             echo "   2. Solver will fulfill intent when escrow is deposited"
             exit 0
@@ -490,10 +490,10 @@ if [ $? -eq 0 ]; then
         ESCROW_CONTRACT_ADDRESS=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "escrow_contract_addr" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
         
         if [ -z "$ESCROW_CONTRACT_ADDRESS" ]; then
-            echo "⚠️  WARNING: escrow_contract_addr not found in verifier_testnet.toml"
+            echo "️  WARNING: escrow_contract_addr not found in verifier_testnet.toml"
             echo "   Cannot automatically create escrow. Manual steps required:"
             echo ""
-            echo "💡 Next steps (manual):"
+            echo " Next steps (manual):"
             echo "   1. Create escrow on Base Sepolia with intent ID: $INTENT_ID"
             echo "   2. Solver will fulfill intent when escrow is deposited"
             exit 0
@@ -503,7 +503,7 @@ if [ $? -eq 0 ]; then
         BASE_SEPOLIA_RPC_URL=$(grep -A 5 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
         
         if [ -z "$BASE_SEPOLIA_RPC_URL" ]; then
-            echo "⚠️  WARNING: Base Sepolia RPC URL not found in testnet-assets.toml"
+            echo "️  WARNING: Base Sepolia RPC URL not found in testnet-assets.toml"
             echo "   Cannot automatically create escrow."
             exit 1
         fi
@@ -538,22 +538,22 @@ if [ $? -eq 0 ]; then
         
         if [ $ESCROW_EXIT_CODE -eq 0 ]; then
             echo ""
-            echo "🎉 Inflow intent complete!"
+            echo " Inflow intent complete!"
             echo ""
-            echo "💡 Next steps:"
+            echo " Next steps:"
             echo "   1. Solver will detect the escrow deposit"
             echo "   2. Solver will fulfill intent on Movement (send USDC.e to requester)"
             echo "   3. Solver will claim USDC from escrow on Base Sepolia"
         else
             echo ""
-            echo "⚠️  Escrow creation failed. Intent was created on Movement."
+            echo "️  Escrow creation failed. Intent was created on Movement."
             echo ""
-            echo "💡 Manual steps required:"
+            echo " Manual steps required:"
             echo "   1. Create escrow on Base Sepolia with intent ID: $INTENT_ID"
             echo "   2. Solver will fulfill intent when escrow is deposited"
         fi
     else
-        echo "🎉 Outflow intent created!"
+        echo " Outflow intent created!"
         echo ""
         
         # Wait for fulfillment on Base Sepolia
@@ -591,7 +591,7 @@ if [ $? -eq 0 ]; then
                 MOVEMENT_CHANGE=$((FINAL_MOVEMENT_BALANCE - INITIAL_MOVEMENT_BALANCE))
                 BASE_CHANGE=$((FINAL_BASE_BALANCE - INITIAL_BASE_BALANCE))
                 
-                echo "📊 Final Balances (Outflow: Movement → Base Sepolia):"
+                echo " Final Balances (Outflow: Movement → Base Sepolia):"
                 echo ""
                 echo "   Movement (USDC.e):"
                 echo "     Before:  $(format_usdc "$INITIAL_MOVEMENT_BALANCE")"
@@ -608,7 +608,7 @@ if [ $? -eq 0 ]; then
                 echo "   The solver may still be processing. Check logs."
             fi
         else
-            echo "💡 Next steps:"
+            echo " Next steps:"
             echo "   1. Tokens are locked on Movement chain"
             echo "   2. Solver will transfer tokens on Base Sepolia"
             echo "   3. Verifier will approve fulfillment"

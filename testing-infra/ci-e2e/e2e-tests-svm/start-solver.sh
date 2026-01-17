@@ -14,9 +14,9 @@ setup_logging "solver-start-svm"
 cd "$PROJECT_ROOT"
 
 log ""
-log "🚀 Starting Solver Service (SVM Connected Chain)..."
+log " Starting Solver Service (SVM Connected Chain)..."
 log "========================================"
-log_and_echo "📝 All output logged to: $LOG_FILE"
+log_and_echo " All output logged to: $LOG_FILE"
 log ""
 
 generate_solver_config_svm() {
@@ -25,13 +25,13 @@ generate_solver_config_svm() {
     local test_tokens_chain1=$(get_profile_address "test-tokens-chain1")
     local solver_chain1_addr=$(get_profile_address "solver-chain1")
     local chain1_addr=$(get_profile_address "intent-account-chain1")
-    local usdhub_metadata_chain1=$(get_usdxyz_metadata "0x${test_tokens_chain1}" "1")
+    local usdhub_metadata_chain1=$(get_usdxyz_metadata_addr "0x${test_tokens_chain1}" "1")
 
     if [ -f "$PROJECT_ROOT/.tmp/chain-info.env" ]; then
         source "$PROJECT_ROOT/.tmp/chain-info.env"
     fi
 
-    if [ -z "$SVM_TOKEN_MINT" ] || [ -z "$SVM_SOLVER_PUBKEY" ] || [ -z "$SVM_SOLVER_KEYPAIR" ]; then
+    if [ -z "$USD_CON_SVM_MINT_ADDRESS" ] || [ -z "$SOLVER_SVM_PUBKEY" ] || [ -z "$SVM_SOLVER_KEYPAIR" ]; then
         log_and_echo "❌ ERROR: Missing SVM chain info. Run chain-connected-svm/setup-requester-solver.sh first."
         exit 1
     fi
@@ -42,14 +42,14 @@ generate_solver_config_svm() {
 
     local verifier_url="${VERIFIER_URL:-http://127.0.0.1:3333}"
     local hub_rpc="${CHAIN1_URL:-http://127.0.0.1:8080/v1}"
-    local hub_chain_id="${CHAIN1_ID:-1}"
+    local hub_chain_id="${HUB_CHAIN_ID:-1}"
     local svm_rpc="${SVM_RPC_URL:-http://127.0.0.1:8899}"
     local svm_chain_id="${SVM_CHAIN_ID:-4}"
     local module_addr="0x${chain1_addr}"
     local solver_addr="0x${solver_chain1_addr}"
 
     local svm_token_hex
-    svm_token_hex=$(svm_pubkey_to_hex "$SVM_TOKEN_MINT")
+    svm_token_hex=$(svm_pubkey_to_hex "$USD_CON_SVM_MINT_ADDRESS")
 
     log "   Generating solver config:"
     log "   - Verifier URL: $verifier_url"
@@ -103,7 +103,7 @@ mkdir -p "$(dirname "$SOLVER_CONFIG")"
 generate_solver_config_svm "$SOLVER_CONFIG"
 
 export SVM_SOLVER_KEYPAIR_PATH="$SVM_SOLVER_KEYPAIR"
-export SOLVER_SVM_ADDRESS=$(svm_pubkey_to_hex "$SVM_SOLVER_PUBKEY")
+export SOLVER_SVM_ADDRESS=$(svm_pubkey_to_hex "$SOLVER_SVM_PUBKEY")
 
 unset MOVEMENT_SOLVER_PRIVATE_KEY
 log "   Unset MOVEMENT_SOLVER_PRIVATE_KEY (E2E tests use profile keys only)"
