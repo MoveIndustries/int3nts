@@ -391,7 +391,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         requester_signer = @0xcafe,
         solver_signer = @0xdead
     )]
-    #[expected_failure(abort_code = 0x10003, location = mvmt_intent::fa_intent_outflow)] // error::invalid_argument(EINVALID_REQUESTER_ADDRESS)
+    #[expected_failure(abort_code = 0x10003, location = mvmt_intent::fa_intent_outflow)] // error::invalid_argument(EINVALID_REQUESTER_ADDR)
     /// What is tested: create_outflow_intent aborts when requester_addr_connected_chain is the zero address
     /// Why: Outflow intents must target a valid connected-chain recipient address
     fun test_create_outflow_intent_rejects_zero_requester_address(

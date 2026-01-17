@@ -107,7 +107,7 @@ pub fn get_chain_type_from_chain_id(chain_id: u64, config: &Config) -> Result<Ch
 }
 
 // ============================================================================
-// ADDRESS VALIDATION UTILITIES
+// ADDR VALIDATION UTILITIES
 // ============================================================================
 
 /// Validates that an address string matches the required format for the chain type.

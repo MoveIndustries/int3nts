@@ -58,8 +58,8 @@ while true; do
   RESPONSE=$(curl -s http://127.0.0.1:3333/draftintent/$DRAFT_ID/signature)
   if echo "$RESPONSE" | jq -e '.success == true' > /dev/null; then
     SIGNATURE=$(echo "$RESPONSE" | jq -r '.data.signature')
-    SOLVER_ADDRESS=$(echo "$RESPONSE" | jq -r '.data.solver_addr')
-    echo "Signature received from $SOLVER_ADDRESS: $SIGNATURE"
+    SOLVER_ADDR=$(echo "$RESPONSE" | jq -r '.data.solver_addr')
+    echo "Signature received from $SOLVER_ADDR: $SIGNATURE"
     break
   fi
   sleep 5
@@ -117,12 +117,12 @@ Sign the draft and submit your signature. **FCFS Logic**: First signature wins, 
 
 ```bash
 # Sign draft (add solver_addr to create IntentToSign)
-SIGNATURE=$(sign_draft "$DRAFT_DATA" "$SOLVER_ADDRESS" "$PRIVATE_KEY")
+SIGNATURE=$(sign_draft "$DRAFT_DATA" "$SOLVER_ADDR" "$PRIVATE_KEY")
 
 curl -X POST http://127.0.0.1:3333/draftintent/$DRAFT_ID/signature \
   -H "Content-Type: application/json" \
   -d "{
-    \"solver_addr\": \"$SOLVER_ADDRESS\",
+    \"solver_addr\": \"$SOLVER_ADDR\",
     \"signature\": \"$SIGNATURE\",
     \"public_key\": \"$PUBLIC_KEY\"
   }"
@@ -231,12 +231,12 @@ while true; do
     DRAFT_DATA=$(echo "$DRAFT" | jq -r '.draft_data')
     
     # 2. Sign draft
-    SIGNATURE=$(sign_draft "$DRAFT_DATA" "$SOLVER_ADDRESS" "$PRIVATE_KEY")
+    SIGNATURE=$(sign_draft "$DRAFT_DATA" "$SOLVER_ADDR" "$PRIVATE_KEY")
     
     # 3. Submit signature
     RESPONSE=$(curl -s -X POST http://127.0.0.1:3333/draftintent/$DRAFT_ID/signature \
       -H "Content-Type: application/json" \
-      -d "{\"solver_addr\": \"$SOLVER_ADDRESS\", \"signature\": \"$SIGNATURE\", \"public_key\": \"$PUBLIC_KEY\"}")
+      -d "{\"solver_addr\": \"$SOLVER_ADDR\", \"signature\": \"$SIGNATURE\", \"public_key\": \"$PUBLIC_KEY\"}")
     
     if echo "$RESPONSE" | jq -e '.success == true' > /dev/null; then
       echo "Successfully signed draft $DRAFT_ID"

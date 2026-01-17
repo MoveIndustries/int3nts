@@ -36,22 +36,22 @@ pub const DUMMY_ESCROW_ID_MVM: &str =
 // -------------------------------- USERS ---------------------------------
 
 /// Dummy requester address on hub chain (Move VM format, 32 bytes)
-pub const DUMMY_REQUESTER_ADDR_MVM_HUB: &str =
+pub const DUMMY_REQUESTER_ADDR_HUB: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000003";
 
 /// Dummy requester address on connected chain (Move VM format, 32 bytes)
-pub const DUMMY_REQUESTER_ADDR_MVM_CON: &str =
+pub const DUMMY_REQUESTER_ADDR_MVMCON: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000004";
 
 /// Dummy requester address (EVM format, 20 bytes)
 pub const DUMMY_REQUESTER_ADDR_EVM: &str = "0x0000000000000000000000000000000000000005";
 
 /// Dummy solver address on hub chain (Move VM format, 32 bytes)
-pub const DUMMY_SOLVER_ADDR_MVM_HUB: &str =
+pub const DUMMY_SOLVER_ADDR_HUB: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000006";
 
 /// Dummy solver address on connected chain (Move VM format, 32 bytes)
-pub const DUMMY_SOLVER_ADDR_MVM_CON: &str =
+pub const DUMMY_SOLVER_ADDR_MVMCON: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000007";
 
 /// Dummy solver address (EVM format, 20 bytes)
@@ -238,9 +238,9 @@ pub fn create_default_intent_mvm() -> IntentEvent {
         desired_metadata: "{\"inner\":\"desired_meta\"}".to_string(),
         desired_amount: 0,
         revocable: false,
-        requester_addr: DUMMY_REQUESTER_ADDR_MVM_HUB.to_string(), // Hub chain requester (Move VM format, 32 bytes)
-        requester_addr_connected_chain: Some(DUMMY_REQUESTER_ADDR_MVM_CON.to_string()), // Required for outflow intents (connected_chain_id is Some). Move VM address format (32 bytes)
-        reserved_solver_addr: Some(DUMMY_SOLVER_ADDR_MVM_HUB.to_string()), // Move VM address format (32 bytes)
+        requester_addr: DUMMY_REQUESTER_ADDR_HUB.to_string(), // Hub chain requester (Move VM format, 32 bytes)
+        requester_addr_connected_chain: Some(DUMMY_REQUESTER_ADDR_MVMCON.to_string()), // Required for outflow intents (connected_chain_id is Some). Move VM address format (32 bytes)
+        reserved_solver_addr: Some(DUMMY_SOLVER_ADDR_HUB.to_string()), // Move VM address format (32 bytes)
         connected_chain_id: Some(2),
         expiry_time: 0, // Should be set explicitly in tests
         timestamp: 0,
@@ -285,7 +285,7 @@ pub fn create_default_fulfillment() -> FulfillmentEvent {
     FulfillmentEvent {
         intent_id: DUMMY_INTENT_ID.to_string(),
         intent_addr: DUMMY_INTENT_ADDR_MVM.to_string(),
-        solver_addr: DUMMY_SOLVER_ADDR_MVM_CON.to_string(),
+        solver_addr: DUMMY_SOLVER_ADDR_MVMCON.to_string(),
         provided_metadata: "{}".to_string(),
         provided_amount: 0,
         timestamp: 0, // Should be set explicitly in tests
@@ -313,8 +313,8 @@ pub fn create_default_escrow_event() -> EscrowEvent {
         desired_metadata: "{\"inner\":\"desired_meta\"}".to_string(),
         desired_amount: 0, // Escrow desired_amount must be 0 (validation requirement)
         revocable: false,
-        requester_addr: DUMMY_REQUESTER_ADDR_MVM_CON.to_string(), // EscrowEvent.requester_addr is the requester who created the escrow and locked funds (for inflow escrows on connected chain)
-        reserved_solver_addr: Some(DUMMY_SOLVER_ADDR_MVM_HUB.to_string()),
+        requester_addr: DUMMY_REQUESTER_ADDR_MVMCON.to_string(), // EscrowEvent.requester_addr is the requester who created the escrow and locked funds (for inflow escrows on connected chain)
+        reserved_solver_addr: Some(DUMMY_SOLVER_ADDR_HUB.to_string()),
         chain_id: 2,
         chain_type: ChainType::Mvm,
         expiry_time: 0,    // Should be set explicitly in tests
@@ -358,9 +358,9 @@ pub fn create_default_escrow_event_evm() -> EscrowEvent {
 pub fn create_default_fulfillment_transaction_params_mvm() -> FulfillmentTransactionParams {
     FulfillmentTransactionParams {
         intent_id: DUMMY_INTENT_ID.to_string(),
-        recipient_addr: DUMMY_REQUESTER_ADDR_MVM_CON.to_string(), // Requester who receives tokens on connected chain (Move VM format - 32 bytes)
+        recipient_addr: DUMMY_REQUESTER_ADDR_MVMCON.to_string(), // Requester who receives tokens on connected chain (Move VM format - 32 bytes)
         amount: 0, // Should be set explicitly in tests
-        solver_addr: DUMMY_SOLVER_ADDR_MVM_CON.to_string(), // Move VM address format (32 bytes)
+        solver_addr: DUMMY_SOLVER_ADDR_MVMCON.to_string(), // Move VM address format (32 bytes)
         token_metadata: DUMMY_TOKEN_ADDR_EVM.to_string(), // Token contract address (EVM) or metadata object (Move VM)
     }
 }
@@ -403,7 +403,7 @@ pub fn create_default_mvm_transaction() -> MvmTransaction {
         success: true,
         events: vec![],
         payload: None, // Should be set explicitly in tests
-        sender: Some(DUMMY_SOLVER_ADDR_MVM_CON.to_string()),
+        sender: Some(DUMMY_SOLVER_ADDR_MVMCON.to_string()),
     }
 }
 

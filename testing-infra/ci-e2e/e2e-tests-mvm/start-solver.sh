@@ -7,9 +7,9 @@
 #
 # Optional environment variables:
 # - CHAIN1_URL: Hub chain RPC URL (default: http://127.0.0.1:8080/v1)
-# - MVM_CON_URL: Connected chain RPC URL (default: http://127.0.0.1:8082/v1)
+# - MVMCON_URL: Connected chain RPC URL (default: http://127.0.0.1:8082/v1)
 # - HUB_CHAIN_ID: Hub chain ID (default: 1)
-# - MVM_CON_CHAIN_ID: Connected chain ID (default: 2)
+# - MVMCON_CHAIN_ID: Connected chain ID (default: 2)
 # - VERIFIER_URL: Verifier URL (default: http://127.0.0.1:3333)
 
 set -e
@@ -48,9 +48,9 @@ generate_solver_config_mvm() {
     # Use environment variables or defaults for URLs
     local verifier_url="${VERIFIER_URL:-http://127.0.0.1:3333}"
     local hub_rpc="${CHAIN1_URL:-http://127.0.0.1:8080/v1}"
-    local connected_rpc="${MVM_CON_URL:-http://127.0.0.1:8082/v1}"
+    local connected_rpc="${MVMCON_URL:-http://127.0.0.1:8082/v1}"
     local hub_chain_id="${HUB_CHAIN_ID:-1}"
-    local connected_chain_id="${MVM_CON_CHAIN_ID:-2}"
+    local connected_chain_id="${MVMCON_CHAIN_ID:-2}"
     local hub_module_addr="0x${chain1_addr}"
     local connected_module_addr="0x${mvmcon_module_addr}"
     local solver_addr="0x${solver_chain1_addr}"
@@ -112,14 +112,14 @@ mkdir -p "$(dirname "$SOLVER_CONFIG")"
 generate_solver_config_mvm "$SOLVER_CONFIG"
 
 # Export solver's connected chain address for auto-registration
-SOLVER_MVM_CON_ADDRESS=$(get_profile_address "solver-chain2")
-if [ -z "$SOLVER_MVM_CON_ADDRESS" ]; then
+SOLVER_MVMCON_ADDR=$(get_profile_address "solver-chain2")
+if [ -z "$SOLVER_MVMCON_ADDR" ]; then
     log_and_echo "❌ ERROR: Failed to get solver Chain 2 address"
     log_and_echo "   Make sure solver-chain2 profile exists"
     exit 1
 fi
-export SOLVER_CONNECTED_MVM_ADDRESS="0x${SOLVER_MVM_CON_ADDRESS}"
-log "   Exported SOLVER_CONNECTED_MVM_ADDRESS=$SOLVER_CONNECTED_MVM_ADDRESS"
+export SOLVER_CONNECTED_MVM_ADDR="0x${SOLVER_MVMCON_ADDR}"
+log "   Exported SOLVER_CONNECTED_MVM_ADDR=$SOLVER_CONNECTED_MVM_ADDR"
 
 # Unset testnet keys to prevent accidental use (E2E tests use profiles only)
 unset MOVEMENT_SOLVER_PRIVATE_KEY

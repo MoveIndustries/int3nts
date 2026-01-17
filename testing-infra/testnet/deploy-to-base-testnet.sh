@@ -58,7 +58,7 @@ if [ -z "$BASE_SEPOLIA_RPC_URL" ]; then
 fi
 
 echo " Configuration:"
-echo "   Deployer Address: $BASE_DEPLOYER_ADDRESS"
+echo "   Deployer Address: $BASE_DEPLOYER_ADDR"
 echo "   Verifier EVM Pubkey Hash: $VERIFIER_EVM_PUBKEY_HASH"
 echo "   Network: Base Sepolia"
 echo "   RPC URL: $BASE_SEPOLIA_RPC_URL"
@@ -76,7 +76,7 @@ cd "$PROJECT_ROOT/evm-intent-framework"
 
 # Export environment variables for Hardhat
 export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"
-export VERIFIER_ADDRESS="$VERIFIER_EVM_PUBKEY_HASH"
+export VERIFIER_ADDR="$VERIFIER_EVM_PUBKEY_HASH"
 export BASE_SEPOLIA_RPC_URL
 
 echo " Environment configured for Hardhat"
@@ -109,23 +109,23 @@ echo ""
 echo " Deployment Complete!"
 echo "======================"
 echo ""
-CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | grep "Contract address:" | tail -1 | awk '{print $NF}' | tr -d '\n' || echo "")
+CONTRACT_ADDR=$(echo "$DEPLOY_OUTPUT" | grep "Contract address:" | tail -1 | awk '{print $NF}' | tr -d '\n' || echo "")
 
-if [ -n "$CONTRACT_ADDRESS" ]; then
-    echo " Deployed contract address: $CONTRACT_ADDRESS"
+if [ -n "$CONTRACT_ADDR" ]; then
+    echo " Deployed contract address: $CONTRACT_ADDR"
     echo ""
     echo " Update the following files with this address:"
     echo ""
     echo "   1. frontend/src/config/chains.ts"
-    echo "      Line ~26: escrowContractAddress: '$CONTRACT_ADDRESS'"
+    echo "      Line ~26: escrowContractAddress: '$CONTRACT_ADDR'"
     echo "      (in the 'base-sepolia' section)"
     echo ""
     echo "   2. trusted-verifier/config/verifier_testnet.toml"
-    echo "      Line ~24: escrow_contract_addr = \"$CONTRACT_ADDRESS\""
+    echo "      Line ~24: escrow_contract_addr = \"$CONTRACT_ADDR\""
     echo "      (in the [connected_chain_evm] section)"
     echo ""
     echo "   3. solver/config/solver_testnet.toml"
-    echo "      Line ~31: escrow_contract_addr = \"$CONTRACT_ADDRESS\""
+    echo "      Line ~31: escrow_contract_addr = \"$CONTRACT_ADDR\""
     echo "      (in the [connected_chain] section)"
     echo ""
     echo "   4. Run ./testing-infra/testnet/check-testnet-preparedness.sh to verify"

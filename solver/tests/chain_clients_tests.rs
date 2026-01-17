@@ -12,9 +12,9 @@ use test_helpers::{
     create_default_connected_mvm_chain_config, create_default_hub_chain_config,
     DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_ESCROW_ID_MVM, DUMMY_EXPIRY, DUMMY_INTENT_ADDR_MVM,
     DUMMY_INTENT_ID, DUMMY_MODULE_ADDR_CON, DUMMY_MODULE_ADDR_HUB,
-    DUMMY_REQUESTER_ADDR_EVM, DUMMY_REQUESTER_ADDR_MVM_CON, DUMMY_REQUESTER_ADDR_MVM_HUB,
-    DUMMY_SOLVER_ADDR_EVM, DUMMY_SOLVER_ADDR_MVM_CON, DUMMY_SOLVER_ADDR_MVM_HUB,
-    DUMMY_TOKEN_ADDR_EVM, DUMMY_TOKEN_ADDR_MVM_CON, DUMMY_TOKEN_ADDR_MVM_HUB, DUMMY_TX_HASH,
+    DUMMY_REQUESTER_ADDR_EVM, DUMMY_REQUESTER_ADDR_MVMCON, DUMMY_REQUESTER_ADDR_HUB,
+    DUMMY_SOLVER_ADDR_EVM, DUMMY_SOLVER_ADDR_MVMCON, DUMMY_SOLVER_ADDR_HUB,
+    DUMMY_TOKEN_ADDR_EVM, DUMMY_TOKEN_ADDR_MVMCON, DUMMY_TOKEN_ADDR_HUB, DUMMY_TX_HASH,
 };
 
 // ============================================================================
@@ -43,13 +43,13 @@ fn test_intent_created_event_deserialization() {
     let json = json!({
         "intent_addr": DUMMY_INTENT_ADDR_MVM,
         "intent_id": DUMMY_INTENT_ID,
-        "offered_metadata": {"inner": DUMMY_TOKEN_ADDR_MVM_HUB},
+        "offered_metadata": {"inner": DUMMY_TOKEN_ADDR_HUB},
         "offered_amount": "1000",
         "offered_chain_id": "1",
-        "desired_metadata": {"inner": DUMMY_TOKEN_ADDR_MVM_CON},
+        "desired_metadata": {"inner": DUMMY_TOKEN_ADDR_MVMCON},
         "desired_amount": "2000",
         "desired_chain_id": "2",
-        "requester_addr": DUMMY_REQUESTER_ADDR_MVM_HUB,
+        "requester_addr": DUMMY_REQUESTER_ADDR_HUB,
         "expiry_time": DUMMY_EXPIRY.to_string()
     });
 
@@ -58,7 +58,7 @@ fn test_intent_created_event_deserialization() {
     assert_eq!(event.intent_id, DUMMY_INTENT_ID);
     assert_eq!(event.offered_amount, "1000");
     assert_eq!(event.desired_amount, "2000");
-    assert_eq!(event.requester_addr, DUMMY_REQUESTER_ADDR_MVM_HUB);
+    assert_eq!(event.requester_addr, DUMMY_REQUESTER_ADDR_HUB);
 }
 
 /// What is tested: EscrowEvent deserialization (MVM)
@@ -69,24 +69,24 @@ fn test_escrow_event_deserialization() {
     let json = json!({
         "intent_addr": DUMMY_ESCROW_ID_MVM,
         "intent_id": DUMMY_INTENT_ID,
-        "requester_addr": DUMMY_REQUESTER_ADDR_MVM_CON,
-        "offered_metadata": {"inner": DUMMY_TOKEN_ADDR_MVM_HUB},
+        "requester_addr": DUMMY_REQUESTER_ADDR_MVMCON,
+        "offered_metadata": {"inner": DUMMY_TOKEN_ADDR_HUB},
         "offered_amount": "1000",
-        "desired_metadata": {"inner": DUMMY_TOKEN_ADDR_MVM_CON},
+        "desired_metadata": {"inner": DUMMY_TOKEN_ADDR_MVMCON},
         "desired_amount": "2000",
         "expiry_time": DUMMY_EXPIRY.to_string(),
         "revocable": true,
-        "reserved_solver": {"vec": [DUMMY_SOLVER_ADDR_MVM_CON]}
+        "reserved_solver": {"vec": [DUMMY_SOLVER_ADDR_MVMCON]}
     });
 
     let event: solver::chains::connected_mvm::EscrowEvent = serde_json::from_value(json).unwrap();
     assert_eq!(event.escrow_id, DUMMY_ESCROW_ID_MVM);
     assert_eq!(event.intent_id, DUMMY_INTENT_ID);
-    assert_eq!(event.requester_addr, DUMMY_REQUESTER_ADDR_MVM_CON);
+    assert_eq!(event.requester_addr, DUMMY_REQUESTER_ADDR_MVMCON);
     assert_eq!(event.offered_amount, "1000");
     // reserved_solver is a Move Option wrapper
     let solver = event.reserved_solver.and_then(|opt| opt.into_option());
-    assert_eq!(solver, Some(DUMMY_SOLVER_ADDR_MVM_CON.to_string()));
+    assert_eq!(solver, Some(DUMMY_SOLVER_ADDR_MVMCON.to_string()));
 }
 
 // ============================================================================
@@ -112,7 +112,7 @@ async fn test_get_intent_events_success() {
 
     // Mock transaction response with LimitOrderEvent
     Mock::given(method("GET"))
-        .and(path(format!("/v1/accounts/{}/transactions", DUMMY_REQUESTER_ADDR_MVM_HUB.strip_prefix("0x").unwrap())))
+        .and(path(format!("/v1/accounts/{}/transactions", DUMMY_REQUESTER_ADDR_HUB.strip_prefix("0x").unwrap())))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([
             {
                 "events": [
@@ -121,13 +121,13 @@ async fn test_get_intent_events_success() {
                         "data": {
                             "intent_addr": DUMMY_INTENT_ADDR_MVM,
                             "intent_id": DUMMY_INTENT_ID,
-                            "offered_metadata": {"inner": DUMMY_TOKEN_ADDR_MVM_HUB},
+                            "offered_metadata": {"inner": DUMMY_TOKEN_ADDR_HUB},
                             "offered_amount": "1000",
                             "offered_chain_id": "1",
-                            "desired_metadata": {"inner": DUMMY_TOKEN_ADDR_MVM_CON},
+                            "desired_metadata": {"inner": DUMMY_TOKEN_ADDR_MVMCON},
                             "desired_amount": "2000",
                             "desired_chain_id": "2",
-                            "requester_addr": DUMMY_REQUESTER_ADDR_MVM_HUB,
+                            "requester_addr": DUMMY_REQUESTER_ADDR_HUB,
                             "expiry_time": DUMMY_EXPIRY.to_string(),
                             "revocable": true
                         }
@@ -142,7 +142,7 @@ async fn test_get_intent_events_success() {
     config.rpc_url = base_url;
     let client = HubChainClient::new(&config).unwrap();
 
-    let accounts = vec![DUMMY_REQUESTER_ADDR_MVM_HUB.to_string()];
+    let accounts = vec![DUMMY_REQUESTER_ADDR_HUB.to_string()];
     let (events, _tx_hashes) = client.get_intent_events(&accounts, None, None).await.unwrap();
 
     assert_eq!(events.len(), 1);
@@ -160,7 +160,7 @@ async fn test_get_intent_events_empty() {
     let base_url = mock_server.uri().to_string();
 
     Mock::given(method("GET"))
-        .and(path(format!("/v1/accounts/{}/transactions", DUMMY_REQUESTER_ADDR_MVM_HUB.strip_prefix("0x").unwrap())))
+        .and(path(format!("/v1/accounts/{}/transactions", DUMMY_REQUESTER_ADDR_HUB.strip_prefix("0x").unwrap())))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
         .mount(&mock_server)
         .await;
@@ -169,7 +169,7 @@ async fn test_get_intent_events_empty() {
     config.rpc_url = base_url;
     let client = HubChainClient::new(&config).unwrap();
 
-    let accounts = vec![DUMMY_REQUESTER_ADDR_MVM_HUB.to_string()];
+    let accounts = vec![DUMMY_REQUESTER_ADDR_HUB.to_string()];
     let (events, _tx_hashes) = client.get_intent_events(&accounts, None, None).await.unwrap();
 
     assert_eq!(events.len(), 0);
@@ -195,7 +195,7 @@ async fn test_is_solver_registered_true() {
     let client = HubChainClient::new(&config).unwrap();
 
     let is_registered = client
-        .is_solver_registered(DUMMY_SOLVER_ADDR_MVM_HUB)
+        .is_solver_registered(DUMMY_SOLVER_ADDR_HUB)
         .await
         .unwrap();
 
@@ -222,7 +222,7 @@ async fn test_is_solver_registered_false() {
     let client = HubChainClient::new(&config).unwrap();
 
     let is_registered = client
-        .is_solver_registered(DUMMY_SOLVER_ADDR_MVM_HUB)
+        .is_solver_registered(DUMMY_SOLVER_ADDR_HUB)
         .await
         .unwrap();
 
@@ -249,14 +249,14 @@ async fn test_is_solver_registered_address_normalization() {
 
     // Test with 0x prefix
     let is_registered1 = client
-        .is_solver_registered(DUMMY_SOLVER_ADDR_MVM_HUB)
+        .is_solver_registered(DUMMY_SOLVER_ADDR_HUB)
         .await
         .unwrap();
     assert!(is_registered1);
 
     // Test without 0x prefix (should still work)
     let is_registered2 = client
-        .is_solver_registered(DUMMY_SOLVER_ADDR_MVM_HUB.strip_prefix("0x").unwrap())
+        .is_solver_registered(DUMMY_SOLVER_ADDR_HUB.strip_prefix("0x").unwrap())
         .await
         .unwrap();
     assert!(is_registered2);
@@ -282,7 +282,7 @@ async fn test_is_solver_registered_http_error() {
     let client = HubChainClient::new(&config).unwrap();
 
     let result = client
-        .is_solver_registered(DUMMY_SOLVER_ADDR_MVM_HUB)
+        .is_solver_registered(DUMMY_SOLVER_ADDR_HUB)
         .await;
 
     assert!(result.is_err());
@@ -312,7 +312,7 @@ async fn test_is_solver_registered_invalid_json() {
     let client = HubChainClient::new(&config).unwrap();
 
     let result = client
-        .is_solver_registered(DUMMY_SOLVER_ADDR_MVM_HUB)
+        .is_solver_registered(DUMMY_SOLVER_ADDR_HUB)
         .await;
 
     assert!(result.is_err());
@@ -338,7 +338,7 @@ async fn test_is_solver_registered_unexpected_format() {
     let client = HubChainClient::new(&config).unwrap();
 
     let result = client
-        .is_solver_registered(DUMMY_SOLVER_ADDR_MVM_HUB)
+        .is_solver_registered(DUMMY_SOLVER_ADDR_HUB)
         .await;
 
     assert!(result.is_err());
@@ -371,7 +371,7 @@ async fn test_get_escrow_events_success() {
     let base_url = format!("{}/v1", mock_server.uri());
 
     Mock::given(method("GET"))
-        .and(path(format!("/v1/accounts/{}/transactions", DUMMY_REQUESTER_ADDR_MVM_CON.strip_prefix("0x").unwrap())))
+        .and(path(format!("/v1/accounts/{}/transactions", DUMMY_REQUESTER_ADDR_MVMCON.strip_prefix("0x").unwrap())))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!([
             {
                 "events": [
@@ -380,14 +380,14 @@ async fn test_get_escrow_events_success() {
                         "data": {
                             "intent_addr": DUMMY_ESCROW_ID_MVM,
                             "intent_id": DUMMY_INTENT_ID,
-                            "requester_addr": DUMMY_REQUESTER_ADDR_MVM_CON,
-                            "offered_metadata": {"inner": DUMMY_TOKEN_ADDR_MVM_CON},
+                            "requester_addr": DUMMY_REQUESTER_ADDR_MVMCON,
+                            "offered_metadata": {"inner": DUMMY_TOKEN_ADDR_MVMCON},
                             "offered_amount": "1000",
-                            "desired_metadata": {"inner": DUMMY_TOKEN_ADDR_MVM_CON},
+                            "desired_metadata": {"inner": DUMMY_TOKEN_ADDR_MVMCON},
                             "desired_amount": "2000",
                             "expiry_time": DUMMY_EXPIRY.to_string(),
                             "revocable": true,
-                            "reserved_solver": {"vec": [DUMMY_SOLVER_ADDR_MVM_CON]}
+                            "reserved_solver": {"vec": [DUMMY_SOLVER_ADDR_MVMCON]}
                         }
                     }
                 ]
@@ -400,7 +400,7 @@ async fn test_get_escrow_events_success() {
     config.rpc_url = base_url;
     let client = ConnectedMvmClient::new(&config).unwrap();
 
-    let accounts = vec![DUMMY_REQUESTER_ADDR_MVM_CON.to_string()];
+    let accounts = vec![DUMMY_REQUESTER_ADDR_MVMCON.to_string()];
     let events = client.get_escrow_events(&accounts, None).await.unwrap();
 
     assert_eq!(events.len(), 1);
@@ -581,7 +581,7 @@ fn test_claim_escrow_command_building() {
     
     // Build the command string that would be passed to bash -c
     let command = format!(
-        "cd '{}' && ESCROW_ADDRESS='{}' INTENT_ID_EVM='{}' SIGNATURE_HEX='{}' npx hardhat run scripts/claim-escrow.js --network localhost",
+        "cd '{}' && ESCROW_ADDR='{}' INTENT_ID_EVM='{}' SIGNATURE_HEX='{}' npx hardhat run scripts/claim-escrow.js --network localhost",
         evm_framework_dir,
         escrow_addr,
         intent_id_evm,
@@ -589,7 +589,7 @@ fn test_claim_escrow_command_building() {
     );
     
     // Verify all components are present
-    assert!(command.contains("ESCROW_ADDRESS"));
+    assert!(command.contains("ESCROW_ADDR"));
     assert!(command.contains(escrow_addr));
     assert!(command.contains("INTENT_ID_EVM"));
     assert!(command.contains(intent_id_evm));

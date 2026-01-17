@@ -54,14 +54,14 @@ log "   RPC URL: http://127.0.0.1:8545"
 # Deploy escrow contract (run in nix develop)
 log ""
 log " Deploying IntentEscrow..."
-DEPLOY_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/deploy.js --network localhost" "VERIFIER_ADDRESS='$VERIFIER_EVM_PUBKEY_HASH'" 2>&1 | tee -a "$LOG_FILE")
+DEPLOY_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/deploy.js --network localhost" "VERIFIER_ADDR='$VERIFIER_EVM_PUBKEY_HASH'" 2>&1 | tee -a "$LOG_FILE")
 
 # Extract contract address from output
-CONTRACT_ADDRESS=$(extract_escrow_contract_address "$DEPLOY_OUTPUT")
+CONTRACT_ADDR=$(extract_escrow_contract_address "$DEPLOY_OUTPUT")
 
 log ""
 log "✅ IntentEscrow deployed successfully!"
-log "   Contract Address: $CONTRACT_ADDRESS"
+log "   Contract Address: $CONTRACT_ADDR"
 log ""
 log " Contract Details:"
 log "   Network:      localhost"
@@ -69,7 +69,7 @@ log "   RPC URL:      http://127.0.0.1:8545"
 log "   Chain ID:     31337 (Hardhat default)"
 log ""
 log " Verify deployment:"
-log "   npx hardhat verify --network localhost $CONTRACT_ADDRESS <verifier_address>"
+log "   npx hardhat verify --network localhost $CONTRACT_ADDR <verifier_address>"
 
 log ""
 log "✅ IntentEscrow deployed"
@@ -80,29 +80,29 @@ log " Deploying USDcon token to EVM chain..."
 
 USDCON_OUTPUT=$(run_hardhat_command "npx hardhat run test-scripts/deploy-usdcon.js --network localhost" 2>&1 | tee -a "$LOG_FILE")
 # Extract token address from Hardhat output (line containing 'deployed to:')
-USD_CON_EVM_ADDRESS=$(echo "$USDCON_OUTPUT" | grep "deployed to:" | awk '{print $NF}' | tr -d '\n')
+USD_EVM_ADDR=$(echo "$USDCON_OUTPUT" | grep "deployed to:" | awk '{print $NF}' | tr -d '\n')
 
-if [ -z "$USD_CON_EVM_ADDRESS" ]; then
+if [ -z "$USD_EVM_ADDR" ]; then
     log_and_echo "❌ USDcon deployment failed!"
     exit 1
 fi
 
-log "   ✅ USDcon deployed to: $USD_CON_EVM_ADDRESS"
+log "   ✅ USDcon deployed to: $USD_EVM_ADDR"
 
 # Save escrow and USDcon addresses for other scripts
-echo "ESCROW_CONTRACT_ADDRESS=$CONTRACT_ADDRESS" >> "$PROJECT_ROOT/.tmp/chain-info.env"
-echo "USD_CON_EVM_ADDRESS=$USD_CON_EVM_ADDRESS" >> "$PROJECT_ROOT/.tmp/chain-info.env"
+echo "ESCROW_CONTRACT_ADDR=$CONTRACT_ADDR" >> "$PROJECT_ROOT/.tmp/chain-info.env"
+echo "USD_EVM_ADDR=$USD_EVM_ADDR" >> "$PROJECT_ROOT/.tmp/chain-info.env"
 
 # Mint USDcon to Requester and Solver (accounts 1 and 2)
 log ""
 log " Minting USDcon to Requester and Solver on EVM chain..."
 
-REQUESTER_EVM_ADDRESS=$(get_hardhat_account_address "1")
-SOLVER_EVM_ADDRESS=$(get_hardhat_account_address "2")
+REQUESTER_EVM_ADDR=$(get_hardhat_account_address "1")
+SOLVER_EVM_ADDR=$(get_hardhat_account_address "2")
 USDCON_MINT_AMOUNT="1000000"  # 1 USDcon (6 decimals = 1_000_000)
 
-log "   - Minting $USDCON_MINT_AMOUNT 10e-6.USDcon to Requester ($REQUESTER_EVM_ADDRESS)..."
-MINT_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/mint-token.js --network localhost" "TOKEN_ADDRESS='$USD_CON_EVM_ADDRESS' RECIPIENT='$REQUESTER_EVM_ADDRESS' AMOUNT='$USDCON_MINT_AMOUNT'" 2>&1 | tee -a "$LOG_FILE")
+log "   - Minting $USDCON_MINT_AMOUNT 10e-6.USDcon to Requester ($REQUESTER_EVM_ADDR)..."
+MINT_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/mint-token.js --network localhost" "TOKEN_ADDR='$USD_EVM_ADDR' RECIPIENT='$REQUESTER_EVM_ADDR' AMOUNT='$USDCON_MINT_AMOUNT'" 2>&1 | tee -a "$LOG_FILE")
 if echo "$MINT_OUTPUT" | grep -q "SUCCESS"; then
     log "   ✅ Minted USDcon to Requester"
 else
@@ -110,8 +110,8 @@ else
     exit 1
 fi
 
-log "   - Minting $USDCON_MINT_AMOUNT 10e-6.USDcon to Solver ($SOLVER_EVM_ADDRESS)..."
-MINT_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/mint-token.js --network localhost" "TOKEN_ADDRESS='$USD_CON_EVM_ADDRESS' RECIPIENT='$SOLVER_EVM_ADDRESS' AMOUNT='$USDCON_MINT_AMOUNT'" 2>&1 | tee -a "$LOG_FILE")
+log "   - Minting $USDCON_MINT_AMOUNT 10e-6.USDcon to Solver ($SOLVER_EVM_ADDR)..."
+MINT_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/mint-token.js --network localhost" "TOKEN_ADDR='$USD_EVM_ADDR' RECIPIENT='$SOLVER_EVM_ADDR' AMOUNT='$USDCON_MINT_AMOUNT'" 2>&1 | tee -a "$LOG_FILE")
 if echo "$MINT_OUTPUT" | grep -q "SUCCESS"; then
     log "   ✅ Minted USDcon to Solver"
 else
@@ -122,7 +122,7 @@ fi
 log_and_echo "✅ USDcon minted to Requester and Solver on EVM chain"
 
 # Display balances (ETH + USDcon)
-display_balances_connected_evm "$USD_CON_EVM_ADDRESS"
+display_balances_connected_evm "$USD_EVM_ADDR"
 
 log ""
 log " EVM DEPLOYMENT COMPLETE!"
@@ -130,8 +130,8 @@ log "==========================="
 log "EVM Chain:"
 log "   RPC URL:  http://127.0.0.1:8545"
 log "   Chain ID: 31337"
-log "   IntentEscrow: $CONTRACT_ADDRESS"
-log "   USDcon Token: $USD_CON_EVM_ADDRESS"
+log "   IntentEscrow: $CONTRACT_ADDR"
+log "   USDcon Token: $USD_EVM_ADDR"
 log "   Verifier EVM Pubkey Hash: $VERIFIER_EVM_PUBKEY_HASH"
 log ""
 log " API Examples:"

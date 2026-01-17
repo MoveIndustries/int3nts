@@ -27,22 +27,22 @@ pub const DUMMY_ESCROW_ID_MVM: &str =
 // -------------------------------- USERS ---------------------------------
 
 /// Dummy requester address on hub chain (Move VM format, 64 hex characters)
-pub const DUMMY_REQUESTER_ADDR_MVM_HUB: &str =
+pub const DUMMY_REQUESTER_ADDR_HUB: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000004";
 
 /// Dummy requester address on connected chain (Move VM format, 64 hex characters)
-pub const DUMMY_REQUESTER_ADDR_MVM_CON: &str =
+pub const DUMMY_REQUESTER_ADDR_MVMCON: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000005";
 
 /// Dummy requester address (EVM format, 40 hex characters)
 pub const DUMMY_REQUESTER_ADDR_EVM: &str = "0x0000000000000000000000000000000000000006";
 
 /// Dummy solver address on hub chain (Move VM format, 64 hex characters)
-pub const DUMMY_SOLVER_ADDR_MVM_HUB: &str =
+pub const DUMMY_SOLVER_ADDR_HUB: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000007";
 
 /// Dummy solver address on connected chain (Move VM format, 64 hex characters)
-pub const DUMMY_SOLVER_ADDR_MVM_CON: &str =
+pub const DUMMY_SOLVER_ADDR_MVMCON: &str =
     "0x0000000000000000000000000000000000000000000000000000000000000008";
 
 /// Dummy solver address (EVM format, 40 hex characters)
@@ -54,11 +54,11 @@ pub const DUMMY_SOLVER_ADDR_EVM: &str = "0x0000000000000000000000000000000000000
 pub const DUMMY_TOKEN_ADDR_EVM: &str = "0x000000000000000000000000000000000000000a";
 
 /// Dummy token address on hub chain (Move VM format, 64 hex characters)
-pub const DUMMY_TOKEN_ADDR_MVM_HUB: &str =
+pub const DUMMY_TOKEN_ADDR_HUB: &str =
     "0x000000000000000000000000000000000000000000000000000000000000000b";
 
 /// Dummy token address on connected chain (Move VM format, 64 hex characters)
-pub const DUMMY_TOKEN_ADDR_MVM_CON: &str =
+pub const DUMMY_TOKEN_ADDR_MVMCON: &str =
     "0x000000000000000000000000000000000000000000000000000000000000000c";
 
 /// Dummy escrow contract address (EVM format, 40 hex characters)
@@ -103,9 +103,9 @@ pub const DUMMY_EXPIRY: u64 = 9999999999;
 pub fn create_default_token_pair() -> solver::acceptance::TokenPair {
     solver::acceptance::TokenPair {
         offered_chain_id: 1,
-        offered_token: DUMMY_TOKEN_ADDR_MVM_HUB.to_string(),
+        offered_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
         desired_chain_id: 2,
-        desired_token: DUMMY_TOKEN_ADDR_MVM_CON.to_string(),
+        desired_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
     }
 }
 

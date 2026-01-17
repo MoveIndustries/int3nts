@@ -51,9 +51,9 @@ fi
 
 # Parse TOML config (simple grep-based parser)
 # Extract Base Sepolia USDC address and decimals
-BASE_USDC_ADDRESS=$(grep -A 20 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+BASE_USDC_ADDR=$(grep -A 20 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 BASE_USDC_DECIMALS=$(grep -A 20 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
-if [ -z "$BASE_USDC_ADDRESS" ]; then
+if [ -z "$BASE_USDC_ADDR" ]; then
     echo "️  WARNING: Base Sepolia USDC address not found in testnet-assets.toml"
     echo "   Base Sepolia USDC balance checks will be skipped"
 elif [ -z "$BASE_USDC_DECIMALS" ]; then
@@ -63,9 +63,9 @@ elif [ -z "$BASE_USDC_DECIMALS" ]; then
 fi
 
 # Extract Ethereum Sepolia USDC address and decimals
-SEPOLIA_USDC_ADDRESS=$(grep -A 20 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+SEPOLIA_USDC_ADDR=$(grep -A 20 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 SEPOLIA_USDC_DECIMALS=$(grep -A 20 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
-if [ -z "$SEPOLIA_USDC_ADDRESS" ]; then
+if [ -z "$SEPOLIA_USDC_ADDR" ]; then
     echo "️  WARNING: Ethereum Sepolia USDC address not found in testnet-assets.toml"
     echo "   Ethereum Sepolia USDC balance checks will be skipped"
 elif [ -z "$SEPOLIA_USDC_DECIMALS" ]; then
@@ -75,9 +75,9 @@ elif [ -z "$SEPOLIA_USDC_DECIMALS" ]; then
 fi
 
 # Extract Movement USDC address and decimals
-MOVEMENT_USDC_ADDRESS=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+MOVEMENT_USDC_ADDR=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 MOVEMENT_USDC_DECIMALS=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
-if [ -n "$MOVEMENT_USDC_ADDRESS" ] && [ -z "$MOVEMENT_USDC_DECIMALS" ]; then
+if [ -n "$MOVEMENT_USDC_ADDR" ] && [ -z "$MOVEMENT_USDC_DECIMALS" ]; then
     echo "❌ ERROR: Movement USDC.e address configured but decimals not found in testnet-assets.toml"
     echo "   Add usdc_decimals = 6 to [movement_bardock_testnet] section"
     exit 1
@@ -175,7 +175,7 @@ get_movement_usdc_balance() {
     fi
     
     # If USDC address is not configured, return 0
-    if [ -z "$MOVEMENT_USDC_ADDRESS" ] || [ "$MOVEMENT_USDC_ADDRESS" = "" ]; then
+    if [ -z "$MOVEMENT_USDC_ADDR" ] || [ "$MOVEMENT_USDC_ADDR" = "" ]; then
         echo "0"
         return
     fi
@@ -184,7 +184,7 @@ get_movement_usdc_balance() {
     # USDC.e is deployed as a Fungible Asset, use primary_fungible_store::balance
     local balance=$(curl -s --max-time 10 -X POST "${MOVEMENT_RPC_URL}/view" \
         -H "Content-Type: application/json" \
-        -d "{\"function\":\"0x1::primary_fungible_store::balance\",\"type_arguments\":[\"0x1::fungible_asset::Metadata\"],\"arguments\":[\"$address\",\"${MOVEMENT_USDC_ADDRESS}\"]}" \
+        -d "{\"function\":\"0x1::primary_fungible_store::balance\",\"type_arguments\":[\"0x1::fungible_asset::Metadata\"],\"arguments\":[\"$address\",\"${MOVEMENT_USDC_ADDR}\"]}" \
         | jq -r '.[0] // "0"' 2>/dev/null)
     
     if [ -z "$balance" ] || [ "$balance" = "null" ]; then
@@ -299,14 +299,14 @@ echo " Movement Bardock Testnet"
 echo "----------------------------"
 echo "   RPC: $MOVEMENT_RPC_URL"
 
-if [ -z "$MOVEMENT_DEPLOYER_ADDRESS" ]; then
-    echo "️  MOVEMENT_DEPLOYER_ADDRESS not set in .testnet-keys.env"
+if [ -z "$MOVEMENT_DEPLOYER_ADDR" ]; then
+    echo "️  MOVEMENT_DEPLOYER_ADDR not set in .testnet-keys.env"
 else
-    balance=$(get_movement_balance "$MOVEMENT_DEPLOYER_ADDRESS")
+    balance=$(get_movement_balance "$MOVEMENT_DEPLOYER_ADDR")
     formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
-    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_DEPLOYER_ADDRESS")
-    echo "   Deployer  ($MOVEMENT_DEPLOYER_ADDRESS)"
-    if [ -n "$MOVEMENT_USDC_ADDRESS" ]; then
+    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_DEPLOYER_ADDR")
+    echo "   Deployer  ($MOVEMENT_DEPLOYER_ADDR)"
+    if [ -n "$MOVEMENT_USDC_ADDR" ]; then
         usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
         echo "             $formatted, $usdc_formatted"
     else
@@ -314,14 +314,14 @@ else
     fi
 fi
 
-if [ -z "$MOVEMENT_REQUESTER_ADDRESS" ]; then
-    echo "️  MOVEMENT_REQUESTER_ADDRESS not set in .testnet-keys.env"
+if [ -z "$MOVEMENT_REQUESTER_ADDR" ]; then
+    echo "️  MOVEMENT_REQUESTER_ADDR not set in .testnet-keys.env"
 else
-    balance=$(get_movement_balance "$MOVEMENT_REQUESTER_ADDRESS")
+    balance=$(get_movement_balance "$MOVEMENT_REQUESTER_ADDR")
     formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
-    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_REQUESTER_ADDRESS")
-    echo "   Requester ($MOVEMENT_REQUESTER_ADDRESS)"
-    if [ -n "$MOVEMENT_USDC_ADDRESS" ]; then
+    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_REQUESTER_ADDR")
+    echo "   Requester ($MOVEMENT_REQUESTER_ADDR)"
+    if [ -n "$MOVEMENT_USDC_ADDR" ]; then
         usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
         echo "             $formatted, $usdc_formatted"
     else
@@ -329,14 +329,14 @@ else
     fi
 fi
 
-if [ -z "$MOVEMENT_SOLVER_ADDRESS" ]; then
-    echo "️  MOVEMENT_SOLVER_ADDRESS not set in .testnet-keys.env"
+if [ -z "$MOVEMENT_SOLVER_ADDR" ]; then
+    echo "️  MOVEMENT_SOLVER_ADDR not set in .testnet-keys.env"
 else
-    balance=$(get_movement_balance "$MOVEMENT_SOLVER_ADDRESS")
+    balance=$(get_movement_balance "$MOVEMENT_SOLVER_ADDR")
     formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
-    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_SOLVER_ADDRESS")
-    echo "   Solver    ($MOVEMENT_SOLVER_ADDRESS)"
-    if [ -n "$MOVEMENT_USDC_ADDRESS" ]; then
+    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_SOLVER_ADDR")
+    echo "   Solver    ($MOVEMENT_SOLVER_ADDR)"
+    if [ -n "$MOVEMENT_USDC_ADDR" ]; then
         usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
         echo "             $formatted, $usdc_formatted"
     else
@@ -351,14 +351,14 @@ echo " Base Sepolia"
 echo "---------------"
 echo "   RPC: $BASE_RPC_URL"
 
-if [ -z "$BASE_DEPLOYER_ADDRESS" ]; then
-    echo "️  BASE_DEPLOYER_ADDRESS not set in .testnet-keys.env"
+if [ -z "$BASE_DEPLOYER_ADDR" ]; then
+    echo "️  BASE_DEPLOYER_ADDR not set in .testnet-keys.env"
 else
-    eth_balance=$(get_base_eth_balance "$BASE_DEPLOYER_ADDRESS")
+    eth_balance=$(get_base_eth_balance "$BASE_DEPLOYER_ADDR")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
-    echo "   Deployer  ($BASE_DEPLOYER_ADDRESS)"
-    if [ -n "$BASE_USDC_ADDRESS" ]; then
-        usdc_balance=$(get_base_token_balance "$BASE_DEPLOYER_ADDRESS" "$BASE_USDC_ADDRESS")
+    echo "   Deployer  ($BASE_DEPLOYER_ADDR)"
+    if [ -n "$BASE_USDC_ADDR" ]; then
+        usdc_balance=$(get_base_token_balance "$BASE_DEPLOYER_ADDR" "$BASE_USDC_ADDR")
         usdc_formatted=$(format_balance "$usdc_balance" "$BASE_USDC_DECIMALS" "USDC")
         echo "             $eth_formatted, $usdc_formatted"
     else
@@ -366,14 +366,14 @@ else
     fi
 fi
 
-if [ -z "$BASE_REQUESTER_ADDRESS" ]; then
-    echo "️  BASE_REQUESTER_ADDRESS not set in .testnet-keys.env"
+if [ -z "$BASE_REQUESTER_ADDR" ]; then
+    echo "️  BASE_REQUESTER_ADDR not set in .testnet-keys.env"
 else
-    eth_balance=$(get_base_eth_balance "$BASE_REQUESTER_ADDRESS")
+    eth_balance=$(get_base_eth_balance "$BASE_REQUESTER_ADDR")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
-    echo "   Requester ($BASE_REQUESTER_ADDRESS)"
-    if [ -n "$BASE_USDC_ADDRESS" ]; then
-        usdc_balance=$(get_base_token_balance "$BASE_REQUESTER_ADDRESS" "$BASE_USDC_ADDRESS")
+    echo "   Requester ($BASE_REQUESTER_ADDR)"
+    if [ -n "$BASE_USDC_ADDR" ]; then
+        usdc_balance=$(get_base_token_balance "$BASE_REQUESTER_ADDR" "$BASE_USDC_ADDR")
         usdc_formatted=$(format_balance "$usdc_balance" "$BASE_USDC_DECIMALS" "USDC")
         echo "             $eth_formatted, $usdc_formatted"
     else
@@ -381,14 +381,14 @@ else
     fi
 fi
 
-if [ -z "$BASE_SOLVER_ADDRESS" ]; then
-    echo "️  BASE_SOLVER_ADDRESS not set in .testnet-keys.env"
+if [ -z "$BASE_SOLVER_ADDR" ]; then
+    echo "️  BASE_SOLVER_ADDR not set in .testnet-keys.env"
 else
-    eth_balance=$(get_base_eth_balance "$BASE_SOLVER_ADDRESS")
+    eth_balance=$(get_base_eth_balance "$BASE_SOLVER_ADDR")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
-    echo "   Solver    ($BASE_SOLVER_ADDRESS)"
-    if [ -n "$BASE_USDC_ADDRESS" ]; then
-        usdc_balance=$(get_base_token_balance "$BASE_SOLVER_ADDRESS" "$BASE_USDC_ADDRESS")
+    echo "   Solver    ($BASE_SOLVER_ADDR)"
+    if [ -n "$BASE_USDC_ADDR" ]; then
+        usdc_balance=$(get_base_token_balance "$BASE_SOLVER_ADDR" "$BASE_USDC_ADDR")
         usdc_formatted=$(format_balance "$usdc_balance" "$BASE_USDC_DECIMALS" "USDC")
         echo "             $eth_formatted, $usdc_formatted"
     else
@@ -404,14 +404,14 @@ echo "-------------------"
 echo "   RPC: $SEPOLIA_RPC_URL"
 echo "   (Using same addresses as Base Sepolia)"
 
-if [ -z "$BASE_DEPLOYER_ADDRESS" ]; then
-    echo "️  BASE_DEPLOYER_ADDRESS not set in .testnet-keys.env"
+if [ -z "$BASE_DEPLOYER_ADDR" ]; then
+    echo "️  BASE_DEPLOYER_ADDR not set in .testnet-keys.env"
 else
-    eth_balance=$(get_evm_eth_balance "$BASE_DEPLOYER_ADDRESS" "$SEPOLIA_RPC_URL")
+    eth_balance=$(get_evm_eth_balance "$BASE_DEPLOYER_ADDR" "$SEPOLIA_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
-    echo "   Deployer  ($BASE_DEPLOYER_ADDRESS)"
-    if [ -n "$SEPOLIA_USDC_ADDRESS" ]; then
-        usdc_balance=$(get_evm_token_balance "$BASE_DEPLOYER_ADDRESS" "$SEPOLIA_USDC_ADDRESS" "$SEPOLIA_RPC_URL")
+    echo "   Deployer  ($BASE_DEPLOYER_ADDR)"
+    if [ -n "$SEPOLIA_USDC_ADDR" ]; then
+        usdc_balance=$(get_evm_token_balance "$BASE_DEPLOYER_ADDR" "$SEPOLIA_USDC_ADDR" "$SEPOLIA_RPC_URL")
         usdc_formatted=$(format_balance "$usdc_balance" "$SEPOLIA_USDC_DECIMALS" "USDC")
         echo "             $eth_formatted, $usdc_formatted"
     else
@@ -419,14 +419,14 @@ else
     fi
 fi
 
-if [ -z "$BASE_REQUESTER_ADDRESS" ]; then
-    echo "️  BASE_REQUESTER_ADDRESS not set in .testnet-keys.env"
+if [ -z "$BASE_REQUESTER_ADDR" ]; then
+    echo "️  BASE_REQUESTER_ADDR not set in .testnet-keys.env"
 else
-    eth_balance=$(get_evm_eth_balance "$BASE_REQUESTER_ADDRESS" "$SEPOLIA_RPC_URL")
+    eth_balance=$(get_evm_eth_balance "$BASE_REQUESTER_ADDR" "$SEPOLIA_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
-    echo "   Requester ($BASE_REQUESTER_ADDRESS)"
-    if [ -n "$SEPOLIA_USDC_ADDRESS" ]; then
-        usdc_balance=$(get_evm_token_balance "$BASE_REQUESTER_ADDRESS" "$SEPOLIA_USDC_ADDRESS" "$SEPOLIA_RPC_URL")
+    echo "   Requester ($BASE_REQUESTER_ADDR)"
+    if [ -n "$SEPOLIA_USDC_ADDR" ]; then
+        usdc_balance=$(get_evm_token_balance "$BASE_REQUESTER_ADDR" "$SEPOLIA_USDC_ADDR" "$SEPOLIA_RPC_URL")
         usdc_formatted=$(format_balance "$usdc_balance" "$SEPOLIA_USDC_DECIMALS" "USDC")
         echo "             $eth_formatted, $usdc_formatted"
     else
@@ -434,14 +434,14 @@ else
     fi
 fi
 
-if [ -z "$BASE_SOLVER_ADDRESS" ]; then
-    echo "️  BASE_SOLVER_ADDRESS not set in .testnet-keys.env"
+if [ -z "$BASE_SOLVER_ADDR" ]; then
+    echo "️  BASE_SOLVER_ADDR not set in .testnet-keys.env"
 else
-    eth_balance=$(get_evm_eth_balance "$BASE_SOLVER_ADDRESS" "$SEPOLIA_RPC_URL")
+    eth_balance=$(get_evm_eth_balance "$BASE_SOLVER_ADDR" "$SEPOLIA_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
-    echo "   Solver    ($BASE_SOLVER_ADDRESS)"
-    if [ -n "$SEPOLIA_USDC_ADDRESS" ]; then
-        usdc_balance=$(get_evm_token_balance "$BASE_SOLVER_ADDRESS" "$SEPOLIA_USDC_ADDRESS" "$SEPOLIA_RPC_URL")
+    echo "   Solver    ($BASE_SOLVER_ADDR)"
+    if [ -n "$SEPOLIA_USDC_ADDR" ]; then
+        usdc_balance=$(get_evm_token_balance "$BASE_SOLVER_ADDR" "$SEPOLIA_USDC_ADDR" "$SEPOLIA_RPC_URL")
         usdc_formatted=$(format_balance "$usdc_balance" "$SEPOLIA_USDC_DECIMALS" "USDC")
         echo "             $eth_formatted, $usdc_formatted"
     else
@@ -504,28 +504,28 @@ check_evm_contract() {
 # Read from verifier_testnet.toml (gitignored config file)
 VERIFIER_CONFIG="$PROJECT_ROOT/trusted-verifier/config/verifier_testnet.toml"
 if [ -f "$VERIFIER_CONFIG" ]; then
-    MOVEMENT_INTENT_MODULE_ADDRESS=$(grep -A5 "\[hub_chain\]" "$VERIFIER_CONFIG" | grep "intent_module_addr" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' || echo "")
+    MOVEMENT_INTENT_MODULE_ADDR=$(grep -A5 "\[hub_chain\]" "$VERIFIER_CONFIG" | grep "intent_module_addr" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' || echo "")
 fi
 
-if [ -z "$MOVEMENT_INTENT_MODULE_ADDRESS" ] || [ "$MOVEMENT_INTENT_MODULE_ADDRESS" = "" ]; then
+if [ -z "$MOVEMENT_INTENT_MODULE_ADDR" ] || [ "$MOVEMENT_INTENT_MODULE_ADDR" = "" ]; then
     echo "   Movement Intent Module: ⏳ Not configured (check verifier_testnet.toml)"
 else
-    status=$(check_movement_module "$MOVEMENT_INTENT_MODULE_ADDRESS")
-    echo "   Movement Intent Module ($MOVEMENT_INTENT_MODULE_ADDRESS)"
+    status=$(check_movement_module "$MOVEMENT_INTENT_MODULE_ADDR")
+    echo "   Movement Intent Module ($MOVEMENT_INTENT_MODULE_ADDR)"
     echo "             Status: $status Deployed"
 fi
 
 # Base Escrow Contract
 # Read from verifier_testnet.toml (gitignored config file)
 if [ -f "$VERIFIER_CONFIG" ]; then
-    BASE_ESCROW_CONTRACT_ADDRESS=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "escrow_contract_addr" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' || echo "")
+    BASE_ESCROW_CONTRACT_ADDR=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "escrow_contract_addr" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' || echo "")
 fi
 
-if [ -z "$BASE_ESCROW_CONTRACT_ADDRESS" ] || [ "$BASE_ESCROW_CONTRACT_ADDRESS" = "" ]; then
+if [ -z "$BASE_ESCROW_CONTRACT_ADDR" ] || [ "$BASE_ESCROW_CONTRACT_ADDR" = "" ]; then
     echo "   Base Escrow Contract:   ⏳ Not configured (check verifier_testnet.toml)"
 else
-    status=$(check_evm_contract "$BASE_ESCROW_CONTRACT_ADDRESS" "$BASE_RPC_URL")
-    echo "   Base Escrow Contract ($BASE_ESCROW_CONTRACT_ADDRESS)"
+    status=$(check_evm_contract "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL")
+    echo "   Base Escrow Contract ($BASE_ESCROW_CONTRACT_ADDR)"
     echo "             Status: $status Deployed"
 fi
 
@@ -543,47 +543,47 @@ ready_count=0
 total_count=6
 
 # Check balances
-if [ -n "$MOVEMENT_DEPLOYER_ADDRESS" ]; then
-    balance=$(get_movement_balance "$MOVEMENT_DEPLOYER_ADDRESS")
+if [ -n "$MOVEMENT_DEPLOYER_ADDR" ]; then
+    balance=$(get_movement_balance "$MOVEMENT_DEPLOYER_ADDR")
     if [ "$balance" != "0" ] && [ -n "$balance" ]; then
         ((ready_count++))
     fi
 fi
 
-if [ -n "$BASE_DEPLOYER_ADDRESS" ]; then
-    balance=$(get_base_eth_balance "$BASE_DEPLOYER_ADDRESS")
+if [ -n "$BASE_DEPLOYER_ADDR" ]; then
+    balance=$(get_base_eth_balance "$BASE_DEPLOYER_ADDR")
     if [ "$balance" != "0" ] && [ -n "$balance" ]; then
         ((ready_count++))
     fi
 fi
 
 # Check requester/solver have funds
-if [ -n "$MOVEMENT_REQUESTER_ADDRESS" ]; then
-    balance=$(get_movement_balance "$MOVEMENT_REQUESTER_ADDRESS")
+if [ -n "$MOVEMENT_REQUESTER_ADDR" ]; then
+    balance=$(get_movement_balance "$MOVEMENT_REQUESTER_ADDR")
     if [ "$balance" != "0" ] && [ -n "$balance" ]; then
         ((ready_count++))
     fi
 fi
 
-if [ -n "$BASE_REQUESTER_ADDRESS" ]; then
-    balance=$(get_base_eth_balance "$BASE_REQUESTER_ADDRESS")
+if [ -n "$BASE_REQUESTER_ADDR" ]; then
+    balance=$(get_base_eth_balance "$BASE_REQUESTER_ADDR")
     if [ "$balance" != "0" ] && [ -n "$balance" ]; then
         ((ready_count++))
     fi
 fi
 
 # Check contracts deployed
-if [ -n "$MOVEMENT_INTENT_MODULE_ADDRESS" ] && [ "$MOVEMENT_INTENT_MODULE_ADDRESS" != "" ]; then
+if [ -n "$MOVEMENT_INTENT_MODULE_ADDR" ] && [ "$MOVEMENT_INTENT_MODULE_ADDR" != "" ]; then
     ((ready_count++))
 fi
 
-if [ -n "$BASE_ESCROW_CONTRACT_ADDRESS" ] && [ "$BASE_ESCROW_CONTRACT_ADDRESS" != "" ]; then
+if [ -n "$BASE_ESCROW_CONTRACT_ADDR" ] && [ "$BASE_ESCROW_CONTRACT_ADDR" != "" ]; then
     ((ready_count++))
 fi
 
 echo "   Readiness: $ready_count/$total_count checks passed"
 
-if [ -z "$MOVEMENT_USDC_ADDRESS" ] || [ "$MOVEMENT_USDC_ADDRESS" = "" ]; then
+if [ -z "$MOVEMENT_USDC_ADDR" ] || [ "$MOVEMENT_USDC_ADDR" = "" ]; then
     echo ""
     echo " Note: Movement USDC.e address not configured in testnet-assets.toml"
 fi

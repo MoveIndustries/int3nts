@@ -31,7 +31,7 @@ generate_solver_config_svm() {
         source "$PROJECT_ROOT/.tmp/chain-info.env"
     fi
 
-    if [ -z "$USD_CON_SVM_MINT_ADDRESS" ] || [ -z "$SOLVER_SVM_PUBKEY" ] || [ -z "$SVM_SOLVER_KEYPAIR" ]; then
+    if [ -z "$USD_SVM_MINT_ADDR" ] || [ -z "$SOLVER_SVM_PUBKEY" ] || [ -z "$SVM_SOLVER_KEYPAIR" ]; then
         log_and_echo "❌ ERROR: Missing SVM chain info. Run chain-connected-svm/setup-requester-solver.sh first."
         exit 1
     fi
@@ -49,7 +49,7 @@ generate_solver_config_svm() {
     local solver_addr="0x${solver_chain1_addr}"
 
     local svm_token_hex
-    svm_token_hex=$(svm_pubkey_to_hex "$USD_CON_SVM_MINT_ADDRESS")
+    svm_token_hex=$(svm_pubkey_to_hex "$USD_SVM_MINT_ADDR")
 
     log "   Generating solver config:"
     log "   - Verifier URL: $verifier_url"
@@ -103,7 +103,7 @@ mkdir -p "$(dirname "$SOLVER_CONFIG")"
 generate_solver_config_svm "$SOLVER_CONFIG"
 
 export SVM_SOLVER_KEYPAIR_PATH="$SVM_SOLVER_KEYPAIR"
-export SOLVER_SVM_ADDRESS=$(svm_pubkey_to_hex "$SOLVER_SVM_PUBKEY")
+export SOLVER_SVM_ADDR=$(svm_pubkey_to_hex "$SOLVER_SVM_PUBKEY")
 
 unset MOVEMENT_SOLVER_PRIVATE_KEY
 log "   Unset MOVEMENT_SOLVER_PRIVATE_KEY (E2E tests use profile keys only)"

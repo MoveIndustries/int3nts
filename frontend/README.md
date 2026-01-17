@@ -34,7 +34,7 @@ Create a `.env.local` file:
 
 ```
 NEXT_PUBLIC_VERIFIER_URL=http://localhost:3333
-NEXT_PUBLIC_MVM_HUB_RPC=https://testnet.movementnetwork.xyz
+NEXT_PUBLIC_HUB_RPC=https://testnet.movementnetwork.xyz
 NEXT_PUBLIC_EVM_RPC=https://...
 ```
 

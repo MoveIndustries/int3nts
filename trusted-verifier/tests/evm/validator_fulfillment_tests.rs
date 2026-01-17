@@ -15,7 +15,7 @@ use test_helpers::{
     build_test_config_with_evm, create_default_evm_transaction,
     create_default_fulfillment_transaction_params_evm, create_default_intent_evm,
     setup_mock_server_with_registry_evm, DUMMY_INTENT_ID, DUMMY_REQUESTER_ADDR_EVM,
-    DUMMY_SOLVER_ADDR_EVM, DUMMY_SOLVER_ADDR_MVM_HUB, DUMMY_SOLVER_REGISTRY_ADDR,
+    DUMMY_SOLVER_ADDR_EVM, DUMMY_SOLVER_ADDR_HUB, DUMMY_SOLVER_REGISTRY_ADDR,
     DUMMY_TOKEN_ADDR_EVM,
 };
 
@@ -297,11 +297,11 @@ async fn test_validate_outflow_fulfillment_success() {
     let solver_registry_addr = DUMMY_SOLVER_REGISTRY_ADDR;
 
     let (_mock_server, validator) =
-        setup_mock_server_with_registry_evm(solver_registry_addr, DUMMY_SOLVER_ADDR_MVM_HUB, Some(DUMMY_SOLVER_ADDR_EVM)).await;
+        setup_mock_server_with_registry_evm(solver_registry_addr, DUMMY_SOLVER_ADDR_HUB, Some(DUMMY_SOLVER_ADDR_EVM)).await;
 
     let intent = IntentEvent {
         desired_amount: 25000000, // For outflow intents, validation uses desired_amount (amount desired on connected chain)
-        reserved_solver_addr: Some(DUMMY_SOLVER_ADDR_MVM_HUB.to_string()),
+        reserved_solver_addr: Some(DUMMY_SOLVER_ADDR_HUB.to_string()),
         ..create_default_intent_evm()
     };
 
@@ -333,13 +333,13 @@ async fn test_validate_outflow_fulfillment_succeeds_with_normalized_intent_id() 
     let solver_registry_addr = DUMMY_SOLVER_REGISTRY_ADDR;
 
     let (_mock_server, validator) =
-        setup_mock_server_with_registry_evm(solver_registry_addr, DUMMY_SOLVER_ADDR_MVM_HUB, Some(DUMMY_SOLVER_ADDR_EVM)).await;
+        setup_mock_server_with_registry_evm(solver_registry_addr, DUMMY_SOLVER_ADDR_HUB, Some(DUMMY_SOLVER_ADDR_EVM)).await;
 
     // Request-intent has intent_id without leading zeros
     let intent = IntentEvent {
         intent_id: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
         desired_amount: 25000000,
-        reserved_solver_addr: Some(DUMMY_SOLVER_ADDR_MVM_HUB.to_string()),
+        reserved_solver_addr: Some(DUMMY_SOLVER_ADDR_HUB.to_string()),
         ..create_default_intent_evm()
     };
 
@@ -516,14 +516,14 @@ async fn test_validate_outflow_fulfillment_fails_on_solver_mismatch() {
 
     let (_mock_server, validator) = setup_mock_server_with_registry_evm(
         solver_registry_addr,
-        DUMMY_SOLVER_ADDR_MVM_HUB,
+        DUMMY_SOLVER_ADDR_HUB,
         Some(DUMMY_SOLVER_ADDR_EVM),
     )
     .await;
 
     let intent = IntentEvent {
         desired_amount: 1000, // Set desired_amount to avoid validation failure on amount check
-        reserved_solver_addr: Some(DUMMY_SOLVER_ADDR_MVM_HUB.to_string()),
+        reserved_solver_addr: Some(DUMMY_SOLVER_ADDR_HUB.to_string()),
         ..create_default_intent_evm()
     };
 

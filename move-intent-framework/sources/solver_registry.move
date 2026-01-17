@@ -18,11 +18,11 @@ module mvmt_intent::solver_registry {
     const E_ALREADY_INITIALIZED: u64 = 2;
     const E_SOLVER_NOT_FOUND: u64 = 3;
     const E_INVALID_PUBLIC_KEY: u64 = 4;
-    const E_INVALID_EVM_ADDRESS: u64 = 5;
+    const E_INVALID_EVM_ADDR: u64 = 5;
     const E_SOLVER_ALREADY_REGISTERED: u64 = 6;
     const E_PUBLIC_KEY_LENGTH_INVALID: u64 = 7;
-    const E_EVM_ADDRESS_LENGTH_INVALID: u64 = 8;
-    const E_SVM_ADDRESS_LENGTH_INVALID: u64 = 9;
+    const E_EVM_ADDR_LENGTH_INVALID: u64 = 8;
+    const E_SVM_ADDR_LENGTH_INVALID: u64 = 9;
     
     // ==================== Constants ====================
     
@@ -30,10 +30,10 @@ module mvmt_intent::solver_registry {
     const ED25519_PUBLIC_KEY_LENGTH: u64 = 32;
     
     /// EVM address length in bytes (20 bytes = 160 bits)
-    const EVM_ADDRESS_LENGTH: u64 = 20;
+    const EVM_ADDR_LENGTH: u64 = 20;
     
     /// SVM address length in bytes (32 bytes)
-    const SVM_ADDRESS_LENGTH: u64 = 32;
+    const SVM_ADDR_LENGTH: u64 = 32;
     
     // ==================== Structs ====================
     
@@ -130,14 +130,14 @@ module mvmt_intent::solver_registry {
         // Empty vector (0 bytes) means "not set"
         let evm_addr_length = vector::length(&connected_chain_evm_addr);
         if (evm_addr_length > 0) {
-            assert!(evm_addr_length == EVM_ADDRESS_LENGTH, E_EVM_ADDRESS_LENGTH_INVALID);
+            assert!(evm_addr_length == EVM_ADDR_LENGTH, E_EVM_ADDR_LENGTH_INVALID);
         };
 
         // Validate SVM address length if provided (non-empty)
         // Empty vector (0 bytes) means "not set"
         let svm_addr_length = vector::length(&connected_chain_svm_addr);
         if (svm_addr_length > 0) {
-            assert!(svm_addr_length == SVM_ADDRESS_LENGTH, E_SVM_ADDRESS_LENGTH_INVALID);
+            assert!(svm_addr_length == SVM_ADDR_LENGTH, E_SVM_ADDR_LENGTH_INVALID);
         };
         
         // Validate public key is a valid Ed25519 public key
@@ -222,13 +222,13 @@ module mvmt_intent::solver_registry {
         // Empty vector (0 bytes) means "not set"
         let evm_addr_length = vector::length(&connected_chain_evm_addr);
         if (evm_addr_length > 0) {
-            assert!(evm_addr_length == EVM_ADDRESS_LENGTH, E_EVM_ADDRESS_LENGTH_INVALID);
+            assert!(evm_addr_length == EVM_ADDR_LENGTH, E_EVM_ADDR_LENGTH_INVALID);
         };
 
         // Validate SVM address length if provided (non-empty)
         let svm_addr_length = vector::length(&connected_chain_svm_addr);
         if (svm_addr_length > 0) {
-            assert!(svm_addr_length == SVM_ADDRESS_LENGTH, E_SVM_ADDRESS_LENGTH_INVALID);
+            assert!(svm_addr_length == SVM_ADDR_LENGTH, E_SVM_ADDR_LENGTH_INVALID);
         };
 
         // Validate public key is a valid Ed25519 public key

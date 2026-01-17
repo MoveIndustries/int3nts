@@ -206,7 +206,7 @@ setup_solver_config() {
 
 # Save intent information to file
 # Usage: save_intent_info [intent_id] [hub_intent_addr]
-# If arguments are provided, uses them; otherwise uses INTENT_ID and HUB_INTENT_ADDRESS env vars
+# If arguments are provided, uses them; otherwise uses INTENT_ID and HUB_INTENT_ADDR env vars
 # Saves to ${PROJECT_ROOT}/.tmp/intent-info.env
 save_intent_info() {
     if [ -z "$PROJECT_ROOT" ]; then
@@ -214,7 +214,7 @@ save_intent_info() {
     fi
 
     local intent_id="${1:-$INTENT_ID}"
-    local hub_intent_addr="${2:-$HUB_INTENT_ADDRESS}"
+    local hub_intent_addr="${2:-$HUB_INTENT_ADDR}"
 
     if [ -z "$intent_id" ]; then
         log_and_echo "❌ ERROR: save_intent_info() requires INTENT_ID"
@@ -227,15 +227,15 @@ save_intent_info() {
     echo "INTENT_ID=$intent_id" > "$INTENT_INFO_FILE"
     
     if [ -n "$hub_intent_addr" ] && [ "$hub_intent_addr" != "null" ]; then
-        echo "HUB_INTENT_ADDRESS=$hub_intent_addr" >> "$INTENT_INFO_FILE"
+        echo "HUB_INTENT_ADDR=$hub_intent_addr" >> "$INTENT_INFO_FILE"
     fi
     
-    # Save SOLVER_EVM_ADDRESS if set (for EVM inflow escrow creation)
-    if [ -n "$SOLVER_EVM_ADDRESS" ] && [ "$SOLVER_EVM_ADDRESS" != "null" ]; then
-        echo "SOLVER_EVM_ADDRESS=$SOLVER_EVM_ADDRESS" >> "$INTENT_INFO_FILE"
-        log "   Saved SOLVER_EVM_ADDRESS to intent info file"
+    # Save SOLVER_EVM_ADDR if set (for EVM inflow escrow creation)
+    if [ -n "$SOLVER_EVM_ADDR" ] && [ "$SOLVER_EVM_ADDR" != "null" ]; then
+        echo "SOLVER_EVM_ADDR=$SOLVER_EVM_ADDR" >> "$INTENT_INFO_FILE"
+        log "   Saved SOLVER_EVM_ADDR to intent info file"
     else
-        log "   SOLVER_EVM_ADDRESS not set or null, skipping save"
+        log "   SOLVER_EVM_ADDR not set or null, skipping save"
     fi
     
     log "    Intent info saved to: $INTENT_INFO_FILE"
@@ -243,7 +243,7 @@ save_intent_info() {
 
 # Load intent information from file
 # Usage: load_intent_info [required_vars]
-#   required_vars: comma-separated list of required variables (e.g., "INTENT_ID,HUB_INTENT_ADDRESS")
+#   required_vars: comma-separated list of required variables (e.g., "INTENT_ID,HUB_INTENT_ADDR")
 #   If not provided, only INTENT_ID is required
 #   If INTENT_ID is already set, skips loading (allows override via env var)
 # Loads from ${PROJECT_ROOT}/.tmp/intent-info.env
@@ -263,8 +263,8 @@ load_intent_info() {
 
     if [ ! -f "$INTENT_INFO_FILE" ]; then
         log_and_echo "❌ ERROR: intent-info.env not found at $INTENT_INFO_FILE"
-        if [ "$required_vars" = "INTENT_ID,HUB_INTENT_ADDRESS" ]; then
-            log_and_echo "   Run inflow-submit-hub-intent.sh first, or provide INTENT_ID=<id> and HUB_INTENT_ADDRESS=<address>"
+        if [ "$required_vars" = "INTENT_ID,HUB_INTENT_ADDR" ]; then
+            log_and_echo "   Run inflow-submit-hub-intent.sh first, or provide INTENT_ID=<id> and HUB_INTENT_ADDR=<address>"
         else
             log_and_echo "   Run inflow-submit-hub-intent.sh first, or provide INTENT_ID=<id>"
         fi
@@ -281,7 +281,7 @@ load_intent_info() {
         local value="${!var}"
         if [ -z "$value" ]; then
             log_and_echo "❌ ERROR: $var not found in intent-info.env"
-            if [ "$required_vars" = "INTENT_ID,HUB_INTENT_ADDRESS" ]; then
+            if [ "$required_vars" = "INTENT_ID,HUB_INTENT_ADDR" ]; then
                 log_and_echo "   Run inflow-submit-hub-intent.sh first"
             fi
             exit 1

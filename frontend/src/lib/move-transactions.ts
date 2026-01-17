@@ -5,7 +5,7 @@
 import { getIntentContractAddress } from '@/config/chains';
 
 // Intent contract address on Movement testnet (re-exported from chains config for backward compatibility)
-export const INTENT_MODULE_ADDRESS = getIntentContractAddress();
+export const INTENT_MODULE_ADDR = getIntentContractAddress();
 
 /**
  * Convert a hex string to Uint8Array.

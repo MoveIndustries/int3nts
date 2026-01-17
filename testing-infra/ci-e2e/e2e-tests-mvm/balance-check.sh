@@ -22,7 +22,7 @@ REQUESTER_CHAIN_CONNECTED_EXPECTED="${4:-}"
 
 # Get test tokens addresses
 TEST_TOKENS_HUB=$(get_profile_address "test-tokens-chain1" 2>/dev/null) || true
-TEST_TOKENS_MVM_CON=$(get_profile_address "test-tokens-chain2" 2>/dev/null) || true
+USD_MVMCON_MODULE_ADDR=$(get_profile_address "test-tokens-chain2" 2>/dev/null) || true
 
 # Display balances
 if [ -z "$TEST_TOKENS_HUB" ]; then
@@ -32,17 +32,17 @@ else
     display_balances_hub "0x$TEST_TOKENS_HUB"
 fi
 
-if [ -z "$TEST_TOKENS_MVM_CON" ]; then
+if [ -z "$USD_MVMCON_MODULE_ADDR" ]; then
     echo "️  Warning: test-tokens-chain2 profile not found, skipping USDcon balances"
     display_balances_connected_mvm
 else
-    display_balances_connected_mvm "0x$TEST_TOKENS_MVM_CON"
+    display_balances_connected_mvm "0x$USD_MVMCON_MODULE_ADDR"
 fi
 
 # Validate solver balance on Hub
 if [ -n "$SOLVER_CHAIN_HUB_EXPECTED" ] && [ "$SOLVER_CHAIN_HUB_EXPECTED" != "-1" ] && [ -n "$TEST_TOKENS_HUB" ]; then
-    SOLVER_CHAIN_HUB_ADDRESS=$(get_profile_address "solver-chain1" 2>/dev/null || echo "")
-    if [ -n "$SOLVER_CHAIN_HUB_ADDRESS" ]; then
+    SOLVER_CHAIN_HUB_ADDR=$(get_profile_address "solver-chain1" 2>/dev/null || echo "")
+    if [ -n "$SOLVER_CHAIN_HUB_ADDR" ]; then
         SOLVER_CHAIN_HUB_ACTUAL=$(get_usdxyz_balance "solver-chain1" "1" "0x$TEST_TOKENS_HUB" 2>/dev/null || echo "0")
         
         if [ "$SOLVER_CHAIN_HUB_ACTUAL" != "$SOLVER_CHAIN_HUB_EXPECTED" ]; then
@@ -58,8 +58,8 @@ fi
 
 # Validate requester balance on Hub
 if [ -n "$REQUESTER_CHAIN_HUB_EXPECTED" ] && [ "$REQUESTER_CHAIN_HUB_EXPECTED" != "-1" ] && [ -n "$TEST_TOKENS_HUB" ]; then
-    REQUESTER_CHAIN_HUB_ADDRESS=$(get_profile_address "requester-chain1" 2>/dev/null || echo "")
-    if [ -n "$REQUESTER_CHAIN_HUB_ADDRESS" ]; then
+    REQUESTER_CHAIN_HUB_ADDR=$(get_profile_address "requester-chain1" 2>/dev/null || echo "")
+    if [ -n "$REQUESTER_CHAIN_HUB_ADDR" ]; then
         REQUESTER_CHAIN_HUB_ACTUAL=$(get_usdxyz_balance "requester-chain1" "1" "0x$TEST_TOKENS_HUB" 2>/dev/null || echo "0")
         
         if [ "$REQUESTER_CHAIN_HUB_ACTUAL" != "$REQUESTER_CHAIN_HUB_EXPECTED" ]; then
@@ -74,10 +74,10 @@ if [ -n "$REQUESTER_CHAIN_HUB_EXPECTED" ] && [ "$REQUESTER_CHAIN_HUB_EXPECTED" !
 fi
 
 # Validate solver balance on Chain 2 (Connected MVM)
-if [ -n "$SOLVER_CHAIN_CONNECTED_EXPECTED" ] && [ "$SOLVER_CHAIN_CONNECTED_EXPECTED" != "-1" ] && [ -n "$TEST_TOKENS_MVM_CON" ]; then
-    SOLVER_MVM_CON_ADDRESS=$(get_profile_address "solver-chain2" 2>/dev/null || echo "")
-    if [ -n "$SOLVER_MVM_CON_ADDRESS" ]; then
-        SOLVER_CHAIN_CONNECTED_ACTUAL=$(get_usdxyz_balance "solver-chain2" "2" "0x$TEST_TOKENS_MVM_CON" 2>/dev/null || echo "0")
+if [ -n "$SOLVER_CHAIN_CONNECTED_EXPECTED" ] && [ "$SOLVER_CHAIN_CONNECTED_EXPECTED" != "-1" ] && [ -n "$USD_MVMCON_MODULE_ADDR" ]; then
+    SOLVER_MVMCON_ADDR=$(get_profile_address "solver-chain2" 2>/dev/null || echo "")
+    if [ -n "$SOLVER_MVMCON_ADDR" ]; then
+        SOLVER_CHAIN_CONNECTED_ACTUAL=$(get_usdxyz_balance "solver-chain2" "2" "0x$USD_MVMCON_MODULE_ADDR" 2>/dev/null || echo "0")
         
         if [ "$SOLVER_CHAIN_CONNECTED_ACTUAL" != "$SOLVER_CHAIN_CONNECTED_EXPECTED" ]; then
             log_and_echo "❌ ERROR: Solver balance mismatch on Chain 2 (Connected MVM)!"
@@ -91,10 +91,10 @@ if [ -n "$SOLVER_CHAIN_CONNECTED_EXPECTED" ] && [ "$SOLVER_CHAIN_CONNECTED_EXPEC
 fi
 
 # Validate requester balance on Chain 2 (Connected MVM)
-if [ -n "$REQUESTER_CHAIN_CONNECTED_EXPECTED" ] && [ "$REQUESTER_CHAIN_CONNECTED_EXPECTED" != "-1" ] && [ -n "$TEST_TOKENS_MVM_CON" ]; then
-    REQUESTER_MVM_CON_ADDRESS=$(get_profile_address "requester-chain2" 2>/dev/null || echo "")
-    if [ -n "$REQUESTER_MVM_CON_ADDRESS" ]; then
-        REQUESTER_CHAIN_CONNECTED_ACTUAL=$(get_usdxyz_balance "requester-chain2" "2" "0x$TEST_TOKENS_MVM_CON" 2>/dev/null || echo "0")
+if [ -n "$REQUESTER_CHAIN_CONNECTED_EXPECTED" ] && [ "$REQUESTER_CHAIN_CONNECTED_EXPECTED" != "-1" ] && [ -n "$USD_MVMCON_MODULE_ADDR" ]; then
+    REQUESTER_MVMCON_ADDR=$(get_profile_address "requester-chain2" 2>/dev/null || echo "")
+    if [ -n "$REQUESTER_MVMCON_ADDR" ]; then
+        REQUESTER_CHAIN_CONNECTED_ACTUAL=$(get_usdxyz_balance "requester-chain2" "2" "0x$USD_MVMCON_MODULE_ADDR" 2>/dev/null || echo "0")
         
         if [ "$REQUESTER_CHAIN_CONNECTED_ACTUAL" != "$REQUESTER_CHAIN_CONNECTED_EXPECTED" ]; then
             log_and_echo "❌ ERROR: Requester balance mismatch on Chain 2 (Connected MVM)!"

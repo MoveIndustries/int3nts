@@ -91,7 +91,7 @@ VERIFIER_URL=$(grep "^verifier_url" "$SOLVER_CONFIG" | grep -v "^#" | head -1 | 
 HUB_RPC=$(grep -A5 "\[hub_chain\]" "$SOLVER_CONFIG" | grep "^rpc_url" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
 HUB_MODULE=$(grep -A5 "\[hub_chain\]" "$SOLVER_CONFIG" | grep "^module_addr" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
 SOLVER_PROFILE=$(grep -A5 "\[solver\]" "$SOLVER_CONFIG" | grep "^profile" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
-SOLVER_ADDRESS=$(grep -A5 "\[solver\]" "$SOLVER_CONFIG" | grep "^address" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
+SOLVER_ADDR=$(grep -A5 "\[solver\]" "$SOLVER_CONFIG" | grep "^address" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
 
 # Check if connected chain is EVM and extract escrow address
 CONNECTED_TYPE=$(grep -A2 "\[connected_chain\]" "$SOLVER_CONFIG" | grep "^type" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
@@ -126,7 +126,7 @@ if [ "$CONNECTED_TYPE" = "evm" ]; then
 fi
 echo "   Solver:"
 echo "     Profile:          $SOLVER_PROFILE"
-echo "     Address:          $SOLVER_ADDRESS"
+echo "     Address:          $SOLVER_ADDR"
 echo ""
 
 # Check verifier is reachable
@@ -183,9 +183,9 @@ cd "$PROJECT_ROOT"
 
 # Export environment variables for solver (needed for nix develop subprocess)
 export BASE_SOLVER_PRIVATE_KEY
-# Export solver addresses for auto-registration (solver reads BASE_SOLVER_ADDRESS or SOLVER_EVM_ADDRESS)
-export BASE_SOLVER_ADDRESS
-export SOLVER_EVM_ADDRESS  # May be empty, that's OK
+# Export solver addresses for auto-registration (solver reads BASE_SOLVER_ADDR or SOLVER_EVM_ADDR)
+export BASE_SOLVER_ADDR
+export SOLVER_EVM_ADDR  # May be empty, that's OK
 # Export Movement solver private key for registration (solver reads from env var first, then profile)
 if [ -n "$MOVEMENT_SOLVER_PRIVATE_KEY" ]; then
     export MOVEMENT_SOLVER_PRIVATE_KEY
@@ -200,11 +200,11 @@ ENV_VARS="SOLVER_CONFIG_PATH='$SOLVER_CONFIG' RUST_LOG=info,solver::service::tra
 if [ -n "$BASE_SOLVER_PRIVATE_KEY" ]; then
     ENV_VARS="$ENV_VARS BASE_SOLVER_PRIVATE_KEY='$BASE_SOLVER_PRIVATE_KEY'"
 fi
-if [ -n "$BASE_SOLVER_ADDRESS" ]; then
-    ENV_VARS="$ENV_VARS BASE_SOLVER_ADDRESS='$BASE_SOLVER_ADDRESS'"
+if [ -n "$BASE_SOLVER_ADDR" ]; then
+    ENV_VARS="$ENV_VARS BASE_SOLVER_ADDR='$BASE_SOLVER_ADDR'"
 fi
-if [ -n "$SOLVER_EVM_ADDRESS" ]; then
-    ENV_VARS="$ENV_VARS SOLVER_EVM_ADDRESS='$SOLVER_EVM_ADDRESS'"
+if [ -n "$SOLVER_EVM_ADDR" ]; then
+    ENV_VARS="$ENV_VARS SOLVER_EVM_ADDR='$SOLVER_EVM_ADDR'"
 fi
 if [ -n "$MOVEMENT_SOLVER_PRIVATE_KEY" ]; then
     ENV_VARS="$ENV_VARS MOVEMENT_SOLVER_PRIVATE_KEY='$MOVEMENT_SOLVER_PRIVATE_KEY'"

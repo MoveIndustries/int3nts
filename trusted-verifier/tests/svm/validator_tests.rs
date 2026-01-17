@@ -9,7 +9,7 @@ use trusted_verifier::monitor::IntentEvent;
 mod test_helpers;
 use test_helpers::{
     create_default_intent_mvm, setup_mock_server_with_error,
-    setup_mock_server_with_svm_address_response, DUMMY_SOLVER_ADDR_MVM_HUB,
+    setup_mock_server_with_svm_address_response, DUMMY_SOLVER_ADDR_HUB,
     DUMMY_SOLVER_ADDR_SVM, DUMMY_SOLVER_REGISTRY_ADDR,
 };
 
@@ -39,7 +39,7 @@ fn create_test_intent(solver_addr: Option<String>) -> IntentEvent {
 async fn test_successful_svm_solver_validation() {
     let _ = tracing_subscriber::fmt::try_init();
 
-    let solver_addr = DUMMY_SOLVER_ADDR_MVM_HUB;
+    let solver_addr = DUMMY_SOLVER_ADDR_HUB;
     let solver_connected_chain_svm_addr = DUMMY_SOLVER_ADDR_SVM;
     let (_mock_server, config, _validator) =
         setup_mock_server_with_svm_address_response(solver_addr, Some(solver_connected_chain_svm_addr))
@@ -70,7 +70,7 @@ async fn test_successful_svm_solver_validation() {
 async fn test_rejection_when_solver_not_registered() {
     let _ = tracing_subscriber::fmt::try_init();
 
-    let solver_addr = DUMMY_SOLVER_ADDR_MVM_HUB;
+    let solver_addr = DUMMY_SOLVER_ADDR_HUB;
     let (_mock_server, config, _validator) =
         setup_mock_server_with_svm_address_response(solver_addr, None).await;
 
@@ -103,7 +103,7 @@ async fn test_rejection_when_solver_not_registered() {
 async fn test_rejection_when_svm_addresses_dont_match() {
     let _ = tracing_subscriber::fmt::try_init();
 
-    let solver_addr = DUMMY_SOLVER_ADDR_MVM_HUB;
+    let solver_addr = DUMMY_SOLVER_ADDR_HUB;
     let solver_connected_chain_svm_addr = DUMMY_SOLVER_ADDR_SVM;
     let (_mock_server, config, _validator) =
         setup_mock_server_with_svm_address_response(solver_addr, Some(solver_connected_chain_svm_addr))
@@ -158,7 +158,7 @@ async fn test_svm_address_normalization() {
     ];
 
     for (escrow_addr, registered_addr, should_match) in test_cases {
-        let solver_addr = DUMMY_SOLVER_ADDR_MVM_HUB;
+        let solver_addr = DUMMY_SOLVER_ADDR_HUB;
         let (_mock_server, config, _validator) =
             setup_mock_server_with_svm_address_response(solver_addr, Some(registered_addr))
                 .await;
@@ -191,7 +191,7 @@ async fn test_error_handling_for_registry_query_failures() {
 
     let (_mock_server, config, _validator) = setup_mock_server_with_error(500).await;
 
-    let intent = create_test_intent(Some(DUMMY_SOLVER_ADDR_MVM_HUB.to_string()));
+    let intent = create_test_intent(Some(DUMMY_SOLVER_ADDR_HUB.to_string()));
     let result = trusted_verifier::validator::inflow_svm::validate_svm_escrow_solver(
         &intent,
         DUMMY_SOLVER_ADDR_SVM,
@@ -221,7 +221,7 @@ async fn test_rejection_when_intent_has_no_solver() {
     let _ = tracing_subscriber::fmt::try_init();
 
     let (_mock_server, config, _validator) =
-        setup_mock_server_with_svm_address_response(DUMMY_SOLVER_ADDR_MVM_HUB, Some(DUMMY_SOLVER_ADDR_SVM))
+        setup_mock_server_with_svm_address_response(DUMMY_SOLVER_ADDR_HUB, Some(DUMMY_SOLVER_ADDR_SVM))
             .await;
 
     let intent = create_test_intent(None);

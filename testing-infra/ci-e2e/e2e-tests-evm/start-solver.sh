@@ -10,8 +10,8 @@
 # - EVM_RPC_URL: Connected chain RPC URL (EVM)
 # - HUB_CHAIN_ID: Hub chain ID
 # - EVM_CHAIN_ID: Connected EVM chain ID
-# - ACCOUNT_ADDRESS: Hub chain module address
-# - ESCROW_CONTRACT_ADDRESS: EVM escrow contract address
+# - ACCOUNT_ADDR: Hub chain module address
+# - ESCROW_CONTRACT_ADDR: EVM escrow contract address
 # - EVM_PRIVATE_KEY_ENV: Environment variable name for EVM private key
 
 set -e
@@ -50,14 +50,14 @@ generate_solver_config_evm() {
     if [ -f "$PROJECT_ROOT/.tmp/chain-info.env" ]; then
         source "$PROJECT_ROOT/.tmp/chain-info.env"
     fi
-    local evm_token_addr="${USD_CON_EVM_ADDRESS:-}"
+    local evm_token_addr="${USD_EVM_ADDR:-}"
     if [ -z "$evm_token_addr" ]; then
-        log_and_echo "❌ ERROR: USD_CON_EVM_ADDRESS not found in chain-info.env"
+        log_and_echo "❌ ERROR: USD_EVM_ADDR not found in chain-info.env"
         exit 1
     fi
-    local escrow_addr="${ESCROW_CONTRACT_ADDRESS:-}"
+    local escrow_addr="${ESCROW_CONTRACT_ADDR:-}"
     if [ -z "$escrow_addr" ]; then
-        log_and_echo "❌ ERROR: ESCROW_CONTRACT_ADDRESS not found in chain-info.env"
+        log_and_echo "❌ ERROR: ESCROW_CONTRACT_ADDR not found in chain-info.env"
         exit 1
     fi
     # Lowercase and pad to 32 bytes for Move compatibility
@@ -133,13 +133,13 @@ generate_solver_config_evm "$SOLVER_CONFIG"
 
 # Export solver's EVM address for auto-registration
 # Hardhat account #2 is used for solver
-export SOLVER_EVM_ADDRESS=$(get_hardhat_account_address "2")
-if [ -z "$SOLVER_EVM_ADDRESS" ]; then
+export SOLVER_EVM_ADDR=$(get_hardhat_account_address "2")
+if [ -z "$SOLVER_EVM_ADDR" ]; then
     log_and_echo "❌ ERROR: Failed to get solver EVM address"
     log_and_echo "   Make sure Hardhat is running and get_hardhat_account_address is available"
     exit 1
 fi
-log "   Exported SOLVER_EVM_ADDRESS=$SOLVER_EVM_ADDRESS"
+log "   Exported SOLVER_EVM_ADDR=$SOLVER_EVM_ADDR"
 
 # Unset testnet keys to prevent accidental use (E2E tests use profiles only)
 unset MOVEMENT_SOLVER_PRIVATE_KEY

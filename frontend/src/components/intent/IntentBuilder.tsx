@@ -10,7 +10,7 @@ import { SUPPORTED_TOKENS, type TokenConfig, toSmallestUnits } from '@/config/to
 import { CHAIN_CONFIGS } from '@/config/chains';
 import { fetchTokenBalance, type TokenBalance } from '@/lib/balances';
 import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
-import { INTENT_MODULE_ADDRESS, hexToBytes, padEvmAddressToMove } from '@/lib/move-transactions';
+import { INTENT_MODULE_ADDR, hexToBytes, padEvmAddressToMove } from '@/lib/move-transactions';
 import { INTENT_ESCROW_ABI, ERC20_ABI, intentIdToEvmFormat, getEscrowContractAddress } from '@/lib/escrow';
 
 type FlowType = 'inflow' | 'outflow';
@@ -916,7 +916,7 @@ export function IntentBuilder() {
         // Pad offered metadata (EVM token address) to 32 bytes
         const paddedOfferedMetadata = padEvmAddressToMove(savedDraftData.offeredMetadata);
         
-        functionName = `${INTENT_MODULE_ADDRESS}::fa_intent_inflow::create_inflow_intent_entry`;
+        functionName = `${INTENT_MODULE_ADDR}::fa_intent_inflow::create_inflow_intent_entry`;
         functionArguments = [
           paddedOfferedMetadata,
           savedDraftData.offeredAmount,
@@ -941,7 +941,7 @@ export function IntentBuilder() {
         const paddedDesiredMetadata = padEvmAddressToMove(savedDraftData.desiredMetadata);
         console.log('Padded desired metadata:', paddedDesiredMetadata);
         
-        functionName = `${INTENT_MODULE_ADDRESS}::fa_intent_outflow::create_outflow_intent_entry`;
+        functionName = `${INTENT_MODULE_ADDR}::fa_intent_outflow::create_outflow_intent_entry`;
         functionArguments = [
           savedDraftData.offeredMetadata, // Move token - already 32 bytes
           savedDraftData.offeredAmount,

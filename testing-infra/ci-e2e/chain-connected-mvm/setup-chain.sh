@@ -38,10 +38,10 @@ verify_aptos_chain_services "2"
 log ""
 log " Chain 2 Status:"
 CHAIN2_INFO=$(curl -s http://127.0.0.1:8082/v1 2>/dev/null)
-MVM_CON_CHAIN_ID=$(echo "$CHAIN2_INFO" | jq -r '.chain_id // "unknown"' 2>/dev/null)
+MVMCON_CHAIN_ID=$(echo "$CHAIN2_INFO" | jq -r '.chain_id // "unknown"' 2>/dev/null)
 CHAIN2_HEIGHT=$(echo "$CHAIN2_INFO" | jq -r '.block_height // "unknown"' 2>/dev/null)
 CHAIN2_ROLE=$(echo "$CHAIN2_INFO" | jq -r '.node_role // "unknown"' 2>/dev/null)
-log "   Chain 2: ID=$MVM_CON_CHAIN_ID, Height=$CHAIN2_HEIGHT, Role=$CHAIN2_ROLE"
+log "   Chain 2: ID=$MVMCON_CHAIN_ID, Height=$CHAIN2_HEIGHT, Role=$CHAIN2_ROLE"
 
 log ""
 log " Connected chain setup complete!"

@@ -102,7 +102,7 @@ module mvmt_intent::solver_registry_tests {
     }
 
     #[test(aptos_framework = @0x1, mvmt_intent = @0x123, solver = @0xcafe)]
-    #[expected_failure(abort_code = solver_registry::E_EVM_ADDRESS_LENGTH_INVALID)]
+    #[expected_failure(abort_code = solver_registry::E_EVM_ADDR_LENGTH_INVALID)]
     /// What is tested: register_solver aborts when the EVM address length is invalid
     /// Why: Ensure only well-formed EVM addresses are recorded for solvers
     fun test_register_solver_invalid_evm_address_length(
@@ -125,12 +125,12 @@ module mvmt_intent::solver_registry_tests {
             i = i + 1;
         };
         
-        // Should abort with E_EVM_ADDRESS_LENGTH_INVALID
+        // Should abort with E_EVM_ADDR_LENGTH_INVALID
         solver_registry::register_solver(solver, solver_public_key_bytes, @0x0, invalid_evm_addr, vector::empty<u8>());
     }
 
     #[test(aptos_framework = @0x1, mvmt_intent = @0x123, solver = @0xcafe)]
-    #[expected_failure(abort_code = solver_registry::E_SVM_ADDRESS_LENGTH_INVALID)]
+    #[expected_failure(abort_code = solver_registry::E_SVM_ADDR_LENGTH_INVALID)]
     /// What is tested: register_solver aborts when the SVM address length is invalid
     /// Why: Ensure only well-formed SVM addresses are recorded for solvers
     fun test_register_solver_invalid_svm_address_length(

@@ -363,7 +363,7 @@ extract_apt_metadata() {
 
 # Generate solver signature for IntentToSign
 # Usage: generate_solver_signature <profile> <chain_addr> <offered_metadata> <offered_amount> <offered_chain_id> <desired_metadata> <desired_amount> <desired_chain_id> <expiry_time> <issuer> <solver> <chain_num> [log_file]
-# Example: generate_solver_signature "solver-chain1" "$HUB_MODULE_ADDRESS" "$OFFERED_METADATA" "100000000" "1" "$DESIRED_METADATA" "100000000" "2" "$EXPIRY_TIME" "$REQUESTER_HUB_ADDRESS" "$SOLVER_HUB_ADDRESS" "1"
+# Example: generate_solver_signature "solver-chain1" "$HUB_MODULE_ADDR" "$OFFERED_METADATA" "100000000" "1" "$DESIRED_METADATA" "100000000" "2" "$EXPIRY_TIME" "$REQUESTER_HUB_ADDR" "$SOLVER_HUB_ADDR" "1"
 # Returns the signature as hex string (with 0x prefix)
 generate_solver_signature() {
     local profile="$1"
@@ -476,7 +476,7 @@ generate_solver_signature() {
 
 # Initialize solver registry (must be called once before registering solvers)
 # Usage: initialize_solver_registry <profile> <chain_addr> [log_file]
-# Example: initialize_solver_registry "intent-account-chain1" "$HUB_MODULE_ADDRESS"
+# Example: initialize_solver_registry "intent-account-chain1" "$HUB_MODULE_ADDR"
 # Exits on error (except if already initialized, which is handled gracefully)
 initialize_solver_registry() {
     local profile="$1"
@@ -513,7 +513,7 @@ initialize_solver_registry() {
 
 # Initialize intent registry (must be called once before creating intents)
 # Usage: initialize_intent_registry <profile> <chain_addr> [log_file]
-# Example: initialize_intent_registry "intent-account-chain1" "$HUB_MODULE_ADDRESS"
+# Example: initialize_intent_registry "intent-account-chain1" "$HUB_MODULE_ADDR"
 # Exits on error (except if already initialized, which is handled gracefully)
 initialize_intent_registry() {
     local profile="$1"
@@ -623,7 +623,7 @@ get_usdxyz_balance() {
 
 # Assert USDhub/USDcon balance matches expected value or PANIC
 # Usage: assert_usdxyz_balance <profile> <chain_num> <test_tokens_addr> <expected_balance> <checkpoint_name>
-# Example: assert_usdxyz_balance "solver-chain2" "2" "$TEST_TOKENS_MVM_CON_ADDRESS" "1000000" "post-mint"
+# Example: assert_usdxyz_balance "solver-chain2" "2" "$USD_MVMCON_MODULE_ADDR" "1000000" "post-mint"
 # Exits with error if balance doesn't match expected value
 assert_usdxyz_balance() {
     local profile="$1"
@@ -724,8 +724,8 @@ display_balances_connected_mvm() {
 
 # Register solver in the solver registry
 # Usage: register_solver <profile> <chain_addr> <public_key_hex> <mvm_addr> <evm_addr_hex> [log_file]
-# Example: register_solver "solver-chain1" "$HUB_MODULE_ADDRESS" "$SOLVER_PUBLIC_KEY_HEX" "0x0" "0x0000000000000000000000000000000000000001"
-# Example with MVM address: register_solver "solver-chain1" "$HUB_MODULE_ADDRESS" "$SOLVER_PUBLIC_KEY_HEX" "$SOLVER_MVM_CON_ADDRESS" "0x0000000000000000000000000000000000000001"
+# Example: register_solver "solver-chain1" "$HUB_MODULE_ADDR" "$SOLVER_PUBLIC_KEY_HEX" "0x0" "0x0000000000000000000000000000000000000001"
+# Example with MVM address: register_solver "solver-chain1" "$HUB_MODULE_ADDR" "$SOLVER_PUBLIC_KEY_HEX" "$SOLVER_MVMCON_ADDR" "0x0000000000000000000000000000000000000001"
 # Exits on error
 register_solver() {
     local profile="$1"
@@ -822,7 +822,7 @@ verify_solver_registered() {
     
     # Auto-detect chain_addr if not provided
     if [ -z "$chain_addr" ]; then
-        chain_addr="${MOVEMENT_INTENT_MODULE_ADDRESS:-}"
+        chain_addr="${MOVEMENT_INTENT_MODULE_ADDR:-}"
         # Try to get from verifier config
         if [ -z "$chain_addr" ] && [ -n "$VERIFIER_CONFIG_PATH" ] && [ -f "$VERIFIER_CONFIG_PATH" ]; then
             chain_addr=$(grep -A5 "\[hub_chain\]" "$VERIFIER_CONFIG_PATH" | grep "intent_module_addr" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/0x//')
@@ -836,7 +836,7 @@ verify_solver_registered() {
     # Auto-detect solver_addr if not provided
     if [ -z "$solver_addr" ]; then
         solver_addr=$(get_profile_address "$profile" 2>/dev/null || echo "")
-        solver_addr="${solver_addr:-${SOLVER_HUB_ADDRESS:-}}"
+        solver_addr="${solver_addr:-${SOLVER_HUB_ADDR:-}}"
     fi
 
     # Check if we have the required parameters

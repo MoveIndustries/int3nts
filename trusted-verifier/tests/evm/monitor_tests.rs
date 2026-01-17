@@ -9,7 +9,7 @@ use trusted_verifier::monitor::{EventMonitor, FulfillmentEvent};
 mod test_helpers;
 use test_helpers::{
     build_test_config_with_evm, DUMMY_ESCROW_ID_MVM, DUMMY_EXPIRY, DUMMY_INTENT_ADDR_MVM,
-    DUMMY_INTENT_ID, DUMMY_REQUESTER_ADDR_MVM_HUB, DUMMY_SOLVER_ADDR_EVM,
+    DUMMY_INTENT_ID, DUMMY_REQUESTER_ADDR_HUB, DUMMY_SOLVER_ADDR_EVM,
 };
 
 /// Test that EVM escrow detection logic correctly identifies EVM escrows
@@ -114,7 +114,7 @@ async fn test_evm_vs_mvm_escrow_differentiation() {
         escrow_cache.push(trusted_verifier::monitor::EscrowEvent {
             escrow_id: DUMMY_ESCROW_ID_MVM.to_string(),
             intent_id: DUMMY_INTENT_ID.to_string(),
-            requester_addr: DUMMY_REQUESTER_ADDR_MVM_HUB.to_string(),
+            requester_addr: DUMMY_REQUESTER_ADDR_HUB.to_string(),
             offered_metadata: "{}".to_string(),
             offered_amount: 1000,
             desired_metadata: "{}".to_string(),

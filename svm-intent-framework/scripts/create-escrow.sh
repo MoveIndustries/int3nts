@@ -20,8 +20,8 @@ SVM_RPC_URL="${SVM_RPC_URL:-http://localhost:8899}"
 SVM_PAYER_KEYPAIR="${SVM_PAYER_KEYPAIR:-$HOME/.config/solana/id.json}"
 SVM_REQUESTER_KEYPAIR="${SVM_REQUESTER_KEYPAIR:-$SVM_PAYER_KEYPAIR}"
 
-if [ -z "$USD_CON_SVM_MINT_ADDRESS" ]; then
-    echo "[create-escrow.sh] Missing USD_CON_SVM_MINT_ADDRESS"
+if [ -z "$USD_SVM_MINT_ADDR" ]; then
+    echo "[create-escrow.sh] Missing USD_SVM_MINT_ADDR"
     exit 1
 fi
 if [ -z "$SVM_REQUESTER_TOKEN" ]; then
@@ -44,7 +44,7 @@ fi
 ARGS=(create-escrow \
     --payer "$SVM_PAYER_KEYPAIR" \
     --requester "$SVM_REQUESTER_KEYPAIR" \
-    --token-mint "$USD_CON_SVM_MINT_ADDRESS" \
+    --token-mint "$USD_SVM_MINT_ADDR" \
     --requester-token "$SVM_REQUESTER_TOKEN" \
     --solver "$SVM_SOLVER_PUBKEY" \
     --intent-id "$SVM_INTENT_ID" \

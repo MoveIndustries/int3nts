@@ -24,16 +24,16 @@ INTENT_ID="0x$(openssl rand -hex 32)"
 CONNECTED_CHAIN_ID=3
 
 # Get addresses
-HUB_MODULE_ADDRESS=$(get_profile_address "intent-account-chain1")
+HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
 TEST_TOKENS_HUB=$(get_profile_address "test-tokens-chain1")
 
 # Get Requester and Solver addresses on hub
-REQUESTER_HUB_ADDRESS=$(get_profile_address "requester-chain1")
-SOLVER_HUB_ADDRESS=$(get_profile_address "solver-chain1")
+REQUESTER_HUB_ADDR=$(get_profile_address "requester-chain1")
+SOLVER_HUB_ADDR=$(get_profile_address "solver-chain1")
 
 # Get Requester address on connected EVM chain (Account 1)
-REQUESTER_EVM_ADDRESS=$(get_hardhat_account_address "1")
-if [ -z "$REQUESTER_EVM_ADDRESS" ]; then
+REQUESTER_EVM_ADDR=$(get_hardhat_account_address "1")
+if [ -z "$REQUESTER_EVM_ADDR" ]; then
     log_and_echo "❌ ERROR: Failed to get Requester EVM address (Hardhat account 1)"
     log_and_echo "   Make sure Hardhat node is running and chain-connected-evm/utils.sh is available"
     display_service_logs "Missing Requester EVM address for inflow hub intent"
@@ -42,14 +42,14 @@ fi
 
 # Get USDcon EVM address
 source "$PROJECT_ROOT/.tmp/chain-info.env" 2>/dev/null || true
-USD_CON_EVM_ADDRESS="${USD_CON_EVM_ADDRESS:-}"
+USD_EVM_ADDR="${USD_EVM_ADDR:-}"
 
 log ""
 log " Chain Information:"
-log "   Hub Module Address:             $HUB_MODULE_ADDRESS"
-log "   Requester Hub:                  $REQUESTER_HUB_ADDRESS"
-log "   Solver Hub:                     $SOLVER_HUB_ADDRESS"
-log "   Requester EVM (connected):      $REQUESTER_EVM_ADDRESS"
+log "   Hub Module Address:             $HUB_MODULE_ADDR"
+log "   Requester Hub:                  $REQUESTER_HUB_ADDR"
+log "   Solver Hub:                     $SOLVER_HUB_ADDR"
+log "   Requester EVM (connected):      $REQUESTER_EVM_ADDR"
 
 EXPIRY_TIME=$(date -d "+1 hour" +%s)
 
@@ -58,7 +58,7 @@ EXPIRY_TIME=$(date -d "+1 hour" +%s)
 OFFERED_AMOUNT="1000000"  # 1 USDcon = 1_000_000 (6 decimals, on EVM connected chain)
 DESIRED_AMOUNT="1000000"  # 1 USDhub = 1_000_000 (6 decimals, on hub)
 HUB_CHAIN_ID=1
-EVM_ADDRESS="0x0000000000000000000000000000000000000001"
+EVM_ADDR="0x0000000000000000000000000000000000000001"
 
 log ""
 log " Configuration:"
@@ -70,7 +70,7 @@ log "   Desired amount: $DESIRED_AMOUNT (1 USDhub on hub)"
 # Check and display initial balances using common function
 log ""
 display_balances_hub "0x$TEST_TOKENS_HUB"
-display_balances_connected_evm "$USD_CON_EVM_ADDRESS"
+display_balances_connected_evm "$USD_EVM_ADDR"
 log_and_echo ""
 
 # Get USDhub metadata addresses (hub) and USDcon metadata (connected) as needed
@@ -83,11 +83,11 @@ log "     ✅ Got USDhub metadata on Hub: $USDHUB_METADATA_HUB"
 # For EVM inflow: offered token is on EVM chain (connected), desired token is on hub
 # Convert 20-byte Ethereum address to 32-byte Move address by padding with zeros
 # Lowercase for consistent matching with solver acceptance config
-EVM_TOKEN_ADDRESS_NO_PREFIX="${USD_CON_EVM_ADDRESS#0x}"
-EVM_TOKEN_ADDRESS_LOWER=$(echo "$EVM_TOKEN_ADDRESS_NO_PREFIX" | tr '[:upper:]' '[:lower:]')
-OFFERED_METADATA_EVM="0x000000000000000000000000${EVM_TOKEN_ADDRESS_LOWER}"
+EVM_TOKEN_ADDR_NO_PREFIX="${USD_EVM_ADDR#0x}"
+EVM_TOKEN_ADDR_LOWER=$(echo "$EVM_TOKEN_ADDR_NO_PREFIX" | tr '[:upper:]' '[:lower:]')
+OFFERED_METADATA_EVM="0x000000000000000000000000${EVM_TOKEN_ADDR_LOWER}"
 DESIRED_METADATA_HUB="$USDHUB_METADATA_HUB"
-log "     EVM USDcon token address: $USD_CON_EVM_ADDRESS"
+log "     EVM USDcon token address: $USD_EVM_ADDR"
 log "     Padded to 32-byte format: $OFFERED_METADATA_EVM"
 log "     Inflow configuration:"
 log "       Offered metadata (EVM connected chain): $OFFERED_METADATA_EVM"
@@ -112,10 +112,10 @@ DRAFT_DATA=$(build_draft_data \
     "$HUB_CHAIN_ID" \
     "$EXPIRY_TIME" \
     "$INTENT_ID" \
-    "$REQUESTER_HUB_ADDRESS" \
-    "{\"chain_addr\": \"$HUB_MODULE_ADDRESS\", \"flow_type\": \"inflow\", \"connected_chain_type\": \"evm\"}")
+    "$REQUESTER_HUB_ADDR" \
+    "{\"chain_addr\": \"$HUB_MODULE_ADDR\", \"flow_type\": \"inflow\", \"connected_chain_type\": \"evm\"}")
 
-DRAFT_ID=$(submit_draft_intent "$REQUESTER_HUB_ADDRESS" "$DRAFT_DATA" "$EXPIRY_TIME")
+DRAFT_ID=$(submit_draft_intent "$REQUESTER_HUB_ADDR" "$DRAFT_DATA" "$EXPIRY_TIME")
 log "     Draft ID: $DRAFT_ID"
 
 # Step 2: Wait for solver service to sign the draft (polls automatically)
@@ -187,7 +187,7 @@ fi
 log "     Solver EVM address: $RETRIEVED_SOLVER_EVM"
 
 # Export for escrow creation script
-export SOLVER_EVM_ADDRESS="$RETRIEVED_SOLVER_EVM"
+export SOLVER_EVM_ADDR="$RETRIEVED_SOLVER_EVM"
 
 # ============================================================================
 # SECTION 5: CREATE INTENT ON-CHAIN WITH RETRIEVED SIGNATURE
@@ -200,8 +200,8 @@ log "     Solver address: $RETRIEVED_SOLVER"
 
 SOLVER_SIGNATURE_HEX="${RETRIEVED_SIGNATURE#0x}"
 aptos move run --profile requester-chain1 --assume-yes \
-    --function-id "0x${HUB_MODULE_ADDRESS}::fa_intent_inflow::create_inflow_intent_entry" \
-    --args "address:${OFFERED_METADATA_EVM}" "u64:${OFFERED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "address:${DESIRED_METADATA_HUB}" "u64:${DESIRED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${RETRIEVED_SOLVER}" "hex:${SOLVER_SIGNATURE_HEX}" "address:${REQUESTER_EVM_ADDRESS}" >> "$LOG_FILE" 2>&1
+    --function-id "0x${HUB_MODULE_ADDR}::fa_intent_inflow::create_inflow_intent_entry" \
+    --args "address:${OFFERED_METADATA_EVM}" "u64:${OFFERED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "address:${DESIRED_METADATA_HUB}" "u64:${DESIRED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${RETRIEVED_SOLVER}" "hex:${SOLVER_SIGNATURE_HEX}" "address:${REQUESTER_EVM_ADDR}" >> "$LOG_FILE" 2>&1
 
 # ============================================================================
 # SECTION 6: VERIFY RESULTS
@@ -212,11 +212,11 @@ if [ $? -eq 0 ]; then
     # Verify intent was stored on-chain by checking Requester's latest transaction
     sleep 2
     log "     - Verifying intent stored on-chain..."
-    HUB_INTENT_ADDRESS=$(curl -s "http://127.0.0.1:8080/v1/accounts/${REQUESTER_HUB_ADDRESS}/transactions?limit=1" | \
+    HUB_INTENT_ADDR=$(curl -s "http://127.0.0.1:8080/v1/accounts/${REQUESTER_HUB_ADDR}/transactions?limit=1" | \
         jq -r '.[0].events[] | select(.type | contains("LimitOrderEvent")) | .data.intent_addr' | head -n 1)
     
-    if [ -n "$HUB_INTENT_ADDRESS" ] && [ "$HUB_INTENT_ADDRESS" != "null" ]; then
-        log "     ✅ Hub intent stored at: $HUB_INTENT_ADDRESS"
+    if [ -n "$HUB_INTENT_ADDR" ] && [ "$HUB_INTENT_ADDR" != "null" ]; then
+        log "     ✅ Hub intent stored at: $HUB_INTENT_ADDR"
         log_and_echo "✅ Intent created (via verifier negotiation)"
     else
         log_and_echo "     ❌ ERROR: Could not verify hub intent address"
@@ -251,20 +251,20 @@ log " Intent Details:"
 log "   Intent ID: $INTENT_ID"
 log "   Draft ID: $DRAFT_ID"
 log "   Solver: $RETRIEVED_SOLVER"
-if [ -n "$HUB_INTENT_ADDRESS" ] && [ "$HUB_INTENT_ADDRESS" != "null" ]; then
-    log "   Hub Intent: $HUB_INTENT_ADDRESS"
+if [ -n "$HUB_INTENT_ADDR" ] && [ "$HUB_INTENT_ADDR" != "null" ]; then
+    log "   Hub Intent: $HUB_INTENT_ADDR"
 fi
 
 # Export values for use by other scripts
-# Ensure SOLVER_EVM_ADDRESS is set before saving (re-export to be safe)
-if [ -z "$SOLVER_EVM_ADDRESS" ] && [ -n "$RETRIEVED_SOLVER_EVM" ]; then
-    export SOLVER_EVM_ADDRESS="$RETRIEVED_SOLVER_EVM"
-    log "   Re-exported SOLVER_EVM_ADDRESS: $SOLVER_EVM_ADDRESS"
+# Ensure SOLVER_EVM_ADDR is set before saving (re-export to be safe)
+if [ -z "$SOLVER_EVM_ADDR" ] && [ -n "$RETRIEVED_SOLVER_EVM" ]; then
+    export SOLVER_EVM_ADDR="$RETRIEVED_SOLVER_EVM"
+    log "   Re-exported SOLVER_EVM_ADDR: $SOLVER_EVM_ADDR"
 fi
-save_intent_info "$INTENT_ID" "$HUB_INTENT_ADDRESS"
+save_intent_info "$INTENT_ID" "$HUB_INTENT_ADDR"
 
 # Check final balances using common function
 display_balances_hub "0x$TEST_TOKENS_HUB"
-display_balances_connected_evm "$USD_CON_EVM_ADDRESS"
+display_balances_connected_evm "$USD_EVM_ADDR"
 log_and_echo ""
 

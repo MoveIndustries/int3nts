@@ -53,22 +53,22 @@ echo ""
 
 # Compute EVM address from private key
 echo "   Computing EVM address from VERIFIER_PRIVATE_KEY..."
-COMPUTED_ADDRESS=$(cd "$PROJECT_ROOT/trusted-verifier" && \
+COMPUTED_ADDR=$(cd "$PROJECT_ROOT/trusted-verifier" && \
     VERIFIER_CONFIG_PATH=config/verifier_testnet.toml \
     nix develop -c bash -c "cargo run --bin get_verifier_eth_address --quiet 2>&1" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1)
 
-if [ -z "$COMPUTED_ADDRESS" ]; then
+if [ -z "$COMPUTED_ADDR" ]; then
     echo "❌ ERROR: Failed to compute EVM address from private key"
     echo "   Make sure VERIFIER_PRIVATE_KEY and VERIFIER_PUBLIC_KEY are set correctly"
     exit 1
 fi
 
-echo "   Computed:    $COMPUTED_ADDRESS"
+echo "   Computed:    $COMPUTED_ADDR"
 echo ""
 
 # Normalize addresses for comparison (lowercase)
 EXPECTED_NORM=$(echo "$VERIFIER_EVM_PUBKEY_HASH" | tr '[:upper:]' '[:lower:]')
-COMPUTED_NORM=$(echo "$COMPUTED_ADDRESS" | tr '[:upper:]' '[:lower:]')
+COMPUTED_NORM=$(echo "$COMPUTED_ADDR" | tr '[:upper:]' '[:lower:]')
 
 # Compare env file vs computed
 ENV_MATCH=false
@@ -79,10 +79,10 @@ else
     echo "❌ MISMATCH: Config file address does not match computed!"
     echo ""
     echo "   Expected: $VERIFIER_EVM_PUBKEY_HASH"
-    echo "   Computed: $COMPUTED_ADDRESS"
+    echo "   Computed: $COMPUTED_ADDR"
     echo ""
     echo "   Action: Update VERIFIER_EVM_PUBKEY_HASH in $ENV_FILE to:"
-    echo "   VERIFIER_EVM_PUBKEY_HASH=$COMPUTED_ADDRESS"
+    echo "   VERIFIER_EVM_PUBKEY_HASH=$COMPUTED_ADDR"
 fi
 
 # Check on-chain contract (if config is available)
@@ -126,7 +126,7 @@ if [ -f "$VERIFIER_CONFIG" ]; then
                 echo "❌ MISMATCH: On-chain contract has wrong verifier address!"
                 echo ""
                 echo "   On-chain:  $ONCHAIN_ADDR"
-                echo "   Computed:  $COMPUTED_ADDRESS"
+                echo "   Computed:  $COMPUTED_ADDR"
                 echo ""
                 echo "   Action: Redeploy IntentEscrow contract with correct verifier address"
             fi

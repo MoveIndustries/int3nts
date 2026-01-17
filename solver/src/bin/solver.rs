@@ -109,13 +109,13 @@ async fn main() -> Result<()> {
             let (evm_address, mvm_address, svm_address): (Vec<u8>, Option<String>, Vec<u8>) = match &config.connected_chain {
                 solver::config::ConnectedChainConfig::Mvm(_) => {
                     // For MVM connected chains, read solver's MVM address from env var
-                    let mvm_addr = std::env::var("SOLVER_CONNECTED_MVM_ADDRESS").ok();
+                    let mvm_addr = std::env::var("SOLVER_CONNECTED_MVM_ADDR").ok();
                     (vec![], mvm_addr, vec![])
                 }
                 solver::config::ConnectedChainConfig::Evm(_) => {
                     // For EVM connected chains, read solver's EVM address from env var
-                    let evm_addr = std::env::var("SOLVER_EVM_ADDRESS")
-                        .or_else(|_| std::env::var("BASE_SOLVER_ADDRESS")) // fallback for testnet
+                    let evm_addr = std::env::var("SOLVER_EVM_ADDR")
+                        .or_else(|_| std::env::var("BASE_SOLVER_ADDR")) // fallback for testnet
                         .ok()
                         .and_then(|addr| {
                             let addr = addr.strip_prefix("0x").unwrap_or(&addr);
@@ -125,7 +125,7 @@ async fn main() -> Result<()> {
                     (evm_addr, None, vec![])
                 }
                 solver::config::ConnectedChainConfig::Svm(_) => {
-                    let svm_addr = std::env::var("SOLVER_SVM_ADDRESS")
+                    let svm_addr = std::env::var("SOLVER_SVM_ADDR")
                         .ok()
                         .and_then(|addr| {
                             let addr = addr.strip_prefix("0x").unwrap_or(&addr);

@@ -18,25 +18,25 @@ if ! load_intent_info "INTENT_ID"; then
 fi
 
 # ============================================================================
-# SECTION 2: GET ADDRESSES AND CONFIGURATION
+# SECTION 2: GET ADDRES AND CONFIGURATION
 # ============================================================================
-HUB_MODULE_ADDRESS=$(get_profile_address "intent-account-chain1")
-MVM_CON_MODULE_ADDRESS=$(get_profile_address "intent-account-chain2")
+HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
+MVMCON_MODULE_ADDR=$(get_profile_address "intent-account-chain2")
 TEST_TOKENS_HUB=$(get_profile_address "test-tokens-chain1")
-TEST_TOKENS_MVM_CON=$(get_profile_address "test-tokens-chain2")
-REQUESTER_HUB_ADDRESS=$(get_profile_address "requester-chain1")
-SOLVER_HUB_ADDRESS=$(get_profile_address "solver-chain1")
-REQUESTER_MVM_CON_ADDRESS=$(get_profile_address "requester-chain2")
-SOLVER_MVM_CON_ADDRESS=$(get_profile_address "solver-chain2")
+USD_MVMCON_MODULE_ADDR=$(get_profile_address "test-tokens-chain2")
+REQUESTER_HUB_ADDR=$(get_profile_address "requester-chain1")
+SOLVER_HUB_ADDR=$(get_profile_address "solver-chain1")
+REQUESTER_MVMCON_ADDR=$(get_profile_address "requester-chain2")
+SOLVER_MVMCON_ADDR=$(get_profile_address "solver-chain2")
 
 log ""
 log " Chain Information:"
-log "   Hub Module Address:            $HUB_MODULE_ADDRESS"
-log "   Connected Chain Module Address (Chain 2): $MVM_CON_MODULE_ADDRESS"
-log "   Requester Hub:               $REQUESTER_HUB_ADDRESS"
-log "   Solver Hub:                  $SOLVER_HUB_ADDRESS"
-log "   Requester Chain 2 (connected): $REQUESTER_MVM_CON_ADDRESS"
-log "   Solver Chain 2 (connected): $SOLVER_MVM_CON_ADDRESS"
+log "   Hub Module Address:            $HUB_MODULE_ADDR"
+log "   Connected MVM Module Address:          $MVMCON_MODULE_ADDR"
+log "   Requester Hub:               $REQUESTER_HUB_ADDR"
+log "   Solver Hub:                  $SOLVER_HUB_ADDR"
+log "   Requester MVM (connected):             $REQUESTER_MVMCON_ADDR"
+log "   Solver MVM (connected):                $SOLVER_MVMCON_ADDR"
 
 # Load verifier keys (generated during deployment)
 load_verifier_keys
@@ -73,21 +73,21 @@ log "   Expiry time: $EXPIRY_TIME"
 log "   Intent ID: $INTENT_ID"
 
 log ""
-log "   - Getting USDcon metadata on Chain 2..."
-USD_CON_MVM_CON_ADDRESS=$(get_usdxyz_metadata_addr "0x$TEST_TOKENS_MVM_CON" "2")
-if [ -z "$USD_CON_MVM_CON_ADDRESS" ]; then
-    log_and_echo "❌ Failed to get USDcon metadata on Chain 2"
+log "   - Getting USDcon metadata on connected MVM..."
+USD_MVMCON_ADDR=$(get_usdxyz_metadata_addr "0x$USD_MVMCON_MODULE_ADDR" "2")
+if [ -z "$USD_MVMCON_ADDR" ]; then
+    log_and_echo "❌ Failed to get USDcon metadata on connected MVM"
     exit 1
 fi
-log "     ✅ Got USDcon metadata on Chain 2: $USD_CON_MVM_CON_ADDRESS"
-OFFERED_METADATA_CHAIN2="$USD_CON_MVM_CON_ADDRESS"
+log "     ✅ Got USDcon metadata on connected MVM: $USD_MVMCON_ADDR"
+OFFERED_METADATA_MVMCON="$USD_MVMCON_ADDR"
 
 # ============================================================================
 # SECTION 3: DISPLAY INITIAL STATE
 # ============================================================================
 log ""
 display_balances_hub "0x$TEST_TOKENS_HUB"
-display_balances_connected_mvm "0x$TEST_TOKENS_MVM_CON"
+display_balances_connected_mvm "0x$USD_MVMCON_MODULE_ADDR"
 log_and_echo ""
 
 # ============================================================================
@@ -95,22 +95,22 @@ log_and_echo ""
 # ============================================================================
 log ""
 log "   Creating escrow on connected chain..."
-log "   - Requester (Requester) locks 1 USDcon in escrow on Chain 2 (connected chain)"
+log "   - Requester locks 1 USDcon in escrow on connected MVM"
 log "   - Using intent_id from hub chain: $INTENT_ID"
 
 # DEBUG: Check requester balance BEFORE escrow creation
 log ""
 log "   DEBUG: Checking requester balance BEFORE escrow creation..."
-BEFORE_BALANCE=$(get_usdxyz_balance "requester-chain2" "2" "0x$TEST_TOKENS_MVM_CON")
+BEFORE_BALANCE=$(get_usdxyz_balance "requester-chain2" "2" "0x$USD_MVMCON_MODULE_ADDR")
 log_and_echo "   DEBUG: Requester USDcon balance BEFORE escrow: $BEFORE_BALANCE"
 
-log "   - Creating escrow intent on Chain 2..."
-log "     Offered metadata: $OFFERED_METADATA_CHAIN2"
-log "     Reserved solver (Connected Chain 2 Solver): $SOLVER_MVM_CON_ADDRESS"
+log "   - Creating escrow intent on connected MVM..."
+log "     Offered metadata: $OFFERED_METADATA_MVMCON"
+log "     Reserved solver (Connected MVM Solver): $SOLVER_MVMCON_ADDR"
 
 ESCROW_OUTPUT=$(aptos move run --profile requester-chain2 --assume-yes \
-    --function-id "0x${MVM_CON_MODULE_ADDRESS}::intent_as_escrow_entry::create_escrow_from_fa" \
-    --args "address:${OFFERED_METADATA_CHAIN2}" "u64:1000000" "u64:${CONNECTED_CHAIN_ID}" "hex:${ORACLE_PUBLIC_KEY}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${SOLVER_MVM_CON_ADDRESS}" "u64:${HUB_CHAIN_ID}" 2>&1)
+    --function-id "0x${MVMCON_MODULE_ADDR}::intent_as_escrow_entry::create_escrow_from_fa" \
+    --args "address:${OFFERED_METADATA_MVMCON}" "u64:1000000" "u64:${CONNECTED_CHAIN_ID}" "hex:${ORACLE_PUBLIC_KEY}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${SOLVER_MVMCON_ADDR}" "u64:${HUB_CHAIN_ID}" 2>&1)
 ESCROW_EXIT_CODE=$?
 
 log "   DEBUG: Escrow transaction output:"
@@ -120,12 +120,12 @@ log "$ESCROW_OUTPUT"
 # SECTION 5: VERIFY RESULTS
 # ============================================================================
 if [ $ESCROW_EXIT_CODE -eq 0 ]; then
-    log "     ✅ Escrow intent created on Chain 2!"
+log "     ✅ Escrow intent created on connected MVM!"
 
     # DEBUG: Check requester balance AFTER escrow creation
     log ""
     log "   DEBUG: Checking requester balance AFTER escrow creation..."
-    AFTER_BALANCE=$(get_usdxyz_balance "requester-chain2" "2" "0x$TEST_TOKENS_MVM_CON")
+    AFTER_BALANCE=$(get_usdxyz_balance "requester-chain2" "2" "0x$USD_MVMCON_MODULE_ADDR")
     log_and_echo "   DEBUG: Requester USDcon balance AFTER escrow: $AFTER_BALANCE"
     
     if [ "$BEFORE_BALANCE" = "$AFTER_BALANCE" ]; then
@@ -140,9 +140,9 @@ if [ $ESCROW_EXIT_CODE -eq 0 ]; then
     log "     - Verifying escrow stored on-chain with locked tokens..."
 
     # Get full transaction for debugging
-    FULL_TX=$(curl -s "http://127.0.0.1:8082/v1/accounts/${REQUESTER_MVM_CON_ADDRESS}/transactions?limit=1")
+    FULL_TX=$(curl -s "http://127.0.0.1:8082/v1/accounts/${REQUESTER_MVMCON_ADDR}/transactions?limit=1")
     
-    ESCROW_ADDRESS=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.intent_addr' | head -n 1)
+    ESCROW_ADDR=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.intent_addr' | head -n 1)
     ESCROW_INTENT_ID=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.intent_id' | head -n 1)
     LOCKED_AMOUNT=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.offered_amount' | head -n 1)
     DESIRED_AMOUNT=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.desired_amount' | head -n 1)
@@ -152,12 +152,12 @@ if [ $ESCROW_EXIT_CODE -eq 0 ]; then
     log "   DEBUG: Full OracleLimitOrderEvent:"
     log "$FULL_EVENT"
 
-    if [ -z "$ESCROW_ADDRESS" ] || [ "$ESCROW_ADDRESS" = "null" ]; then
+    if [ -z "$ESCROW_ADDR" ] || [ "$ESCROW_ADDR" = "null" ]; then
         log_and_echo "❌ ERROR: Could not verify escrow from events"
         exit 1
     fi
 
-    log "     ✅ Escrow stored at: $ESCROW_ADDRESS"
+    log "     ✅ Escrow stored at: $ESCROW_ADDR"
     log "     ✅ Intent ID link: $ESCROW_INTENT_ID (should match: $INTENT_ID)"
     log "     ✅ Locked amount: $LOCKED_AMOUNT tokens"
     log "     ✅ Desired amount: $DESIRED_AMOUNT tokens"
@@ -200,7 +200,7 @@ fi
 # ============================================================================
 log ""
 display_balances_hub "0x$TEST_TOKENS_HUB"
-display_balances_connected_mvm "0x$TEST_TOKENS_MVM_CON"
+display_balances_connected_mvm "0x$USD_MVMCON_MODULE_ADDR"
 log_and_echo ""
 
 log ""
@@ -208,14 +208,14 @@ log " INFLOW - ESCROW CREATION COMPLETE!"
 log "======================================"
 log ""
 log "✅ Step completed successfully:"
-log "   1. Escrow created on Chain 2 (connected chain) with locked tokens"
+log "   1. Escrow created on connected MVM with locked tokens"
 log ""
 log " Escrow Details:"
 log "   Intent ID: $INTENT_ID"
-if [ -n "$ESCROW_ADDRESS" ] && [ "$ESCROW_ADDRESS" != "null" ]; then
-    log "   Chain 2 Escrow: $ESCROW_ADDRESS"
-    # Save ESCROW_ADDRESS to intent-info.env for escrow claim verification
-    echo "MVM_CON_ESCROW_ADDRESS=$ESCROW_ADDRESS" >> "$PROJECT_ROOT/.tmp/intent-info.env"
+if [ -n "$ESCROW_ADDR" ] && [ "$ESCROW_ADDR" != "null" ]; then
+    log "   Connected MVM Escrow: $ESCROW_ADDR"
+    # Save ESCROW_ADDR to intent-info.env for escrow claim verification
+    echo "MVMCON_ESCROW_ADDR=$ESCROW_ADDR" >> "$PROJECT_ROOT/.tmp/intent-info.env"
 fi
 
 

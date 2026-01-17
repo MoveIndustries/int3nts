@@ -20,28 +20,28 @@ INTENT_ID="0x$(openssl rand -hex 32)"
 CONNECTED_CHAIN_ID=4
 HUB_CHAIN_ID=1
 
-HUB_MODULE_ADDRESS=$(get_profile_address "intent-account-chain1")
+HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
 TEST_TOKENS_HUB=$(get_profile_address "test-tokens-chain1")
-REQUESTER_HUB_ADDRESS=$(get_profile_address "requester-chain1")
-SOLVER_HUB_ADDRESS=$(get_profile_address "solver-chain1")
+REQUESTER_HUB_ADDR=$(get_profile_address "requester-chain1")
+SOLVER_HUB_ADDR=$(get_profile_address "solver-chain1")
 
 source "$PROJECT_ROOT/.tmp/chain-info.env" 2>/dev/null || true
 
-if [ -z "$REQUESTER_SVM_PUBKEY" ] || [ -z "$SOLVER_SVM_PUBKEY" ] || [ -z "$USD_CON_SVM_MINT_ADDRESS" ]; then
+if [ -z "$REQUESTER_SVM_PUBKEY" ] || [ -z "$SOLVER_SVM_PUBKEY" ] || [ -z "$USD_SVM_MINT_ADDR" ]; then
     log_and_echo "❌ ERROR: Missing SVM chain info. Run chain-connected-svm/setup-requester-solver.sh first."
     exit 1
 fi
 
-REQUESTER_CHAIN2_ADDRESS=$(svm_pubkey_to_hex "$REQUESTER_SVM_PUBKEY")
-SOLVER_CHAIN2_ADDRESS=$(svm_pubkey_to_hex "$SOLVER_SVM_PUBKEY")
+REQUESTER_SVM_ADDR=$(svm_pubkey_to_hex "$REQUESTER_SVM_PUBKEY")
+SOLVER_SVM_ADDR=$(svm_pubkey_to_hex "$SOLVER_SVM_PUBKEY")
 
 log ""
 log " Chain Information:"
-log "   Hub Module Address:                    $HUB_MODULE_ADDRESS"
-log "   Requester Hub:                         $REQUESTER_HUB_ADDRESS"
-log "   Solver Hub:                            $SOLVER_HUB_ADDRESS"
-log "   Requester Chain 2 (SVM hex):           $REQUESTER_CHAIN2_ADDRESS"
-log "   Solver Chain 2 (SVM hex):              $SOLVER_CHAIN2_ADDRESS"
+log "   Hub Module Address:                    $HUB_MODULE_ADDR"
+log "   Requester Hub:                         $REQUESTER_HUB_ADDR"
+log "   Solver Hub:                            $SOLVER_HUB_ADDR"
+log "   Requester SVM (hex):                   $REQUESTER_SVM_ADDR"
+log "   Solver SVM (hex):                      $SOLVER_SVM_ADDR"
 
 EXPIRY_TIME=$(date -d "+1 hour" +%s)
 OFFERED_AMOUNT="1000000"
@@ -63,12 +63,12 @@ if [ -z "$USDHUB_METADATA_HUB" ]; then
 fi
 log "     ✅ Got USDhub metadata on Hub: $USDHUB_METADATA_HUB"
 
-SVM_TOKEN_HEX=$(svm_pubkey_to_hex "$USD_CON_SVM_MINT_ADDRESS")
-OFFERED_METADATA_CHAIN2="$SVM_TOKEN_HEX"
+SVM_TOKEN_HEX=$(svm_pubkey_to_hex "$USD_SVM_MINT_ADDR")
+OFFERED_METADATA_SVM="$SVM_TOKEN_HEX"
 DESIRED_METADATA_HUB="$USDHUB_METADATA_HUB"
 
 log "     Inflow configuration:"
-log "       Offered metadata (connected SVM): $OFFERED_METADATA_CHAIN2"
+log "       Offered metadata (connected SVM): $OFFERED_METADATA_SVM"
 log "       Desired metadata (hub):          $DESIRED_METADATA_HUB"
 
 log ""
@@ -82,7 +82,7 @@ log "   Flow: Requester → Verifier → Solver → Verifier → Requester"
 log ""
 log "   Step 1: Requester submits draft intent to verifier..."
 DRAFT_DATA=$(build_draft_data \
-    "$OFFERED_METADATA_CHAIN2" \
+    "$OFFERED_METADATA_SVM" \
     "$OFFERED_AMOUNT" \
     "$CONNECTED_CHAIN_ID" \
     "$DESIRED_METADATA_HUB" \
@@ -90,10 +90,10 @@ DRAFT_DATA=$(build_draft_data \
     "$HUB_CHAIN_ID" \
     "$EXPIRY_TIME" \
     "$INTENT_ID" \
-    "$REQUESTER_HUB_ADDRESS" \
-    "{\"chain_addr\": \"$HUB_MODULE_ADDRESS\", \"flow_type\": \"inflow\", \"connected_chain_type\": \"svm\"}")
+    "$REQUESTER_HUB_ADDR" \
+    "{\"chain_addr\": \"$HUB_MODULE_ADDR\", \"flow_type\": \"inflow\", \"connected_chain_type\": \"svm\"}")
 
-DRAFT_ID=$(submit_draft_intent "$REQUESTER_HUB_ADDRESS" "$DRAFT_DATA" "$EXPIRY_TIME")
+DRAFT_ID=$(submit_draft_intent "$REQUESTER_HUB_ADDR" "$DRAFT_DATA" "$EXPIRY_TIME")
 log "     Draft ID: $DRAFT_ID"
 
 log ""
@@ -113,22 +113,22 @@ log "     Signature: ${RETRIEVED_SIGNATURE:0:20}..."
 
 log ""
 log "   Creating cross-chain intent on Hub..."
-log "     Offered metadata (connected chain): $OFFERED_METADATA_CHAIN2"
+log "     Offered metadata (connected SVM): $OFFERED_METADATA_SVM"
 log "     Desired metadata (hub): $DESIRED_METADATA_HUB"
 log "     Solver address: $RETRIEVED_SOLVER"
 
 SOLVER_SIGNATURE_HEX="${RETRIEVED_SIGNATURE#0x}"
 aptos move run --profile requester-chain1 --assume-yes \
-    --function-id "0x${HUB_MODULE_ADDRESS}::fa_intent_inflow::create_inflow_intent_entry" \
-    --args "address:${OFFERED_METADATA_CHAIN2}" "u64:${OFFERED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "address:${DESIRED_METADATA_HUB}" "u64:${DESIRED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${RETRIEVED_SOLVER}" "hex:${SOLVER_SIGNATURE_HEX}" "address:${REQUESTER_CHAIN2_ADDRESS}" >> "$LOG_FILE" 2>&1
+    --function-id "0x${HUB_MODULE_ADDR}::fa_intent_inflow::create_inflow_intent_entry" \
+    --args "address:${OFFERED_METADATA_SVM}" "u64:${OFFERED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "address:${DESIRED_METADATA_HUB}" "u64:${DESIRED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${RETRIEVED_SOLVER}" "hex:${SOLVER_SIGNATURE_HEX}" "address:${REQUESTER_SVM_ADDR}" >> "$LOG_FILE" 2>&1
 
 if [ $? -eq 0 ]; then
     log "     ✅ Request-intent created on Hub!"
     sleep 2
-    HUB_INTENT_ADDRESS=$(curl -s "http://127.0.0.1:8080/v1/accounts/${REQUESTER_HUB_ADDRESS}/transactions?limit=1" | \
+    HUB_INTENT_ADDR=$(curl -s "http://127.0.0.1:8080/v1/accounts/${REQUESTER_HUB_ADDR}/transactions?limit=1" | \
         jq -r '.[0].events[] | select(.type | contains("LimitOrderEvent")) | .data.intent_addr' | head -n 1)
-    if [ -n "$HUB_INTENT_ADDRESS" ] && [ "$HUB_INTENT_ADDRESS" != "null" ]; then
-        log "     ✅ Hub intent stored at: $HUB_INTENT_ADDRESS"
+    if [ -n "$HUB_INTENT_ADDR" ] && [ "$HUB_INTENT_ADDR" != "null" ]; then
+        log "     ✅ Hub intent stored at: $HUB_INTENT_ADDR"
         log_and_echo "✅ Request-intent created (via verifier negotiation)"
     else
         log_and_echo "❌ ERROR: Could not verify hub intent address"
@@ -158,8 +158,8 @@ log " Request-intent Details:"
 log "   Intent ID: $INTENT_ID"
 log "   Draft ID: $DRAFT_ID"
 log "   Solver: $RETRIEVED_SOLVER"
-if [ -n "$HUB_INTENT_ADDRESS" ] && [ "$HUB_INTENT_ADDRESS" != "null" ]; then
-    log "   Hub Request-intent: $HUB_INTENT_ADDRESS"
+if [ -n "$HUB_INTENT_ADDR" ] && [ "$HUB_INTENT_ADDR" != "null" ]; then
+    log "   Hub Request-intent: $HUB_INTENT_ADDR"
 fi
 
-save_intent_info "$INTENT_ID" "$HUB_INTENT_ADDRESS"
+save_intent_info "$INTENT_ID" "$HUB_INTENT_ADDR"

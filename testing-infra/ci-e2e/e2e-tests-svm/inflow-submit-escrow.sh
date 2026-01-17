@@ -19,7 +19,7 @@ fi
 
 source "$PROJECT_ROOT/.tmp/chain-info.env" 2>/dev/null || true
 
-if [ -z "$USD_CON_SVM_MINT_ADDRESS" ] || [ -z "$REQUESTER_SVM_TOKEN_ACCOUNT" ] || [ -z "$SOLVER_SVM_PUBKEY" ] || [ -z "$SVM_PROGRAM_ID" ]; then
+if [ -z "$USD_SVM_MINT_ADDR" ] || [ -z "$REQUESTER_SVM_TOKEN_ACCOUNT" ] || [ -z "$SOLVER_SVM_PUBKEY" ] || [ -z "$SVM_PROGRAM_ID" ]; then
     log_and_echo "❌ ERROR: Missing SVM chain info. Run chain-connected-svm/setup-requester-solver.sh and deploy-contract.sh first."
     exit 1
 fi
@@ -29,12 +29,12 @@ SVM_EXPIRY="$(date -d "+10 minutes" +%s)"
 
 log "Creating SVM escrow..."
 log "   Intent ID: $INTENT_ID"
-log "   Token mint: $USD_CON_SVM_MINT_ADDRESS"
+log "   Token mint: $USD_SVM_MINT_ADDR"
 log "   Requester token account: $REQUESTER_SVM_TOKEN_ACCOUNT"
 log "   Solver pubkey: $SOLVER_SVM_PUBKEY"
 log "   Amount: $SVM_AMOUNT"
 
-USD_CON_SVM_MINT_ADDRESS="$USD_CON_SVM_MINT_ADDRESS" \
+USD_SVM_MINT_ADDR="$USD_SVM_MINT_ADDR" \
 SVM_REQUESTER_TOKEN="$REQUESTER_SVM_TOKEN_ACCOUNT" \
 SVM_SOLVER_PUBKEY="$SOLVER_SVM_PUBKEY" \
 SVM_INTENT_ID="$INTENT_ID" \

@@ -52,11 +52,11 @@ log "   Solver            = Account 2 (signer index 2)"
 log ""
 log " Getting Requester and Solver addresses..."
 
-REQUESTER_ADDRESS=$(get_hardhat_account_address "1")
-SOLVER_ADDRESS=$(get_hardhat_account_address "2")
+REQUESTER_ADDR=$(get_hardhat_account_address "1")
+SOLVER_ADDR=$(get_hardhat_account_address "2")
 
-log "   ✅ Requester (Account 1): $REQUESTER_ADDRESS"
-log "   ✅ Solver (Account 2):   $SOLVER_ADDRESS"
+log "   ✅ Requester (Account 1): $REQUESTER_ADDR"
+log "   ✅ Solver (Account 2):   $SOLVER_ADDR"
 
 log ""
 log "% - - - - - - - - - - - BALANCES - - - - - - - - - - - -"
@@ -95,8 +95,8 @@ log ""
 log " Summary:"
 log "   EVM Chain:     http://127.0.0.1:8545"
 log "   Chain ID:      31337"
-log "   Requester (Acc 1): $REQUESTER_ADDRESS"
-log "   Solver (Acc 2):   $SOLVER_ADDRESS"
+log "   Requester (Acc 1): $REQUESTER_ADDR"
+log "   Solver (Acc 2):   $SOLVER_ADDR"
 log ""
 log " Useful commands:"
 log "   Stop chain:    ./testing-infra/ci-e2e/chain-connected-evm/stop-chain.sh"
