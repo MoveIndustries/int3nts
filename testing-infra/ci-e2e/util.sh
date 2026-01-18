@@ -915,7 +915,7 @@ submit_signature_to_verifier() {
     response=$(curl -s -X POST "${verifier_url}/draftintent/${draft_id}/signature" \
         -H "Content-Type: application/json" \
         -d "{
-            \"solver_addr\": \"$normalized_solver_addr\",
+            \"solver_hub_addr\": \"$normalized_solver_addr\",
             \"signature\": \"$signature_hex\",
             \"public_key\": \"$public_key_hex\"
         }" 2>&1)
@@ -989,7 +989,7 @@ poll_for_signature() {
         local success=$(echo "$response" | jq -r '.success // false' 2>/dev/null)
         if [ "$success" = "true" ]; then
             local signature=$(echo "$response" | jq -r '.data.signature // empty' 2>/dev/null)
-            local solver=$(echo "$response" | jq -r '.data.solver_addr // empty' 2>/dev/null)
+            local solver=$(echo "$response" | jq -r '.data.solver_hub_addr // empty' 2>/dev/null)
             
             if [ -n "$signature" ] && [ "$signature" != "null" ]; then
                 echo "     ✅ Signature received from solver: $solver" >&2

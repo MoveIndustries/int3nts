@@ -405,7 +405,7 @@ if [ -z "$SIGNATURE_DATA" ]; then
 fi
 
 RETRIEVED_SIGNATURE=$(echo "$SIGNATURE_DATA" | jq -r '.data.signature')
-RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.data.solver_addr')
+RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.data.solver_hub_addr')
 
 echo "   ✅ Signature received from solver: $RETRIEVED_SOLVER"
 echo ""

@@ -100,7 +100,7 @@ log ""
 log "   Step 2: Waiting for solver service to sign draft..."
 SIGNATURE_DATA=$(poll_for_signature "$DRAFT_ID" 10 2)
 RETRIEVED_SIGNATURE=$(echo "$SIGNATURE_DATA" | jq -r '.signature')
-RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_addr')
+RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_hub_addr')
 
 if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
     log_and_echo "❌ ERROR: Failed to retrieve signature from verifier"

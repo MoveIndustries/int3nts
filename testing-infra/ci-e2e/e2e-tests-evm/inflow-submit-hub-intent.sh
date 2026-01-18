@@ -131,7 +131,7 @@ log "     (Solver service polls verifier automatically)"
 # Poll for signature with retry logic (solver service needs time to process)
 SIGNATURE_DATA=$(poll_for_signature "$DRAFT_ID" 10 2)
 RETRIEVED_SIGNATURE=$(echo "$SIGNATURE_DATA" | jq -r '.signature')
-RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_addr')
+RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_hub_addr')
 RETRIEVED_SOLVER_EVM=$(echo "$SIGNATURE_DATA" | jq -r '.solver_evm_addr // empty')
 
 if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
