@@ -10,7 +10,7 @@
 #
 # Prerequisites:
 #   - trusted-verifier/config/verifier_testnet.toml configured with actual deployed addresses
-#   - .testnet-keys.env with VERIFIER_PRIVATE_KEY and VERIFIER_PUBLIC_KEY
+#   - .env.testnet with VERIFIER_PRIVATE_KEY and VERIFIER_PUBLIC_KEY
 #   - Rust toolchain installed
 #
 # Usage:
@@ -43,14 +43,14 @@ if [ ! -f "$VERIFIER_CONFIG" ]; then
     exit 1
 fi
 
-# Load .testnet-keys.env for environment variables
-TESTNET_KEYS_FILE="$PROJECT_ROOT/.testnet-keys.env"
+# Load .env.testnet for environment variables
+TESTNET_KEYS_FILE="$SCRIPT_DIR/.env.testnet"
 
 if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "❌ ERROR: .testnet-keys.env not found at $TESTNET_KEYS_FILE"
+    echo "❌ ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
     echo ""
-    echo "   Create it from the template:"
-    echo "   cp env.testnet.example .testnet-keys.env"
+    echo "   Create it from the template in this directory:"
+    echo "   cp env.testnet.example .env.testnet"
     echo ""
     echo "   Then populate with your testnet keys."
     exit 1
@@ -73,7 +73,7 @@ for var in "${REQUIRED_VARS[@]}"; do
 done
 
 if [ ${#MISSING_VARS[@]} -ne 0 ]; then
-    echo "❌ ERROR: Missing required environment variables in .testnet-keys.env:"
+    echo "❌ ERROR: Missing required environment variables in .env.testnet:"
     for var in "${MISSING_VARS[@]}"; do
         echo "   - $var"
     done

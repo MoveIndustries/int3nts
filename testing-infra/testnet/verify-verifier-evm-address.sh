@@ -2,7 +2,7 @@
 
 # Verify Verifier EVM Address Script (Testnet)
 # 
-# Verifies that VERIFIER_EVM_PUBKEY_HASH in .testnet-keys.env matches
+# Verifies that VERIFIER_EVM_PUBKEY_HASH in this directory's .env.testnet matches
 # the EVM address derived from VERIFIER_PRIVATE_KEY, and optionally checks
 # that the on-chain IntentEscrow contract has the correct verifier address.
 #
@@ -10,7 +10,7 @@
 #
 # Checks:
 #   1. Computes EVM address from VERIFIER_PRIVATE_KEY
-#   2. Compares to VERIFIER_EVM_PUBKEY_HASH in .testnet-keys.env
+#   2. Compares to VERIFIER_EVM_PUBKEY_HASH in this directory's .env.testnet
 #   3. Queries on-chain IntentEscrow contract's verifier() function (if config available)
 #   4. Compares on-chain address to computed address
 #
@@ -21,8 +21,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
 export PROJECT_ROOT
 
-# Use .testnet-keys.env from project root
-ENV_FILE="$PROJECT_ROOT/.testnet-keys.env"
+# Use .env.testnet from script directory
+ENV_FILE="$SCRIPT_DIR/.env.testnet"
 
 # Source env file if it exists
 if [ -f "$ENV_FILE" ]; then

@@ -42,4 +42,4 @@ For running against testnets (Movement Bardock + Base Sepolia), use the provided
 ./testing-infra/testnet/run-verifier-local.sh
 ```
 
-This script automatically uses the `--testnet` flag and loads keys from `.testnet-keys.env`.
+This script automatically uses the `--testnet` flag and loads keys from `testing-infra/testnet/.env.testnet`.

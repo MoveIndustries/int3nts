@@ -4,7 +4,7 @@
 #
 # This script generates a FRESH address for each deployment to avoid
 # backward-incompatible module update errors. Funds are transferred from
-# the deployer account in .testnet-keys.env to the new module address.
+# the deployer account in .env.testnet to the new module address.
 #
 # The new module address must be updated in verifier and solver config
 # files after deployment.
@@ -47,12 +47,12 @@ fi
 echo "✅ Movement CLI found: $(movement --version)"
 echo ""
 
-# Load .testnet-keys.env for the funding account
-TESTNET_KEYS_FILE="$PROJECT_ROOT/.testnet-keys.env"
+# Load .env.testnet for the funding account
+TESTNET_KEYS_FILE="$SCRIPT_DIR/.env.testnet"
 
 if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "❌ ERROR: .testnet-keys.env not found at $TESTNET_KEYS_FILE"
-    echo "   Create it from env.testnet.example first"
+    echo "❌ ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
+    echo "   Create it from env.testnet.example in this directory"
     exit 1
 fi
 
@@ -60,12 +60,12 @@ source "$TESTNET_KEYS_FILE"
 
 # Check required variables for funding account
 if [ -z "$MOVEMENT_DEPLOYER_PRIVATE_KEY" ]; then
-    echo "❌ ERROR: MOVEMENT_DEPLOYER_PRIVATE_KEY not set in .testnet-keys.env"
+    echo "❌ ERROR: MOVEMENT_DEPLOYER_PRIVATE_KEY not set in .env.testnet"
     exit 1
 fi
 
 if [ -z "$MOVEMENT_DEPLOYER_ADDR" ]; then
-    echo "❌ ERROR: MOVEMENT_DEPLOYER_ADDR not set in .testnet-keys.env"
+    echo "❌ ERROR: MOVEMENT_DEPLOYER_ADDR not set in .env.testnet"
     exit 1
 fi
 
@@ -323,7 +323,7 @@ echo ""
 echo " Step 10: Initializing verifier config..."
 
 if [ -z "$VERIFIER_PUBLIC_KEY" ]; then
-    echo "❌ ERROR: VERIFIER_PUBLIC_KEY not set in .testnet-keys.env"
+    echo "❌ ERROR: VERIFIER_PUBLIC_KEY not set in .env.testnet"
     exit 1
 fi
 

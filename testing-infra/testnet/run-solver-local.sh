@@ -11,8 +11,8 @@
 #
 # Prerequisites:
 #   - solver/config/solver_testnet.toml configured with actual deployed addresses
-#   - .testnet-keys.env with BASE_SOLVER_PRIVATE_KEY
-#   - Movement CLI profile configured for solver (uses MOVEMENT_SOLVER_PRIVATE_KEY from .testnet-keys.env)
+#   - .env.testnet with BASE_SOLVER_PRIVATE_KEY
+#   - Movement CLI profile configured for solver (uses MOVEMENT_SOLVER_PRIVATE_KEY from .env.testnet)
 #   - Verifier running (locally or remotely)
 #   - Rust toolchain installed
 #
@@ -30,14 +30,14 @@ echo " Running Solver Locally (Testnet Mode)"
 echo "========================================="
 echo ""
 
-# Load .testnet-keys.env for BASE_SOLVER_PRIVATE_KEY
-TESTNET_KEYS_FILE="$PROJECT_ROOT/.testnet-keys.env"
+# Load .env.testnet for BASE_SOLVER_PRIVATE_KEY
+TESTNET_KEYS_FILE="$SCRIPT_DIR/.env.testnet"
 
 if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "❌ ERROR: .testnet-keys.env not found at $TESTNET_KEYS_FILE"
+    echo "❌ ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
     echo ""
-    echo "   Create it from the template:"
-    echo "   cp env.testnet.example .testnet-keys.env"
+    echo "   Create it from the template in this directory:"
+    echo "   cp env.testnet.example .env.testnet"
     echo ""
     echo "   Then populate with your testnet keys."
     exit 1
@@ -47,10 +47,10 @@ source "$TESTNET_KEYS_FILE"
 
 # Check BASE_SOLVER_PRIVATE_KEY (required for EVM transactions)
 if [ -z "$BASE_SOLVER_PRIVATE_KEY" ]; then
-    echo "❌ ERROR: BASE_SOLVER_PRIVATE_KEY not set in .testnet-keys.env"
+    echo "❌ ERROR: BASE_SOLVER_PRIVATE_KEY not set in .env.testnet"
     echo ""
     echo "   This key is required for EVM transactions on Base Sepolia."
-    echo "   Add it to .testnet-keys.env"
+    echo "   Add it to .env.testnet"
     exit 1
 fi
 
@@ -167,7 +167,7 @@ if [ -n "$SOLVER_PROFILE" ]; then
         echo "     --private-key \"\$MOVEMENT_SOLVER_PRIVATE_KEY\" \\"
         echo "     --skip-faucet --assume-yes"
         echo ""
-        echo "   Note: MOVEMENT_SOLVER_PRIVATE_KEY should be set in .testnet-keys.env"
+        echo "   Note: MOVEMENT_SOLVER_PRIVATE_KEY should be set in .env.testnet"
         echo ""
         read -p "   Continue anyway? (y/N) " -n 1 -r
         echo

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Deploy EVM IntentEscrow to Base Sepolia Testnet
-# Reads keys from .testnet-keys.env and deploys the contract
+# Reads keys from .env.testnet and deploys the contract
 
 set -e
 
@@ -17,12 +17,12 @@ echo " Deploying IntentEscrow to Base Sepolia Testnet"
 echo "=================================================="
 echo ""
 
-# Load .testnet-keys.env
-TESTNET_KEYS_FILE="$PROJECT_ROOT/.testnet-keys.env"
+# Load .env.testnet
+TESTNET_KEYS_FILE="$SCRIPT_DIR/.env.testnet"
 
 if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "❌ ERROR: .testnet-keys.env not found at $TESTNET_KEYS_FILE"
-    echo "   Create it from env.testnet.example first"
+    echo "❌ ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
+    echo "   Create it from env.testnet.example in this directory"
     exit 1
 fi
 
@@ -31,12 +31,12 @@ source "$TESTNET_KEYS_FILE"
 
 # Check required variables
 if [ -z "$BASE_DEPLOYER_PRIVATE_KEY" ]; then
-    echo "❌ ERROR: BASE_DEPLOYER_PRIVATE_KEY not set in .testnet-keys.env"
+    echo "❌ ERROR: BASE_DEPLOYER_PRIVATE_KEY not set in .env.testnet"
     exit 1
 fi
 
 if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then
-    echo "❌ ERROR: VERIFIER_EVM_PUBKEY_HASH not set in .testnet-keys.env"
+    echo "❌ ERROR: VERIFIER_EVM_PUBKEY_HASH not set in .env.testnet"
     echo "   Run: nix develop -c bash -c 'cd trusted-verifier && VERIFIER_CONFIG_PATH=config/verifier_testnet.toml cargo run --bin get_verifier_eth_address'"
     exit 1
 fi

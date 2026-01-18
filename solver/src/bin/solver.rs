@@ -105,7 +105,7 @@ async fn main() -> Result<()> {
                 .context("Failed to derive public key from private key")?;
             
             // Get EVM address and MVM address from environment variables
-            // These are set by sourcing the keys file (e.g., .testnet-keys.env or .e2e-tests-keys.env)
+            // These are set by sourcing the keys file (e.g., testing-infra/testnet/.env.testnet)
             let (evm_address, mvm_address, svm_address): (Vec<u8>, Option<String>, Vec<u8>) = match &config.connected_chain {
                 solver::config::ConnectedChainConfig::Mvm(_) => {
                     // For MVM connected chains, read solver's MVM address from env var

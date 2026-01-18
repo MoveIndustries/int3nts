@@ -13,7 +13,7 @@
 #   - Verifier running locally (or remotely)
 #   - Solver service running (to sign drafts)
 #   - Movement CLI installed
-#   - .testnet-keys.env with MOVEMENT_REQUESTER_PRIVATE_KEY
+#   - .env.testnet with MOVEMENT_REQUESTER_PRIVATE_KEY
 #   - trusted-verifier/config/verifier_testnet.toml configured
 #
 # Usage:
@@ -136,11 +136,11 @@ format_usdc() {
     echo "$raw ($usdc USDC)"
 }
 
-# Load .testnet-keys.env
-TESTNET_KEYS_FILE="$PROJECT_ROOT/.testnet-keys.env"
+# Load .env.testnet
+TESTNET_KEYS_FILE="$SCRIPT_DIR/.env.testnet"
 
 if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "❌ ERROR: .testnet-keys.env not found at $TESTNET_KEYS_FILE"
+    echo "❌ ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
     exit 1
 fi
 
@@ -148,7 +148,7 @@ source "$TESTNET_KEYS_FILE"
 
 # Check required variables
 if [ -z "$MOVEMENT_REQUESTER_PRIVATE_KEY" ] || [ -z "$MOVEMENT_REQUESTER_ADDR" ]; then
-    echo "❌ ERROR: MOVEMENT_REQUESTER_PRIVATE_KEY and MOVEMENT_REQUESTER_ADDR must be set in .testnet-keys.env"
+    echo "❌ ERROR: MOVEMENT_REQUESTER_PRIVATE_KEY and MOVEMENT_REQUESTER_ADDR must be set in .env.testnet"
     exit 1
 fi
 
@@ -190,7 +190,7 @@ echo ""
 # Get verifier public key (needed for outflow intents)
 VERIFIER_PUBLIC_KEY_B64="$VERIFIER_PUBLIC_KEY"
 if [ -z "$VERIFIER_PUBLIC_KEY_B64" ]; then
-    echo "❌ ERROR: VERIFIER_PUBLIC_KEY not set in .testnet-keys.env"
+    echo "❌ ERROR: VERIFIER_PUBLIC_KEY not set in .env.testnet"
     exit 1
 fi
 
@@ -289,13 +289,13 @@ echo ""
 SOLVER_ADDR=$(grep -A5 "\[solver\]" "$PROJECT_ROOT/solver/config/solver_testnet.toml" 2>/dev/null | grep "address" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' || echo "")
 
 if [ -z "$SOLVER_ADDR" ]; then
-    # Fallback: get from .testnet-keys.env
+    # Fallback: get from .env.testnet
     SOLVER_ADDR="$MOVEMENT_SOLVER_ADDR"
 fi
 
 if [ -z "$SOLVER_ADDR" ]; then
     echo "❌ ERROR: Could not determine solver address"
-    echo "   Set MOVEMENT_SOLVER_ADDR in .testnet-keys.env or solver_testnet.toml"
+    echo "   Set MOVEMENT_SOLVER_ADDR in .env.testnet or solver_testnet.toml"
     exit 1
 fi
 
@@ -435,7 +435,7 @@ if [ "$FLOW_TYPE" = "inflow" ]; then
 else
     # Outflow intent (requires requester address on connected chain)
     if [ -z "$BASE_REQUESTER_ADDR" ]; then
-        echo "❌ ERROR: BASE_REQUESTER_ADDR not set in .testnet-keys.env"
+        echo "❌ ERROR: BASE_REQUESTER_ADDR not set in .env.testnet"
         echo "   Outflow intents require the requester's address on the connected chain"
         exit 1
     fi
@@ -467,7 +467,7 @@ if [ $? -eq 0 ]; then
         
         # Check required variables for escrow creation
         if [ -z "$BASE_REQUESTER_PRIVATE_KEY" ]; then
-            echo "️  WARNING: BASE_REQUESTER_PRIVATE_KEY not set in .testnet-keys.env"
+            echo "️  WARNING: BASE_REQUESTER_PRIVATE_KEY not set in .env.testnet"
             echo "   Cannot automatically create escrow. Manual steps required:"
             echo ""
             echo " Next steps (manual):"
@@ -477,7 +477,7 @@ if [ $? -eq 0 ]; then
         fi
         
         if [ -z "$BASE_SOLVER_ADDR" ]; then
-            echo "️  WARNING: BASE_SOLVER_ADDR not set in .testnet-keys.env"
+            echo "️  WARNING: BASE_SOLVER_ADDR not set in .env.testnet"
             echo "   Cannot automatically create escrow. Manual steps required:"
             echo ""
             echo " Next steps (manual):"

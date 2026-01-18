@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Check Testnet Balances Script
-# Checks balances for all accounts in .testnet-keys.env
+# Checks balances for all accounts in .env.testnet
 # Supports:
 #   - Movement Bardock Testnet (MOVE, USDC.e, USDC, USDT, WETH)
 #   - Base Sepolia (ETH, USDC)
@@ -21,12 +21,12 @@ echo " Checking Testnet Balances"
 echo "============================"
 echo ""
 
-# Load .testnet-keys.env
-TESTNET_KEYS_FILE="$PROJECT_ROOT/.testnet-keys.env"
+# Load .env.testnet
+TESTNET_KEYS_FILE="$SCRIPT_DIR/.env.testnet"
 
 if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "❌ ERROR: .testnet-keys.env not found at $TESTNET_KEYS_FILE"
-    echo "   Create it from env.testnet.example first"
+    echo "❌ ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
+    echo "   Create it from env.testnet.example in this directory"
     exit 1
 fi
 
@@ -129,7 +129,7 @@ if [[ "$BASE_RPC_URL" == *"ALCHEMY_API_KEY"* ]]; then
     if [ -n "$ALCHEMY_BASE_SEPOLIA_API_KEY" ]; then
         BASE_RPC_URL="${BASE_RPC_URL/ALCHEMY_API_KEY/$ALCHEMY_BASE_SEPOLIA_API_KEY}"
     else
-        echo "️  WARNING: ALCHEMY_BASE_SEPOLIA_API_KEY not set in .testnet-keys.env"
+        echo "️  WARNING: ALCHEMY_BASE_SEPOLIA_API_KEY not set in .env.testnet"
         echo "   Base Sepolia balance checks will fail"
     fi
 fi
@@ -145,7 +145,7 @@ if [[ "$SEPOLIA_RPC_URL" == *"ALCHEMY_API_KEY"* ]]; then
     if [ -n "$ALCHEMY_ETH_SEPOLIA_API_KEY" ]; then
         SEPOLIA_RPC_URL="${SEPOLIA_RPC_URL/ALCHEMY_API_KEY/$ALCHEMY_ETH_SEPOLIA_API_KEY}"
     else
-        echo "️  WARNING: ALCHEMY_ETH_SEPOLIA_API_KEY not set in .testnet-keys.env"
+        echo "️  WARNING: ALCHEMY_ETH_SEPOLIA_API_KEY not set in .env.testnet"
         echo "   Ethereum Sepolia balance checks will fail"
     fi
 fi
@@ -382,7 +382,7 @@ echo "----------------------------"
 echo "   RPC: $MOVEMENT_RPC_URL"
 
 if [ -z "$MOVEMENT_DEPLOYER_ADDR" ]; then
-    echo "️  MOVEMENT_DEPLOYER_ADDR not set in .testnet-keys.env"
+    echo "️  MOVEMENT_DEPLOYER_ADDR not set in .env.testnet"
 else
     echo "   Deployer  ($MOVEMENT_DEPLOYER_ADDR)"
     # MOVE (native)
@@ -422,7 +422,7 @@ else
 fi
 
 if [ -z "$MOVEMENT_REQUESTER_ADDR" ]; then
-    echo "️  MOVEMENT_REQUESTER_ADDR not set in .testnet-keys.env"
+    echo "️  MOVEMENT_REQUESTER_ADDR not set in .env.testnet"
 else
     echo "   Requester ($MOVEMENT_REQUESTER_ADDR)"
     # MOVE (native)
@@ -462,7 +462,7 @@ else
 fi
 
 if [ -z "$MOVEMENT_SOLVER_ADDR" ]; then
-    echo "️  MOVEMENT_SOLVER_ADDR not set in .testnet-keys.env"
+    echo "️  MOVEMENT_SOLVER_ADDR not set in .env.testnet"
 else
     echo "   Solver    ($MOVEMENT_SOLVER_ADDR)"
     # MOVE (native)
@@ -509,7 +509,7 @@ echo "---------------"
 echo "   RPC: $BASE_RPC_URL"
 
 if [ -z "$BASE_DEPLOYER_ADDR" ]; then
-    echo "️  BASE_DEPLOYER_ADDR not set in .testnet-keys.env"
+    echo "️  BASE_DEPLOYER_ADDR not set in .env.testnet"
 else
     eth_balance=$(get_base_eth_balance "$BASE_DEPLOYER_ADDR")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
@@ -524,7 +524,7 @@ else
 fi
 
 if [ -z "$BASE_REQUESTER_ADDR" ]; then
-    echo "️  BASE_REQUESTER_ADDR not set in .testnet-keys.env"
+    echo "️  BASE_REQUESTER_ADDR not set in .env.testnet"
 else
     eth_balance=$(get_base_eth_balance "$BASE_REQUESTER_ADDR")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
@@ -539,7 +539,7 @@ else
 fi
 
 if [ -z "$BASE_SOLVER_ADDR" ]; then
-    echo "️  BASE_SOLVER_ADDR not set in .testnet-keys.env"
+    echo "️  BASE_SOLVER_ADDR not set in .env.testnet"
 else
     eth_balance=$(get_base_eth_balance "$BASE_SOLVER_ADDR")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
@@ -562,7 +562,7 @@ echo "   RPC: $SEPOLIA_RPC_URL"
 echo "   (Using same addresses as Base Sepolia)"
 
 if [ -z "$BASE_DEPLOYER_ADDR" ]; then
-    echo "️  BASE_DEPLOYER_ADDR not set in .testnet-keys.env"
+    echo "️  BASE_DEPLOYER_ADDR not set in .env.testnet"
 else
     eth_balance=$(get_evm_eth_balance "$BASE_DEPLOYER_ADDR" "$SEPOLIA_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
@@ -577,7 +577,7 @@ else
 fi
 
 if [ -z "$BASE_REQUESTER_ADDR" ]; then
-    echo "️  BASE_REQUESTER_ADDR not set in .testnet-keys.env"
+    echo "️  BASE_REQUESTER_ADDR not set in .env.testnet"
 else
     eth_balance=$(get_evm_eth_balance "$BASE_REQUESTER_ADDR" "$SEPOLIA_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
@@ -592,7 +592,7 @@ else
 fi
 
 if [ -z "$BASE_SOLVER_ADDR" ]; then
-    echo "️  BASE_SOLVER_ADDR not set in .testnet-keys.env"
+    echo "️  BASE_SOLVER_ADDR not set in .env.testnet"
 else
     eth_balance=$(get_evm_eth_balance "$BASE_SOLVER_ADDR" "$SEPOLIA_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
