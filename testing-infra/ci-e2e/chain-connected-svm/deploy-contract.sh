@@ -67,17 +67,26 @@ log "   ⏳ Waiting briefly before initialize..."
 sleep 2
 
 set +e
+init_success=0
 for attempt in 1 2 3 4 5; do
     nix develop "$PROJECT_ROOT" -c bash -c "cd \"$PROGRAM_DIR\" && SVM_VERIFIER_PUBKEY=\"$SVM_VERIFIER_PUBKEY\" SVM_PROGRAM_ID=\"$SVM_PROGRAM_ID\" SVM_RPC_URL=\"$SVM_RPC_URL\" SVM_PAYER_KEYPAIR=\"$SVM_PAYER_KEYPAIR\" bash ./scripts/initialize.sh" >> "$LOG_FILE" 2>&1
     status=$?
     if [ "$status" -eq 0 ]; then
         log "   ✅ Program initialized"
+        init_success=1
         break
     fi
     log "   Initialize failed (attempt $attempt), retrying..."
     sleep 2
 done
 set -e
+
+if [ "$init_success" -ne 1 ]; then
+    log_and_echo "❌ PANIC: SVM program initialization failed after 5 attempts"
+    log_and_echo "   Full log:"
+    cat "$LOG_FILE" | while IFS= read -r line; do log_and_echo "   $line"; done
+    exit 1
+fi
 
 log ""
 log " Saving chain info..."
