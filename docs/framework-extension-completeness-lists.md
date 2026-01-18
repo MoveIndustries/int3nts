@@ -293,6 +293,8 @@ below.
 | 22 | test_claim_escrow_missing_directory_error | N/A | ✅ | N/A |
 | 23 | test_new_rejects_invalid_program_id | N/A | N/A | ✅ |
 | 24 | test_new_accepts_valid_program_id | N/A | N/A | ✅ |
+| 25 | test_pubkey_from_hex_with_leading_zeros | N/A | N/A | ✅ |
+| 26 | test_pubkey_from_hex_no_leading_zeros | N/A | N/A | ✅ |
 
 ## Frontend
 

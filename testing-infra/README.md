@@ -14,9 +14,10 @@ testing-infra/
 │   ├── e2e-tests-evm/       # Mixed MVM/EVM cross-chain tests
 │   ├── test-tokens/         # Test token contracts
 │   └── util*.sh             # Shared utilities
-└── testnet/         # Public testnet deployment
-    ├── config/              # Testnet asset configuration
-    └── check-testnet-balances.sh
+├── testnet/         # Public testnet deployment
+│   ├── config/              # Testnet asset configuration
+│   └── check-testnet-balances.sh
+└── test-summary.sh  # Run all unit tests and display summary table
 ```
 
 ## CI/E2E Tests

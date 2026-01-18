@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Generate test summary table for all components
-# Usage: ./scripts/test-summary.sh
+# Usage: ./testing-infra/test-summary.sh
 
 # Don't use set -e so we can capture all test results even if some fail
 

@@ -431,12 +431,15 @@ fn parse_svm_pubkey(value: &str) -> Result<Pubkey> {
 }
 
 /// Parses a 0x-prefixed hex pubkey into a Pubkey.
+/// Move addresses strip leading zeros, so we left-pad to 64 hex chars (32 bytes).
 fn pubkey_from_hex(value: &str) -> Result<Pubkey> {
     let stripped = value.strip_prefix("0x").unwrap_or(value);
-    let bytes = hex::decode(stripped).context("Invalid hex pubkey")?;
-    if bytes.len() != 32 {
-        anyhow::bail!("Invalid pubkey length: {}", bytes.len());
+    if stripped.len() > 64 {
+        anyhow::bail!("Pubkey hex too long: {} chars", stripped.len());
     }
+    // Left-pad to 64 hex chars to recover leading zero bytes stripped by Move
+    let padded = format!("{:0>64}", stripped);
+    let bytes = hex::decode(&padded).context("Invalid hex pubkey")?;
     let mut array = [0u8; 32];
     array.copy_from_slice(&bytes);
     Ok(Pubkey::new_from_array(array))
@@ -634,5 +637,32 @@ mod tests {
         assert_eq!(parsed.intent_id, escrow.intent_id);
         assert_eq!(parsed.amount, escrow.amount);
         assert_eq!(parsed.requester, escrow.requester);
+    }
+
+    /// Test that hex pubkey parsing handles leading zeros stripped by Move addresses
+    /// Why: Move address serialization strips leading zeros, but Solana pubkeys need exactly 32 bytes
+    #[test]
+    fn test_pubkey_from_hex_with_leading_zeros() {
+        // Full 64-char hex (32 bytes) - normal case
+        let full_hex = "0x00d30e3caf2adf837ead1c43d8fca0825b70993bf75053ad7d89dc66a7e31144";
+        let pk1 = pubkey_from_hex(full_hex).expect("full hex");
+        
+        // Stripped leading zeros (62 chars / 31 bytes) - Move address format
+        let stripped_hex = "0xd30e3caf2adf837ead1c43d8fca0825b70993bf75053ad7d89dc66a7e31144";
+        let pk2 = pubkey_from_hex(stripped_hex).expect("stripped hex");
+        
+        // Both should produce the same pubkey
+        assert_eq!(pk1, pk2, "Leading zeros should be restored");
+        
+        // Verify the pubkey bytes start with 0x00
+        assert_eq!(pk1.to_bytes()[0], 0x00, "First byte should be zero");
+    }
+
+    /// Test that hex pubkey parsing works for addresses without leading zeros
+    #[test]
+    fn test_pubkey_from_hex_no_leading_zeros() {
+        let hex = "0xf48282d15ca5c2b19e3e619aee72648fa1e5087fe91f933cd595eeef03468141";
+        let pk = pubkey_from_hex(hex).expect("parse hex");
+        assert_eq!(pk.to_bytes()[0], 0xf4, "First byte should be 0xf4");
     }
 }

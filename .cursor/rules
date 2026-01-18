@@ -49,7 +49,7 @@ git commit -m "<type of change>: <description>
 Get test counts for all components and display in a summary table:
 
 ```bash
-./.cursor/test-summary.sh
+./testing-infra/test-summary.sh
 ```
 
 This script runs all tests and displays a summary table with passed/failed counts for each component.
