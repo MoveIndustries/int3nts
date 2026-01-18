@@ -11,8 +11,8 @@
 #
 # Prerequisites:
 #   - solver/config/solver_testnet.toml configured with actual deployed addresses
-#   - .testnet-keys.env with BASE_SOLVER_PRIVATE_KEY
-#   - Movement CLI profile configured for solver (uses MOVEMENT_SOLVER_PRIVATE_KEY from .testnet-keys.env)
+#   - .env.testnet with BASE_SOLVER_PRIVATE_KEY
+#   - Movement CLI profile configured for solver (uses MOVEMENT_SOLVER_PRIVATE_KEY from .env.testnet)
 #   - Verifier running (locally or remotely)
 #   - Rust toolchain installed
 #
@@ -26,18 +26,18 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
 
-echo "🔍 Running Solver Locally (Testnet Mode)"
+echo " Running Solver Locally (Testnet Mode)"
 echo "========================================="
 echo ""
 
-# Load .testnet-keys.env for BASE_SOLVER_PRIVATE_KEY
-TESTNET_KEYS_FILE="$PROJECT_ROOT/.testnet-keys.env"
+# Load .env.testnet for BASE_SOLVER_PRIVATE_KEY
+TESTNET_KEYS_FILE="$SCRIPT_DIR/.env.testnet"
 
 if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "❌ ERROR: .testnet-keys.env not found at $TESTNET_KEYS_FILE"
+    echo "❌ ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
     echo ""
-    echo "   Create it from the template:"
-    echo "   cp env.testnet.example .testnet-keys.env"
+    echo "   Create it from the template in this directory:"
+    echo "   cp env.testnet.example .env.testnet"
     echo ""
     echo "   Then populate with your testnet keys."
     exit 1
@@ -47,10 +47,10 @@ source "$TESTNET_KEYS_FILE"
 
 # Check BASE_SOLVER_PRIVATE_KEY (required for EVM transactions)
 if [ -z "$BASE_SOLVER_PRIVATE_KEY" ]; then
-    echo "❌ ERROR: BASE_SOLVER_PRIVATE_KEY not set in .testnet-keys.env"
+    echo "❌ ERROR: BASE_SOLVER_PRIVATE_KEY not set in .env.testnet"
     echo ""
     echo "   This key is required for EVM transactions on Base Sepolia."
-    echo "   Add it to .testnet-keys.env"
+    echo "   Add it to .env.testnet"
     exit 1
 fi
 
@@ -91,7 +91,7 @@ VERIFIER_URL=$(grep "^verifier_url" "$SOLVER_CONFIG" | grep -v "^#" | head -1 | 
 HUB_RPC=$(grep -A5 "\[hub_chain\]" "$SOLVER_CONFIG" | grep "^rpc_url" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
 HUB_MODULE=$(grep -A5 "\[hub_chain\]" "$SOLVER_CONFIG" | grep "^module_addr" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
 SOLVER_PROFILE=$(grep -A5 "\[solver\]" "$SOLVER_CONFIG" | grep "^profile" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
-SOLVER_ADDRESS=$(grep -A5 "\[solver\]" "$SOLVER_CONFIG" | grep "^address" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
+SOLVER_ADDR=$(grep -A5 "\[solver\]" "$SOLVER_CONFIG" | grep "^address" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
 
 # Check if connected chain is EVM and extract escrow address
 CONNECTED_TYPE=$(grep -A2 "\[connected_chain\]" "$SOLVER_CONFIG" | grep "^type" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
@@ -102,13 +102,13 @@ fi
 
 # Check for API key placeholders in RPC URLs
 if [[ "$HUB_RPC" == *"ALCHEMY_API_KEY"* ]] || ([ "$CONNECTED_TYPE" = "evm" ] && [[ "$CONNECTED_RPC" == *"ALCHEMY_API_KEY"* ]]); then
-    echo "⚠️  WARNING: RPC URLs contain API key placeholders (ALCHEMY_API_KEY)"
+    echo "️  WARNING: RPC URLs contain API key placeholders (ALCHEMY_API_KEY)"
     echo "   The solver service does not substitute placeholders - use full URLs in config"
     echo "   Or use the public RPC URLs from testnet-assets.toml"
     echo ""
 fi
 
-echo "📋 Configuration:"
+echo " Configuration:"
 echo "   Config file: $SOLVER_CONFIG"
 echo "   Keys file:   $TESTNET_KEYS_FILE"
 echo ""
@@ -126,7 +126,7 @@ if [ "$CONNECTED_TYPE" = "evm" ]; then
 fi
 echo "   Solver:"
 echo "     Profile:          $SOLVER_PROFILE"
-echo "     Address:          $SOLVER_ADDRESS"
+echo "     Address:          $SOLVER_ADDR"
 echo ""
 
 # Check verifier is reachable
@@ -136,7 +136,7 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$VERIFIER_URL/h
 if [ "$HTTP_CODE" = "200" ]; then
     echo "   ✅ Verifier is healthy"
 else
-    echo "   ⚠️  Verifier not responding at $VERIFIER_URL (HTTP $HTTP_CODE)"
+    echo "   ️  Verifier not responding at $VERIFIER_URL (HTTP $HTTP_CODE)"
     echo ""
     echo "   Make sure verifier is running first:"
     echo "   ./testing-infra/testnet/run-verifier-local.sh"
@@ -158,7 +158,7 @@ if [ -n "$SOLVER_PROFILE" ]; then
     if movement config show-profiles --profile "$SOLVER_PROFILE" &>/dev/null; then
         echo "   ✅ Profile exists"
     else
-        echo "   ⚠️  Profile '$SOLVER_PROFILE' not found"
+        echo "   ️  Profile '$SOLVER_PROFILE' not found"
         echo ""
         echo "   Create it with:"
         echo "   movement init --profile $SOLVER_PROFILE \\"
@@ -167,7 +167,7 @@ if [ -n "$SOLVER_PROFILE" ]; then
         echo "     --private-key \"\$MOVEMENT_SOLVER_PRIVATE_KEY\" \\"
         echo "     --skip-faucet --assume-yes"
         echo ""
-        echo "   Note: MOVEMENT_SOLVER_PRIVATE_KEY should be set in .testnet-keys.env"
+        echo "   Note: MOVEMENT_SOLVER_PRIVATE_KEY should be set in .env.testnet"
         echo ""
         read -p "   Continue anyway? (y/N) " -n 1 -r
         echo
@@ -183,9 +183,9 @@ cd "$PROJECT_ROOT"
 
 # Export environment variables for solver (needed for nix develop subprocess)
 export BASE_SOLVER_PRIVATE_KEY
-# Export solver addresses for auto-registration (solver reads BASE_SOLVER_ADDRESS or SOLVER_EVM_ADDRESS)
-export BASE_SOLVER_ADDRESS
-export SOLVER_EVM_ADDRESS  # May be empty, that's OK
+# Export solver addresses for auto-registration (solver reads BASE_SOLVER_ADDR or SOLVER_EVM_ADDR)
+export BASE_SOLVER_ADDR
+export SOLVER_EVM_ADDR  # May be empty, that's OK
 # Export Movement solver private key for registration (solver reads from env var first, then profile)
 if [ -n "$MOVEMENT_SOLVER_PRIVATE_KEY" ]; then
     export MOVEMENT_SOLVER_PRIVATE_KEY
@@ -200,11 +200,11 @@ ENV_VARS="SOLVER_CONFIG_PATH='$SOLVER_CONFIG' RUST_LOG=info,solver::service::tra
 if [ -n "$BASE_SOLVER_PRIVATE_KEY" ]; then
     ENV_VARS="$ENV_VARS BASE_SOLVER_PRIVATE_KEY='$BASE_SOLVER_PRIVATE_KEY'"
 fi
-if [ -n "$BASE_SOLVER_ADDRESS" ]; then
-    ENV_VARS="$ENV_VARS BASE_SOLVER_ADDRESS='$BASE_SOLVER_ADDRESS'"
+if [ -n "$BASE_SOLVER_ADDR" ]; then
+    ENV_VARS="$ENV_VARS BASE_SOLVER_ADDR='$BASE_SOLVER_ADDR'"
 fi
-if [ -n "$SOLVER_EVM_ADDRESS" ]; then
-    ENV_VARS="$ENV_VARS SOLVER_EVM_ADDRESS='$SOLVER_EVM_ADDRESS'"
+if [ -n "$SOLVER_EVM_ADDR" ]; then
+    ENV_VARS="$ENV_VARS SOLVER_EVM_ADDR='$SOLVER_EVM_ADDR'"
 fi
 if [ -n "$MOVEMENT_SOLVER_PRIVATE_KEY" ]; then
     ENV_VARS="$ENV_VARS MOVEMENT_SOLVER_PRIVATE_KEY='$MOVEMENT_SOLVER_PRIVATE_KEY'"
@@ -212,15 +212,15 @@ fi
 
 # Check if --release flag is passed
 if [ "$1" = "--release" ]; then
-    echo "🔨 Building release binary..."
+    echo " Building release binary..."
     nix develop --command bash -c "cargo build --release --manifest-path solver/Cargo.toml"
     echo ""
-    echo "🚀 Starting solver (release mode)..."
+    echo " Starting solver (release mode)..."
     echo "   Press Ctrl+C to stop"
     echo ""
     eval "$ENV_VARS ./solver/target/release/solver"
 else
-    echo "🚀 Starting solver (debug mode)..."
+    echo " Starting solver (debug mode)..."
     echo "   Press Ctrl+C to stop"
     echo "   (Use --release for faster performance)"
     echo ""

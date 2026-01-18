@@ -99,7 +99,7 @@ curl -s http://localhost:3333/health | jq
 - Verifier and solver config files populated with deployed addresses:
   - `trusted-verifier/config/verifier_testnet.toml`
   - `solver/config/solver_testnet.toml`
-- `.testnet-keys.env` with all required keys
+- `.env.testnet` in this directory with all required keys
 - Movement CLI profile configured (solver only)
 - Verifier running and healthy (for solver and create-intent scripts)
 
@@ -107,7 +107,7 @@ curl -s http://localhost:3333/health | jq
 
 All scripts read from:
 
-- `.testnet-keys.env` - Private keys and addresses (gitignored)
+- `.env.testnet` - Private keys and addresses in this directory (gitignored)
 - `trusted-verifier/config/verifier_testnet.toml` - Verifier service config (gitignored)
 - `solver/config/solver_testnet.toml` - Solver service config (gitignored)
 - `config/testnet-assets.toml` - Public asset addresses and decimals

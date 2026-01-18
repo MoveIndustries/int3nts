@@ -236,7 +236,7 @@ fn test_config_validate_unique_chain_ids() {
 }
 
 // ============================================================================
-// ADDRESS NORMALIZATION TESTS
+// ADDR NORMALIZATION TESTS
 // ============================================================================
 
 /// Test that normalize_address pads Move VM addresses with leading zeros

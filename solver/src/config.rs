@@ -74,6 +74,9 @@ pub enum ConnectedChainConfig {
     /// EVM chain configuration
     #[serde(rename = "evm")]
     Evm(EvmChainConfig),
+    /// SVM chain configuration
+    #[serde(rename = "svm")]
+    Svm(SvmChainConfig),
 }
 
 /// Configuration for an EVM-compatible chain.
@@ -92,6 +95,21 @@ pub struct EvmChainConfig {
     /// Hardhat network name (e.g., "localhost", "baseSepolia")
     #[serde(default = "default_network_name")]
     pub network_name: String,
+}
+
+/// Configuration for a Solana chain (SVM).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SvmChainConfig {
+    /// Human-readable name for the chain
+    pub name: String,
+    /// RPC endpoint URL for Solana chain communication
+    pub rpc_url: String,
+    /// Chain ID (arbitrary unique ID used for routing)
+    pub chain_id: u64,
+    /// Program ID of the intent escrow program
+    pub escrow_program_id: String,
+    /// Environment variable name containing the solver keypair path
+    pub keypair_path_env: String,
 }
 
 fn default_network_name() -> String {
@@ -186,6 +204,7 @@ impl SolverConfig {
         let connected_chain_id = match &self.connected_chain {
             ConnectedChainConfig::Mvm(config) => config.chain_id,
             ConnectedChainConfig::Evm(config) => config.chain_id,
+            ConnectedChainConfig::Svm(config) => config.chain_id,
         };
 
         if hub_chain_id == connected_chain_id {

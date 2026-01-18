@@ -7,7 +7,7 @@
 //! 2. **Fulfill Intent**: Call hub chain `fulfill_inflow_intent` when escrow is detected
 //! 3. **Release Escrow**: Poll verifier for approval signature, then release escrow on connected chain
 
-use crate::chains::{ConnectedEvmClient, ConnectedMvmClient};
+use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient};
 use crate::config::{ConnectedChainConfig, SolverConfig};
 use crate::service::tracker::{IntentTracker, TrackedIntent};
 use crate::verifier_client::VerifierClient;
@@ -33,6 +33,7 @@ pub struct InflowService {
 enum ConnectedChainClient {
     Mvm(ConnectedMvmClient),
     Evm(ConnectedEvmClient),
+    Svm(ConnectedSvmClient),
 }
 
 /// Helper struct for matching escrow events to intents
@@ -63,6 +64,9 @@ impl InflowService {
             }
             ConnectedChainConfig::Evm(chain_config) => {
                 ConnectedChainClient::Evm(ConnectedEvmClient::new(chain_config)?)
+            }
+            ConnectedChainConfig::Svm(chain_config) => {
+                ConnectedChainClient::Svm(ConnectedSvmClient::new(chain_config)?)
             }
         };
 
@@ -168,6 +172,19 @@ impl InflowService {
                     .map(|e| EscrowMatch {
                         intent_id: e.intent_id,
                         escrow_id: e.escrow_addr,
+                    })
+                    .collect()
+            }
+            ConnectedChainClient::Svm(client) => {
+                let events = client.get_escrow_events().await?;
+                if !events.is_empty() {
+                    info!("Found {} SVM escrow events", events.len());
+                }
+                events
+                    .into_iter()
+                    .map(|e| EscrowMatch {
+                        intent_id: e.intent_id,
+                        escrow_id: e.escrow_id,
                     })
                     .collect()
             }
@@ -305,6 +322,9 @@ impl InflowService {
             ConnectedChainClient::Evm(client) => {
                 // For EVM, use claim() with ECDSA signature via Hardhat script
                 // The Hardhat script handles signing using Hardhat's signer configuration
+                client.claim_escrow(escrow_id, &intent.intent_id, &signature_bytes).await
+            }
+            ConnectedChainClient::Svm(client) => {
                 client.claim_escrow(escrow_id, &intent.intent_id, &signature_bytes).await
             }
         }

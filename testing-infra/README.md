@@ -14,9 +14,10 @@ testing-infra/
 │   ├── e2e-tests-evm/       # Mixed MVM/EVM cross-chain tests
 │   ├── test-tokens/         # Test token contracts
 │   └── util*.sh             # Shared utilities
-└── testnet/         # Public testnet deployment
-    ├── config/              # Testnet asset configuration
-    └── check-testnet-balances.sh
+├── testnet/         # Public testnet deployment
+│   ├── config/              # Testnet asset configuration
+│   └── check-testnet-balances.sh
+└── test-summary.sh  # Run all unit tests and display summary table
 ```
 
 ## CI/E2E Tests
@@ -26,7 +27,7 @@ Local testing using Docker containers:
 - **[Move VM E2E Tests](./ci-e2e/e2e-tests-mvm/README.md)** - MVM-only cross-chain intents (Chain 1 → Chain 2)
 - **[EVM E2E Tests](./ci-e2e/e2e-tests-evm/README.md)** - Mixed-chain intents (MVM Chain 1 → EVM Chain 3)
 
-📚 **Full documentation: [docs/testing-infra/](../docs/testing-infra/README.md)**
+ **Full documentation: [docs/testing-infra/](../docs/testing-infra/README.md)**
 
 ## Testnet
 

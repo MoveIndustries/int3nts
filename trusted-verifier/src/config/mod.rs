@@ -28,6 +28,9 @@ pub struct Config {
     /// Connected EVM chain configuration (optional, for escrow on EVM)
     #[serde(default)]
     pub connected_chain_evm: Option<EvmChainConfig>,
+    /// Connected Solana chain configuration (optional, for escrow on SVM)
+    #[serde(default)]
+    pub connected_chain_svm: Option<SvmChainConfig>,
     /// Verifier-specific configuration (keys, timeouts, etc.)
     pub verifier: VerifierConfig,
     /// API server configuration (host, port, CORS settings)
@@ -73,6 +76,19 @@ pub struct EvmChainConfig {
     /// This is the Ethereum address derived from the verifier's ECDSA public key
     #[serde(rename = "verifier_evm_pubkey_hash", alias = "verifier_addr")]
     pub verifier_evm_pubkey_hash: String,
+}
+
+/// Configuration for a Solana chain (SVM).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SvmChainConfig {
+    /// Human-readable name for the chain
+    pub name: String,
+    /// RPC endpoint URL for Solana chain communication
+    pub rpc_url: String,
+    /// Chain ID (arbitrary unique ID used for routing)
+    pub chain_id: u64,
+    /// Program ID of the intent escrow program
+    pub escrow_program_id: String,
 }
 
 /// Verifier-specific configuration including cryptographic keys and timing parameters.
@@ -201,12 +217,42 @@ impl Config {
             }
         }
 
+        // Check hub vs connected_chain_svm
+        if let Some(ref svm_config) = self.connected_chain_svm {
+            if hub_chain_id == svm_config.chain_id {
+                return Err(anyhow::anyhow!(
+                    "Configuration error: Hub chain and connected SVM chain have the same chain ID {}. Each chain must have a unique chain ID.",
+                    hub_chain_id
+                ));
+            }
+        }
+
         // Check connected_chain_mvm vs connected_chain_evm
         if let (Some(ref mvm_config), Some(ref evm_config)) = (&self.connected_chain_mvm, &self.connected_chain_evm) {
             if mvm_config.chain_id == evm_config.chain_id {
                 return Err(anyhow::anyhow!(
                     "Configuration error: Connected MVM chain and connected EVM chain have the same chain ID {}. Each chain must have a unique chain ID.",
                     mvm_config.chain_id
+                ));
+            }
+        }
+
+        // Check connected_chain_mvm vs connected_chain_svm
+        if let (Some(ref mvm_config), Some(ref svm_config)) = (&self.connected_chain_mvm, &self.connected_chain_svm) {
+            if mvm_config.chain_id == svm_config.chain_id {
+                return Err(anyhow::anyhow!(
+                    "Configuration error: Connected MVM chain and connected SVM chain have the same chain ID {}. Each chain must have a unique chain ID.",
+                    mvm_config.chain_id
+                ));
+            }
+        }
+
+        // Check connected_chain_evm vs connected_chain_svm
+        if let (Some(ref evm_config), Some(ref svm_config)) = (&self.connected_chain_evm, &self.connected_chain_svm) {
+            if evm_config.chain_id == svm_config.chain_id {
+                return Err(anyhow::anyhow!(
+                    "Configuration error: Connected EVM chain and connected SVM chain have the same chain ID {}. Each chain must have a unique chain ID.",
+                    evm_config.chain_id
                 ));
             }
         }
@@ -277,6 +323,7 @@ impl Config {
                 cors_origins: vec!["http://localhost:3333".to_string()],
             },
             connected_chain_evm: None, // Optional connected EVM chain configuration
+            connected_chain_svm: None, // Optional connected SVM chain configuration
             acceptance: None, // Optional acceptance criteria
         }
     }

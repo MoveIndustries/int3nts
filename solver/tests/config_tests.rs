@@ -4,7 +4,7 @@
 mod test_helpers;
 use test_helpers::{
     create_default_connected_mvm_chain_config, create_default_solver_config, create_default_token_pair,
-    DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_TOKEN_ADDR_EVM, DUMMY_TOKEN_ADDR_MVM_CON, DUMMY_TOKEN_ADDR_MVM_HUB,
+    DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_TOKEN_ADDR_EVM, DUMMY_TOKEN_ADDR_MVMCON, DUMMY_TOKEN_ADDR_HUB,
 };
 
 use solver::config::{AcceptanceConfig, ChainConfig, ConnectedChainConfig, SolverConfig};
@@ -18,7 +18,7 @@ use std::collections::HashMap;
 fn create_test_config() -> SolverConfig {
     let mut token_pairs = HashMap::new();
     token_pairs.insert(
-        format!("1:{}:2:{}", DUMMY_TOKEN_ADDR_MVM_HUB, DUMMY_TOKEN_ADDR_MVM_CON),
+        format!("1:{}:2:{}", DUMMY_TOKEN_ADDR_HUB, DUMMY_TOKEN_ADDR_MVMCON),
         1.0,
     );
     
@@ -178,7 +178,7 @@ fn test_get_token_pairs_token_address() {
     config.acceptance.token_pairs.clear();
     // Token addresses in the config use hex format
     config.acceptance.token_pairs.insert(
-        format!("1:{}:2:{}", DUMMY_TOKEN_ADDR_MVM_HUB, DUMMY_TOKEN_ADDR_EVM),
+        format!("1:{}:2:{}", DUMMY_TOKEN_ADDR_HUB, DUMMY_TOKEN_ADDR_EVM),
         0.5,
     );
 
@@ -238,6 +238,7 @@ profile = "connected-profile"
             assert_eq!(config.name, "connected-chain");
         }
         ConnectedChainConfig::Evm(_) => panic!("Expected MVM config"),
+        ConnectedChainConfig::Svm(_) => panic!("Expected MVM config"),
     }
 }
 
@@ -264,6 +265,34 @@ private_key_env = "BASE_SOLVER_PRIVATE_KEY"
             assert_eq!(config.private_key_env, "BASE_SOLVER_PRIVATE_KEY");
         }
         ConnectedChainConfig::Mvm(_) => panic!("Expected EVM config"),
+        ConnectedChainConfig::Svm(_) => panic!("Expected EVM config"),
+    }
+}
+
+/// What is tested: ConnectedChainConfig can deserialize SVM type
+/// Why: Ensure SVM chain config is correctly parsed from TOML
+#[test]
+fn test_connected_chain_svm_deserialization() {
+    let toml_str = r#"
+type = "svm"
+name = "Connected SVM Chain"
+rpc_url = "http://127.0.0.1:8899"
+chain_id = 100
+escrow_program_id = "11111111111111111111111111111111"
+keypair_path_env = "SVM_SOLVER_KEYPAIR"
+"#;
+
+    let chain: ConnectedChainConfig = toml::from_str(toml_str).unwrap();
+
+    match chain {
+        ConnectedChainConfig::Svm(config) => {
+            assert_eq!(config.chain_id, 100);
+            assert_eq!(config.name, "Connected SVM Chain");
+            assert_eq!(config.escrow_program_id, "11111111111111111111111111111111");
+            assert_eq!(config.keypair_path_env, "SVM_SOLVER_KEYPAIR");
+        }
+        ConnectedChainConfig::Mvm(_) => panic!("Expected SVM config"),
+        ConnectedChainConfig::Evm(_) => panic!("Expected SVM config"),
     }
 }
 

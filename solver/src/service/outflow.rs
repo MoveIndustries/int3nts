@@ -7,7 +7,7 @@
 //! 2. **Get Verifier Approval**: Call verifier `/validate-outflow-fulfillment` with transaction hash
 //! 3. **Fulfill Intent**: Call hub chain `fulfill_outflow_intent` with verifier signature
 
-use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, HubChainClient};
+use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient, HubChainClient};
 use crate::config::{ConnectedChainConfig, SolverConfig};
 use crate::service::tracker::{IntentTracker, TrackedIntent};
 use crate::verifier_client::{ValidateOutflowFulfillmentRequest, VerifierClient};
@@ -31,6 +31,7 @@ pub struct OutflowService {
 enum ConnectedChainClient {
     Mvm(ConnectedMvmClient),
     Evm(ConnectedEvmClient),
+    Svm(ConnectedSvmClient),
 }
 
 impl OutflowService {
@@ -57,6 +58,9 @@ impl OutflowService {
             }
             ConnectedChainConfig::Evm(chain_config) => {
                 ConnectedChainClient::Evm(ConnectedEvmClient::new(chain_config)?)
+            }
+            ConnectedChainConfig::Svm(chain_config) => {
+                ConnectedChainClient::Svm(ConnectedSvmClient::new(chain_config)?)
             }
         };
 
@@ -90,6 +94,14 @@ impl OutflowService {
         let mut executed_transfers = Vec::new();
 
         for intent in pending_intents {
+            if intent.outflow_attempted {
+                warn!(
+                    "Skipping outflow intent {}: transfer already attempted",
+                    intent.intent_id
+                );
+                continue;
+            }
+
             // Get requester_addr_connected_chain from intent
             // TODO: Query intent object on hub chain to get requester_addr_connected_chain
             // For now, we'll need to store this in TrackedIntent or query it
@@ -101,6 +113,14 @@ impl OutflowService {
                     continue;
                 }
             };
+
+            if let Err(e) = self.tracker.mark_outflow_attempted(&intent.intent_id).await {
+                error!(
+                    "Failed to mark outflow intent {} as attempted: {}",
+                    intent.intent_id, e
+                );
+                continue;
+            }
 
             // Execute transfer on connected chain
             let tx_hash = match self.execute_connected_transfer(&intent, &requester_addr_connected_chain).await {
@@ -146,6 +166,12 @@ impl OutflowService {
                 // EVM: Use transfer_with_intent_id via Hardhat script
                 // Same approach as inflow's claim_escrow
                 client.transfer_with_intent_id(desired_token, recipient, desired_amount, &intent.intent_id).await
+            }
+            ConnectedChainClient::Svm(client) => {
+                // SVM: Use SPL memo + transferChecked flow
+                client
+                    .transfer_with_intent_id(recipient, desired_token, desired_amount, &intent.intent_id)
+                    .await
             }
         }
     }
@@ -277,6 +303,7 @@ impl OutflowService {
                         let chain_type = match &self.connected_client {
                             ConnectedChainClient::Mvm(_) => "mvm",
                             ConnectedChainClient::Evm(_) => "evm",
+                            ConnectedChainClient::Svm(_) => "svm",
                         };
 
                         match self.get_verifier_approval(&tx_hash, chain_type, &intent.intent_id).await {
