@@ -38,7 +38,7 @@ popd > /dev/null
 echo "   ✅ Solver: solver, sign_intent"
 
 echo ""
-docker pull aptoslabs/tools:nightly
+docker pull "$APTOS_DOCKER_IMAGE"
 
 echo " Step 2: Generating verifier keys..."
 echo "======================================="

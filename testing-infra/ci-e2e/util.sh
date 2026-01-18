@@ -3,6 +3,9 @@
 # Common utilities for testing infrastructure scripts
 # Source this file in other scripts with: source "$(dirname "$0")/util.sh" or similar
 
+# Pinned Aptos Docker image for reproducible builds
+export APTOS_DOCKER_IMAGE="aptoslabs/tools@sha256:b6d7fc304963929ad89ef74da020ed995da22dc11fd6cb68cf5f17b6bfff0ccf"
+
 
 # Get project root - can be called from any script location
 # Usage: Call this function to set PROJECT_ROOT and optionally change to it

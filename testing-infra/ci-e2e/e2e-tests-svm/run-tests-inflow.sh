@@ -40,7 +40,7 @@ cargo build -p intent_escrow_cli 2>&1 | tail -5
 popd > /dev/null
 log_and_echo "   ✅ SVM: intent_escrow_cli"
 
-docker pull aptoslabs/tools:nightly
+docker pull "$APTOS_DOCKER_IMAGE"
 
 log_and_echo " Step 2: Generating verifier keys..."
 log_and_echo "======================================="

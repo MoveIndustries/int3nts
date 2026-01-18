@@ -63,8 +63,8 @@ fi
 
 SVM_VERIFIER_PUBKEY=$(svm_base64_to_base58 "$E2E_VERIFIER_PUBLIC_KEY")
 SVM_PROGRAM_ID="$PROGRAM_ID"
-log "   ⏳ Waiting briefly before initialize..."
-sleep 2
+log "   ⏳ Waiting for program to be executable..."
+sleep 10
 
 set +e
 init_success=0
