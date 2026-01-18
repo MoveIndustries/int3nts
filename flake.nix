@@ -34,6 +34,8 @@
             movementCli   # For testnet deployment
             # Solana CLI installed via official script in shellHook (needs writable dir for platform-tools)
             # SVM builds use scripts/build.sh which handles Solana's toolchain requirements
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+            pkgs.eudev  # libudev headers needed for node-usb (frontend tests)
           ];
 
           shellHook = ''
