@@ -23,4 +23,10 @@ if [ -z "$SVM_TOKEN_ACCOUNT" ]; then
 fi
 
 cd "$PROJECT_DIR"
-cargo run -p intent_escrow_cli -- get-token-balance --token-account "$SVM_TOKEN_ACCOUNT" --rpc "$SVM_RPC_URL"
+
+CLI_BIN="$PROJECT_DIR/target/debug/intent_escrow_cli"
+if [ ! -x "$CLI_BIN" ]; then
+    echo "❌ PANIC: intent_escrow_cli not built. Step 1 (build binaries) failed."
+    exit 1
+fi
+"$CLI_BIN" get-token-balance --token-account "$SVM_TOKEN_ACCOUNT" --rpc "$SVM_RPC_URL"

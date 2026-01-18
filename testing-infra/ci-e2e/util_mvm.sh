@@ -426,16 +426,21 @@ generate_solver_signature() {
     local temp_output_file
     temp_output_file=$(mktemp)
     
+    # Use pre-built binary (must be built in Step 1)
+    local sign_intent_bin="$PROJECT_ROOT/solver/target/debug/sign_intent"
+    if [ ! -x "$sign_intent_bin" ]; then
+        log_and_echo "❌ PANIC: sign_intent not built. Step 1 (build binaries) failed."
+        exit 1
+    fi
+    
     local exit_code
     if [ -n "$log_file" ]; then
         # Run command, log everything, and capture to temp file
-        # Pass HOME environment variable to ensure Aptos config can be found
-        (cd "$PROJECT_ROOT" && env HOME="${HOME}" nix develop -c bash -c "cd solver && cargo run --bin sign_intent -- --profile \"$profile\" --chain-address \"$normalized_chain_addr\" --offered-metadata \"$normalized_offered_metadata\" --offered-amount \"$offered_amount\" --offered-chain-id \"$offered_chain_id\" --desired-metadata \"$normalized_desired_metadata\" --desired-amount \"$desired_amount\" --desired-chain-id \"$desired_chain_id\" --expiry-time \"$expiry_time\" --issuer \"$normalized_issuer\" --solver \"$normalized_solver\" --chain-num \"$chain_num\" 2>&1" | tee -a "$log_file" > "$temp_output_file")
+        (cd "$PROJECT_ROOT" && env HOME="${HOME}" "$sign_intent_bin" --profile "$profile" --chain-address "$normalized_chain_addr" --offered-metadata "$normalized_offered_metadata" --offered-amount "$offered_amount" --offered-chain-id "$offered_chain_id" --desired-metadata "$normalized_desired_metadata" --desired-amount "$desired_amount" --desired-chain-id "$desired_chain_id" --expiry-time "$expiry_time" --issuer "$normalized_issuer" --solver "$normalized_solver" --chain-num "$chain_num" 2>&1 | tee -a "$log_file" > "$temp_output_file")
         exit_code=${PIPESTATUS[0]}
     else
         # Run command and capture to temp file
-        # Pass HOME environment variable to ensure Aptos config can be found
-        (cd "$PROJECT_ROOT" && env HOME="${HOME}" nix develop -c bash -c "cd solver && cargo run --bin sign_intent -- --profile \"$profile\" --chain-address \"$normalized_chain_addr\" --offered-metadata \"$normalized_offered_metadata\" --offered-amount \"$offered_amount\" --offered-chain-id \"$offered_chain_id\" --desired-metadata \"$normalized_desired_metadata\" --desired-amount \"$desired_amount\" --desired-chain-id \"$desired_chain_id\" --expiry-time \"$expiry_time\" --issuer \"$normalized_issuer\" --solver \"$normalized_solver\" --chain-num \"$chain_num\" 2>&1" > "$temp_output_file")
+        (cd "$PROJECT_ROOT" && env HOME="${HOME}" "$sign_intent_bin" --profile "$profile" --chain-address "$normalized_chain_addr" --offered-metadata "$normalized_offered_metadata" --offered-amount "$offered_amount" --offered-chain-id "$offered_chain_id" --desired-metadata "$normalized_desired_metadata" --desired-amount "$desired_amount" --desired-chain-id "$desired_chain_id" --expiry-time "$expiry_time" --issuer "$normalized_issuer" --solver "$normalized_solver" --chain-num "$chain_num" 2>&1 > "$temp_output_file")
         exit_code=$?
     fi
     

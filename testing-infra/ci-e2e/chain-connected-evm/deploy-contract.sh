@@ -37,7 +37,14 @@ VERIFIER_DIR="$PROJECT_ROOT/trusted-verifier"
 export VERIFIER_CONFIG_PATH="$PROJECT_ROOT/trusted-verifier/config/verifier-e2e-ci-testing.toml"
 CONFIG_PATH="$VERIFIER_CONFIG_PATH"
 
-VERIFIER_ETH_OUTPUT=$(cd "$PROJECT_ROOT" && env HOME="${HOME}" VERIFIER_CONFIG_PATH="$CONFIG_PATH" nix develop -c bash -c "cd trusted-verifier && cargo run --bin get_verifier_eth_address 2>&1" | tee -a "$LOG_FILE")
+# Use pre-built binary (must be built in Step 1)
+GET_VERIFIER_ETH_BIN="$PROJECT_ROOT/trusted-verifier/target/debug/get_verifier_eth_address"
+if [ ! -x "$GET_VERIFIER_ETH_BIN" ]; then
+    log_and_echo "❌ PANIC: get_verifier_eth_address not built. Step 1 (build binaries) failed."
+    exit 1
+fi
+
+VERIFIER_ETH_OUTPUT=$(cd "$PROJECT_ROOT" && env HOME="${HOME}" VERIFIER_CONFIG_PATH="$CONFIG_PATH" "$GET_VERIFIER_ETH_BIN" 2>&1 | tee -a "$LOG_FILE")
 VERIFIER_EVM_PUBKEY_HASH=$(echo "$VERIFIER_ETH_OUTPUT" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1 | tr -d '\n')
 
 if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then

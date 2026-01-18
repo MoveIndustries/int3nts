@@ -24,27 +24,27 @@ log_and_echo "=============================================="
 log_and_echo " All output logged to: $LOG_FILE"
 log_and_echo ""
 
-log_and_echo " Step 1: Cleaning up any existing chains, accounts and processes..."
+log_and_echo " Step 0: Cleaning up any existing chains, accounts and processes..."
 log_and_echo "=========================================================="
 ./testing-infra/ci-e2e/chain-connected-evm/cleanup.sh
 
 log_and_echo ""
-log_and_echo " Step 1b: Generating verifier keys..."
-log_and_echo "======================================="
-generate_verifier_keys
-
-log_and_echo ""
-log_and_echo " Step 2: Building Rust services (verifier and solver)..."
-log_and_echo "==========================================================="
+log_and_echo " Step 1: Building required binaries..."
+log_and_echo "========================================"
 pushd "$PROJECT_ROOT/trusted-verifier" > /dev/null
-cargo build --bin trusted-verifier 2>&1 | tail -5
+cargo build --bin trusted-verifier --bin generate_keys --bin get_verifier_eth_address 2>&1 | tail -5
 popd > /dev/null
-log_and_echo "   ✅ Verifier built"
+log_and_echo "   ✅ Verifier: trusted-verifier, generate_keys, get_verifier_eth_address"
 
 pushd "$PROJECT_ROOT/solver" > /dev/null
-cargo build --bin solver 2>&1 | tail -5
+cargo build --bin solver --bin sign_intent 2>&1 | tail -5
 popd > /dev/null
-log_and_echo "   ✅ Solver built"
+log_and_echo "   ✅ Solver: solver, sign_intent"
+
+log_and_echo ""
+log_and_echo " Step 2: Generating verifier keys..."
+log_and_echo "======================================="
+generate_verifier_keys
 log_and_echo ""
 
 log_and_echo " Step 3: Setting up chains and deploying contracts..."

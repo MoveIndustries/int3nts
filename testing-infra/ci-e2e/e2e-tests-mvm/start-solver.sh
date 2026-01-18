@@ -134,26 +134,6 @@ if start_solver "$LOG_DIR/solver.log" "info" "$SOLVER_CONFIG"; then
     log_and_echo "   Logs: $LOG_DIR/solver.log"
 else
     log ""
-    log_and_echo "️  Solver failed to start"
-    log_and_echo "   Checking if binary needs to be built..."
-    
-    # Try building the solver
-    log "   Building solver..."
-    pushd "$PROJECT_ROOT/solver" > /dev/null
-    if cargo build --bin solver 2>> "$LOG_FILE"; then
-        log "   ✅ Solver built successfully"
-        popd > /dev/null
-        
-        # Try starting again
-        if start_solver "$LOG_DIR/solver.log" "info" "$SOLVER_CONFIG"; then
-            log_and_echo "✅ Solver started successfully after build"
-        else
-            log_and_echo "❌ Solver still failed to start after build"
-            exit 1
-        fi
-    else
-        log_and_echo "❌ Failed to build solver"
-        popd > /dev/null
-        exit 1
-    fi
+    log_and_echo "❌ PANIC: Solver failed to start. Step 1 (build binaries) failed."
+    exit 1
 fi

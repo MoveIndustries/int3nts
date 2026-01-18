@@ -97,8 +97,13 @@ generate_verifier_keys() {
     log_and_echo "   Generating ephemeral test keys..."
     cd "$PROJECT_ROOT/trusted-verifier"
     
-    # Build and run generate_keys, capture output
-    KEYS_OUTPUT=$(cargo run --bin generate_keys 2>/dev/null)
+    # Use pre-built binary (must be built in Step 1)
+    local generate_keys_bin="$PROJECT_ROOT/trusted-verifier/target/debug/generate_keys"
+    if [ ! -x "$generate_keys_bin" ]; then
+        log_and_echo "❌ PANIC: generate_keys not built. Step 1 (build binaries) failed."
+        exit 1
+    fi
+    KEYS_OUTPUT=$("$generate_keys_bin" 2>/dev/null)
     
     # Extract keys from output
     PRIVATE_KEY=$(echo "$KEYS_OUTPUT" | grep "Private Key (base64):" | sed 's/.*: //')
@@ -506,11 +511,10 @@ start_verifier() {
     log "   Using config: $VERIFIER_CONFIG_PATH"
     log "   Log file: $log_file"
     
-    # Use pre-built binary (must be built first via Step 0)
+    # Use pre-built binary (must be built in Step 1)
     local verifier_binary="$PROJECT_ROOT/trusted-verifier/target/debug/trusted-verifier"
     if [ ! -f "$verifier_binary" ]; then
-        log_and_echo "   ❌ PANIC: Verifier binary not found: $verifier_binary"
-        log_and_echo "   Please build first: cd trusted-verifier && cargo build --bin trusted-verifier"
+        log_and_echo "   ❌ PANIC: trusted-verifier not built. Step 1 (build binaries) failed."
         exit 1
     fi
     
@@ -646,11 +650,10 @@ start_solver() {
     log "   Using config: $config_path"
     log "   Log file: $log_file"
     
-    # Use pre-built binary (must be built first via Step 0)
+    # Use pre-built binary (must be built in Step 1)
     local solver_binary="$PROJECT_ROOT/solver/target/debug/solver"
     if [ ! -f "$solver_binary" ]; then
-        log_and_echo "   ❌ PANIC: Solver binary not found: $solver_binary"
-        log_and_echo "   Please build first: cd solver && cargo build --bin solver"
+        log_and_echo "   ❌ PANIC: solver not built. Step 1 (build binaries) failed."
         exit 1
     fi
     
