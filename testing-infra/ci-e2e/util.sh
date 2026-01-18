@@ -450,9 +450,9 @@ display_service_logs() {
     
     if [ -f "$verifier_log" ]; then
         log_and_echo ""
-        log_and_echo " Verifier logs (last 100 lines):"
+        log_and_echo " Verifier logs:"
         log_and_echo "-----------------------------------"
-        tail -100 "$verifier_log" | sed 's/^/   /'
+        cat "$verifier_log" | sed 's/^/   /'
     else
         log_and_echo ""
         log_and_echo "️  Verifier log not found: $verifier_log"
@@ -460,9 +460,9 @@ display_service_logs() {
     
     if [ -f "$solver_log" ]; then
         log_and_echo ""
-        log_and_echo " Solver logs (last 100 lines):"
+        log_and_echo " Solver logs:"
         log_and_echo "-----------------------------------"
-        tail -100 "$solver_log" | sed 's/^/   /'
+        cat "$solver_log" | sed 's/^/   /'
     else
         log_and_echo ""
         log_and_echo "️  Solver log not found: $solver_log"
