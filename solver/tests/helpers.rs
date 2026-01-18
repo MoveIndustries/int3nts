@@ -65,7 +65,7 @@ pub const DUMMY_TOKEN_ADDR_MVMCON: &str =
 pub const DUMMY_ESCROW_CONTRACT_ADDR_EVM: &str = "0x000000000000000000000000000000000000000d";
 
 /// Dummy intent address (Move VM format, 64 hex characters, used for intent object address on hub chain)
-pub const DUMMY_INTENT_ADDR_MVM: &str =
+pub const DUMMY_INTENT_ADDR_HUB: &str =
     "0x000000000000000000000000000000000000000000000000000000000000000e";
 
 /// Dummy escrow program id (valid base58 pubkey string)

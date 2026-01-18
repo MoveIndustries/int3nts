@@ -52,3 +52,5 @@ solver/config/solver-e2e-ci-testing.toml
 # Task files
 # tasks.json
 # tasks/ 
+
+frontend/.npm-cache/*

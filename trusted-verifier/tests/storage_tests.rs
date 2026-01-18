@@ -237,7 +237,7 @@ async fn test_fcfs_first_signature_succeeds() {
     let draft = store.get_draft("draft-1").await.unwrap();
     assert_eq!(draft.status, DraftintentStatus::Signed);
     assert!(draft.signature.is_some());
-    assert_eq!(draft.signature.unwrap().solver_addr, DUMMY_SOLVER_ADDR_HUB);
+    assert_eq!(draft.signature.unwrap().solver_hub_addr, DUMMY_SOLVER_ADDR_HUB);
 }
 
 /// Test that second signature fails (FCFS)
@@ -286,7 +286,7 @@ async fn test_fcfs_second_signature_fails() {
     // Verify first signature is still stored
     let draft = store.get_draft("draft-1").await.unwrap();
     assert_eq!(draft.status, DraftintentStatus::Signed);
-    assert_eq!(draft.signature.unwrap().solver_addr, DUMMY_SOLVER_ADDR_HUB);
+    assert_eq!(draft.signature.unwrap().solver_hub_addr, DUMMY_SOLVER_ADDR_HUB);
 }
 
 /// Test that signature to non-existent draft fails

@@ -76,7 +76,7 @@ pub const DUMMY_VERIFIER_EVM_PUBKEY_HASH: &str = "0x0000000000000000000000000000
 /// Dummy intent address (Move VM format, 64 hex characters)
 /// This represents the Move VM object address of an intent on the hub chain
 #[allow(dead_code)]
-pub const DUMMY_INTENT_ADDR_MVM: &str =
+pub const DUMMY_INTENT_ADDR_HUB: &str =
     "0x000000000000000000000000000000000000000000000000000000000000000c";
 
 /// Dummy token address (EVM format, 20 bytes)
@@ -284,8 +284,8 @@ pub fn create_default_intent_evm() -> IntentEvent {
 pub fn create_default_fulfillment() -> FulfillmentEvent {
     FulfillmentEvent {
         intent_id: DUMMY_INTENT_ID.to_string(),
-        intent_addr: DUMMY_INTENT_ADDR_MVM.to_string(),
-        solver_addr: DUMMY_SOLVER_ADDR_MVMCON.to_string(),
+        intent_addr: DUMMY_INTENT_ADDR_HUB.to_string(),
+        solver_hub_addr: DUMMY_SOLVER_ADDR_MVMCON.to_string(),
         provided_metadata: "{}".to_string(),
         provided_amount: 0,
         timestamp: 0, // Should be set explicitly in tests

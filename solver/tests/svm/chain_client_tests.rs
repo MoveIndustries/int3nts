@@ -3,8 +3,9 @@
 use solver::chains::ConnectedSvmClient;
 use solver::config::SvmChainConfig;
 
-mod helpers;
-use helpers::DUMMY_SVM_ESCROW_PROGRAM_ID;
+#[path = "../helpers.rs"]
+mod test_helpers;
+use test_helpers::DUMMY_SVM_ESCROW_PROGRAM_ID;
 
 /// Test that ConnectedSvmClient rejects invalid program ids
 /// Why: Misconfigured program ids should fail fast instead of causing RPC errors later

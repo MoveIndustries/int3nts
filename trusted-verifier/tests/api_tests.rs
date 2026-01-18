@@ -191,7 +191,7 @@ async fn test_signature_submission_missing_fields() {
 
     // Test missing fields
     let invalid_request = json!({
-        "solver_addr": DUMMY_SOLVER_ADDR_HUB
+        "solver_hub_addr": DUMMY_SOLVER_ADDR_HUB
         // Missing signature and public_key
     });
 
@@ -232,7 +232,7 @@ async fn test_signature_route_not_confused_with_draft_route() {
     // Submit a valid signature request structure to the signature endpoint
     // This should NOT return "missing requester_addr" error
     let signature_request = json!({
-        "solver_addr": DUMMY_SOLVER_ADDR_HUB,
+        "solver_hub_addr": DUMMY_SOLVER_ADDR_HUB,
         "signature": format!("0x{}", "a".repeat(128)), // 128 hex chars = 64 bytes (Ed25519 signature)
         "public_key": format!("0x{}", "b".repeat(64)) // 64 hex chars = 32 bytes (Ed25519 public key)
     });

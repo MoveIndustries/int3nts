@@ -154,7 +154,7 @@ pub struct FulfillmentEvent {
     /// Address of the intent that was fulfilled
     pub intent_addr: String,
     /// Address of the solver who fulfilled the intent
-    pub solver_addr: String,
+    pub solver_hub_addr: String,
     /// Metadata of the asset provided by the solver
     pub provided_metadata: String,
     /// Amount of the asset provided by the solver (u64, matching Move contract constraint)

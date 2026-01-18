@@ -261,7 +261,7 @@ Updates to existing files:
 
 Tests:
 
-- [x] `tests/svm_chain_client_tests.rs` - SVM client tests
+- [x] `tests/svm/chain_client_tests.rs` - SVM client tests
 
 ---
 
@@ -334,6 +334,10 @@ Tests:
   - SVM escrow creation flow
   - SVM transaction submission
   - SVM escrow status display
+
+### Notes
+
+- If SVM behavior deviates from EVM UX/flow, add an explicit in-code comment explaining the deviation and why it is required.
 
 ---
 

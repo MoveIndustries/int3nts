@@ -90,101 +90,8 @@ Use section headers for test files that group multiple related tests:
 
 ## Test Alignment Reference
 
-### Complete Test List
-
-Each test file uses independent numbering starting from 1. At the end of the implementation, check that all tests are numbered correctly and match the below list.
-
-**Legend:** ✅ = Implemented | N/A = Not applicable to platform | ⚠️ = Not yet implemented
-
-#### initialization.test.js / initialization.rs
-
-| # | Test | EVM | SVM |
-| --- | ------ | ----- | ----- |
-| 1 | Should initialize escrow with verifier address | ✅ | ✅ |
-| 2 | Should allow requester to create an escrow | ✅ | ✅ |
-| 3 | Should revert if escrow already exists | ✅ | ✅ |
-| 4 | Should revert if amount is zero | ✅ | ✅ |
-
-#### deposit.test.js / deposit.rs
-
-| # | Test | EVM | SVM |
-| --- | ------ | ----- | ----- |
-| 1 | Should allow requester to create escrow with tokens | ✅ | ✅ |
-| 2 | Should revert if escrow is already claimed | ✅ | ✅ |
-| 3 | Should support multiple escrows with different intent IDs | ✅ | ✅ |
-| 4 | Should set correct expiry timestamp | ✅ | ✅ |
-
-#### claim.test.js / claim.rs
-
-| # | Test | EVM | SVM |
-| --- | ------ | ----- | ----- |
-| 1 | Should allow solver to claim with valid verifier signature | ✅ | ✅ |
-| 2 | Should revert with invalid signature | ✅ | ✅ |
-| 3 | Should prevent signature replay across different intent_ids | ✅ | ✅ |
-| 4 | Should revert if escrow already claimed | ✅ | ✅ |
-| 5 | Should revert if escrow does not exist | ✅ | ✅ |
-
-#### cancel.test.js / cancel.rs
-
-| # | Test | EVM | SVM |
-| --- | ------ | ----- | ----- |
-| 1 | Should revert if escrow has not expired yet | ✅ | ✅ |
-| 2 | Should allow requester to cancel and reclaim funds after expiry | ✅ | ✅ |
-| 3 | Should revert if not requester | ✅ | ✅ |
-| 4 | Should revert if already claimed | ✅ | ✅ |
-| 5 | Should revert if escrow does not exist | ✅ | ✅ |
-
-#### expiry.test.js / expiry.rs
-
-| # | Test | EVM | SVM |
-| --- | ------ | ----- | ----- |
-| 1 | Should allow requester to cancel expired escrow | ✅ | ✅ |
-| 2 | Should verify expiry timestamp is stored correctly | ✅ | ✅ |
-| 3 | Should prevent claim on expired escrow | ✅ | ✅ |
-
-#### cross-chain.test.js / cross_chain.rs
-
-| # | Test | EVM | SVM |
-| --- | ------ | ----- | ----- |
-| 1 | Should handle hex intent ID conversion to uint256/bytes32 | ✅ | ✅ |
-| 2 | Should handle intent ID boundary values | ✅ | ✅ |
-| 3 | Should handle intent ID zero padding correctly | ✅ | ✅ |
-| 4 | Should handle multiple intent IDs from different formats | ✅ | ✅ |
-
-#### edge-cases.test.js / edge_cases.rs
-
-| # | Test | EVM | SVM |
-| --- | ------ | ----- | ----- |
-| 1 | Should handle maximum values for amounts | ✅ | ✅ |
-| 2 | Should handle minimum deposit amount | ✅ | ✅ |
-| 3 | Should allow requester to create multiple escrows | ✅ | ✅ |
-| 4 | Should handle gas/compute consumption for large operations | ✅ | ✅ |
-| 5 | Should handle concurrent escrow operations | ✅ | ✅ |
-
-#### error-conditions.test.js / error_conditions.rs
-
-| # | Test | EVM | SVM |
-| --- | ------ | ----- | ----- |
-| 1 | Should revert with zero amount in createEscrow | ✅ | ✅ |
-| 2 | Should revert with insufficient token allowance | ✅ | N/A |
-| 3 | Should handle maximum value in createEscrow | ✅ | ✅ |
-| 4 | Should allow native currency escrow creation | ✅ | N/A |
-| 5 | Should revert with native currency amount mismatch | ✅ | N/A |
-| 6 | Should revert when native currency sent with token address | ✅ | N/A |
-| 7 | Should revert with invalid signature length | ✅ | N/A |
-| 8 | Should revert cancel on non-existent escrow | ✅ | ✅ |
-| 9 | Should reject zero solver address | ✅ | ✅ |
-| 10 | Should reject duplicate escrow creation | ✅ | ✅ |
-| 11 | Should reject insufficient token balance | ✅ | ✅ |
-
-#### integration.test.js / integration.rs
-
-| # | Test | EVM | SVM |
-| --- | ------ | ----- | ----- |
-| 1 | Should complete full deposit to claim workflow | ✅ | ✅ |
-| 2 | Should handle multiple different token types | ✅ | ✅ |
-| 3 | Should emit all events/logs with correct parameters | ✅ | N/A |
-| 4 | Should complete full cancellation workflow | ✅ | ✅ |
+The escrow test alignment tables for the VM frameworks (EVM/SVM) live in
+`docs/framework-extension-completeness-lists.md`.
 
 ## Handling Platform Differences
 
@@ -309,34 +216,45 @@ When adding a new test to an existing framework:
 - [ ] N/A comments clearly explain why the test doesn't apply to that framework
 - [ ] Reference to the actual test implementation is included in N/A comments
 
-## Example: Adding a New Framework
+## High-Level Integration Checklist
 
-1. **Create test files** matching the structure above
-2. **Implement tests** in the same order as EVM/SVM
-3. **Add N/A comments** for tests that don't apply to your platform
-4. **Add platform-specific tests** in dedicated sections
-5. **Update other frameworks** with N/A comments for your platform-specific tests
-6. **Verify alignment** using the test list above
+### Solver Integration
 
-## Current Framework Status
+- [ ] Define chain type identifiers and config surface for the new framework
+- [ ] Add connected-chain client (RPC, signing, key handling)
+- [ ] Implement inflow fulfillment transaction building
+- [ ] Implement outflow fulfillment transaction building
+- [ ] Route fulfillment selection based on chain type
+- [ ] Add retry/error handling consistent with existing chains
+- [ ] Add unit tests for the new chain client
+- [ ] Add integration tests for inflow/outflow fulfillment
+- [ ] Update env/config defaults and testnet scripts
+- [ ] Document solver setup and required env vars
 
-### EVM (Solidity)
+### Verifier Integration
 
-- **Location:** `evm-intent-framework/test/`
-- **Test Framework:** Mocha/Chai
-- **Total Tests:** 42 core escrow tests
-- **Status:** ✅ Complete
+- [ ] Define chain type identifiers and config surface for the new framework
+- [ ] Add RPC client for chain queries and validation
+- [ ] Implement inflow validation for escrow + intent matching
+- [ ] Implement outflow validation for fulfillment transactions
+- [ ] Extend monitors to parse escrow events
+- [ ] Extend monitors to parse fulfillment events
+- [ ] Ensure signature generation covers the new chain type
+- [ ] Update API serialization/deserialization for new chain type
+- [ ] Add unit tests for validation helpers
+- [ ] Add monitoring tests for escrow + fulfillment ingestion
+- [ ] Document verifier setup and required env vars
 
-### SVM (Solana)
+### Frontend Integration
 
-- **Location:** `svm-intent-framework/programs/intent_escrow/tests/`
-- **Test Framework:** Rust `solana-program-test` with `tokio::test`
-- **Total Tests:** 39 implemented + 9 N/A comments + 3 SVM-specific
-- **Status:** ✅ Complete
-
-### Alignment
-
-- ✅ All position-matched tests exist in both frameworks
-- ✅ Platform differences documented with N/A comments
-- ✅ Test order and structure aligned
-- ✅ Generic terminology used throughout
+- [ ] Add wallet adapter/provider for new chain
+- [ ] Add chain config (RPC, program/contract IDs, chain IDs)
+- [ ] Add token config (decimals, metadata addresses, native token handling)
+- [ ] Add balance fetching for native + token assets
+- [ ] Add escrow instruction builders/transaction helpers
+- [ ] Wire inflow intent creation for new chain
+- [ ] Wire outflow intent creation for new chain
+- [ ] Handle chain-specific address formatting and conversions
+- [ ] Add UI states for wallet connection + transaction status
+- [ ] Add unit tests for helpers and wallet connectors
+- [ ] Document frontend env vars and wallet prerequisites
