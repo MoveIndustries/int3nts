@@ -23,7 +23,7 @@ log_and_echo "=========================================================="
 ./testing-infra/ci-e2e/chain-hub/stop-chain.sh || true
 
 log_and_echo ""
-log_and_echo " Step 1: Building required binaries..."
+log_and_echo " Step 1: Build bins and pre-pull docker images"
 log_and_echo "========================================"
 pushd "$PROJECT_ROOT/trusted-verifier" > /dev/null
 cargo build --bin trusted-verifier --bin generate_keys 2>&1 | tail -5
@@ -41,6 +41,8 @@ popd > /dev/null
 log_and_echo "   ✅ SVM: intent_escrow_cli"
 
 log_and_echo ""
+docker pull aptoslabs/tools:nightly
+
 log_and_echo " Step 2: Generating verifier keys..."
 log_and_echo "======================================="
 generate_verifier_keys

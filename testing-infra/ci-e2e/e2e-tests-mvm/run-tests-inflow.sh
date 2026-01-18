@@ -25,7 +25,7 @@ echo "================================================================"
 ./testing-infra/ci-e2e/chain-connected-mvm/cleanup.sh
 
 echo ""
-echo " Step 1: Building required binaries..."
+echo " Step 1: Build bins and pre-pull docker images"
 echo "========================================"
 pushd "$PROJECT_ROOT/trusted-verifier" > /dev/null
 cargo build --bin trusted-verifier --bin generate_keys 2>&1 | tail -5
@@ -38,6 +38,8 @@ popd > /dev/null
 echo "   ✅ Solver: solver, sign_intent"
 
 echo ""
+docker pull aptoslabs/tools:nightly
+
 echo " Step 2: Generating verifier keys..."
 echo "======================================="
 generate_verifier_keys
