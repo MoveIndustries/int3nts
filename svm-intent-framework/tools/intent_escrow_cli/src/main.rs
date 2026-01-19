@@ -43,10 +43,16 @@ fn run() -> Result<(), Box<dyn Error>> {
         .unwrap_or_else(|| "http://localhost:8899".to_string());
     let client = RpcClient::new(rpc_url);
 
+    // Commands that don't require program-id
+    if command == "get-token-balance" {
+        return handle_get_token_balance(&client, &options);
+    }
+
+    // All other commands require program-id
     let program_id = match options.get("program-id") {
         Some(value) => parse_pubkey(value)?,
         None => {
-            eprintln!("Error: --program-id is required");
+            eprintln!("Error: --program-id is required for '{}'", command);
             print_usage();
             std::process::exit(1);
         }
@@ -58,7 +64,6 @@ fn run() -> Result<(), Box<dyn Error>> {
         "claim" => handle_claim(&client, &options, program_id),
         "cancel" => handle_cancel(&client, &options, program_id),
         "get-escrow" => handle_get_escrow(&client, &options, program_id),
-        "get-token-balance" => handle_get_token_balance(&client, &options),
         _ => {
             print_usage();
             Ok(())

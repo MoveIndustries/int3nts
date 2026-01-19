@@ -60,10 +60,10 @@ generate_solver_config_evm() {
         log_and_echo "❌ ERROR: ESCROW_CONTRACT_ADDR not found in chain-info.env"
         exit 1
     fi
-    # Lowercase and pad to 32 bytes for Move compatibility
+    # Lowercase EVM token address (keep as 20-byte native format)
     local evm_token_no_prefix="${evm_token_addr#0x}"
     local evm_token_lower=$(echo "$evm_token_no_prefix" | tr '[:upper:]' '[:lower:]')
-    local usdcon_metadata_evm="0x000000000000000000000000${evm_token_lower}"
+    local usdcon_metadata_evm="0x${evm_token_lower}"
     
     # Use environment variables from test setup
     local verifier_url="${VERIFIER_URL:-http://127.0.0.1:3333}"
@@ -84,7 +84,7 @@ generate_solver_config_evm() {
     log "   - EVM escrow contract: $escrow_contract"
     log "   - Solver address: $solver_addr"
     log "   - USDhub metadata (hub): $usdhub_metadata_chain1"
-    log "   - USDcon metadata (EVM, padded): $usdcon_metadata_evm"
+    log "   - USDcon metadata (EVM): $usdcon_metadata_evm"
     
     cat > "$config_file" << EOF
 # Auto-generated solver config for EVM E2E tests
