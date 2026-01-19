@@ -8,8 +8,8 @@ Movement Move contracts for intents and escrows.
 
 ```bash
 # Run tests
-nix develop -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
+nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
 
 # Enter development environment
-nix develop
+nix develop ./nix
 ```

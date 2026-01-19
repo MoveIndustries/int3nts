@@ -57,7 +57,7 @@ DEPLOYER_KEYPAIR="$TEMP_KEYPAIR_DIR/deployer.json"
 echo " Converting deployer private key to keypair file..."
 
 # Use Node.js to convert base58 private key to JSON keypair format
-# Node.js is available in nix develop shell
+# Node.js is available in nix develop ./nix shell
 node -e "
 const bs58 = require('bs58');
 const keyBytes = bs58.decode('$SOLANA_DEPLOYER_PRIVATE_KEY');
@@ -97,7 +97,7 @@ fi
 
 if [ ! -s "$DEPLOYER_KEYPAIR" ]; then
     echo "❌ ERROR: Failed to convert private key"
-    echo "   Node.js is required (available in nix develop shell)"
+    echo "   Node.js is required (available in nix develop ./nix shell)"
     rm -rf "$TEMP_KEYPAIR_DIR"
     exit 1
 fi

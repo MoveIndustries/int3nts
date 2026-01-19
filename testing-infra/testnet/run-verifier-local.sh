@@ -136,7 +136,7 @@ export VERIFIER_PUBLIC_KEY
 # Check if --release flag is passed
 if [ "$1" = "--release" ]; then
     echo " Building release binary..."
-    nix develop --command bash -c "cd '$PROJECT_ROOT/trusted-verifier' && cargo build --release"
+    nix develop "$PROJECT_ROOT/nix" --command bash -c "cd '$PROJECT_ROOT/trusted-verifier' && cargo build --release"
     echo ""
     echo " Starting verifier (release mode)..."
     echo "   Press Ctrl+C to stop"
@@ -147,6 +147,6 @@ else
     echo "   Press Ctrl+C to stop"
     echo "   (Use --release for faster performance)"
     echo ""
-    nix develop --command bash -c "cd '$PROJECT_ROOT/trusted-verifier' && RUST_LOG=info cargo run --bin trusted-verifier -- --testnet"
+    nix develop "$PROJECT_ROOT/nix" --command bash -c "cd '$PROJECT_ROOT/trusted-verifier' && RUST_LOG=info cargo run --bin trusted-verifier -- --testnet"
 fi
 

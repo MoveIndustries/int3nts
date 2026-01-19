@@ -58,22 +58,22 @@ Individual component commands:
 
 ```bash
 # Move tests
-nix develop -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123" 2>&1 | grep "Total tests:"
+nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123" 2>&1 | grep "Total tests:"
 
 # Verifier tests
-RUST_LOG=off nix develop -c bash -c "cd trusted-verifier && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
+RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-verifier && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
 
 # Solver tests
-RUST_LOG=off nix develop -c bash -c "cd solver && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
+RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
 
 # EVM tests
-nix develop -c bash -c "cd intent-frameworks/evm && npm test" 2>&1 | grep -oE "[0-9]+ passing" | awk '{print $1}'
+nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm test" 2>&1 | grep -oE "[0-9]+ passing" | awk '{print $1}'
 
 # Frontend tests
-nix develop -c bash -c "cd frontend && npm test" 2>&1 | grep -oE "Tests[[:space:]]+[0-9]+ passed" | grep -oE "[0-9]+"
+nix develop ./nix -c bash -c "cd frontend && npm test" 2>&1 | grep -oE "Tests[[:space:]]+[0-9]+ passed" | grep -oE "[0-9]+"
 
 # SVM tests
-nix develop -c bash -c "cd intent-frameworks/svm && ./scripts/test.sh" 2>&1 | grep -oE "[0-9]+ test" | awk '{print $1}'
+nix develop ./nix -c bash -c "cd intent-frameworks/svm && ./scripts/test.sh" 2>&1 | grep -oE "[0-9]+ test" | awk '{print $1}'
 ```
 
 ## Context Requirements

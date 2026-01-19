@@ -8,7 +8,7 @@ Native Solana program for SVM escrows.
 
 ```bash
 # Enter dev shell (includes Solana)
-nix develop
+nix develop ./nix
 
 # Build and test
 cd intent-frameworks/svm
@@ -21,7 +21,7 @@ cd intent-frameworks/svm
 
 | What it does | Why |
 |--------------|-----|
-| Auto-enters `nix develop` | Ensures correct environment |
+| Auto-enters `nix develop ./nix` | Ensures correct environment |
 | Uses `cargo build-sbf` | Native Solana build command |
 | Downgrades `Cargo.lock` to v3 | Solana's Rust 1.84 can't read v4 |
 | Pins `constant_time_eq` to v0.3.x | Avoids `edition2024` crates |

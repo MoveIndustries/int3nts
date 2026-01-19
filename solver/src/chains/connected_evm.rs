@@ -332,10 +332,11 @@ impl ConnectedEvmClient {
         // Pass BASE_SEPOLIA_RPC_URL so Hardhat can configure the baseSepolia network
         // Pass BASE_SOLVER_PRIVATE_KEY for signing (signers[2] in the script)
         let solver_private_key = std::env::var("BASE_SOLVER_PRIVATE_KEY").unwrap_or_default();
+        let nix_dir = project_root.join("nix");
         let output = Command::new("nix")
             .args(&[
                 "develop",
-                project_root.to_str().unwrap(),
+                nix_dir.to_str().unwrap(),
                 "-c",
                 "bash",
                 "-c",
@@ -443,10 +444,11 @@ impl ConnectedEvmClient {
         // Pass BASE_SEPOLIA_RPC_URL so Hardhat can configure the baseSepolia network
         // Pass BASE_SOLVER_PRIVATE_KEY for signing (signers[2] in the script)
         let solver_private_key = std::env::var("BASE_SOLVER_PRIVATE_KEY").unwrap_or_default();
+        let nix_dir = project_root.join("nix");
         let output = Command::new("nix")
             .args(&[
                 "develop",
-                project_root.to_str().unwrap(),
+                nix_dir.to_str().unwrap(),
                 "-c",
                 "bash",
                 "-c",

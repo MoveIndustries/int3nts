@@ -20,7 +20,7 @@ For contributing guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 - Enter dev shell with pinned toolchain (Rust, Movement CLI, Aptos CLI):
 
 ```text
-nix develop
+nix develop ./nix
 ```
 
 ### Testing
@@ -30,12 +30,12 @@ nix develop
 Run from project root:
 
 ```bash
-nix develop -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
-nix develop -c bash -c "cd intent-frameworks/evm && npm test"
-nix develop -c bash -c "cd intent-frameworks/svm && ./scripts/test.sh"
-RUST_LOG=off nix develop -c bash -c "cd trusted-verifier && cargo test --quiet"
-RUST_LOG=off nix develop -c bash -c "cd solver && cargo test --quiet"
-nix develop -c bash -c "cd frontend && npm test"
+nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
+nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm test"
+nix develop ./nix -c bash -c "cd intent-frameworks/svm && ./scripts/test.sh"
+RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-verifier && cargo test --quiet"
+RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet"
+nix develop ./nix -c bash -c "cd frontend && npm test"
 ```
 
 #### E2E Integration Tests (requires Docker)
@@ -43,13 +43,13 @@ nix develop -c bash -c "cd frontend && npm test"
 Run from project root:
 
 ```bash
-nix develop -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh"
-nix develop -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-outflow.sh"
-nix develop -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inflow.sh"
-nix develop -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-outflow.sh"
-nix develop -c bash -c "./testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh"
-nix develop -c bash -c "./testing-infra/ci-e2e/e2e-tests-svm/run-tests-outflow.sh"
-nix develop -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-rust-integration.sh"
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh"
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-outflow.sh"
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inflow.sh"
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-outflow.sh"
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh"
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-svm/run-tests-outflow.sh"
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-rust-integration.sh"
 ```
 
 ## License

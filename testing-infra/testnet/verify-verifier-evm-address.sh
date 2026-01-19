@@ -55,7 +55,7 @@ echo ""
 echo "   Computing EVM address from VERIFIER_PRIVATE_KEY..."
 COMPUTED_ADDR=$(cd "$PROJECT_ROOT/trusted-verifier" && \
     VERIFIER_CONFIG_PATH=config/verifier_testnet.toml \
-    nix develop -c bash -c "cargo run --bin get_verifier_eth_address --quiet 2>&1" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1)
+    nix develop "$PROJECT_ROOT/nix" -c bash -c "cargo run --bin get_verifier_eth_address --quiet 2>&1" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1)
 
 if [ -z "$COMPUTED_ADDR" ]; then
     echo "❌ ERROR: Failed to compute EVM address from private key"

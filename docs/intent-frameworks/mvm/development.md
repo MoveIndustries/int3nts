@@ -7,7 +7,7 @@ This document covers development setup, testing, configuration, and dependencies
 ### Prerequisites
 
 - [Nix](https://nixos.org/download.html) package manager
-- CLI tools (automatically provided via nix - see [`flake.nix`](../../flake.nix))
+- CLI tools (automatically provided via nix - see [`nix/flake.nix`](../../nix/flake.nix))
 
 ### Getting Started
 
@@ -15,14 +15,14 @@ This document covers development setup, testing, configuration, and dependencies
 
    ```bash
    # From project root
-   nix develop
+   nix develop ./nix
    ```
 
 2. **Run Tests**
 
    ```bash
    # From project root
-   nix develop -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
+   nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
    ```
 
 ## Testing
@@ -101,15 +101,15 @@ subdir = "aptos-move/framework/aptos-framework"
 
 ### Development Environment
 
-The development environment is provided via the root [`flake.nix`](../../flake.nix), which includes:
+The development environment is provided via [`nix/flake.nix`](../../nix/flake.nix), which includes:
 
 - Rust toolchain
-- Movement CLI (via [`movement.nix`](../../movement.nix)) - for testnet deployments
-- Aptos CLI (via [`aptos.nix`](../../aptos.nix)) - for local Docker testing
+- Movement CLI (via [`movement.nix`](../../nix/movement.nix)) - for testnet deployments
+- Aptos CLI (via [`aptos.nix`](../../nix/aptos.nix)) - for local Docker testing
 - Node.js and npm
 - Other development tools
 
-Enter the environment with `nix develop` from the project root.
+Enter the environment with `nix develop ./nix` from the project root.
 
 ## Dependencies
 
@@ -121,12 +121,12 @@ Enter the environment with `nix develop` from the project root.
 
 ### Movement CLI
 
-- **Source**: Defined in [movement.nix](../../movement.nix) (version is managed there)
+- **Source**: Defined in [movement.nix](../../nix/movement.nix) (version is managed there)
 - **Purpose**: Testing, and testnet deployment
 
 ### Aptos CLI
 
-- **Source**: Defined in [aptos.nix](../../aptos.nix) (version is managed there)
+- **Source**: Defined in [aptos.nix](../../nix/aptos.nix) (version is managed there)
 - **Purpose**: Local Docker-based E2E testing
 
 ### Key Framework Modules Used
@@ -149,7 +149,7 @@ Deploy the Intent Framework to a local MVM network (for Docker-based E2E testing
 ./testing-infra/ci-e2e/chain-connected-mvm/setup-chain.sh
 
 # 2. Enter dev environment (from project root)
-nix develop
+nix develop ./nix
 
 # 3. Configure Aptos CLI to use local chain (port 8080)
 aptos init --profile local --network local
@@ -200,7 +200,7 @@ For deploying to Movement Bardock Testnet, see the testnet deployment scripts in
 
 ### 1. Making Changes
 
-1. Enter the development environment: `nix develop` (from project root)
+1. Enter the development environment: `nix develop ./nix` (from project root)
 2. Make your changes to source files
 3. Run tests to verify changes
 4. Fix any test failures

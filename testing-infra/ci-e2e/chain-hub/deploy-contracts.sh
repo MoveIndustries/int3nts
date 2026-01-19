@@ -94,7 +94,7 @@ log " Deploying USDhub test token to Hub..."
 TEST_TOKENS_HUB_ADDR=$(get_profile_address "test-tokens-chain1")
 
 log "   - Deploying USDhub with address: $TEST_TOKENS_HUB_ADDR"
-cd testing-infra/ci-e2e/test-tokens
+cd "$PROJECT_ROOT/testing-infra/ci-e2e/test-tokens"
 aptos move publish --profile test-tokens-chain1 --named-addresses test_tokens=$TEST_TOKENS_HUB_ADDR --assume-yes >> "$LOG_FILE" 2>&1
 
 if [ $? -eq 0 ]; then

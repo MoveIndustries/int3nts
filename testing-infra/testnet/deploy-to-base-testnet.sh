@@ -37,7 +37,7 @@ fi
 
 if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then
     echo "❌ ERROR: VERIFIER_EVM_PUBKEY_HASH not set in .env.testnet"
-    echo "   Run: nix develop -c bash -c 'cd trusted-verifier && VERIFIER_CONFIG_PATH=config/verifier_testnet.toml cargo run --bin get_verifier_eth_address'"
+    echo "   Run: nix develop ./nix -c bash -c 'cd trusted-verifier && VERIFIER_CONFIG_PATH=config/verifier_testnet.toml cargo run --bin get_verifier_eth_address'"
     exit 1
 fi
 
@@ -90,9 +90,9 @@ if [ ! -d "node_modules" ]; then
     echo ""
 fi
 
-# Deploy contract (run from within nix develop shell)
+# Deploy contract (run from within nix develop ./nix shell)
 echo " Deploying IntentEscrow contract..."
-echo "   (Run this script from within 'nix develop' shell)"
+echo "   (Run this script from within 'nix develop ./nix' shell)"
 echo ""
 DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network baseSepolia 2>&1)
 DEPLOY_EXIT_CODE=$?

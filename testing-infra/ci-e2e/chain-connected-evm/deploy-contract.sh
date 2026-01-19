@@ -58,7 +58,7 @@ fi
 log "   ✅ Verifier EVM pubkey hash: $VERIFIER_EVM_PUBKEY_HASH"
 log "   RPC URL: http://127.0.0.1:8545"
 
-# Deploy escrow contract (run in nix develop)
+# Deploy escrow contract (run in nix develop ./nix)
 log ""
 log " Deploying IntentEscrow..."
 DEPLOY_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/deploy.js --network localhost" "VERIFIER_ADDR='$VERIFIER_EVM_PUBKEY_HASH'" 2>&1 | tee -a "$LOG_FILE")

@@ -78,7 +78,7 @@ log " Deploying USDcon test token to Chain 2..."
 USD_MVMCON_MODULE_ADDR=$(get_profile_address "test-tokens-chain2")
 
 log "   - Deploying USDcon with address: $USD_MVMCON_MODULE_ADDR"
-cd testing-infra/ci-e2e/test-tokens
+cd "$PROJECT_ROOT/testing-infra/ci-e2e/test-tokens"
 aptos move publish --profile test-tokens-chain2 --named-addresses test_tokens=$USD_MVMCON_MODULE_ADDR --assume-yes >> "$LOG_FILE" 2>&1
 
 if [ $? -eq 0 ]; then

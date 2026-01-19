@@ -9,10 +9,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 REPO_ROOT="$(dirname "$PROJECT_DIR")"
 
-# If not in nix shell, re-exec inside nix develop
+# If not in nix shell, re-exec inside nix develop ./nix
 if [ -z "$IN_NIX_SHELL" ]; then
-    echo "[deploy.sh] Entering nix develop..."
-    exec nix develop "$REPO_ROOT" -c bash "$0" "$@"
+    echo "[deploy.sh] Entering nix develop ./nix..."
+    exec nix develop "$REPO_ROOT/nix" -c bash "$0" "$@"
 fi
 
 cd "$PROJECT_DIR"

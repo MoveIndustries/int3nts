@@ -67,7 +67,7 @@ log ""
 log " Checking initial balances..."
 
 cd intent-frameworks/evm
-BALANCES_OUTPUT=$(nix develop -c bash -c "npx hardhat run scripts/get-accounts.js" 2>&1)
+BALANCES_OUTPUT=$(nix develop "$PROJECT_ROOT/nix" -c bash -c "npx hardhat run scripts/get-accounts.js" 2>&1)
 
 if [ $? -ne 0 ]; then
     log_and_echo "❌ Error: Failed to get account balances"
