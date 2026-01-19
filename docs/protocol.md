@@ -13,8 +13,8 @@ This document specifies the cross-chain intent protocol: how intents, escrows, a
 
 The cross-chain intent protocol enables secure asset transfers between chains using a verifier-based approval mechanism:
 
-1. **Hub Chain**: Intents are created and fulfilled (see [MVM Intent Framework](move-intent-framework/README.md))
-2. **Connected Chain**: Escrows lock funds awaiting verifier approval (see [MVM Intent Framework](move-intent-framework/README.md), [EVM Intent Framework](evm-intent-framework/README.md), [SVM Intent Framework](svm-intent-framework/README.md), or MVM escrows)
+1. **Hub Chain**: Intents are created and fulfilled (see [MVM Intent Framework](intent-frameworks/mvm/README.md))
+2. **Connected Chain**: Escrows lock funds awaiting verifier approval (see [Intent Frameworks](intent-frameworks/README.md) or MVM escrows)
 3. **Verifier Service**: Monitors both chains and provides approval signatures (see [Trusted Verifier](trusted-verifier/README.md))
 
 The protocol links these components using `intent_id` to correlate events across chains.
@@ -93,7 +93,7 @@ sequenceDiagram
    See [Negotiation Routing Guide](trusted-verifier/negotiation-routing.md) for details.
 2. **Hub**: Requester calls `create_inflow_intent()` with `offered_amount` (amount that will be locked in escrow on connected chain), `intent_id`, `offered_chain_id`, `desired_chain_id`, `solver` address, and `solver_signature`. The function looks up the solver's public key from the on-chain solver registry, verifies the signature, and creates a reserved intent (emits `LimitOrderEvent` with `offered_amount`, `offered_chain_id`, `desired_chain_id`, `revocable=false`). The intent is **reserved** for the specified solver, ensuring solver commitment across chains.
 
-   **Note**: The solver must be registered in the solver registry before calling this function. The registry stores the solver's Ed25519 public key (for signature verification) and connected chain addresses (for outflow validation). See the [Solver Registry API](../docs/move-intent-framework/api-reference.md#solver-registry-api) for registration details.
+   **Note**: The solver must be registered in the solver registry before calling this function. The registry stores the solver's Ed25519 public key (for signature verification) and connected chain addresses (for outflow validation). See the [Solver Registry API](../docs/intent-frameworks/mvm/api-reference.md#solver-registry-api) for registration details.
 3. **Connected Chain**: Requester creates escrow using `create_escrow_from_fa()` (MVM), `createEscrow()` (EVM), or `create_escrow()` (SVM) with `intent_id`, verifier public key, and **reserved solver address** (emits `OracleLimitOrderEvent`/`EscrowInitialized`, `revocable=false`).
 4. **Solver**: Observes the intent on Hub chain (from step 2) and the escrow on Connected Chain (from step 3).
 5. **Hub**: Solver fulfills the intent using `fulfill_inflow_intent()` (emits `LimitOrderFulfillmentEvent`)

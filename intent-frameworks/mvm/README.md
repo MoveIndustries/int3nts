@@ -2,7 +2,7 @@
 
 Movement Move contracts for intents and escrows.
 
- **Full documentation: [docs/move-intent-framework/](../docs/move-intent-framework/README.md)**
+ **Full documentation: [docs/intent-frameworks/mvm](../docs/intent-frameworks/mvm/README.md)**
 
 ## Quick Start
 

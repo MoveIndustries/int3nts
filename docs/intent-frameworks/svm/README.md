@@ -167,4 +167,4 @@ await sendAndConfirmTransaction(connection, claimTx, [solver]);
 
 Tests cover escrow initialization, deposits, claiming, cancellation, expiry enforcement, and error cases.
 
-See [svm-intent-framework/README.md](../../intent-frameworks/svm/README.md) for toolchain constraints and workarounds.
+See [intent-frameworks/svm/README.md](../../intent-frameworks/svm/README.md) for toolchain constraints and workarounds.

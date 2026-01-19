@@ -12,9 +12,7 @@ A framework for creating programmable intents. Supports single-chain intents (un
 
 ## Components
 
-- **[Move Intent Framework](move-intent-framework/README.md)** - Move contracts for intents and escrows
-- **[EVM Intent Framework](evm-intent-framework/README.md)** - Solidity contracts for EVM escrows
-- **[SVM Intent Framework](svm-intent-framework/README.md)** - Solana escrow program and tests
+- **[Intent Frameworks](intent-frameworks/README.md)** - Move, EVM, and SVM intent frameworks
 - **[Trusted Verifier](trusted-verifier/README.md)** - Chain monitoring and approval signature service
 - **[Solver Tools](solver/README.md)** - Solver service and tools for automatic signature generation and transaction templates
 - **[Testing Infrastructure](testing-infra/README.md)** - Chain setup and testing infrastructure

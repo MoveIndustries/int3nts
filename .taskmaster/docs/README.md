@@ -90,9 +90,7 @@ Documentation describing the conceptual design of the Intent Framework, includin
 ## Related Documentation
 
 - [Protocol Specification](../../docs/protocol.md#cross-chain-flow) - Cross-chain intent protocol implementation details
-- [Move Intent Framework](../../docs/move-intent-framework/README.md) - Move contract implementation
-- [EVM Intent Framework](../../docs/evm-intent-framework/README.md) - Solidity contract implementation
-- [SVM Intent Framework](../../docs/svm-intent-framework/README.md) - Solana escrow program implementation
+- [Intent Frameworks](../../docs/intent-frameworks/README.md) - MVM, EVM, and SVM implementations
 - [Trusted Verifier](../../docs/trusted-verifier/README.md) - Verifier service implementation
 
 ## Document Relationships

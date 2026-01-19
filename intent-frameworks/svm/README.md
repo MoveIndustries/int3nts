@@ -2,7 +2,7 @@
 
 Native Solana program for SVM escrows.
 
- **Full documentation: [docs/svm-intent-framework/](../docs/svm-intent-framework/README.md)**
+ **Full documentation: [docs/intent-frameworks/svm](../docs/intent-frameworks/svm/README.md)**
 
 ## Quick Start
 

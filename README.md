@@ -5,9 +5,7 @@
 
 A framework for creating cross-chain intents with the following components
 
-- [move-intent-framework](docs/move-intent-framework/README.md)
-- [evm-intent-framework](docs/evm-intent-framework/README.md)
-- [svm-intent-framework](docs/svm-intent-framework/README.md)
+- [intent-frameworks](docs/intent-frameworks/README.md)
 - [trusted verifier](docs/trusted-verifier/README.md)
 - [frontend](docs/frontend/README.md)
 - [solver tools](docs/solver/README.md)
