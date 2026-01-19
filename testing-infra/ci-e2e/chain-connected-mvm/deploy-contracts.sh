@@ -31,7 +31,7 @@ log "   - Getting account address for Chain 2..."
 CHAIN2_ADDR=$(get_profile_address "intent-account-chain2")
 
 log "   - Deploying to Chain 2 with address: $CHAIN2_ADDR"
-cd move-intent-framework
+cd intent-frameworks/mvm
 aptos move publish --dev --profile intent-account-chain2 --named-addresses mvmt_intent=$CHAIN2_ADDR --assume-yes >> "$LOG_FILE" 2>&1
 
 if [ $? -eq 0 ]; then

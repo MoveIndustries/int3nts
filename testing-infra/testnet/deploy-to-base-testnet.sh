@@ -65,14 +65,14 @@ echo "   RPC URL: $BASE_SEPOLIA_RPC_URL"
 echo ""
 
 # Check if Hardhat config exists
-if [ ! -f "$PROJECT_ROOT/evm-intent-framework/hardhat.config.js" ]; then
+if [ ! -f "$PROJECT_ROOT/intent-frameworks/evm/hardhat.config.js" ]; then
     echo "❌ ERROR: hardhat.config.js not found"
-    echo "   Make sure evm-intent-framework directory exists"
+    echo "   Make sure intent-frameworks/evm directory exists"
     exit 1
 fi
 
-# Change to evm-intent-framework directory
-cd "$PROJECT_ROOT/evm-intent-framework"
+# Change to intent-frameworks/evm directory
+cd "$PROJECT_ROOT/intent-frameworks/evm"
 
 # Export environment variables for Hardhat
 export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"

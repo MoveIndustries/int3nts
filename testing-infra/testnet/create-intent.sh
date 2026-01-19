@@ -515,7 +515,7 @@ if [ $? -eq 0 ]; then
         echo ""
         
         # Run the create-escrow script
-        cd "$PROJECT_ROOT/evm-intent-framework"
+        cd "$PROJECT_ROOT/intent-frameworks/evm"
         
         # Install dependencies if needed
         if [ ! -d "node_modules" ]; then

@@ -27,7 +27,7 @@ if [ -z "$SVM_PAYER_KEYPAIR" ]; then
     exit 1
 fi
 
-PROGRAM_DIR="$PROJECT_ROOT/svm-intent-framework"
+PROGRAM_DIR="$PROJECT_ROOT/intent-frameworks/svm"
 PROGRAM_KEYPAIR="$PROGRAM_DIR/target/deploy/intent_escrow-keypair.json"
 PROGRAM_SO="$PROGRAM_DIR/target/deploy/intent_escrow.so"
 

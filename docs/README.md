@@ -8,7 +8,7 @@ A framework for creating programmable intents. Supports single-chain intents (un
 
 - **[Protocol overview](protocol.md)** - Cross-chain intent system flows and sequence diagrams
 - **[Documentation Guide](docs-guide.md)** - Documentation structure and navigation
-- **[Framework Extension Guide](framework-extension-guide.md)** - How to add new blockchain frameworks while maintaining test alignment
+- **[Framework Extension Guide](intent-frameworks/framework-extension-guide.md)** - How to add new blockchain frameworks while maintaining test alignment
 
 ## Components
 

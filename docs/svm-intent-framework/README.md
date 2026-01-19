@@ -89,7 +89,7 @@ fn cancel(ctx: Context<Cancel>, intent_id: [u8; 32]) -> Result<()>
 
 ## Quick Start
 
-See the [component README](../../svm-intent-framework/README.md) for quick start commands.
+See the [component README](../../intent-frameworks/svm/README.md) for quick start commands.
 
 ## Usage Example
 
@@ -167,4 +167,4 @@ await sendAndConfirmTransaction(connection, claimTx, [solver]);
 
 Tests cover escrow initialization, deposits, claiming, cancellation, expiry enforcement, and error cases.
 
-See [svm-intent-framework/README.md](../../svm-intent-framework/README.md) for toolchain constraints and workarounds.
+See [svm-intent-framework/README.md](../../intent-frameworks/svm/README.md) for toolchain constraints and workarounds.

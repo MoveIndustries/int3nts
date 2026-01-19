@@ -22,7 +22,7 @@ This document covers development setup, testing, configuration, and dependencies
 
    ```bash
    # From project root
-   nix develop -c bash -c "cd move-intent-framework && movement move test --dev --named-addresses mvmt_intent=0x123"
+   nix develop -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
    ```
 
 ## Testing
@@ -39,12 +39,12 @@ movement move test --dev --named-addresses mvmt_intent=0x123
 
 The test suite includes:
 
-- **Core Intent Tests**: [`intent_tests.move`](../../move-intent-framework/tests/intent_tests.move) - Tests for the base intent framework
-- **Fungible Asset Tests**: [`fa_tests.move`](../../move-intent-framework/tests/fa_tests.move) - Tests for fungible asset trading
-- **Reservation Tests**: [`intent_reservation_tests.move`](../../move-intent-framework/tests/intent_reservation_tests.move) - Tests for the reservation system
-- **Oracle Tests**: [`fa_intent_with_oracle_tests.move`](../../move-intent-framework/tests/fa_intent_with_oracle_tests.move) - Tests for oracle-based intents
-- **Entry Flow Tests**: [`fa_entryflow_tests.move`](../../move-intent-framework/tests/fa_entryflow_tests.move) - Tests for complete intent flows
-- **Test Utilities**: [`test_utils.move`](../../move-intent-framework/tests/test_utils.move) - Shared test helper functions
+- **Core Intent Tests**: [`intent_tests.move`](../../intent-frameworks/mvm/tests/intent_tests.move) - Tests for the base intent framework
+- **Fungible Asset Tests**: [`fa_tests.move`](../../intent-frameworks/mvm/tests/fa_tests.move) - Tests for fungible asset trading
+- **Reservation Tests**: [`intent_reservation_tests.move`](../../intent-frameworks/mvm/tests/intent_reservation_tests.move) - Tests for the reservation system
+- **Oracle Tests**: [`fa_intent_with_oracle_tests.move`](../../intent-frameworks/mvm/tests/fa_intent_with_oracle_tests.move) - Tests for oracle-based intents
+- **Entry Flow Tests**: [`fa_entryflow_tests.move`](../../intent-frameworks/mvm/tests/fa_entryflow_tests.move) - Tests for complete intent flows
+- **Test Utilities**: [`test_utils.move`](../../intent-frameworks/mvm/tests/test_utils.move) - Shared test helper functions
 
 ### Test Categories
 

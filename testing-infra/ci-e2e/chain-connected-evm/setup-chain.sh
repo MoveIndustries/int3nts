@@ -21,7 +21,7 @@ sleep 2
 
 log ""
 log " Installing npm dependencies..."
-cd evm-intent-framework
+cd intent-frameworks/evm
 
 # Install dependencies if node_modules doesn't exist
 if [ ! -d "node_modules" ]; then

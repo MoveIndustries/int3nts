@@ -31,7 +31,7 @@ log "   - Getting account address for Hub..."
 HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
 
 log "   - Deploying to Hub with address: $HUB_MODULE_ADDR"
-cd move-intent-framework
+cd intent-frameworks/mvm
 aptos move publish --dev --profile intent-account-chain1 --named-addresses mvmt_intent=$HUB_MODULE_ADDR --assume-yes >> "$LOG_FILE" 2>&1
 
 if [ $? -eq 0 ]; then

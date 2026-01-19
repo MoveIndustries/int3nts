@@ -313,10 +313,10 @@ impl ConnectedEvmClient {
     ) -> Result<String> {
         // Solver runs from project root in CI and local E2E tests
         let project_root = std::env::current_dir().context("Failed to get current directory")?;
-        let evm_framework_dir = project_root.join("evm-intent-framework");
+        let evm_framework_dir = project_root.join("intent-frameworks/evm");
         if !evm_framework_dir.exists() {
             anyhow::bail!(
-                "evm-intent-framework directory not found at: {}",
+                "intent-frameworks/evm directory not found at: {}",
                 evm_framework_dir.display()
             );
         }
@@ -431,10 +431,10 @@ impl ConnectedEvmClient {
 
         // Solver runs from project root in CI and local E2E tests
         let project_root = std::env::current_dir().context("Failed to get current directory")?;
-        let evm_framework_dir = project_root.join("evm-intent-framework");
+        let evm_framework_dir = project_root.join("intent-frameworks/evm");
         if !evm_framework_dir.exists() {
             anyhow::bail!(
-                "evm-intent-framework directory not found at: {}",
+                "intent-frameworks/evm directory not found at: {}",
                 evm_framework_dir.display()
             );
         }

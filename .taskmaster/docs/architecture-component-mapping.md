@@ -144,7 +144,7 @@ graph TB
 
 #### Core Intent Framework
 
-- **`move-intent-framework/sources/intent.move`**
+- **`intent-frameworks/mvm/sources/intent.move`**
   - **Purpose**: Generic intent framework providing abstract structures and functions
   - **Key Structures**: `TradeIntent<Source, Args>`, `TradeSession<Args>`
   - **Key Functions**: `create_intent()`, `start_intent_session()`, `finish_intent_session()`, `revoke_intent()`
@@ -152,7 +152,7 @@ graph TB
 
 #### Fungible Asset Intent Implementation
 
-- **`move-intent-framework/sources/fa_intent.move`**
+- **`intent-frameworks/mvm/sources/fa_intent.move`**
   - **Purpose**: Fungible asset trading intent implementation
   - **Key Structures**: `FungibleAssetLimitOrder`, `FungibleStoreManager`, `FungibleAssetRecipientWitness`
   - **Key Functions**: `create_fa_to_fa_intent()`, `fulfill_cross_chain_request_intent()`
@@ -161,7 +161,7 @@ graph TB
 
 #### Oracle-Guarded Intent Implementation
 
-- **`move-intent-framework/sources/fa_intent_with_oracle.move`**
+- **`intent-frameworks/mvm/sources/fa_intent_with_oracle.move`**
   - **Purpose**: Oracle signature requirement layer on top of base intent mechanics
   - **Key Structures**: `OracleGuardedLimitOrder`, `OracleSignatureRequirement`
   - **Key Functions**: `create_fa_to_fa_intent_with_oracle()`, `start_oracle_intent_session()`, `finish_oracle_intent_session()`
@@ -170,14 +170,14 @@ graph TB
 
 #### Cross-Chain Intent Creation
 
-- **`move-intent-framework/sources/fa_intent_cross_chain.move`**
+- **`intent-frameworks/mvm/sources/fa_intent_cross_chain.move`**
   - **Purpose**: Cross-chain request-intent creation (tokens locked on different chain)
   - **Key Functions**: `create_cross_chain_request_intent()`, `create_cross_chain_request_intent_entry()`
   - **Responsibilities**: Creates reserved intents with `intent_id` for cross-chain linking, zero-amount source (tokens on other chain). Uses solver registry to verify solver signatures.
 
 #### Intent Reservation System
 
-- **`move-intent-framework/sources/intent_reservation.move`**
+- **`intent-frameworks/mvm/sources/intent_reservation.move`**
   - **Purpose**: Reserved intent system for specific solver addresses
   - **Key Structures**: `IntentReserved`, `IntentToSign`, `IntentDraft`
   - **Key Functions**: `verify_and_create_reservation()`, `verify_and_create_reservation_from_registry()`
@@ -185,7 +185,7 @@ graph TB
 
 #### Solver Registry
 
-- **`move-intent-framework/sources/solver_registry.move`**
+- **`intent-frameworks/mvm/sources/solver_registry.move`**
   - **Purpose**: On-chain registry for solver public keys and EVM addresses
   - **Key Structures**: `SolverRegistry`, `SolverInfo`
   - **Key Functions**: `register_solver()`, `update_solver()`, `deregister_solver()`, `get_public_key()`, `get_evm_address()`
@@ -193,7 +193,7 @@ graph TB
 
 #### Test Utilities
 
-- **`move-intent-framework/sources/test_fa_helper.move`**
+- **`intent-frameworks/mvm/sources/test_fa_helper.move`**
   - **Purpose**: Test helper utilities for intent framework testing
   - **Domain**: Testing infrastructure (not part of production domains)
 
@@ -203,21 +203,21 @@ graph TB
 
 #### Move-Based Escrow
 
-- **`move-intent-framework/sources/intent_as_escrow.move`**
+- **`intent-frameworks/mvm/sources/intent_as_escrow.move`**
   - **Purpose**: Simplified escrow abstraction using oracle-intent system
   - **Key Structures**: `EscrowConfig`
   - **Key Functions**: `create_escrow()`, `start_escrow_session()`, `complete_escrow()`
   - **Security**: **CRITICAL** - Enforces non-revocable requirement (`revocable = false`)
   - **Responsibilities**: Escrow creation, session management, verifier approval handling
 
-- **`move-intent-framework/sources/intent_as_escrow_entry.move`**
+- **`intent-frameworks/mvm/sources/intent_as_escrow_entry.move`**
   - **Purpose**: Entry function wrappers for CLI convenience
   - **Key Functions**: `create_escrow_from_fa()`, `complete_escrow_from_fa()`
   - **Responsibilities**: User-friendly entry points for escrow operations
 
 #### EVM-Based Escrow
 
-- **`evm-intent-framework/contracts/IntentEscrow.sol`**
+- **`intent-frameworks/evm/contracts/IntentEscrow.sol`**
   - **Purpose**: Solidity escrow contract for EVM chains
   - **Key Structures**: `Escrow` struct
   - **Key Functions**: `createEscrow()`, `deposit()`, `claim()`, `cancel()`
@@ -227,7 +227,7 @@ graph TB
 
 #### Mock Contracts (Testing)
 
-- **`evm-intent-framework/contracts/MockERC20.sol`**
+- **`intent-frameworks/evm/contracts/MockERC20.sol`**
   - **Purpose**: Mock ERC20 token for testing
   - **Domain**: Testing infrastructure (not part of production domains)
 
@@ -237,25 +237,25 @@ graph TB
 
 #### Intent Fulfillment (Move)
 
-- **`move-intent-framework/sources/fa_intent.move`** (fulfillment functions)
+- **`intent-frameworks/mvm/sources/fa_intent.move`** (fulfillment functions)
   - **Key Functions**: `fulfill_cross_chain_request_intent()`, `finish_fa_intent_session()`
   - **Responsibilities**: Processes solver fulfillment, validates conditions, transfers assets
 
 #### Escrow Completion (Move)
 
-- **`move-intent-framework/sources/intent_as_escrow.move`** (completion functions)
+- **`intent-frameworks/mvm/sources/intent_as_escrow.move`** (completion functions)
   - **Key Functions**: `complete_escrow()`
   - **Responsibilities**: Verifies verifier approval, releases escrowed funds to solver
 
 #### Escrow Claim (EVM)
 
-- **`evm-intent-framework/contracts/IntentEscrow.sol`** (claim function)
+- **`intent-frameworks/evm/contracts/IntentEscrow.sol`** (claim function)
   - **Key Functions**: `claim()`
   - **Responsibilities**: Verifies verifier signature, transfers funds to reserved solver
 
 #### Escrow Cancellation
 
-- **`evm-intent-framework/contracts/IntentEscrow.sol`** (cancel function)
+- **`intent-frameworks/evm/contracts/IntentEscrow.sol`** (cancel function)
   - **Key Functions**: `cancel()`
   - **Responsibilities**: Returns funds to requester after expiry
 

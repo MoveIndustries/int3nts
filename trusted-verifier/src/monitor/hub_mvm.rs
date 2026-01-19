@@ -212,7 +212,7 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                             "Outflow intent {} has no reserved_solver in event. Event data: {:?}",
                             data.intent_id, event.data
                         );
-                        return Err(anyhow::anyhow!("Outflow intent must have reserved_solver, but event has None. This indicates a bug in move-intent-framework or the event was emitted before the code update."));
+                        return Err(anyhow::anyhow!("Outflow intent must have reserved_solver, but event has None. This indicates a bug in intent-frameworks/mvm or the event was emitted before the code update."));
                     }
                 };
 
@@ -343,7 +343,7 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                             "Outflow intent {} has no reserved_solver in event. Event data: {:?}",
                             data.intent_id, event.data
                         );
-                        return Err(anyhow::anyhow!("Outflow intent must have reserved_solver, but event has None. This indicates a bug in move-intent-framework or the event was emitted before the code update."));
+                        return Err(anyhow::anyhow!("Outflow intent must have reserved_solver, but event has None. This indicates a bug in intent-frameworks/mvm or the event was emitted before the code update."));
                     }
                 };
 

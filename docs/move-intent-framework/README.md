@@ -6,7 +6,7 @@ Inspired by [AIP-511: Aptos Intent Framework](https://github.com/aptos-foundatio
 
 ## Quick Start
 
-See the [component README](../../move-intent-framework/README.md) for quick start commands.
+See the [component README](../../intent-frameworks/mvm/README.md) for quick start commands.
 
 ## Documentation
 
@@ -22,7 +22,7 @@ For detailed flow descriptions and implementation details, see:
 ## Project Structure
 
 ```text
-move-intent-framework/
+intent-frameworks/mvm/
 ├── sources/          # Move modules (intent.move, fa_intent.move, etc.)
 ├── tests/            # Test modules
 └── Move.toml         # Package configuration

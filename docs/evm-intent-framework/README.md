@@ -65,7 +65,7 @@ function getEscrow(uint256 intentId) external view returns (address, address, ui
 
 ## Quick Start
 
-See the [component README](../../evm-intent-framework/README.md) for quick start commands.
+See the [component README](../../intent-frameworks/evm/README.md) for quick start commands.
 
 ## Usage Example
 

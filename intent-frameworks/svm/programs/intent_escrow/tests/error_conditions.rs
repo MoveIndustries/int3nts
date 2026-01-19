@@ -48,7 +48,7 @@ async fn test_reject_zero_amount() {
 /// We mint tokens to ensure the requester has balance, then approve less than needed to test specifically the allowance check, not the balance check.
 ///
 /// NOTE: N/A for SVM - SPL tokens don't use approve/allowance pattern
-// EVM: evm-intent-framework/test/error-conditions.test.js - "Should revert with insufficient ERC20 allowance"
+// EVM: intent-frameworks/evm/test/error-conditions.test.js - "Should revert with insufficient ERC20 allowance"
 
 /// 3. Test: Maximum Value Edge Case
 /// Verifies that createEscrow handles maximum u64 values correctly.
@@ -134,28 +134,28 @@ async fn test_handle_maximum_u64_value_in_create_escrow() {
 /// Why: Native currency deposits use address(0) as a convention to distinguish from token deposits.
 ///
 /// NOTE: N/A for SVM - No native currency escrow equivalent - all escrows use SPL tokens
-// EVM: evm-intent-framework/test/error-conditions.test.js - "Should allow ETH escrow creation with address(0)"
+// EVM: intent-frameworks/evm/test/error-conditions.test.js - "Should allow ETH escrow creation with address(0)"
 
 /// 5. Test: Native Currency Amount Mismatch Rejection
 /// Verifies that createEscrow reverts when msg.value doesn't match amount for native currency deposits.
 /// Why: Prevents accidental underpayment or overpayment, ensuring exact amount matching.
 ///
 /// NOTE: N/A for SVM - No native currency deposits - no msg.value equivalent
-// EVM: evm-intent-framework/test/error-conditions.test.js - "Should revert with ETH amount mismatch"
+// EVM: intent-frameworks/evm/test/error-conditions.test.js - "Should revert with ETH amount mismatch"
 
 /// 6. Test: Native Currency Not Accepted for Token Escrow
 /// Verifies that createEscrow reverts when native currency is sent with a token address.
 /// Why: Prevents confusion between native currency and token deposits. Token escrows should not accept native currency.
 ///
 /// NOTE: N/A for SVM - No native currency/token distinction - all escrows use SPL tokens
-// EVM: evm-intent-framework/test/error-conditions.test.js - "Should revert when ETH sent with token address"
+// EVM: intent-frameworks/evm/test/error-conditions.test.js - "Should revert when ETH sent with token address"
 
 /// 7. Test: Invalid Signature Length Rejection
 /// Verifies that claim reverts with invalid signature length.
 /// Why: Signatures must have the correct length. Invalid lengths indicate malformed signatures.
 ///
 /// NOTE: N/A for SVM - Signature validation handled by Ed25519Program, not the escrow program
-// EVM: evm-intent-framework/test/error-conditions.test.js - "Should revert with invalid signature length"
+// EVM: intent-frameworks/evm/test/error-conditions.test.js - "Should revert with invalid signature length"
 
 /// 8. Test: Non-Existent Escrow Cancellation Rejection
 /// Verifies that cancel reverts with EscrowDoesNotExist for non-existent escrows.

@@ -31,8 +31,8 @@ Builds and deploys the program to a local validator (or configured RPC).
 Required environment variables:
 
 - `SOLANA_URL` (optional, default `http://localhost:8899`)
-- `PROGRAM_KEYPAIR` (optional, default `svm-intent-framework/target/deploy/intent_escrow-keypair.json`)
-- `PROGRAM_SO` (optional, default `svm-intent-framework/target/deploy/intent_escrow.so`)
+- `PROGRAM_KEYPAIR` (optional, default `intent-frameworks/svm/target/deploy/intent_escrow-keypair.json`)
+- `PROGRAM_SO` (optional, default `intent-frameworks/svm/target/deploy/intent_escrow.so`)
 
 ### `initialize.sh`
 
@@ -140,7 +140,7 @@ Required environment variables:
 ### Cargo.lock issues
 
 ```bash
-cd svm-intent-framework
+cd intent-frameworks/svm
 rm Cargo.lock
 cargo generate-lockfile
 cargo update -p constant_time_eq --precise 0.3.1

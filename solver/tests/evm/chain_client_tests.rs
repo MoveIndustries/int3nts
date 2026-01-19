@@ -204,7 +204,7 @@ fn test_claim_escrow_command_building() {
     let escrow_addr = DUMMY_ESCROW_CONTRACT_ADDR_EVM;
     let intent_id_evm = "0x1234567890abcdef";
     let signature_hex = "aa".repeat(130);
-    let evm_framework_dir = "/path/to/evm-intent-framework";
+    let evm_framework_dir = "/path/to/intent-frameworks/evm";
 
     // Build the command string that would be passed to bash -c
     let command = format!(
@@ -253,17 +253,17 @@ fn test_claim_escrow_hash_extraction() {
     }
 }
 
-/// What is tested: claim_escrow() error handling for missing evm-intent-framework directory
+/// What is tested: claim_escrow() error handling for missing intent-frameworks/evm directory
 /// Why: Ensure proper error message when directory structure is incorrect
 #[test]
 fn test_claim_escrow_missing_directory_error() {
     // Simulate the directory check logic
     let current_dir = std::env::current_dir().unwrap();
     let project_root = current_dir.parent().unwrap();
-    let evm_framework_dir = project_root.join("evm-intent-framework");
+    let evm_framework_dir = project_root.join("intent-frameworks/evm");
 
     // This test documents the expected behavior - actual test would need to mock or use temp dir
-    // In real code, this would bail with: "evm-intent-framework directory not found at: ..."
+    // In real code, this would bail with: "intent-frameworks/evm directory not found at: ..."
     // We're just verifying the path construction logic here
-    assert!(evm_framework_dir.to_string_lossy().contains("evm-intent-framework"));
+    assert!(evm_framework_dir.to_string_lossy().contains("intent-frameworks/evm"));
 }

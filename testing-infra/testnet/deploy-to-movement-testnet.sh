@@ -240,7 +240,7 @@ echo ""
 
 # Compile Move modules
 echo " Step 4: Compiling Move modules..."
-cd "$PROJECT_ROOT/move-intent-framework"
+cd "$PROJECT_ROOT/intent-frameworks/mvm"
 
 movement move compile \
   --named-addresses mvmt_intent="$DEPLOY_ADDR_FULL" \

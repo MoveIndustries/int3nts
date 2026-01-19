@@ -21,7 +21,7 @@ SOLVER_PASSED=$(echo "$SOLVER_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{su
 SOLVER_FAILED=$(echo "$SOLVER_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
 
 echo "Running Move tests..."
-MOVE_TEST_OUTPUT=$(nix develop -c bash -c "cd move-intent-framework && movement move test --dev --named-addresses mvmt_intent=0x123" 2>&1) || {
+MOVE_TEST_OUTPUT=$(nix develop -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123" 2>&1) || {
     echo "Move tests failed:"
     echo "$MOVE_TEST_OUTPUT"
 }
@@ -31,7 +31,7 @@ MOVE_PASSED=${MOVE_PASSED:-0}
 MOVE_FAILED=${MOVE_FAILED:-0}
 
 echo "Running EVM tests..."
-EVM_TEST_OUTPUT=$(nix develop -c bash -c "cd evm-intent-framework && npm test" 2>&1) || {
+EVM_TEST_OUTPUT=$(nix develop -c bash -c "cd intent-frameworks/evm && npm test" 2>&1) || {
     echo "EVM tests failed:"
     echo "$EVM_TEST_OUTPUT"
 }
@@ -42,7 +42,7 @@ EVM_FAILED=${EVM_FAILED:-0}
 
 echo "Running SVM tests..."
 # Build and run tests
-SVM_TEST_OUTPUT=$(cd svm-intent-framework && ./scripts/test.sh 2>&1) || {
+SVM_TEST_OUTPUT=$(cd intent-frameworks/svm && ./scripts/test.sh 2>&1) || {
     echo "SVM tests failed:"
     echo "$SVM_TEST_OUTPUT"
 }

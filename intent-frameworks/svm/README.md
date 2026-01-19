@@ -11,7 +11,7 @@ Native Solana program for SVM escrows.
 nix develop
 
 # Build and test
-cd svm-intent-framework
+cd intent-frameworks/svm
 ./scripts/test.sh
 ```
 

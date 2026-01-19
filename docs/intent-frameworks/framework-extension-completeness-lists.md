@@ -9,8 +9,8 @@ because they are not relevant when integrating a new VM.
 
 Escrow test alignment for VM intent framework contracts (EVM/SVM):
 
-- `evm-intent-framework/test/`
-- `svm-intent-framework/programs/intent_escrow/tests/`
+- `intent-frameworks/evm/test/`
+- `intent-frameworks/svm/programs/intent_escrow/tests/`
 
 Each test file uses independent numbering starting from 1. At the end of the
 implementation, check that all tests are numbered correctly and match the list

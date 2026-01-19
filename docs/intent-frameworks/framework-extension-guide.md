@@ -91,7 +91,7 @@ Use section headers for test files that group multiple related tests:
 ## Test Alignment Reference
 
 The escrow test alignment tables for the VM frameworks (EVM/SVM) live in
-`docs/framework-extension-completeness-lists.md`.
+`docs/intent-frameworks/framework-extension-completeness-lists.md`.
 
 ## Handling Platform Differences
 
@@ -107,7 +107,7 @@ When a test from another framework doesn't apply to your platform, add a comment
 /// Why: Token transfers require explicit approval. Insufficient allowance must be rejected to prevent failed transfers.
 ///
 /// NOTE: N/A for SVM - SPL tokens don't use approve/allowance pattern
-// EVM: evm-intent-framework/test/error-conditions.test.js - "Should revert with insufficient ERC20 allowance"
+// EVM: intent-frameworks/evm/test/error-conditions.test.js - "Should revert with insufficient ERC20 allowance"
 ```
 
 **In EVM (for SVM-specific tests):**
@@ -118,7 +118,7 @@ When a test from another framework doesn't apply to your platform, add a comment
 /// Why: A valid solver must be specified for claims.
 ///
 /// NOTE: N/A for EVM - Solidity address type cannot be zero by default, and require() checks prevent zero addresses
-// SVM: svm-intent-framework/programs/intent_escrow/tests/error_conditions.rs - "test_reject_zero_solver_address"
+// SVM: intent-frameworks/svm/programs/intent_escrow/tests/error_conditions.rs - "test_reject_zero_solver_address"
 ```
 
 ### Platform-Specific Tests
@@ -168,7 +168,7 @@ it("Should validate new feature", async function () {
 /// Why: Ensures the new feature behaves as expected.
 ///
 /// NOTE: N/A for SVM - [Clear explanation of why this test doesn't apply to SVM]
-// EVM: evm-intent-framework/test/error-conditions.test.js - "Should validate new feature"
+// EVM: intent-frameworks/evm/test/error-conditions.test.js - "Should validate new feature"
 ```
 
 **Key points:**

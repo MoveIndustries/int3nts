@@ -66,7 +66,7 @@ log "% - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 log ""
 log " Checking initial balances..."
 
-cd evm-intent-framework
+cd intent-frameworks/evm
 BALANCES_OUTPUT=$(nix develop -c bash -c "npx hardhat run scripts/get-accounts.js" 2>&1)
 
 if [ $? -ne 0 ]; then

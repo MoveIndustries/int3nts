@@ -35,7 +35,7 @@ cargo build --bin solver 2>&1 | tail -5
 popd > /dev/null
 log_and_echo "   ✅ Solver: solver"
 
-pushd "$PROJECT_ROOT/svm-intent-framework" > /dev/null
+pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
 cargo build -p intent_escrow_cli 2>&1 | tail -5
 popd > /dev/null
 log_and_echo "   ✅ SVM: intent_escrow_cli"
