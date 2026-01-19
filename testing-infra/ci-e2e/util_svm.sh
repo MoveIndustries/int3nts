@@ -71,58 +71,29 @@ get_svm_pubkey() {
 # Usage: svm_pubkey_to_hex <base58_pubkey>
 svm_pubkey_to_hex() {
     # Use node inside nix develop to avoid relying on system python
-    svm_cmd "node - \"$1\" <<'JS'
-const alphabet = \"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz\";
-function b58decode(str) {
-  let num = 0n;
-  for (const c of str) {
-    const idx = BigInt(alphabet.indexOf(c));
-    num = num * 58n + idx;
-  }
-  let bytes = [];
-  while (num > 0n) {
-    bytes.push(Number(num & 0xffn));
-    num >>= 8n;
-  }
-  bytes = bytes.reverse();
-  let nPad = 0;
-  for (const c of str) {
-    if (c !== \"1\") break;
-    nPad++;
-  }
-  const out = Buffer.concat([Buffer.alloc(nPad), Buffer.from(bytes)]);
-  console.log(\"0x\" + out.toString(\"hex\"));
-}
-const input = process.argv[2];
-b58decode(input);
-JS" | tail -n 1
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+    svm_cmd "node \"$PROJECT_ROOT/testing-infra/ci-e2e/base58.js\" decode-base58-to-hex \"$1\"" | tail -n 1
 }
 
 # Convert base64-encoded public key bytes to base58
 # Usage: svm_base64_to_base58 <base64_pubkey>
 svm_base64_to_base58() {
-    svm_cmd "node - \"$1\" <<'JS'
-const alphabet = \"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz\";
-function b58encode(buf) {
-  let num = 0n;
-  for (const b of buf) num = (num << 8n) + BigInt(b);
-  let enc = \"\";
-  while (num > 0n) {
-    const rem = num % 58n;
-    num = num / 58n;
-    enc = alphabet[Number(rem)] + enc;
-  }
-  let nPad = 0;
-  for (const b of buf) {
-    if (b !== 0) break;
-    nPad++;
-  }
-  return \"1\".repeat(nPad) + enc;
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+    svm_cmd "node \"$PROJECT_ROOT/testing-infra/ci-e2e/base58.js\" encode-base64 \"$1\"" | tail -n 1
 }
-const input = process.argv[2];
-const raw = Buffer.from(input, \"base64\");
-console.log(b58encode(raw));
-JS" | tail -n 1
+
+# Convert keypair JSON file (byte array) to base58 private key
+# Usage: svm_keypair_to_base58 <keypair_json_path>
+svm_keypair_to_base58() {
+    local keypair_path="$1"
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+    svm_cmd "node \"$PROJECT_ROOT/testing-infra/ci-e2e/base58.js\" encode-keypair-json \"$keypair_path\"" | tail -n 1
 }
 
 # Airdrop SOL to a pubkey

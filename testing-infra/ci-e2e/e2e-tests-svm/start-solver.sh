@@ -120,12 +120,7 @@ generate_solver_config_svm "$SOLVER_CONFIG"
 
 # Convert keypair file (JSON byte array) to base58 private key for solver
 # Solana keypairs are 64 bytes: first 32 bytes seed + last 32 bytes public key
-export SOLANA_SOLVER_PRIVATE_KEY=$(node -e "
-  const fs = require('fs');
-  const bs58 = require('bs58');
-  const bytes = new Uint8Array(JSON.parse(fs.readFileSync('$SVM_SOLVER_KEYPAIR', 'utf8')));
-  console.log(bs58.encode(bytes));
-")
+export SOLANA_SOLVER_PRIVATE_KEY=$(svm_keypair_to_base58 "$SVM_SOLVER_KEYPAIR")
 export SOLVER_SVM_ADDR=$(svm_pubkey_to_hex "$SOLVER_SVM_PUBKEY")
 
 unset MOVEMENT_SOLVER_PRIVATE_KEY

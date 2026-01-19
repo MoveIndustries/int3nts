@@ -555,7 +555,7 @@ initialize_intent_registry() {
 
 # Get USDhub/USDcon metadata address
 # Usage: get_usdxyz_metadata_addr <test_tokens_addr> <chain_num>
-# Returns the USDhub/USDcon metadata object address
+# Returns the USDhub/USDcon metadata object address (always 32 bytes, 0x + 64 hex chars)
 get_usdxyz_metadata_addr() {
     local test_tokens_addr="$1"
     local chain_num="$2"
@@ -576,7 +576,15 @@ get_usdxyz_metadata_addr() {
             \"arguments\": []
         }" 2>/dev/null | jq -r '.[0].inner // empty')
     
-    echo "$metadata"
+    # Ensure result is 32 bytes (0x + 64 hex chars) by zero-padding
+    if [ -n "$metadata" ]; then
+        local hex_part="${metadata#0x}"
+        # Pad to 64 hex characters
+        while [ ${#hex_part} -lt 64 ]; do
+            hex_part="0${hex_part}"
+        done
+        echo "0x${hex_part}"
+    fi
 }
 
 # Get USDhub/USDcon balance for an account
