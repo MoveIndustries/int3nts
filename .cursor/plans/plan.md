@@ -89,7 +89,7 @@ git commit -m "<type>: <description>
 Run test summary script:
 
 ```bash
-./.cursor/test-summary.sh
+./testing-infra/run-all-unit-tests.sh
 ```
 
 Or get individual counts:

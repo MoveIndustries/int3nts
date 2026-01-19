@@ -103,7 +103,7 @@ module_addr = "$module_addr"
 profile = "solver-chain1"
 e2e_mode = true  # Use aptos CLI with profiles for E2E tests
 
-[connected_chain]
+[[connected_chain]]
 type = "evm"
 name = "EVM Connected Chain (E2E Test)"
 rpc_url = "$evm_rpc"

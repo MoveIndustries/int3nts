@@ -17,7 +17,7 @@ testing-infra/
 ├── testnet/         # Public testnet deployment
 │   ├── config/              # Testnet asset configuration
 │   └── check-testnet-balances.sh
-└── test-summary.sh  # Run all unit tests and display summary table
+└── run-all-unit-tests.sh  # Run all unit tests and display summary table
 ```
 
 ## CI/E2E Tests

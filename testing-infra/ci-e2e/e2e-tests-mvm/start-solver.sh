@@ -82,7 +82,7 @@ module_addr = "$hub_module_addr"
 profile = "solver-chain1"
 e2e_mode = true  # Use aptos CLI with profiles for E2E tests
 
-[connected_chain]
+[[connected_chain]]
 type = "mvm"
 name = "Connected Chain (E2E Test)"
 rpc_url = "$connected_rpc"
@@ -118,8 +118,8 @@ if [ -z "$SOLVER_MVMCON_ADDR" ]; then
     log_and_echo "   Make sure solver-chain2 profile exists"
     exit 1
 fi
-export SOLVER_CONNECTED_MVM_ADDR="0x${SOLVER_MVMCON_ADDR}"
-log "   Exported SOLVER_CONNECTED_MVM_ADDR=$SOLVER_CONNECTED_MVM_ADDR"
+export SOLVER_MVMCON_ADDR="0x${SOLVER_MVMCON_ADDR}"
+log "   Exported SOLVER_MVMCON_ADDR=$SOLVER_MVMCON_ADDR"
 
 # Unset testnet keys to prevent accidental use (E2E tests use profiles only)
 unset MOVEMENT_SOLVER_PRIVATE_KEY

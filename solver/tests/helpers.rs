@@ -147,13 +147,13 @@ pub fn create_default_hub_chain_config() -> solver::config::ChainConfig {
 /// Create a default connected MVM chain config with test values.
 /// This can be customized using Rust's struct update syntax:
 /// ```
-/// let connected_chain = ChainConfig {
+/// let connected_chain = MvmChainConfig {
 ///     profile: "custom-profile".to_string(),
 ///     ..create_default_connected_mvm_chain_config()
 /// };
 /// ```
-pub fn create_default_connected_mvm_chain_config() -> solver::config::ChainConfig {
-    solver::config::ChainConfig {
+pub fn create_default_connected_mvm_chain_config() -> solver::config::MvmChainConfig {
+    solver::config::MvmChainConfig {
         name: "connected-chain".to_string(),
         rpc_url: "http://127.0.0.1:8082/v1".to_string(),
         chain_id: 2,
@@ -192,9 +192,9 @@ pub fn create_default_solver_config() -> solver::config::SolverConfig {
     solver::config::SolverConfig {
         service: create_default_service_config(),
         hub_chain: create_default_hub_chain_config(),
-        connected_chain: solver::config::ConnectedChainConfig::Mvm(
-            create_default_connected_mvm_chain_config(),
-        ),
+        connected_chain: vec![
+            solver::config::ConnectedChainConfig::Mvm(create_default_connected_mvm_chain_config()),
+        ],
         acceptance: solver::config::AcceptanceConfig {
             token_pairs: std::collections::HashMap::new(),
         },

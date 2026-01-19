@@ -21,31 +21,31 @@ module_addr = "0x123"                 # Address of the intent framework module
 profile = "solver-chain1"                 # Aptos/Movement CLI profile name for this chain
 e2e_mode = false                          # E2E testing mode: true = use aptos CLI with profiles, false = use movement CLI with private keys
 
-# Connected Chain Configuration
-# The connected chain is where escrows occur
-# Choose either "mvm", "evm", or "svm" type
+# Connected Chain Configurations
+# Use [[connected_chain]] for each connected chain (supports multiple chains)
+# Each section must have a "type" field: "mvm", "evm", or "svm"
 
-# Option 1: Move VM Chain
-[connected_chain]
-type = "mvm"
-name = "Connected Move VM Chain"          # Human-readable name for the chain
-rpc_url = "http://127.0.0.1:8082/v1"     # RPC endpoint URL for blockchain communication
-chain_id = 2                              # Unique chain identifier
-module_addr = "0x123"                 # Address of the intent framework module
-profile = "solver-chain2"                # Aptos/Movement CLI profile name for this chain
-e2e_mode = false                          # E2E testing mode: true = use aptos CLI with profiles, false = use movement CLI with private keys
+# Example: MVM Connected Chain
+# [[connected_chain]]
+# type = "mvm"
+# name = "Connected Move VM Chain"          # Human-readable name for the chain
+# rpc_url = "http://127.0.0.1:8082/v1"     # RPC endpoint URL for blockchain communication
+# chain_id = 2                              # Unique chain identifier
+# module_addr = "0x123"                 # Address of the intent framework module
+# profile = "solver-chain2"                # Aptos/Movement CLI profile name for this chain
+# e2e_mode = false                          # E2E testing mode
 
-# Option 2: EVM Chain (uncomment and use instead of MVM config above)
-# [connected_chain]
+# Example: EVM Connected Chain
+# [[connected_chain]]
 # type = "evm"
 # name = "Connected EVM Chain"            # Human-readable name for the chain
 # rpc_url = "https://sepolia.base.org"     # RPC endpoint URL for EVM chain
 # chain_id = 84532                         # Chain ID (e.g., 84532 for Base Sepolia)
 # escrow_contract_addr = "0x..."         # Address of the IntentEscrow contract
-# private_key_env = "BASE_SOLVER_PRIVATE_KEY"  # Environment variable containing EVM private key
+# private_key_env = "SOLVER_EVM_PRIVATE_KEY"  # Environment variable containing EVM private key
 
-# Option 3: SVM Chain (uncomment and use instead of MVM config above)
-# [connected_chain]
+# Example: SVM Connected Chain
+# [[connected_chain]]
 # type = "svm"
 # name = "Connected SVM Chain"            # Human-readable name for the chain
 # rpc_url = "http://127.0.0.1:8899"       # RPC endpoint URL for SVM chain
@@ -74,4 +74,3 @@ e2e_mode = false                          # E2E testing mode: true = use aptos C
 [solver]
 profile = "solver-chain1"                # Aptos/Movement CLI profile name for solver account
 address = "0x..."                        # Solver address (0x-prefixed hex)
-

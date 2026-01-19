@@ -126,7 +126,7 @@ if [ -n "$CONTRACT_ADDR" ]; then
     echo ""
     echo "   3. solver/config/solver_testnet.toml"
     echo "      Line ~31: escrow_contract_addr = \"$CONTRACT_ADDR\""
-    echo "      (in the [connected_chain] section)"
+    echo "      (in the [connected_chain_evm] section)"
     echo ""
     echo "   4. Run ./testing-infra/testnet/check-testnet-preparedness.sh to verify"
 else
@@ -136,7 +136,7 @@ else
     echo " Update the following files:"
     echo "   - frontend/src/config/chains.ts (escrowContractAddress in 'base-sepolia' section)"
     echo "   - trusted-verifier/config/verifier_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
-    echo "   - solver/config/solver_testnet.toml (escrow_contract_addr in [connected_chain] section)"
+    echo "   - solver/config/solver_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
 fi
 echo ""
 

@@ -65,7 +65,8 @@ if [ ! -f "$SOLVER_CONFIG" ]; then
     echo ""
     echo "   Then populate with actual deployed contract addresses:"
     echo "   - module_addr (hub_chain section)"
-    echo "   - escrow_contract_addr (connected_chain section)"
+    echo "   - escrow_contract_addr (connected_chain_evm section)"
+    echo "   - escrow_program_id (connected_chain_svm section)"
     echo "   - address (solver section)"
     echo "   - verifier_url (service section - use localhost:3333 for local testing)"
     exit 1
@@ -78,7 +79,8 @@ if grep -qE "(0x123|0x\.\.\.|0x\.\.\.)" "$SOLVER_CONFIG"; then
     echo ""
     echo "   Update the config file with actual deployed addresses:"
     echo "   - module_addr (hub_chain section)"
-    echo "   - escrow_contract_addr (connected_chain section)"
+    echo "   - escrow_contract_addr (connected_chain_evm section)"
+    echo "   - escrow_program_id (connected_chain_svm section)"
     echo "   - address (solver section)"
     echo "   - verifier_url (service section - use localhost:3333 for local testing)"
     echo ""
@@ -93,16 +95,48 @@ HUB_MODULE=$(grep -A5 "\[hub_chain\]" "$SOLVER_CONFIG" | grep "^module_addr" | g
 SOLVER_PROFILE=$(grep -A5 "\[solver\]" "$SOLVER_CONFIG" | grep "^profile" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
 SOLVER_ADDR=$(grep -A5 "\[solver\]" "$SOLVER_CONFIG" | grep "^address" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
 
-# Check if connected chain is EVM and extract escrow address
-CONNECTED_TYPE=$(grep -A2 "\[connected_chain\]" "$SOLVER_CONFIG" | grep "^type" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
-if [ "$CONNECTED_TYPE" = "evm" ]; then
-    ESCROW_CONTRACT=$(grep -A5 "\[connected_chain\]" "$SOLVER_CONFIG" | grep "^escrow_contract_addr" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
-    CONNECTED_RPC=$(grep -A5 "\[connected_chain\]" "$SOLVER_CONFIG" | grep "^rpc_url" | grep -v "^#" | head -1 | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs)
+# Check which connected chains are configured by parsing [[connected_chain]] sections
+HAS_EVM=false
+HAS_SVM=false
+HAS_MVM=false
+CONNECTED_TYPES=""
+
+# Extract types from [[connected_chain]] sections
+for CONNECTED_TYPE in $(grep -A1 "\[\[connected_chain\]\]" "$SOLVER_CONFIG" | grep "^type" | sed 's/.*= *"\(.*\)".*/\1/' | sed 's/#.*$//' | xargs); do
+    case "$CONNECTED_TYPE" in
+        evm)
+            HAS_EVM=true
+            CONNECTED_TYPES="${CONNECTED_TYPES:+$CONNECTED_TYPES,}evm"
+            # Find the EVM section and extract values
+            EVM_ESCROW_CONTRACT=$(awk '/\[\[connected_chain\]\]/{found=0} /type *= *"evm"/{found=1} found && /^escrow_contract_addr/{gsub(/.*= *"|".*/, ""); print; exit}' "$SOLVER_CONFIG")
+            EVM_RPC=$(awk '/\[\[connected_chain\]\]/{found=0} /type *= *"evm"/{found=1} found && /^rpc_url/{gsub(/.*= *"|".*/, ""); print; exit}' "$SOLVER_CONFIG")
+            ;;
+        svm)
+            HAS_SVM=true
+            CONNECTED_TYPES="${CONNECTED_TYPES:+$CONNECTED_TYPES,}svm"
+            SVM_PROGRAM_ID=$(awk '/\[\[connected_chain\]\]/{found=0} /type *= *"svm"/{found=1} found && /^escrow_program_id/{gsub(/.*= *"|".*/, ""); print; exit}' "$SOLVER_CONFIG")
+            SVM_RPC=$(awk '/\[\[connected_chain\]\]/{found=0} /type *= *"svm"/{found=1} found && /^rpc_url/{gsub(/.*= *"|".*/, ""); print; exit}' "$SOLVER_CONFIG")
+            ;;
+        mvm)
+            HAS_MVM=true
+            CONNECTED_TYPES="${CONNECTED_TYPES:+$CONNECTED_TYPES,}mvm"
+            MVM_MODULE=$(awk '/\[\[connected_chain\]\]/{found=0} /type *= *"mvm"/{found=1} found && /^module_addr/{gsub(/.*= *"|".*/, ""); print; exit}' "$SOLVER_CONFIG")
+            MVM_RPC=$(awk '/\[\[connected_chain\]\]/{found=0} /type *= *"mvm"/{found=1} found && /^rpc_url/{gsub(/.*= *"|".*/, ""); print; exit}' "$SOLVER_CONFIG")
+            ;;
+    esac
+done
+
+# Check at least one connected chain is configured
+if [ -z "$CONNECTED_TYPES" ]; then
+    echo "❌ ERROR: No [[connected_chain]] configured in $SOLVER_CONFIG"
+    echo ""
+    echo "   Add at least one [[connected_chain]] section with type = \"evm\", \"svm\", or \"mvm\""
+    exit 1
 fi
 
 # Check for API key placeholders in RPC URLs
-if [[ "$HUB_RPC" == *"ALCHEMY_API_KEY"* ]] || ([ "$CONNECTED_TYPE" = "evm" ] && [[ "$CONNECTED_RPC" == *"ALCHEMY_API_KEY"* ]]); then
-    echo "️  WARNING: RPC URLs contain API key placeholders (ALCHEMY_API_KEY)"
+if [[ "$HUB_RPC" == *"ALCHEMY_API_KEY"* ]] || ($HAS_EVM && [[ "$EVM_RPC" == *"ALCHEMY_API_KEY"* ]]); then
+    echo "❌ WARNING: RPC URLs contain API key placeholders (ALCHEMY_API_KEY)"
     echo "   The solver service does not substitute placeholders - use full URLs in config"
     echo "   Or use the public RPC URLs from testnet-assets.toml"
     echo ""
@@ -111,17 +145,31 @@ fi
 echo " Configuration:"
 echo "   Config file: $SOLVER_CONFIG"
 echo "   Keys file:   $TESTNET_KEYS_FILE"
+echo "   Connected:   $CONNECTED_TYPES"
 echo ""
 echo "   Verifier:"
 echo "     URL:              $VERIFIER_URL"
 echo ""
 echo "   Hub Chain:"
 echo "     RPC:              $HUB_RPC"
-echo "     Module Address:    $HUB_MODULE"
+echo "     Module Address:   $HUB_MODULE"
 echo ""
-if [ "$CONNECTED_TYPE" = "evm" ]; then
+if $HAS_EVM; then
     echo "   Connected Chain (EVM):"
-    echo "     Escrow Contract:  $ESCROW_CONTRACT"
+    echo "     Escrow Contract:  $EVM_ESCROW_CONTRACT"
+    echo "     RPC:              $EVM_RPC"
+    echo ""
+fi
+if $HAS_SVM; then
+    echo "   Connected Chain (SVM):"
+    echo "     Program ID:       $SVM_PROGRAM_ID"
+    echo "     RPC:              $SVM_RPC"
+    echo ""
+fi
+if $HAS_MVM; then
+    echo "   Connected Chain (MVM):"
+    echo "     Module Address:   $MVM_MODULE"
+    echo "     RPC:              $MVM_RPC"
     echo ""
 fi
 echo "   Solver:"

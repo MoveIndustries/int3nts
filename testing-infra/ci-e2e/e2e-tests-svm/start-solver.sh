@@ -78,7 +78,7 @@ module_addr = "$module_addr"
 profile = "solver-chain1"
 e2e_mode = true
 
-[connected_chain]
+[[connected_chain]]
 type = "svm"
 name = "SVM Connected Chain (E2E Test)"
 rpc_url = "$svm_rpc"

@@ -7,7 +7,7 @@ use test_helpers::{
     DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_TOKEN_ADDR_EVM, DUMMY_TOKEN_ADDR_MVMCON, DUMMY_TOKEN_ADDR_HUB,
 };
 
-use solver::config::{AcceptanceConfig, ChainConfig, ConnectedChainConfig, SolverConfig};
+use solver::config::{AcceptanceConfig, ConnectedChainConfig, EvmChainConfig, MvmChainConfig, SvmChainConfig, SolverConfig};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -42,16 +42,40 @@ fn test_config_validation_success() {
     assert!(config.validate().is_ok());
 }
 
+/// What is tested: SolverConfig::validate() accepts multiple connected chains
+/// Why: Ensure multiple connected chains can be configured at once
+#[test]
+fn test_config_validation_multiple_connected_chains() {
+    let mut config = create_test_config();
+
+    // Add an EVM connected chain alongside the default MVM chain
+    config.connected_chain.push(ConnectedChainConfig::Evm(EvmChainConfig {
+        name: "connected-evm".to_string(),
+        rpc_url: "http://127.0.0.1:8545".to_string(),
+        chain_id: 3,
+        escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
+        private_key_env: "SOLVER_EVM_PRIVATE_KEY".to_string(),
+        network_name: "localhost".to_string(),
+    }));
+
+    assert!(config.validate().is_ok());
+    assert!(config.get_mvm_config().is_some());
+    assert!(config.get_evm_config().is_some());
+    assert!(config.get_svm_config().is_none());
+}
+
 /// What is tested: SolverConfig::validate() rejects duplicate chain IDs
 /// Why: Ensure hub and connected chains have different chain IDs
 #[test]
 fn test_config_validation_duplicate_chain_ids() {
     let mut config = create_test_config();
     // Set connected chain to same ID as hub
-    config.connected_chain = ConnectedChainConfig::Mvm(ChainConfig {
-        chain_id: 1, // Same as hub chain
-        ..create_default_connected_mvm_chain_config()
-    });
+    config.connected_chain = vec![
+        ConnectedChainConfig::Mvm(MvmChainConfig {
+            chain_id: 1, // Same as hub chain
+            ..create_default_connected_mvm_chain_config()
+        }),
+    ];
 
     let result = config.validate();
     assert!(result.is_err());
@@ -217,12 +241,11 @@ fn test_config_toml_roundtrip() {
     assert_eq!(deserialized.acceptance.token_pairs.len(), config.acceptance.token_pairs.len());
 }
 
-/// What is tested: ConnectedChainConfig can deserialize MVM type
+/// What is tested: MvmChainConfig can deserialize from TOML
 /// Why: Ensure MVM chain config is correctly parsed from TOML
 #[test]
 fn test_connected_chain_mvm_deserialization() {
     let toml_str = r#"
-type = "mvm"
 name = "connected-chain"
 rpc_url = "http://127.0.0.1:8082/v1"
 chain_id = 2
@@ -230,24 +253,19 @@ module_addr = "0x2"
 profile = "connected-profile"
 "#;
 
-    let chain: ConnectedChainConfig = toml::from_str(toml_str).unwrap();
+    let config: MvmChainConfig = toml::from_str(toml_str).unwrap();
     
-    match chain {
-        ConnectedChainConfig::Mvm(config) => {
-            assert_eq!(config.chain_id, 2);
-            assert_eq!(config.name, "connected-chain");
-        }
-        ConnectedChainConfig::Evm(_) => panic!("Expected MVM config"),
-        ConnectedChainConfig::Svm(_) => panic!("Expected MVM config"),
-    }
+    assert_eq!(config.chain_id, 2);
+    assert_eq!(config.name, "connected-chain");
+    assert_eq!(config.module_addr, "0x2");
+    assert_eq!(config.profile, "connected-profile");
 }
 
-/// What is tested: ConnectedChainConfig can deserialize EVM type
+/// What is tested: EvmChainConfig can deserialize from TOML
 /// Why: Ensure EVM chain config is correctly parsed from TOML
 #[test]
 fn test_connected_chain_evm_deserialization() {
     let toml_str = format!(r#"
-type = "evm"
 name = "Connected EVM Chain"
 rpc_url = "https://sepolia.base.org"
 chain_id = 84532
@@ -255,26 +273,19 @@ escrow_contract_addr = "{}"
 private_key_env = "BASE_SOLVER_PRIVATE_KEY"
 "#, DUMMY_ESCROW_CONTRACT_ADDR_EVM);
 
-    let chain: ConnectedChainConfig = toml::from_str(&toml_str).unwrap();
+    let config: EvmChainConfig = toml::from_str(&toml_str).unwrap();
     
-    match chain {
-        ConnectedChainConfig::Evm(config) => {
-            assert_eq!(config.chain_id, 84532);
-            assert_eq!(config.name, "Connected EVM Chain");
-            assert_eq!(config.escrow_contract_addr, DUMMY_ESCROW_CONTRACT_ADDR_EVM);
-            assert_eq!(config.private_key_env, "BASE_SOLVER_PRIVATE_KEY");
-        }
-        ConnectedChainConfig::Mvm(_) => panic!("Expected EVM config"),
-        ConnectedChainConfig::Svm(_) => panic!("Expected EVM config"),
-    }
+    assert_eq!(config.chain_id, 84532);
+    assert_eq!(config.name, "Connected EVM Chain");
+    assert_eq!(config.escrow_contract_addr, DUMMY_ESCROW_CONTRACT_ADDR_EVM);
+    assert_eq!(config.private_key_env, "BASE_SOLVER_PRIVATE_KEY");
 }
 
-/// What is tested: ConnectedChainConfig can deserialize SVM type
+/// What is tested: SvmChainConfig can deserialize from TOML
 /// Why: Ensure SVM chain config is correctly parsed from TOML
 #[test]
 fn test_connected_chain_svm_deserialization() {
     let toml_str = r#"
-type = "svm"
 name = "Connected SVM Chain"
 rpc_url = "http://127.0.0.1:8899"
 chain_id = 100
@@ -282,18 +293,12 @@ escrow_program_id = "11111111111111111111111111111111"
 keypair_path_env = "SVM_SOLVER_KEYPAIR"
 "#;
 
-    let chain: ConnectedChainConfig = toml::from_str(toml_str).unwrap();
+    let config: SvmChainConfig = toml::from_str(toml_str).unwrap();
 
-    match chain {
-        ConnectedChainConfig::Svm(config) => {
-            assert_eq!(config.chain_id, 100);
-            assert_eq!(config.name, "Connected SVM Chain");
-            assert_eq!(config.escrow_program_id, "11111111111111111111111111111111");
-            assert_eq!(config.keypair_path_env, "SVM_SOLVER_KEYPAIR");
-        }
-        ConnectedChainConfig::Mvm(_) => panic!("Expected SVM config"),
-        ConnectedChainConfig::Evm(_) => panic!("Expected SVM config"),
-    }
+    assert_eq!(config.chain_id, 100);
+    assert_eq!(config.name, "Connected SVM Chain");
+    assert_eq!(config.escrow_program_id, "11111111111111111111111111111111");
+    assert_eq!(config.keypair_path_env, "SVM_SOLVER_KEYPAIR");
 }
 
 // ============================================================================
@@ -326,7 +331,7 @@ chain_id = 1
 module_addr = "0x1"
 profile = "hub-profile"
 
-[connected_chain]
+[[connected_chain]]
 type = "mvm"
 name = "connected-chain"
 rpc_url = "http://127.0.0.1:8082/v1"

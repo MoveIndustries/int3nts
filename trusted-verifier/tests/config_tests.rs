@@ -3,12 +3,12 @@
 //! These tests verify configuration loading, parsing, and defaults
 //! without requiring external services.
 
-use trusted_verifier::config::{ChainConfig, Config, EvmChainConfig};
+use trusted_verifier::config::{ChainConfig, Config, EvmChainConfig, SvmChainConfig};
 use trusted_verifier::monitor::ChainType;
 use trusted_verifier::validator::{get_chain_type_from_chain_id, normalize_address};
 #[path = "mod.rs"]
 mod test_helpers;
-use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_VERIFIER_EVM_PUBKEY_HASH};
+use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_VERIFIER_EVM_PUBKEY_HASH};
 
 /// Test that default configuration creates valid structure
 /// Why: Verify default config is valid and doesn't panic
@@ -47,6 +47,39 @@ fn test_connected_chain_mvm_with_values() {
         config.connected_chain_mvm.as_ref().unwrap().name,
         "Connected Move VM Chain"
     );
+}
+
+/// What is tested: Config::validate() accepts multiple connected chains
+/// Why: Ensure MVM, EVM, and SVM can all be configured at once
+#[test]
+fn test_config_validation_multiple_connected_chains() {
+    let mut config = Config::default();
+
+    config.connected_chain_mvm = Some(ChainConfig {
+        name: "MVM Chain".to_string(),
+        rpc_url: "http://127.0.0.1:8082".to_string(),
+        chain_id: 2,
+        intent_module_addr: "0x123".to_string(),
+        escrow_module_addr: Some("0x123".to_string()),
+    });
+
+    config.connected_chain_evm = Some(EvmChainConfig {
+        name: "EVM Chain".to_string(),
+        rpc_url: "http://127.0.0.1:8545".to_string(),
+        escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
+        chain_id: 31337,
+        verifier_evm_pubkey_hash: DUMMY_VERIFIER_EVM_PUBKEY_HASH.to_string(),
+    });
+
+    config.connected_chain_svm = Some(SvmChainConfig {
+        name: "SVM Chain".to_string(),
+        rpc_url: "http://127.0.0.1:8899".to_string(),
+        chain_id: 901,
+        escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
+    });
+
+    let result = config.validate();
+    assert!(result.is_ok(), "Should accept multiple connected chains");
 }
 
 /// Test that config can be serialized and deserialized

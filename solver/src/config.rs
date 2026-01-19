@@ -17,7 +17,7 @@ use crate::acceptance::TokenPair;
 /// This structure holds configuration for:
 /// - Verifier service connection
 /// - Hub chain connection details
-/// - Connected chain configuration (MVM or EVM)
+/// - Connected chain configurations (one or more, each with a type field)
 /// - Acceptance criteria (token pairs and exchange rates)
 /// - Solver profile and signing settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -26,12 +26,89 @@ pub struct SolverConfig {
     pub service: ServiceConfig,
     /// Hub chain configuration (where intents are created)
     pub hub_chain: ChainConfig,
-    /// Connected chain configuration (where escrows occur)
-    pub connected_chain: ConnectedChainConfig,
+    /// Connected chain configurations (use [[connected_chain]] in TOML for multiple)
+    #[serde(default)]
+    pub connected_chain: Vec<ConnectedChainConfig>,
     /// Acceptance criteria (token pairs and exchange rates)
     pub acceptance: AcceptanceConfig,
     /// Solver signing configuration
     pub solver: SolverSigningConfig,
+}
+
+impl SolverConfig {
+    /// Get connected MVM chain config if configured
+    pub fn get_mvm_config(&self) -> Option<&MvmChainConfig> {
+        self.connected_chain.iter().find_map(|c| {
+            if let ConnectedChainConfig::Mvm(cfg) = c {
+                Some(cfg)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Get connected EVM chain config if configured
+    pub fn get_evm_config(&self) -> Option<&EvmChainConfig> {
+        self.connected_chain.iter().find_map(|c| {
+            if let ConnectedChainConfig::Evm(cfg) = c {
+                Some(cfg)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Get connected SVM chain config if configured
+    pub fn get_svm_config(&self) -> Option<&SvmChainConfig> {
+        self.connected_chain.iter().find_map(|c| {
+            if let ConnectedChainConfig::Svm(cfg) = c {
+                Some(cfg)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Get connected chain config by chain ID
+    pub fn get_connected_chain_by_id(&self, chain_id: u64) -> Option<&ConnectedChainConfig> {
+        self.connected_chain.iter().find(|c| c.chain_id() == chain_id)
+    }
+}
+
+/// Configuration for a connected chain (can be MVM, EVM, or SVM).
+/// Use the `type` field to specify which type.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum ConnectedChainConfig {
+    /// Move VM chain configuration
+    #[serde(rename = "mvm")]
+    Mvm(MvmChainConfig),
+    /// EVM chain configuration
+    #[serde(rename = "evm")]
+    Evm(EvmChainConfig),
+    /// SVM chain configuration
+    #[serde(rename = "svm")]
+    Svm(SvmChainConfig),
+}
+
+impl ConnectedChainConfig {
+    /// Get the chain ID for this connected chain
+    pub fn chain_id(&self) -> u64 {
+        match self {
+            ConnectedChainConfig::Mvm(cfg) => cfg.chain_id,
+            ConnectedChainConfig::Evm(cfg) => cfg.chain_id,
+            ConnectedChainConfig::Svm(cfg) => cfg.chain_id,
+        }
+    }
+
+    /// Get the chain type as a string
+    pub fn chain_type(&self) -> &'static str {
+        match self {
+            ConnectedChainConfig::Mvm(_) => "mvm",
+            ConnectedChainConfig::Evm(_) => "evm",
+            ConnectedChainConfig::Svm(_) => "svm",
+        }
+    }
 }
 
 /// Service-level configuration for the solver.
@@ -64,19 +141,22 @@ pub struct ChainConfig {
     pub e2e_mode: bool,
 }
 
-/// Configuration for the connected chain (can be MVM or EVM).
+/// Configuration for a connected Move VM chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-pub enum ConnectedChainConfig {
-    /// Move VM chain configuration
-    #[serde(rename = "mvm")]
-    Mvm(ChainConfig),
-    /// EVM chain configuration
-    #[serde(rename = "evm")]
-    Evm(EvmChainConfig),
-    /// SVM chain configuration
-    #[serde(rename = "svm")]
-    Svm(SvmChainConfig),
+pub struct MvmChainConfig {
+    /// Human-readable name for the chain
+    pub name: String,
+    /// RPC endpoint URL for blockchain communication
+    pub rpc_url: String,
+    /// Unique chain identifier
+    pub chain_id: u64,
+    /// Address of the intent framework module
+    pub module_addr: String,
+    /// Aptos/Movement CLI profile name for this chain
+    pub profile: String,
+    /// E2E testing mode: if true, use aptos CLI with profiles; if false, use movement CLI with private keys
+    #[serde(default)]
+    pub e2e_mode: bool,
 }
 
 /// Configuration for an EVM-compatible chain.
@@ -190,7 +270,9 @@ impl SolverConfig {
     /// Validates the configuration for consistency and correctness.
     ///
     /// Checks:
+    /// - At least one connected chain is configured
     /// - Hub and connected chains have different chain IDs
+    /// - All connected chains have unique chain IDs
     /// - Token pair strings are in correct format
     /// - Exchange rates are positive
     ///
@@ -199,19 +281,38 @@ impl SolverConfig {
     /// * `Ok(())` - Configuration is valid
     /// * `Err(anyhow::Error)` - Validation failed with error message
     pub fn validate(&self) -> anyhow::Result<()> {
-        // Check hub vs connected chain IDs
-        let hub_chain_id = self.hub_chain.chain_id;
-        let connected_chain_id = match &self.connected_chain {
-            ConnectedChainConfig::Mvm(config) => config.chain_id,
-            ConnectedChainConfig::Evm(config) => config.chain_id,
-            ConnectedChainConfig::Svm(config) => config.chain_id,
-        };
-
-        if hub_chain_id == connected_chain_id {
+        // Check at least one connected chain is configured
+        if self.connected_chain.is_empty() {
             return Err(anyhow::anyhow!(
-                "Configuration error: Hub chain and connected chain have the same chain ID {}. Each chain must have a unique chain ID.",
-                hub_chain_id
+                "Configuration error: At least one [[connected_chain]] must be configured"
             ));
+        }
+
+        // Collect all chain IDs and check for duplicates with hub
+        let hub_chain_id = self.hub_chain.chain_id;
+
+        for chain in &self.connected_chain {
+            if chain.chain_id() == hub_chain_id {
+                return Err(anyhow::anyhow!(
+                    "Configuration error: Connected {} chain has same chain ID ({}) as hub chain",
+                    chain.chain_type(),
+                    hub_chain_id
+                ));
+            }
+        }
+
+        // Check for duplicate chain IDs among connected chains
+        for i in 0..self.connected_chain.len() {
+            for j in (i + 1)..self.connected_chain.len() {
+                if self.connected_chain[i].chain_id() == self.connected_chain[j].chain_id() {
+                    return Err(anyhow::anyhow!(
+                        "Configuration error: Connected chains {} and {} have the same chain ID {}",
+                        self.connected_chain[i].chain_type(),
+                        self.connected_chain[j].chain_type(),
+                        self.connected_chain[i].chain_id()
+                    ));
+                }
+            }
         }
 
         // Validate token pair strings and exchange rates
