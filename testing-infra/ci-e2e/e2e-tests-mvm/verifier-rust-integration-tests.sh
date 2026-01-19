@@ -45,7 +45,7 @@ cd trusted-verifier
 cargo test --test integration_test_e2e
 
 # Clean up temporary test file
-cd ..
+cd "$PROJECT_ROOT"
 rm -f "$INTEGRATION_TEST_FILE"
 
 

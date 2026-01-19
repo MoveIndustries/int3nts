@@ -25,7 +25,7 @@ if [ -z "$ESCROW_ADDR" ]; then
     # Try to get from hardhat config or last deployment
     ESCROW_ADDR=$(nix develop "$PROJECT_ROOT/nix" -c bash -c "npx hardhat run scripts/deploy.js --network localhost --dry-run 2>&1 | grep 'IntentEscrow deployed to' | awk '{print \$NF}'" 2>/dev/null | tail -1 | tr -d '\n')
 fi
-cd ..
+cd "$PROJECT_ROOT"
 
 if [ -z "$ESCROW_ADDR" ]; then
     log_and_echo "❌ ERROR: Could not find escrow contract address. Please ensure IntentEscrow is deployed."
@@ -116,7 +116,7 @@ fi
 log "     ✅ Escrow created on Chain 3 (EVM)!"
 log_and_echo "✅ Escrow created"
 
-cd ..
+cd "$PROJECT_ROOT"
 
 log ""
 log " ESCROW CREATION COMPLETE!"

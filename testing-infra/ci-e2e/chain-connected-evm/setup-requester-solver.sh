@@ -78,7 +78,7 @@ fi
 REQUESTER_BALANCE=$(echo "$BALANCES_OUTPUT" | grep "^REQUESTER_BALANCE=" | cut -d'=' -f2 | tr -d '\n')
 SOLVER_BALANCE=$(echo "$BALANCES_OUTPUT" | grep "^SOLVER_BALANCE=" | cut -d'=' -f2 | tr -d '\n')
 
-cd ..
+cd "$PROJECT_ROOT"
 
 if [ -z "$REQUESTER_BALANCE" ] || [ -z "$SOLVER_BALANCE" ]; then
     log_and_echo "❌ Error: Failed to extract account balances from output"

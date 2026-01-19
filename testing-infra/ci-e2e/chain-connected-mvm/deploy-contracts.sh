@@ -46,7 +46,7 @@ else
     exit 1
 fi
 
-cd ..
+cd "$PROJECT_ROOT"
 
 # Initialize fa_intent chain info (required for cross-chain intent detection)
 log ""

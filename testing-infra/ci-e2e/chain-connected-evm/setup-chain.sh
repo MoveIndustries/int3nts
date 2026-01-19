@@ -128,7 +128,7 @@ for i in {1..180}; do
     sleep 1
 done
 
-cd ..
+cd "$PROJECT_ROOT"
 
 log ""
 log "✅ EVM chain (Hardhat) is running!"
