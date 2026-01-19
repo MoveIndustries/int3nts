@@ -7,8 +7,7 @@ use test_helpers::{
     DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_TOKEN_ADDR_EVM, DUMMY_TOKEN_ADDR_MVMCON, DUMMY_TOKEN_ADDR_HUB,
 };
 
-use solver::config::{AcceptanceConfig, ConnectedChainConfig, EvmChainConfig, MvmChainConfig, SvmChainConfig, SolverConfig};
-use std::collections::HashMap;
+use solver::config::{AcceptanceConfig, ConnectedChainConfig, EvmChainConfig, MvmChainConfig, SvmChainConfig, SolverConfig, TokenPairConfig};
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -16,15 +15,15 @@ use std::collections::HashMap;
 
 /// Create a minimal valid SolverConfig for testing
 fn create_test_config() -> SolverConfig {
-    let mut token_pairs = HashMap::new();
-    token_pairs.insert(
-        format!("1:{}:2:{}", DUMMY_TOKEN_ADDR_HUB, DUMMY_TOKEN_ADDR_MVMCON),
-        1.0,
-    );
-    
     SolverConfig {
         acceptance: AcceptanceConfig {
-            token_pairs,
+            token_pairs: vec![TokenPairConfig {
+                source_chain_id: 1,
+                source_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+                target_chain_id: 2,
+                target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
+                ratio: 1.0,
+            }],
         },
         ..create_default_solver_config()
     }
@@ -82,36 +81,72 @@ fn test_config_validation_duplicate_chain_ids() {
     assert!(result.unwrap_err().to_string().contains("same chain ID"));
 }
 
-/// What is tested: SolverConfig::validate() rejects invalid token pair format
-/// Why: Ensure token pair strings are in correct format
+/// What is tested: SolverConfig::validate() rejects unknown chain IDs in token pairs
+/// Why: Ensure token pairs reference configured chain IDs
 #[test]
-fn test_config_validation_invalid_token_pair_format() {
+fn test_config_validation_unknown_chain_id_in_token_pair() {
     let mut config = create_test_config();
-    config.acceptance.token_pairs.clear();
-    config.acceptance.token_pairs.insert(
-        "invalid-format".to_string(), // Missing colons
-        1.0,
-    );
+    config.acceptance.token_pairs = vec![TokenPairConfig {
+        source_chain_id: 999,
+        source_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+        target_chain_id: 2,
+        target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
+        ratio: 1.0,
+    }];
 
     let result = config.validate();
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Invalid token pair format"));
+    assert!(result.unwrap_err().to_string().contains("Unknown source_chain_id"));
 }
 
-/// What is tested: SolverConfig::validate() rejects non-numeric chain IDs in token pairs
-/// Why: Ensure chain IDs in token pairs are valid numbers
+/// What is tested: SolverConfig::validate() rejects hex-encoded SVM tokens
+/// Why: SVM mints must be base58, not hex
 #[test]
-fn test_config_validation_invalid_chain_id_in_token_pair() {
+fn test_config_validation_rejects_svm_hex_token() {
     let mut config = create_test_config();
-    config.acceptance.token_pairs.clear();
-    config.acceptance.token_pairs.insert(
-        "invalid:0xaaa:2:0xbbb".to_string(), // Invalid chain ID
-        1.0,
-    );
+    config.connected_chain.push(ConnectedChainConfig::Svm(SvmChainConfig {
+        name: "svm".to_string(),
+        rpc_url: "http://127.0.0.1:8899".to_string(),
+        chain_id: 901,
+        escrow_program_id: "11111111111111111111111111111111".to_string(),
+        keypair_path_env: "SVM_SOLVER_KEYPAIR_PATH".to_string(),
+    }));
+    config.acceptance.token_pairs = vec![TokenPairConfig {
+        source_chain_id: 1,
+        source_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+        target_chain_id: 901,
+        target_token: "0xdeadbeef".to_string(),
+        ratio: 1.0,
+    }];
 
     let result = config.validate();
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Invalid offered_chain_id"));
+    assert!(result.unwrap_err().to_string().contains("SVM tokens must be base58"));
+}
+
+/// What is tested: SolverConfig::validate() rejects invalid base58 SVM tokens
+/// Why: Prevent malformed SVM mints in acceptance config
+#[test]
+fn test_config_validation_rejects_invalid_svm_base58_token() {
+    let mut config = create_test_config();
+    config.connected_chain.push(ConnectedChainConfig::Svm(SvmChainConfig {
+        name: "svm".to_string(),
+        rpc_url: "http://127.0.0.1:8899".to_string(),
+        chain_id: 901,
+        escrow_program_id: "11111111111111111111111111111111".to_string(),
+        keypair_path_env: "SVM_SOLVER_KEYPAIR_PATH".to_string(),
+    }));
+    config.acceptance.token_pairs = vec![TokenPairConfig {
+        source_chain_id: 1,
+        source_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+        target_chain_id: 901,
+        target_token: "not_base58".to_string(),
+        ratio: 1.0,
+    }];
+
+    let result = config.validate();
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("Invalid base58 SVM mint"));
 }
 
 /// What is tested: SolverConfig::validate() rejects non-positive exchange rates
@@ -119,11 +154,13 @@ fn test_config_validation_invalid_chain_id_in_token_pair() {
 #[test]
 fn test_config_validation_negative_exchange_rate() {
     let mut config = create_test_config();
-    config.acceptance.token_pairs.clear();
-    config.acceptance.token_pairs.insert(
-        "1:0xaaa:2:0xbbb".to_string(),
-        -1.0, // Negative rate
-    );
+    config.acceptance.token_pairs = vec![TokenPairConfig {
+        source_chain_id: 1,
+        source_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+        target_chain_id: 2,
+        target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
+        ratio: -1.0,
+    }];
 
     let result = config.validate();
     assert!(result.is_err());
@@ -135,11 +172,13 @@ fn test_config_validation_negative_exchange_rate() {
 #[test]
 fn test_config_validation_zero_exchange_rate() {
     let mut config = create_test_config();
-    config.acceptance.token_pairs.clear();
-    config.acceptance.token_pairs.insert(
-        "1:0xaaa:2:0xbbb".to_string(),
-        0.0, // Zero rate
-    );
+    config.acceptance.token_pairs = vec![TokenPairConfig {
+        source_chain_id: 1,
+        source_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+        target_chain_id: 2,
+        target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
+        ratio: 0.0,
+    }];
 
     let result = config.validate();
     assert!(result.is_err());
@@ -150,8 +189,8 @@ fn test_config_validation_zero_exchange_rate() {
 // TOKEN PAIR CONVERSION TESTS
 // ============================================================================
 
-/// What is tested: SolverConfig::get_token_pairs() converts string keys to TokenPair structs
-/// Why: Ensure token pair strings are correctly parsed into TokenPair structs
+/// What is tested: SolverConfig::get_token_pairs() converts configs to TokenPair structs
+/// Why: Ensure token pairs are correctly converted into TokenPair structs
 #[test]
 fn test_get_token_pairs_success() {
     let config = create_test_config();
@@ -170,28 +209,16 @@ fn test_get_token_pairs_success() {
 #[test]
 fn test_get_token_pairs_multiple() {
     let mut config = create_test_config();
-    config.acceptance.token_pairs.insert(
-        "2:0xbbb:1:0xaaa".to_string(),
-        0.5,
-    );
+    config.acceptance.token_pairs.push(TokenPairConfig {
+        source_chain_id: 2,
+        source_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
+        target_chain_id: 1,
+        target_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+        ratio: 0.5,
+    });
 
     let pairs = config.get_token_pairs().unwrap();
     assert_eq!(pairs.len(), 2);
-}
-
-/// What is tested: SolverConfig::get_token_pairs() rejects invalid token pair format
-/// Why: Ensure invalid formats are caught during conversion
-#[test]
-fn test_get_token_pairs_invalid_format() {
-    let mut config = create_test_config();
-    config.acceptance.token_pairs.clear();
-    config.acceptance.token_pairs.insert(
-        "invalid-format".to_string(),
-        1.0,
-    );
-
-    let result = config.get_token_pairs();
-    assert!(result.is_err());
 }
 
 /// What is tested: SolverConfig::get_token_pairs() handles token addresses
@@ -199,20 +226,30 @@ fn test_get_token_pairs_invalid_format() {
 #[test]
 fn test_get_token_pairs_token_address() {
     let mut config = create_test_config();
-    config.acceptance.token_pairs.clear();
-    // Token addresses in the config use hex format
-    config.acceptance.token_pairs.insert(
-        format!("1:{}:2:{}", DUMMY_TOKEN_ADDR_HUB, DUMMY_TOKEN_ADDR_EVM),
-        0.5,
-    );
+    config.connected_chain.push(ConnectedChainConfig::Evm(EvmChainConfig {
+        name: "connected-evm".to_string(),
+        rpc_url: "http://127.0.0.1:8545".to_string(),
+        chain_id: 3,
+        escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
+        private_key_env: "SOLVER_EVM_PRIVATE_KEY".to_string(),
+        network_name: "localhost".to_string(),
+    }));
+    config.acceptance.token_pairs = vec![TokenPairConfig {
+        source_chain_id: 1,
+        source_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+        target_chain_id: 3,
+        target_token: DUMMY_TOKEN_ADDR_EVM.to_string(),
+        ratio: 0.5,
+    }];
 
     let pairs = config.get_token_pairs().unwrap();
     assert_eq!(pairs.len(), 1);
     
     use solver::TokenPair;
     let expected_pair = TokenPair {
-        desired_token: DUMMY_TOKEN_ADDR_EVM.to_string(), // Connected chain token (EVM format, different from default)
-        ..create_default_token_pair() // Uses default for offered_token and chain_id fields
+        desired_chain_id: 3,
+        desired_token: DUMMY_TOKEN_ADDR_EVM.to_string(),
+        ..create_default_token_pair()
     };
     
     assert!(pairs.contains_key(&expected_pair));
@@ -340,7 +377,12 @@ module_addr = "0x2"
 profile = "connected-profile"
 
 [acceptance]
-"1:0xaaa:2:0xbbb" = 1.0
+[[acceptance.tokenpair]]
+source_chain_id = 1
+source_token = "0x000000000000000000000000000000000000000000000000000000000000000b"
+target_chain_id = 2
+target_token = "0x000000000000000000000000000000000000000000000000000000000000000c"
+ratio = 1.0
 
 [solver]
 profile = "hub-profile"

@@ -48,8 +48,8 @@ generate_solver_config_svm() {
     local module_addr="0x${chain1_addr}"
     local solver_addr="0x${solver_chain1_addr}"
 
-    local svm_token_hex
-    svm_token_hex=$(svm_pubkey_to_hex "$USD_SVM_MINT_ADDR")
+    local svm_token_mint
+    svm_token_mint="$USD_SVM_MINT_ADDR"
 
     log "   Generating solver config:"
     log "   - Verifier URL: $verifier_url"
@@ -59,7 +59,7 @@ generate_solver_config_svm() {
     log "   - SVM program id: $SVM_PROGRAM_ID"
     log "   - Solver address: $solver_addr"
     log "   - USDhub metadata (hub): $usdhub_metadata_chain1"
-    log "   - SVM token (hex): $svm_token_hex"
+    log "   - SVM token (base58): $svm_token_mint"
 
     cat > "$config_file" << EOF
 # Auto-generated solver config for SVM E2E tests
@@ -87,8 +87,19 @@ escrow_program_id = "$SVM_PROGRAM_ID"
 keypair_path_env = "SVM_SOLVER_KEYPAIR_PATH"
 
 [acceptance]
-"$svm_chain_id:$svm_token_hex:$hub_chain_id:$usdhub_metadata_chain1" = 1.0
-"$hub_chain_id:$usdhub_metadata_chain1:$svm_chain_id:$svm_token_hex" = 1.0
+[[acceptance.tokenpair]]
+source_chain_id = $svm_chain_id
+source_token = "$svm_token_mint"
+target_chain_id = $hub_chain_id
+target_token = "$usdhub_metadata_chain1"
+ratio = 1.0
+
+[[acceptance.tokenpair]]
+source_chain_id = $hub_chain_id
+source_token = "$usdhub_metadata_chain1"
+target_chain_id = $svm_chain_id
+target_token = "$svm_token_mint"
+ratio = 1.0
 
 [solver]
 profile = "solver-chain1"

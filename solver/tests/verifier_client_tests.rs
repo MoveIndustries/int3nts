@@ -12,7 +12,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 mod test_helpers;
 use test_helpers::{
     DUMMY_DRAFT_ID, DUMMY_ESCROW_ID_EVM, DUMMY_INTENT_ID, DUMMY_REQUESTER_ADDR_EVM,
-    DUMMY_SOLVER_ADDR_EVM, DUMMY_SOLVER_ADDR_HUB, DUMMY_TX_HASH,
+    DUMMY_SOLVER_ADDR_HUB, DUMMY_TX_HASH,
 };
 
 // ============================================================================

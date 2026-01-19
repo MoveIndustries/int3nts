@@ -35,18 +35,17 @@ fn create_default_draft_data() -> serde_json::Value {
 /// Create a minimal SolverConfig for testing
 /// Configures token pairs to match the default draft data so drafts would be accepted if not expired
 fn create_test_solver_config() -> solver::config::SolverConfig {
-    use solver::config::{AcceptanceConfig, SolverConfig};
-    use std::collections::HashMap;
-
-    let mut token_pairs = HashMap::new();
-    token_pairs.insert(
-        format!("1:{}:2:{}", DUMMY_TOKEN_ADDR_HUB, DUMMY_TOKEN_ADDR_MVMCON),
-        0.5,
-    );
+    use solver::config::{AcceptanceConfig, SolverConfig, TokenPairConfig};
 
     SolverConfig {
         acceptance: AcceptanceConfig {
-            token_pairs,
+            token_pairs: vec![TokenPairConfig {
+                source_chain_id: 1,
+                source_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+                target_chain_id: 2,
+                target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
+                ratio: 0.5,
+            }],
         },
         ..create_default_solver_config()
     }

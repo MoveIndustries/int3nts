@@ -122,6 +122,8 @@ pub fn create_default_service_config() -> solver::config::ServiceConfig {
         verifier_url: "http://127.0.0.1:3333".to_string(),
         polling_interval_ms: 2000,
         e2e_mode: false,
+        acceptance_api_host: "127.0.0.1".to_string(),
+        acceptance_api_port: 4444,
     }
 }
 
@@ -196,7 +198,7 @@ pub fn create_default_solver_config() -> solver::config::SolverConfig {
             solver::config::ConnectedChainConfig::Mvm(create_default_connected_mvm_chain_config()),
         ],
         acceptance: solver::config::AcceptanceConfig {
-            token_pairs: std::collections::HashMap::new(),
+            token_pairs: Vec::new(),
         },
         solver: create_default_solver_signing_config(),
     }

@@ -114,9 +114,20 @@ private_key_env = "$evm_private_key_env"
 [acceptance]
 # Accept USDhub/USDcon swaps at 1:1 rate for E2E testing
 # Inflow: offered on EVM (connected), desired on hub
-"$evm_chain_id:$usdcon_metadata_evm:$hub_chain_id:$usdhub_metadata_chain1" = 1.0
+[[acceptance.tokenpair]]
+source_chain_id = $evm_chain_id
+source_token = "$usdcon_metadata_evm"
+target_chain_id = $hub_chain_id
+target_token = "$usdhub_metadata_chain1"
+ratio = 1.0
+
 # Outflow: offered on hub, desired on EVM (connected)
-"$hub_chain_id:$usdhub_metadata_chain1:$evm_chain_id:$usdcon_metadata_evm" = 1.0
+[[acceptance.tokenpair]]
+source_chain_id = $hub_chain_id
+source_token = "$usdhub_metadata_chain1"
+target_chain_id = $evm_chain_id
+target_token = "$usdcon_metadata_evm"
+ratio = 1.0
 
 [solver]
 profile = "solver-chain1"

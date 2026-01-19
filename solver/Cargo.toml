@@ -18,6 +18,7 @@ ethereum-types = "0.14"
 
 # HTTP client
 reqwest = { version = "0.11", features = ["json", "blocking"] }
+warp = "0.3"
 
 # Cryptography
 ed25519-dalek = "2.1.0"

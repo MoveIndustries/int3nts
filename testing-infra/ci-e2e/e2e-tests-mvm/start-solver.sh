@@ -94,9 +94,20 @@ e2e_mode = true  # Use aptos CLI with profiles for E2E tests
 [acceptance]
 # Accept USDhub/USDcon swaps at 1:1 rate for E2E testing
 # Inflow: offered on connected chain (2), desired on hub chain (1)
-"$connected_chain_id:$usd_con_mvm_con_address:$hub_chain_id:$usdhub_metadata_chain1" = 1.0
+[[acceptance.tokenpair]]
+source_chain_id = $connected_chain_id
+source_token = "$usd_con_mvm_con_address"
+target_chain_id = $hub_chain_id
+target_token = "$usdhub_metadata_chain1"
+ratio = 1.0
+
 # Outflow: offered on hub chain (1), desired on connected chain (2)
-"$hub_chain_id:$usdhub_metadata_chain1:$connected_chain_id:$usd_con_mvm_con_address" = 1.0
+[[acceptance.tokenpair]]
+source_chain_id = $hub_chain_id
+source_token = "$usdhub_metadata_chain1"
+target_chain_id = $connected_chain_id
+target_token = "$usd_con_mvm_con_address"
+ratio = 1.0
 
 [solver]
 profile = "solver-chain1"

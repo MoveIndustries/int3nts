@@ -24,6 +24,7 @@ use solver::{
     chains::HubChainClient,
     config::SolverConfig,
     crypto::{get_private_key_from_profile, sign_intent_hash},
+    api::run_acceptance_server,
     service::{InflowService, IntentTracker, OutflowService, SigningService},
 };
 use std::sync::Arc;
@@ -184,6 +185,8 @@ async fn main() -> Result<()> {
         }
     }
 
+    let config_arc = Arc::new(config.clone());
+
     // Create shared intent tracker
     let tracker = Arc::new(IntentTracker::new(&config)?);
     info!("Intent tracker initialized");
@@ -203,6 +206,10 @@ async fn main() -> Result<()> {
     // Run all services concurrently with graceful shutdown
     info!("Starting all services...");
     
+    let acceptance_host = config.service.acceptance_api_host.clone();
+    let acceptance_port = config.service.acceptance_api_port;
+    let acceptance_server = run_acceptance_server(config_arc.clone(), acceptance_host, acceptance_port);
+
     tokio::select! {
         // Signing service loop
         result = signing_service.run() => {
@@ -230,6 +237,9 @@ async fn main() -> Result<()> {
         
         // Outflow fulfillment service loop
         _ = outflow_service.run(polling_interval) => {}
+
+        // Acceptance API server for live ratio lookup
+        _ = acceptance_server => {}
         
         // Graceful shutdown on Ctrl+C
         _ = signal::ctrl_c() => {

@@ -10,6 +10,8 @@
 verifier_url = "http://127.0.0.1:3333"  # Verifier API base URL
 polling_interval_ms = 2000               # Polling interval for checking pending drafts (milliseconds)
 e2e_mode = false                          # E2E testing mode: true = use aptos CLI with profiles, false = use movement CLI with private keys
+acceptance_api_host = "127.0.0.1"         # Solver acceptance API host
+acceptance_api_port = 4444                # Solver acceptance API port
 
 # Hub Chain Configuration
 # The hub chain is where intents are created
@@ -62,13 +64,28 @@ e2e_mode = false                          # E2E testing mode: true = use aptos C
 # Example: If rate is 0.5, then 0.5 offered tokens = 1 desired token (offered token is worth more)
 
 # Example: Token A (chain 1) -> Token B (chain 2) at 1:1 rate
-"1:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2:0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" = 1.0
+[[acceptance.tokenpair]]
+source_chain_id = 1
+source_token = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+target_chain_id = 2
+target_token = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+ratio = 1.0
 
 # Example: USDC (Base Sepolia) -> USDC (Ethereum Sepolia) at 1:1 rate
-# "84532:0x036CbD53842c5426634e7929541eC2318f3dCF7e:11155111:0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" = 1.0
+# [[acceptance.tokenpair]]
+# source_chain_id = 84532
+# source_token = "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+# target_chain_id = 11155111
+# target_token = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+# ratio = 1.0
 
 # Example: Token A (chain 1) -> Token C (chain 2) at 0.5 rate
-# "1:0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:2:0xcccccccccccccccccccccccccccccccccccccccc" = 0.5
+# [[acceptance.tokenpair]]
+# source_chain_id = 1
+# source_token = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+# target_chain_id = 2
+# target_token = "0xcccccccccccccccccccccccccccccccccccccccc"
+# ratio = 0.5
 
 # Solver Signing Configuration
 [solver]

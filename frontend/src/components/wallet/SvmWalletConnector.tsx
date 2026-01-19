@@ -7,7 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
  * Connect/disconnect SVM wallet (Phantom).
  */
 export function SvmWalletConnector() {
-  const { connected, connect, disconnect, wallets, select } = useWallet();
+  const { connected, connect, disconnect, wallets, select, wallet } = useWallet();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -50,7 +50,11 @@ export function SvmWalletConnector() {
   }
 
   const handleConnect = async () => {
-    select(phantomWallet.adapter.name);
+    // Ensure Phantom is selected before connecting to avoid WalletNotSelectedError.
+    if (wallet?.adapter.name !== phantomWallet.adapter.name) {
+      select(phantomWallet.adapter.name);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
     await connect();
   };
 
