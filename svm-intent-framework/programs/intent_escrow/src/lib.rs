@@ -18,8 +18,5 @@ pub use error::EscrowError;
 pub use instruction::EscrowInstruction;
 pub use state::{Escrow, EscrowState};
 
-// Program ID - same as before for compatibility
-solana_program::declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
-
 /// Default expiry duration: 2 minutes in seconds
 pub const DEFAULT_EXPIRY_DURATION: i64 = 120;

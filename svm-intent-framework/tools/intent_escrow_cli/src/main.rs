@@ -45,7 +45,11 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     let program_id = match options.get("program-id") {
         Some(value) => parse_pubkey(value)?,
-        None => intent_escrow::id(),
+        None => {
+            eprintln!("Error: --program-id is required");
+            print_usage();
+            std::process::exit(1);
+        }
     };
 
     match command {
@@ -444,18 +448,18 @@ fn print_usage() {
         r#"SVM Intent Escrow CLI
 
 Usage:
-  intent_escrow_cli <command> [--option value]...
+  intent_escrow_cli <command> --program-id <pubkey> [--option value]...
 
 Commands:
-  initialize         --payer <keypair> --verifier <pubkey> [--program-id <pubkey>] [--rpc <url>]
-  create-escrow      --payer <keypair> --requester <keypair> --token-mint <pubkey> --requester-token <pubkey>
-                     --solver <pubkey> --intent-id <hex> --amount <u64> [--expiry <i64>]
-                     [--program-id <pubkey>] [--rpc <url>]
-  claim              --payer <keypair> --solver-token <pubkey> --intent-id <hex> --signature <hex>
-                     [--program-id <pubkey>] [--rpc <url>]
-  cancel             --payer <keypair> --requester <keypair> --requester-token <pubkey> --intent-id <hex>
-                     [--program-id <pubkey>] [--rpc <url>]
-  get-escrow         --intent-id <hex> [--program-id <pubkey>] [--rpc <url>]
+  initialize         --program-id <pubkey> --payer <keypair> --verifier <pubkey> [--rpc <url>]
+  create-escrow      --program-id <pubkey> --payer <keypair> --requester <keypair> --token-mint <pubkey>
+                     --requester-token <pubkey> --solver <pubkey> --intent-id <hex> --amount <u64>
+                     [--expiry <i64>] [--rpc <url>]
+  claim              --program-id <pubkey> --payer <keypair> --solver-token <pubkey> --intent-id <hex>
+                     --signature <hex> [--rpc <url>]
+  cancel             --program-id <pubkey> --payer <keypair> --requester <keypair> --requester-token <pubkey>
+                     --intent-id <hex> [--rpc <url>]
+  get-escrow         --program-id <pubkey> --intent-id <hex> [--rpc <url>]
   get-token-balance  --token-account <pubkey> [--rpc <url>]
         "#
     );

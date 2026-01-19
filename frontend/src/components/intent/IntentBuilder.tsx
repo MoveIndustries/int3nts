@@ -788,7 +788,7 @@ export function IntentBuilder() {
                     const currentBalance = parseFloat(refreshedBalance.formatted);
                     if (currentBalance > initialDesiredBalance) {
                       console.log('Desired balance increased - intent fulfilled!');
-                      setDesiredBalance(refreshedBalance);
+                      // Balance will be refreshed by the hook when intentStatus changes to 'fulfilled'
                       foundFulfillment = true;
                     }
                   }
@@ -1229,7 +1229,9 @@ export function IntentBuilder() {
 
         // Deviation from EVM flow: SVM uses a single on-chain instruction for escrow creation
         // because the escrow program transfers SPL tokens directly (no ERC20 approval step).
+        console.log('SVM Escrow: Fetching solver SVM address for hub addr:', signature.solver_hub_addr);
         const solverSvmHex = await fetchSolverSvmAddress(signature.solver_hub_addr);
+        console.log('SVM Escrow: Solver SVM hex:', solverSvmHex);
         if (!solverSvmHex) {
           throw new Error('Solver has no SVM address registered. The solver must register with an SVM address to fulfill SVM inflow intents.');
         }
@@ -1237,6 +1239,7 @@ export function IntentBuilder() {
         const tokenMint = new PublicKey(effectiveOfferedToken.metadata);
         const requesterToken = getSvmTokenAccount(tokenMint, svmPublicKey);
         const reservedSolver = svmHexToPubkey(solverSvmHex);
+        console.log('SVM Escrow: Reserved solver pubkey:', reservedSolver.toBase58());
         const amount = BigInt(savedDraftData.offeredAmount);
         const createIx = buildCreateEscrowInstruction({
           intentId: savedDraftData.intentId,

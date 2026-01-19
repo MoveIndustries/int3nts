@@ -39,6 +39,31 @@ export async function sendSvmTransaction(params: {
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
   transaction.recentBlockhash = blockhash;
 
+  // Debug: Log transaction details
+  console.log('SVM Transaction debug:', {
+    feePayer: wallet.publicKey.toBase58(),
+    numInstructions: instructions.length,
+    programId: instructions[0]?.programId?.toBase58(),
+    numAccounts: instructions[0]?.keys?.length,
+    accounts: instructions[0]?.keys?.map((k, i) => `${i}: ${k.pubkey.toBase58()} (signer=${k.isSigner}, writable=${k.isWritable})`),
+    dataLength: instructions[0]?.data?.length,
+    dataHex: instructions[0]?.data ? Buffer.from(instructions[0].data).toString('hex').slice(0, 100) + '...' : null,
+  });
+
+  // Try to simulate first to get better error messages
+  try {
+    const simResult = await connection.simulateTransaction(transaction);
+    if (simResult.value.err) {
+      console.error('SVM Transaction simulation failed:', simResult.value.err);
+      console.error('Simulation logs:', simResult.value.logs);
+      throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}. Logs: ${simResult.value.logs?.join('\n')}`);
+    }
+    console.log('SVM Transaction simulation succeeded. Logs:', simResult.value.logs);
+  } catch (simError) {
+    console.error('SVM Transaction simulation error:', simError);
+    throw simError;
+  }
+
   const signature = await wallet.sendTransaction(transaction, connection);
   await connection.confirmTransaction(
     { signature, blockhash, lastValidBlockHeight },
@@ -116,7 +141,12 @@ export async function fetchSolverSvmAddress(solverAddr: string): Promise<string 
   }
 
   if (typeof vec === 'string') {
-    return vec.startsWith('0x') ? vec : `0x${vec}`;
+    // Strip any existing 0x prefix(es) and add exactly one
+    let clean = vec;
+    while (clean.startsWith('0x') || clean.startsWith('0X')) {
+      clean = clean.slice(2);
+    }
+    return `0x${clean}`;
   }
 
   if (Array.isArray(vec)) {

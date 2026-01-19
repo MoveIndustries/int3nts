@@ -112,7 +112,7 @@ async fn test_handle_multiple_different_spl_tokens() {
     let program_test = program_test();
     let mut context = program_test.start_with_context().await;
     let payer = context.payer.insecure_clone();
-    let program_id = intent_escrow::id();
+    let program_id = common::test_program_id();
 
     // Create fresh accounts
     let requester = solana_sdk::signature::Keypair::new();

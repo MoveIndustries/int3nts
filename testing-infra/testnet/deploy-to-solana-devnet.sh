@@ -176,6 +176,121 @@ echo "======================"
 echo ""
 echo " Deployed program ID: $PROGRAM_ID"
 echo ""
+
+# =============================================================================
+# Initialize the program with verifier public key
+# =============================================================================
+
+echo ""
+echo " Initializing program with verifier..."
+echo ""
+
+# Check for verifier public key
+if [ -z "$VERIFIER_PUBLIC_KEY" ]; then
+    echo "⚠️  WARNING: VERIFIER_PUBLIC_KEY not set in .env.testnet"
+    echo "   Skipping initialization - you'll need to run it manually later"
+    echo ""
+else
+    # Convert verifier public key from base64 to base58 (Solana format)
+    VERIFIER_PUBKEY_BASE58=$(node -e "
+// Inline base58 encoder
+const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function b58encode(bytes) {
+    const digits = [0];
+    for (let i = 0; i < bytes.length; i++) {
+        let carry = bytes[i];
+        for (let j = 0; j < digits.length; j++) {
+            carry += digits[j] << 8;
+            digits[j] = carry % 58;
+            carry = (carry / 58) | 0;
+        }
+        while (carry > 0) {
+            digits.push(carry % 58);
+            carry = (carry / 58) | 0;
+        }
+    }
+    // Add leading zeros
+    for (let i = 0; i < bytes.length && bytes[i] === 0; i++) {
+        digits.push(0);
+    }
+    return digits.reverse().map(d => ALPHABET[d]).join('');
+}
+const base64Key = '$VERIFIER_PUBLIC_KEY';
+const keyBytes = Buffer.from(base64Key, 'base64');
+console.log(b58encode(Array.from(keyBytes)));
+")
+
+    if [ -z "$VERIFIER_PUBKEY_BASE58" ]; then
+        echo "❌ ERROR: Failed to convert verifier public key to base58"
+        echo "   Skipping initialization - you'll need to run it manually"
+    else
+        echo " Verifier public key (base58): $VERIFIER_PUBKEY_BASE58"
+        
+        # Recreate deployer keypair for initialization
+        TEMP_KEYPAIR_DIR=$(mktemp -d)
+        DEPLOYER_KEYPAIR="$TEMP_KEYPAIR_DIR/deployer.json"
+        
+        node -e "
+const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function b58decode(str) {
+    const bytes = [];
+    for (let i = 0; i < str.length; i++) {
+        const idx = ALPHABET.indexOf(str[i]);
+        if (idx < 0) throw new Error('Invalid base58 character');
+        let carry = idx;
+        for (let j = 0; j < bytes.length; j++) {
+            carry += bytes[j] * 58;
+            bytes[j] = carry & 0xff;
+            carry >>= 8;
+        }
+        while (carry > 0) {
+            bytes.push(carry & 0xff);
+            carry >>= 8;
+        }
+    }
+    for (let i = 0; i < str.length && str[i] === '1'; i++) {
+        bytes.push(0);
+    }
+    return bytes.reverse();
+}
+console.log(JSON.stringify(b58decode('$SOLANA_DEPLOYER_PRIVATE_KEY')));
+" > "$DEPLOYER_KEYPAIR"
+        
+        # Build CLI if needed
+        CLI_BIN="$PROJECT_ROOT/svm-intent-framework/target/debug/intent_escrow_cli"
+        if [ ! -x "$CLI_BIN" ]; then
+            echo " Building CLI tool..."
+            cd "$PROJECT_ROOT/svm-intent-framework"
+            cargo build --bin intent_escrow_cli 2>/dev/null
+        fi
+        
+        if [ -x "$CLI_BIN" ]; then
+            echo " Running initialize command..."
+            "$CLI_BIN" initialize \
+                --program-id "$PROGRAM_ID" \
+                --payer "$DEPLOYER_KEYPAIR" \
+                --verifier "$VERIFIER_PUBKEY_BASE58" \
+                --rpc "$SOLANA_RPC_URL" && {
+                echo "✅ Program initialized with verifier"
+            } || {
+                INIT_EXIT=$?
+                if [ $INIT_EXIT -eq 0 ]; then
+                    echo "✅ Program initialized with verifier"
+                else
+                    echo "⚠️  Initialization returned exit code $INIT_EXIT"
+                    echo "   This may be OK if the program was already initialized"
+                fi
+            }
+        else
+            echo "⚠️  CLI not built - skipping initialization"
+            echo "   Run manually: ./svm-intent-framework/scripts/initialize.sh"
+        fi
+        
+        rm -rf "$TEMP_KEYPAIR_DIR"
+    fi
+fi
+
+echo ""
 echo " Update the following:"
 echo ""
 echo "   1. .env.testnet"

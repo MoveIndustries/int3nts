@@ -24,7 +24,7 @@ async fn test_initialize_verifier_address() {
     let state_pda = initialize_program(
         &mut context,
         &payer,
-        intent_escrow::id(),
+        common::test_program_id(),
         verifier.pubkey(),
     )
     .await;

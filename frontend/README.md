@@ -38,7 +38,7 @@ NEXT_PUBLIC_VERIFIER_URL=http://localhost:3333
 NEXT_PUBLIC_HUB_RPC=https://testnet.movementnetwork.xyz
 NEXT_PUBLIC_EVM_RPC=https://...
 NEXT_PUBLIC_SVM_RPC_URL=https://api.devnet.solana.com
-NEXT_PUBLIC_SVM_PROGRAM_ID=Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS
+NEXT_PUBLIC_SVM_PROGRAM_ID=<your-svm-program-id>
 ```
 
 Note: Chain-specific addresses (intent module address, escrow contract addresses) are configured in `src/config/chains.ts`.

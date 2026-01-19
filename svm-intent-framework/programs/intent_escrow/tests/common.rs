@@ -20,12 +20,23 @@ use intent_escrow::{
 };
 
 // ============================================================================
+// TEST PROGRAM ID
+// ============================================================================
+
+/// Fixed program ID for testing. Actual deployed program ID is determined by
+/// the deployment keypair, not this value.
+pub fn test_program_id() -> Pubkey {
+    // Use a deterministic pubkey derived from a known seed for testing
+    solana_sdk::pubkey!("Escrow11111111111111111111111111111111111111")
+}
+
+// ============================================================================
 // TEST HARNESS HELPERS
 // ============================================================================
 
 /// Helper: Build a ProgramTest instance with intent_escrow + spl_token
 pub fn program_test() -> ProgramTest {
-    let program_id = intent_escrow::id();
+    let program_id = test_program_id();
     let mut program_test = ProgramTest::new(
         "intent_escrow",
         program_id,
@@ -319,7 +330,7 @@ pub struct TestEnv {
 pub async fn setup_basic_env(context: &mut ProgramTestContext) -> TestEnv {
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
-    let program_id = intent_escrow::id();
+    let program_id = test_program_id();
     let requester = Keypair::new();
     let solver = Keypair::new();
     let verifier = Keypair::new();

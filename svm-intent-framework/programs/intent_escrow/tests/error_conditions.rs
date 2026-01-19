@@ -58,7 +58,7 @@ async fn test_handle_maximum_u64_value_in_create_escrow() {
     let program_test = program_test();
     let mut context = program_test.start_with_context().await;
     let payer = context.payer.insecure_clone();
-    let program_id = intent_escrow::id();
+    let program_id = common::test_program_id();
 
     // Create fresh accounts for this test to avoid overflow from existing balances
     let requester = solana_sdk::signature::Keypair::new();

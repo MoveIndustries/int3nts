@@ -47,9 +47,14 @@ export function svmPubkeyToHex(value: PublicKey | string): string {
 
 /**
  * Convert a hex string into a 32-byte Uint8Array (zero-left-padded).
+ * Handles malformed inputs like "0x0x..." by stripping all 0x prefixes.
  */
 export function svmHexToBytes(hex: string): Uint8Array {
-  const clean = hex.startsWith('0x') ? hex.slice(2) : hex;
+  // Strip all 0x prefixes (handles double-prefixed values like "0x0x...")
+  let clean = hex;
+  while (clean.startsWith('0x') || clean.startsWith('0X')) {
+    clean = clean.slice(2);
+  }
   const padded = clean.padStart(64, '0');
   return Uint8Array.from(Buffer.from(padded, 'hex'));
 }

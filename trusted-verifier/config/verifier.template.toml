@@ -41,7 +41,7 @@ escrow_module_addr = "0x123"                      # Address of escrow module (re
 # name = "Connected SVM Chain"
 # rpc_url = "http://127.0.0.1:8899"
 # chain_id = 1001
-# escrow_program_id = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+# escrow_program_id = "<your-svm-program-id>"
 
 # Verifier Configuration
 # Cryptographic keys and timing parameters for the verifier

@@ -37,7 +37,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     rpcUrl: process.env.NEXT_PUBLIC_SVM_RPC_URL || 'https://api.devnet.solana.com',
     name: 'Solana Devnet',
     chainType: 'svm',
-    svmProgramId: process.env.NEXT_PUBLIC_SVM_PROGRAM_ID || 'Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS',
+    svmProgramId: process.env.NEXT_PUBLIC_SVM_PROGRAM_ID || '4CSPxZQ3QJszv3R6EKmDj2ndzp7pKZbatggds8Ct4B22',
   },
   'base-sepolia': {
     id: 'base-sepolia',
