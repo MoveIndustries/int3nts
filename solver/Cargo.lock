@@ -5780,6 +5780,7 @@ dependencies = [
  "anyhow",
  "base64 0.21.7",
  "borsh 0.10.4",
+ "bs58",
  "clap",
  "ed25519-dalek 2.2.0",
  "ethereum-types",

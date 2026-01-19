@@ -82,7 +82,7 @@ cp solver/config/solver.template.toml solver.toml
 
 See `solver/config/solver.template.toml` for the complete configuration template with all available options and examples.
 
-SVM configuration requires a solver keypair path via `connected_chain.keypair_path_env` to sign connected-chain transactions.
+SVM configuration requires a solver private key (base58) via `connected_chain.private_key_env` to sign connected-chain transactions. This mirrors EVM/MVM where private keys are provided directly as strings rather than file paths.
 
 ### Running the Service
 

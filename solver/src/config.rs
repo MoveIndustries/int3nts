@@ -196,8 +196,8 @@ pub struct SvmChainConfig {
     pub chain_id: u64,
     /// Program ID of the intent escrow program
     pub escrow_program_id: String,
-    /// Environment variable name containing the solver keypair path
-    pub keypair_path_env: String,
+    /// Environment variable name containing the solver private key (base58)
+    pub private_key_env: String,
 }
 
 fn default_network_name() -> String {

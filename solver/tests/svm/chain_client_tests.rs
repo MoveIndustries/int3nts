@@ -16,7 +16,7 @@ fn test_new_rejects_invalid_program_id() {
         rpc_url: "http://127.0.0.1:8899".to_string(),
         chain_id: 4,
         escrow_program_id: "not-a-pubkey".to_string(),
-        keypair_path_env: "SVM_SOLVER_KEYPAIR_PATH".to_string(),
+        private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
     };
 
     let result = ConnectedSvmClient::new(&config);
@@ -32,7 +32,7 @@ fn test_new_accepts_valid_program_id() {
         rpc_url: "http://127.0.0.1:8899".to_string(),
         chain_id: 4,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
-        keypair_path_env: "SVM_SOLVER_KEYPAIR_PATH".to_string(),
+        private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
     };
 
     let result = ConnectedSvmClient::new(&config);

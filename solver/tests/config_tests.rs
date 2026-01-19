@@ -109,7 +109,7 @@ fn test_config_validation_rejects_svm_hex_token() {
         rpc_url: "http://127.0.0.1:8899".to_string(),
         chain_id: 901,
         escrow_program_id: "11111111111111111111111111111111".to_string(),
-        keypair_path_env: "SVM_SOLVER_KEYPAIR_PATH".to_string(),
+        private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
     }));
     config.acceptance.token_pairs = vec![TokenPairConfig {
         source_chain_id: 1,
@@ -134,7 +134,7 @@ fn test_config_validation_rejects_invalid_svm_base58_token() {
         rpc_url: "http://127.0.0.1:8899".to_string(),
         chain_id: 901,
         escrow_program_id: "11111111111111111111111111111111".to_string(),
-        keypair_path_env: "SVM_SOLVER_KEYPAIR_PATH".to_string(),
+        private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
     }));
     config.acceptance.token_pairs = vec![TokenPairConfig {
         source_chain_id: 1,
@@ -327,7 +327,7 @@ name = "Connected SVM Chain"
 rpc_url = "http://127.0.0.1:8899"
 chain_id = 100
 escrow_program_id = "11111111111111111111111111111111"
-keypair_path_env = "SVM_SOLVER_KEYPAIR"
+private_key_env = "SOLANA_SOLVER_PRIVATE_KEY"
 "#;
 
     let config: SvmChainConfig = toml::from_str(toml_str).unwrap();
@@ -335,7 +335,7 @@ keypair_path_env = "SVM_SOLVER_KEYPAIR"
     assert_eq!(config.chain_id, 100);
     assert_eq!(config.name, "Connected SVM Chain");
     assert_eq!(config.escrow_program_id, "11111111111111111111111111111111");
-    assert_eq!(config.keypair_path_env, "SVM_SOLVER_KEYPAIR");
+    assert_eq!(config.private_key_env, "SOLANA_SOLVER_PRIVATE_KEY");
 }
 
 // ============================================================================

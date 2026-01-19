@@ -53,7 +53,7 @@ e2e_mode = false                          # E2E testing mode: true = use aptos C
 # rpc_url = "http://127.0.0.1:8899"       # RPC endpoint URL for SVM chain
 # chain_id = 1001                         # Chain ID (arbitrary routing ID)
 # escrow_program_id = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
-# keypair_path_env = "SVM_SOLVER_KEYPAIR_PATH" # Environment variable containing solver keypair path
+# private_key_env = "SOLANA_SOLVER_PRIVATE_KEY" # Environment variable containing solver private key (base58)
 
 # Acceptance Criteria
 # Defines which token pairs are supported and their exchange rates

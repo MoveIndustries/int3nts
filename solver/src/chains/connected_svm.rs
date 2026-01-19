@@ -17,7 +17,7 @@ use solana_sdk::{
     commitment_config::CommitmentConfig,
     ed25519_instruction::new_ed25519_instruction_with_signature,
     instruction::{AccountMeta, Instruction},
-    signature::{read_keypair_file, Keypair, Signer},
+    signature::{Keypair, Signer},
     sysvar,
     transaction::Transaction,
 };
@@ -88,12 +88,12 @@ pub struct ConnectedSvmClient {
     rpc_url: String,
     program_id: Pubkey,
     rpc_client: RpcClient,
-    /// Env var name that stores the solver keypair path for signing SVM txs.
+    /// Env var name that stores the solver private key (base58) for signing SVM txs.
     /// This mirrors MVM and EVM signing:
     /// - MVM: store the CLI profile name, and the Aptos CLI loads the keypair when signing.
     /// - EVM: read the private key from an env var at call time for the Hardhat signer.
-    /// Here we keep the env var name and load the keypair when we need to sign.
-    keypair_path_env: String,
+    /// Here we keep the env var name and decode the base58 key when we need to sign.
+    private_key_env: String,
 }
 
 impl ConnectedSvmClient {
@@ -127,7 +127,7 @@ impl ConnectedSvmClient {
             rpc_url: config.rpc_url.clone(),
             program_id,
             rpc_client,
-            keypair_path_env: config.keypair_path_env.clone(),
+            private_key_env: config.private_key_env.clone(),
         })
     }
 
@@ -386,23 +386,45 @@ impl ConnectedSvmClient {
 }
 
 impl ConnectedSvmClient {
-    /// Loads the solver keypair from the env var path.
+    /// Loads the solver keypair from the env var (base58 private key).
+    ///
+    /// Mirrors EVM/MVM approach: private key is stored directly as a string
+    /// (base58 for SVM, hex for EVM/MVM), not as a file path.
     ///
     /// # Returns
     ///
     /// * `Ok(Keypair)` - Loaded keypair
-    /// * `Err(anyhow::Error)` - Missing env var or invalid keypair file
+    /// * `Err(anyhow::Error)` - Missing env var or invalid private key
     fn load_solver_keypair(&self) -> Result<Keypair> {
-        let keypair_path = std::env::var(&self.keypair_path_env).with_context(|| {
+        let private_key_b58 = std::env::var(&self.private_key_env).with_context(|| {
             format!(
-                "Missing solver keypair path env var: {}",
-                self.keypair_path_env
+                "Missing solver private key env var: {}",
+                self.private_key_env
             )
         })?;
-        read_keypair_file(&keypair_path)
-            .map_err(|e| anyhow::anyhow!(e.to_string()))
-            .context("Failed to read solver keypair file")
+        keypair_from_base58(&private_key_b58)
+            .context("Failed to decode solver private key from base58")
     }
+}
+
+/// Decodes a base58 private key string into a Keypair.
+///
+/// Solana private keys are 64 bytes (seed + public key) encoded as base58.
+///
+/// # Arguments
+///
+/// * `b58` - Base58-encoded private key string
+///
+/// # Returns
+///
+/// * `Ok(Keypair)` - Decoded keypair
+/// * `Err(anyhow::Error)` - Invalid base58 or wrong length
+fn keypair_from_base58(b58: &str) -> Result<Keypair> {
+    let bytes = bs58::decode(b58)
+        .into_vec()
+        .context("Invalid base58 encoding")?;
+    Keypair::try_from(bytes.as_slice())
+        .map_err(|e| anyhow::anyhow!("Invalid keypair bytes: {}", e))
 }
 
 /// Converts a base58 pubkey string into a 0x-prefixed hex string.

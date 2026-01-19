@@ -29,11 +29,11 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     name: 'Movement Bardock Testnet',
     chainType: 'mvm',
     isHub: true,
-    intentContractAddress: '0x8f8826082111c27daaa92724c855fb68a1d98ad979386f4ef421b1ccfed8ad47',
+    intentContractAddress: '0xff9ee5d1a0fa9d4bdd4471f08cb794424c6ec6ca136fea727059951dc65631e5',
   },
   'svm-devnet': {
     id: 'svm-devnet',
-    chainId: 4,
+    chainId: 901,
     rpcUrl: process.env.NEXT_PUBLIC_SVM_RPC_URL || 'https://api.devnet.solana.com',
     name: 'Solana Devnet',
     chainType: 'svm',

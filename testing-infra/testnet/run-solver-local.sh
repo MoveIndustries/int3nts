@@ -47,11 +47,17 @@ source "$TESTNET_KEYS_FILE"
 
 # Check BASE_SOLVER_PRIVATE_KEY (required for EVM transactions)
 if [ -z "$BASE_SOLVER_PRIVATE_KEY" ]; then
-    echo "❌ ERROR: BASE_SOLVER_PRIVATE_KEY not set in .env.testnet"
+    echo "⚠️  WARNING: BASE_SOLVER_PRIVATE_KEY not set in .env.testnet"
+    echo "   EVM transactions will fail if an EVM connected chain is configured."
     echo ""
-    echo "   This key is required for EVM transactions on Base Sepolia."
-    echo "   Add it to .env.testnet"
-    exit 1
+fi
+
+# Check SOLANA_SOLVER_PRIVATE_KEY (required for SVM transactions)
+if [ -z "$SOLANA_SOLVER_PRIVATE_KEY" ]; then
+    echo "⚠️  WARNING: SOLANA_SOLVER_PRIVATE_KEY not set in .env.testnet"
+    echo "   SVM transactions will fail if an SVM connected chain is configured."
+    echo "   This should be the base58-encoded 64-byte keypair (seed + pubkey)."
+    echo ""
 fi
 
 # Check config exists
@@ -231,12 +237,24 @@ cd "$PROJECT_ROOT"
 
 # Export environment variables for solver (needed for nix develop subprocess)
 export BASE_SOLVER_PRIVATE_KEY
-# Export solver addresses for auto-registration (solver reads BASE_SOLVER_ADDR or SOLVER_EVM_ADDR)
+export SOLANA_SOLVER_PRIVATE_KEY
+# Export solver addresses for auto-registration
+# The solver expects SOLVER_EVM_ADDR for registration - use BASE_SOLVER_ADDR if SOLVER_EVM_ADDR is not set
 export BASE_SOLVER_ADDR
-export SOLVER_EVM_ADDR  # May be empty, that's OK
+if [ -z "$SOLVER_EVM_ADDR" ] && [ -n "$BASE_SOLVER_ADDR" ]; then
+    SOLVER_EVM_ADDR="$BASE_SOLVER_ADDR"
+fi
+export SOLVER_EVM_ADDR
 # Export Movement solver private key for registration (solver reads from env var first, then profile)
 if [ -n "$MOVEMENT_SOLVER_PRIVATE_KEY" ]; then
     export MOVEMENT_SOLVER_PRIVATE_KEY
+fi
+
+# Convert SOLANA_SOLVER_ADDR (base58) to hex for solver registration
+# The solver expects SOLVER_SVM_ADDR as 0x-prefixed 32-byte hex
+if [ -n "$SOLANA_SOLVER_ADDR" ]; then
+    SOLVER_SVM_ADDR=$(node -e "const bs58 = require('bs58'); console.log('0x' + Buffer.from(bs58.decode('$SOLANA_SOLVER_ADDR')).toString('hex'))")
+    export SOLVER_SVM_ADDR
 fi
 
 # Export HUB_RPC_URL for hash calculation
@@ -256,6 +274,12 @@ if [ -n "$SOLVER_EVM_ADDR" ]; then
 fi
 if [ -n "$MOVEMENT_SOLVER_PRIVATE_KEY" ]; then
     ENV_VARS="$ENV_VARS MOVEMENT_SOLVER_PRIVATE_KEY='$MOVEMENT_SOLVER_PRIVATE_KEY'"
+fi
+if [ -n "$SOLANA_SOLVER_PRIVATE_KEY" ]; then
+    ENV_VARS="$ENV_VARS SOLANA_SOLVER_PRIVATE_KEY='$SOLANA_SOLVER_PRIVATE_KEY'"
+fi
+if [ -n "$SOLVER_SVM_ADDR" ]; then
+    ENV_VARS="$ENV_VARS SOLVER_SVM_ADDR='$SOLVER_SVM_ADDR'"
 fi
 
 # Check if --release flag is passed
