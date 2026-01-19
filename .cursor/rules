@@ -18,7 +18,7 @@ git commit -m "<type of change>: <description>
 - <more detailed points if needed (optional)>
 - <more detailed points if needed (optional)>
 
-Tests pass: Verifier (Rust) <number>, Solver (Rust) <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>"
+Tests pass: Verifier <number>, Solver <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>"
 ```
 
 **If tests were NOT run (e.g., project setup, docs only, no test-affecting changes):**
@@ -36,7 +36,7 @@ git commit -m "<type of change>: <description>
 - **Run tests before committing** ONLY if changes affect existing test code (e.g., adding new tests, modifying code that has tests)
 - **Do NOT run tests for:** project setup, documentation-only changes, configuration files, or other non-code changes
 - **If sandbox prevents test execution**, ask user for help or skip tests (don't include "Tests pass:" line)
-- **Only include test results** in commit message if tests were actually run, in the format: `Tests pass: Verifier (Rust) <number>, Solver (Rust) <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>`
+- **Only include test results** in commit message if tests were actually run, in the format: `Tests pass: Verifier <number>, Solver <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>`
 - **If tests were NOT run**, omit the "Tests pass:" line entirely from the commit message
 - **Display test summary table** after running tests using the commands in the next subsection, showing passed/total for each category (Verifier, Solver, Move, EVM, SVM, Frontend)
 - Follow conventional commit format (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`)

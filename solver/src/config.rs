@@ -441,7 +441,16 @@ fn validate_token_format(token: &str, chain_type: &str) -> anyhow::Result<()> {
             Pubkey::from_str(token)
                 .map_err(|_| anyhow::anyhow!("Invalid base58 SVM mint"))?;
         }
-        "evm" => validate_hex_token(token, 20)?,
+        "evm" => {
+            // EVM tokens can be 20 bytes (native) or 32 bytes (padded for Move compatibility)
+            let stripped = token.strip_prefix("0x").ok_or_else(|| {
+                anyhow::anyhow!("EVM token must be 0x-prefixed hex string")
+            })?;
+            let bytes = hex::decode(stripped).map_err(|_| anyhow::anyhow!("Invalid hex EVM token"))?;
+            if bytes.len() != 20 && bytes.len() != 32 {
+                anyhow::bail!("Invalid EVM token length: expected 20 or 32 bytes, got {}", bytes.len());
+            }
+        }
         "mvm" => validate_hex_token(token, 32)?,
         _ => anyhow::bail!("Unknown chain type {}", chain_type),
     }
