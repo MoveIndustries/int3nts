@@ -435,11 +435,15 @@ impl SolverConfig {
 fn validate_token_format(token: &str, chain_type: &str) -> anyhow::Result<()> {
     match chain_type {
         "svm" => {
+            // SVM tokens can be base58 (native) or 32-byte hex (when stored on Move hub chain)
             if token.starts_with("0x") {
-                anyhow::bail!("SVM tokens must be base58 (got 0x-prefixed value)");
+                // Hex format - must be 32 bytes (same as Move)
+                validate_hex_token(token, 32)?;
+            } else {
+                // Base58 format - validate as Solana pubkey
+                Pubkey::from_str(token)
+                    .map_err(|_| anyhow::anyhow!("Invalid base58 SVM mint"))?;
             }
-            Pubkey::from_str(token)
-                .map_err(|_| anyhow::anyhow!("Invalid base58 SVM mint"))?;
         }
         "evm" => {
             // EVM tokens can be 20 bytes (native) or 32 bytes (padded for Move compatibility)

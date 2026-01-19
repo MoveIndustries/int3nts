@@ -99,10 +99,10 @@ fn test_config_validation_unknown_chain_id_in_token_pair() {
     assert!(result.unwrap_err().to_string().contains("Unknown source_chain_id"));
 }
 
-/// What is tested: SolverConfig::validate() rejects hex-encoded SVM tokens
-/// Why: SVM mints must be base58, not hex
+/// What is tested: SolverConfig::validate() rejects invalid-length hex SVM tokens
+/// Why: SVM hex tokens must be 32 bytes (like Move addresses on hub chain)
 #[test]
-fn test_config_validation_rejects_svm_hex_token() {
+fn test_config_validation_rejects_svm_invalid_hex_length() {
     let mut config = create_test_config();
     config.connected_chain.push(ConnectedChainConfig::Svm(SvmChainConfig {
         name: "svm".to_string(),
@@ -115,13 +115,13 @@ fn test_config_validation_rejects_svm_hex_token() {
         source_chain_id: 1,
         source_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
         target_chain_id: 901,
-        target_token: "0xdeadbeef".to_string(),
+        target_token: "0xdeadbeef".to_string(), // Invalid: 4 bytes, not 32
         ratio: 1.0,
     }];
 
     let result = config.validate();
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("SVM tokens must be base58"));
+    assert!(result.unwrap_err().to_string().contains("expected 32 bytes"));
 }
 
 /// What is tested: SolverConfig::validate() rejects invalid base58 SVM tokens
