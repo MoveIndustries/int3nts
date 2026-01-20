@@ -30,7 +30,7 @@ jobs:
   verifier:
     uses: ./.github/workflows/unit-tests-reusable.yml
     with:
-      script: "cd trusted-verifier && cargo test"
+      script: "cd verifier && cargo test"
 
   frontend:
     uses: ./.github/workflows/unit-tests-reusable.yml

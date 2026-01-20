@@ -14,16 +14,16 @@ cargo build
 cp config/verifier.template.toml config/verifier.toml
 
 # Run (default: uses config/verifier.toml)
-cargo run --bin trusted-verifier
+cargo run --bin verifier
 
 # Run with testnet config
-cargo run --bin trusted-verifier -- --testnet
+cargo run --bin verifier -- --testnet
 
 # Run with custom config
-cargo run --bin trusted-verifier -- --config config/my-config.toml
+cargo run --bin verifier -- --config config/my-config.toml
 
 # Show help
-cargo run --bin trusted-verifier -- --help
+cargo run --bin verifier -- --help
 ```
 
 ### Command-Line Options

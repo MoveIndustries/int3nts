@@ -1,13 +1,17 @@
 [package]
-name = "trusted-verifier"
+name = "verifier"
 version = "0.1.0"
 edition = "2021"
 authors = ["Intent Framework Team"]
 description = "Trusted verifier service for cross-chain escrow validation"
 
 [lib]
-name = "trusted_verifier"
+name = "verifier"
 path = "src/lib.rs"
+
+[[bin]]
+name = "verifier"
+path = "src/main.rs"
 
 [[bin]]
 name = "generate_keys"

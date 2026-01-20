@@ -3,7 +3,7 @@
 //! These tests verify draft intent storage operations including CRUD,
 //! FCFS signature handling, expiry, and status transitions.
 
-use trusted_verifier::storage::draftintents::{
+use verifier::storage::draftintents::{
     DraftintentStore, DraftintentStatus,
 };
 use serde_json;

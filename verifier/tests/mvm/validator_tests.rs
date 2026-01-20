@@ -3,9 +3,9 @@
 //! These tests verify that MVM escrow solver validation works correctly,
 //! including registry lookup, address matching, and error handling.
 
-use trusted_verifier::config::Config;
-use trusted_verifier::monitor::IntentEvent;
-use trusted_verifier::validator::CrossChainValidator;
+use verifier::config::Config;
+use verifier::monitor::IntentEvent;
+use verifier::validator::CrossChainValidator;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 #[path = "../mod.rs"]
@@ -51,7 +51,7 @@ async fn test_successful_mvm_solver_validation() {
 
     // Test with matching address
     let escrow_reserved_solver = solver_connected_chain_mvm_addr;
-    let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
+    let result = verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,
@@ -87,7 +87,7 @@ async fn test_rejection_when_solver_not_registered() {
     let intent = create_test_intent(Some(solver_addr.to_string()));
 
     let escrow_reserved_solver = DUMMY_SOLVER_ADDR_MVMCON;
-    let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
+    let result = verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,
@@ -125,7 +125,7 @@ async fn test_rejection_when_mvm_addresses_dont_match() {
 
     // Escrow has a different address
     let escrow_reserved_solver = "0xwrong_solver_addr";
-    let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
+    let result = verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,
@@ -176,7 +176,7 @@ async fn test_mvm_address_normalization() {
 
         let intent = create_test_intent(Some(solver_addr.to_string()));
 
-        let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
+        let result = verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
             &intent,
             escrow_addr,
             &config.hub_chain.rpc_url,
@@ -206,7 +206,7 @@ async fn test_error_handling_for_registry_query_failures() {
     let intent = create_test_intent(Some("0xsolver_mvm".to_string()));
 
     let escrow_reserved_solver = DUMMY_SOLVER_ADDR_MVMCON;
-    let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
+    let result = verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,
@@ -244,7 +244,7 @@ async fn test_rejection_when_intent_has_no_solver() {
     let intent = create_test_intent(None); // No solver
 
     let escrow_reserved_solver = DUMMY_SOLVER_ADDR_MVMCON;
-    let result = trusted_verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
+    let result = verifier::validator::inflow_mvm::validate_mvm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,

@@ -5,7 +5,7 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use borsh::BorshSerialize;
 use solana_program::pubkey::Pubkey;
-use trusted_verifier::svm_client::EscrowAccount;
+use verifier::svm_client::EscrowAccount;
 
 /// Test that Borsh-encoded escrow data round-trips through base64 encoding
 /// Why: SVM RPC returns base64-encoded account data that must deserialize correctly

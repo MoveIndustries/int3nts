@@ -4,7 +4,7 @@
 //! without requiring external services.
 
 use futures::future;
-use trusted_verifier::monitor::{EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent};
+use verifier::monitor::{EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent};
 #[path = "mod.rs"]
 mod test_helpers;
 use test_helpers::{
@@ -31,7 +31,7 @@ fn is_safe_for_escrow(event: &IntentEvent) -> bool {
 /// Why: EVM and Move VM may format the same intent_id differently (with/without leading zeros)
 #[test]
 fn test_normalize_intent_id_leading_zeros() {
-    use trusted_verifier::monitor::normalize_intent_id;
+    use verifier::monitor::normalize_intent_id;
 
     // Test case from the actual error: one has leading zero, one doesn't
     let with_leading_zero = "0x0911ddf3c2ef882c7c42af3f65b2c32b3f26fde142cf30afd2ea58f8a16ef9b7";
@@ -55,7 +55,7 @@ fn test_normalize_intent_id_leading_zeros() {
 /// Why: Edge case that should be handled gracefully
 #[test]
 fn test_normalize_intent_id_all_zeros() {
-    use trusted_verifier::monitor::normalize_intent_id;
+    use verifier::monitor::normalize_intent_id;
 
     assert_eq!(normalize_intent_id("0x0000"), "0x0");
     assert_eq!(normalize_intent_id("0x0"), "0x0");
@@ -66,7 +66,7 @@ fn test_normalize_intent_id_all_zeros() {
 /// Why: Ensures consistent comparison regardless of input case
 #[test]
 fn test_normalize_intent_id_case() {
-    use trusted_verifier::monitor::normalize_intent_id;
+    use verifier::monitor::normalize_intent_id;
 
     assert_eq!(normalize_intent_id("0xABCDEF"), "0xabcdef");
     assert_eq!(normalize_intent_id("0xabcdef"), "0xabcdef");

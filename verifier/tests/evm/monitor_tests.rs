@@ -4,7 +4,7 @@
 //! without requiring external services.
 
 use base64::Engine;
-use trusted_verifier::monitor::{EventMonitor, FulfillmentEvent};
+use verifier::monitor::{EventMonitor, FulfillmentEvent};
 #[path = "../mod.rs"]
 mod test_helpers;
 use test_helpers::{
@@ -111,7 +111,7 @@ async fn test_evm_vs_mvm_escrow_differentiation() {
     // First, add a Move VM escrow to the cache
     {
         let mut escrow_cache = monitor.escrow_cache.write().await;
-        escrow_cache.push(trusted_verifier::monitor::EscrowEvent {
+        escrow_cache.push(verifier::monitor::EscrowEvent {
             escrow_id: DUMMY_ESCROW_ID_MVM.to_string(),
             intent_id: DUMMY_INTENT_ID.to_string(),
             requester_addr: DUMMY_REQUESTER_ADDR_HUB.to_string(),
@@ -123,7 +123,7 @@ async fn test_evm_vs_mvm_escrow_differentiation() {
             revocable: false,
             reserved_solver_addr: None,
             chain_id: 2,
-            chain_type: trusted_verifier::ChainType::Mvm,
+            chain_type: verifier::ChainType::Mvm,
             timestamp: 1,
         });
     }

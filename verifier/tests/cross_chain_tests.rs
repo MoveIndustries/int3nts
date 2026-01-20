@@ -3,7 +3,7 @@
 //! These tests verify that escrow events can be matched to intent events
 //! across different chains using intent_id.
 
-use trusted_verifier::monitor::{EscrowEvent, IntentEvent};
+use verifier::monitor::{EscrowEvent, IntentEvent};
 #[path = "mod.rs"]
 mod test_helpers;
 use test_helpers::{
@@ -98,7 +98,7 @@ async fn test_escrow_chain_id_validation() {
     };
 
     // This should pass the connected_chain_id check (may fail other validations, but not this one)
-    let result = trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+    let result = verifier::validator::inflow_generic::validate_intent_fulfillment(
         &validator,
         &valid_intent,
         &valid_escrow,
@@ -146,7 +146,7 @@ async fn test_escrow_amount_must_match_hub_intent_offered_amount() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow_mismatch,
@@ -170,7 +170,7 @@ async fn test_escrow_amount_must_match_hub_intent_offered_amount() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow_match,
@@ -217,7 +217,7 @@ async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_suc
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow_match,
@@ -240,7 +240,7 @@ async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_suc
 #[tokio::test]
 async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_rejection() {
     use test_helpers::build_test_config_with_mvm;
-    use trusted_verifier::validator::CrossChainValidator;
+    use verifier::validator::CrossChainValidator;
 
     let config = build_test_config_with_mvm();
     let validator = CrossChainValidator::new(&config)
@@ -258,7 +258,7 @@ async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_rej
 
     // The validation function should complete successfully (return Ok, not Err)
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow_mismatch,
@@ -303,7 +303,7 @@ async fn test_escrow_offered_metadata_empty_strings() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent_empty,
             &escrow_empty,
@@ -329,7 +329,7 @@ async fn test_escrow_offered_metadata_empty_strings() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent_with_meta,
             &escrow_empty_2,
@@ -359,7 +359,7 @@ async fn test_escrow_offered_metadata_empty_strings() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent_empty_3,
             &escrow_with_meta,
@@ -405,7 +405,7 @@ async fn test_escrow_offered_metadata_complex_json() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent_complex,
             &escrow_complex_match,
@@ -430,7 +430,7 @@ async fn test_escrow_offered_metadata_complex_json() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent_complex,
             &escrow_complex_mismatch,
@@ -457,7 +457,7 @@ async fn test_escrow_offered_metadata_complex_json() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent_complex,
             &escrow_complex_mismatch_2,
@@ -506,7 +506,7 @@ async fn test_escrow_offered_metadata_normalizes_leading_zeros() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow_with_leading_zero,
@@ -556,7 +556,7 @@ async fn test_escrow_desired_amount_must_be_zero_success() {
     );
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow_valid,
@@ -575,7 +575,7 @@ async fn test_escrow_desired_amount_must_be_zero_success() {
 #[tokio::test]
 async fn test_escrow_desired_amount_must_be_zero_rejection() {
     use test_helpers::build_test_config_with_mvm;
-    use trusted_verifier::validator::CrossChainValidator;
+    use verifier::validator::CrossChainValidator;
 
     let config = build_test_config_with_mvm();
     let validator = CrossChainValidator::new(&config)
@@ -592,7 +592,7 @@ async fn test_escrow_desired_amount_must_be_zero_rejection() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow_invalid,
@@ -615,7 +615,7 @@ async fn test_escrow_desired_amount_must_be_zero_rejection() {
 #[tokio::test]
 async fn test_escrow_rejection_when_connected_chain_id_is_none() {
     use test_helpers::build_test_config_with_mvm;
-    use trusted_verifier::validator::CrossChainValidator;
+    use verifier::validator::CrossChainValidator;
 
     let config = build_test_config_with_mvm();
     let validator = CrossChainValidator::new(&config)
@@ -635,7 +635,7 @@ async fn test_escrow_rejection_when_connected_chain_id_is_none() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow,
@@ -660,7 +660,7 @@ async fn test_escrow_rejection_when_connected_chain_id_is_none() {
 #[tokio::test]
 async fn test_escrow_chain_id_mismatch_rejection() {
     use test_helpers::build_test_config_with_mvm;
-    use trusted_verifier::validator::CrossChainValidator;
+    use verifier::validator::CrossChainValidator;
 
     let config = build_test_config_with_mvm();
     let validator = CrossChainValidator::new(&config)
@@ -680,7 +680,7 @@ async fn test_escrow_chain_id_mismatch_rejection() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow_mismatch,

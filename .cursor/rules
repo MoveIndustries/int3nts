@@ -61,7 +61,7 @@ Individual component commands:
 nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123" 2>&1 | grep "Total tests:"
 
 # Verifier tests
-RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-verifier && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
+RUST_LOG=off nix develop ./nix -c bash -c "cd verifier && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
 
 # Solver tests
 RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
@@ -120,7 +120,7 @@ See [SVM Intent Framework README](docs/intent-frameworks/svm/README.md) for Sola
 
 ### Rust Services
 
-See [Trusted Verifier README](docs/trusted-verifier/README.md) and [Solver README](docs/solver/README.md) for service architecture and implementation details.
+See [Trusted Verifier README](docs/verifier/README.md) and [Solver README](docs/solver/README.md) for service architecture and implementation details.
 
 ### Testing Infrastructure
 

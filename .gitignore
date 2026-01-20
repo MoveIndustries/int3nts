@@ -6,7 +6,7 @@ testing-infra/single-validator/work/data/
 
 # Build artifacts
 solver/target/
-trusted-verifier/target/
+verifier/target/
 node_modules/
 frontend/.npm-cache/*
 .tmp/
@@ -27,12 +27,12 @@ testing-infra/testnet/.env.testnet
 
 # Testnet and CI config files (contain sensitive keys)
 solver/config/solver_testnet.toml
-trusted-verifier/config/verifier_testnet.toml
+verifier/config/verifier_testnet.toml
 solver/config/solver-e2e-ci-testing.toml
-trusted-verifier/config/verifier-e2e-ci-testing.toml
+verifier/config/verifier-e2e-ci-testing.toml
 
 # E2E test artifacts
-trusted-verifier/tests/integration_test_e2e.rs
+verifier/tests/integration_test_e2e.rs
 testing-infra/ci-e2e/.verifier-keys.env
 
 # Editor and OS files

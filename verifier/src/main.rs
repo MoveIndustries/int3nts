@@ -59,7 +59,7 @@ async fn main() -> Result<()> {
     if args.iter().any(|arg| arg == "--help" || arg == "-h") {
         println!("Trusted Verifier Service");
         println!();
-        println!("Usage: trusted-verifier [OPTIONS]");
+        println!("Usage: verifier [OPTIONS]");
         println!();
         println!("Options:");
         println!("  --testnet, -t    Use testnet configuration (config/verifier_testnet.toml)");

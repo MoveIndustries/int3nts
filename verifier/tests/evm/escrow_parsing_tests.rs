@@ -3,8 +3,8 @@
 //! These tests verify that EscrowInitialized events are correctly parsed,
 //! especially that amount and expiry fields are properly extracted.
 
-use trusted_verifier::evm_client::EscrowInitializedEvent;
-use trusted_verifier::monitor::{ChainType, EscrowEvent, EventMonitor, IntentEvent};
+use verifier::evm_client::EscrowInitializedEvent;
+use verifier::monitor::{ChainType, EscrowEvent, EventMonitor, IntentEvent};
 
 #[path = "../mod.rs"]
 mod test_helpers;

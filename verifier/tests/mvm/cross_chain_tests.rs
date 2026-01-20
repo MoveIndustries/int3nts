@@ -3,8 +3,8 @@
 //! These tests verify Move VM-specific escrow validation logic, including
 //! solver address matching for Move VM escrows.
 
-use trusted_verifier::monitor::{EscrowEvent, IntentEvent};
-use trusted_verifier::validator::CrossChainValidator;
+use verifier::monitor::{EscrowEvent, IntentEvent};
+use verifier::validator::CrossChainValidator;
 #[path = "../mod.rs"]
 mod test_helpers;
 use test_helpers::{
@@ -42,7 +42,7 @@ async fn test_escrow_solver_address_matching_success() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow_match,
@@ -88,7 +88,7 @@ async fn test_escrow_solver_address_mismatch_rejection() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent,
             &escrow_mismatch,
@@ -124,7 +124,7 @@ async fn test_escrow_solver_reservation_mismatch_rejection() {
     };
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent_with_solver,
             &escrow_without_solver,
@@ -150,7 +150,7 @@ async fn test_escrow_solver_reservation_mismatch_rejection() {
     let escrow_with_solver = create_default_escrow_event();
 
     let validation_result =
-        trusted_verifier::validator::inflow_generic::validate_intent_fulfillment(
+        verifier::validator::inflow_generic::validate_intent_fulfillment(
             &validator,
             &hub_intent_without_solver,
             &escrow_with_solver,

@@ -1,10 +1,10 @@
 //! Unit tests for API error handling and request logging
 
 use serde_json::json;
-use trusted_verifier::api::{ApiResponse, ApiServer};
-use trusted_verifier::crypto::CryptoService;
-use trusted_verifier::monitor::EventMonitor;
-use trusted_verifier::validator::CrossChainValidator;
+use verifier::api::{ApiResponse, ApiServer};
+use verifier::crypto::CryptoService;
+use verifier::monitor::EventMonitor;
+use verifier::validator::CrossChainValidator;
 use warp::http::StatusCode;
 use warp::test::request;
 

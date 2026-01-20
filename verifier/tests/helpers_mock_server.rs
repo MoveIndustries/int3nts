@@ -8,8 +8,8 @@
 //! - **Mock Server Setup Helpers**: Functions to set up WireMock servers with various configurations
 
 use serde_json::json;
-use trusted_verifier::config::Config;
-use trusted_verifier::validator::CrossChainValidator;
+use verifier::config::Config;
+use verifier::validator::CrossChainValidator;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

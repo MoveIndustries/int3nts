@@ -12,7 +12,7 @@
 
 2. **Test Improvements**
    - Add timeout scenario tests
-   - Test with multiple concurrent intents (unit tests added in `trusted-verifier/tests/monitor_tests.rs`)
+   - Test with multiple concurrent intents (unit tests added in `verifier/tests/monitor_tests.rs`)
    - Add negative test cases (rejected intents, failed fulfillments)
 
 ## Documentation

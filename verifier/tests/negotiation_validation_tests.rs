@@ -2,7 +2,7 @@
 //!
 //! These tests verify signature format validation logic used in signature submission endpoints.
 
-use trusted_verifier::api::validate_signature_format;
+use verifier::api::validate_signature_format;
 
 #[path = "mod.rs"]
 mod test_helpers;
