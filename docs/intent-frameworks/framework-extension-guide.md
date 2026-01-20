@@ -31,24 +31,7 @@ Each framework should have the following test files, matching the order and stru
 
 ### Section Headers
 
-Use section headers for test files that group multiple related tests:
-
-```rust
-// ============================================================================
-// EDGE CASE TESTS
-// ============================================================================
-```
-
-**When to use section headers:**
-
-- `edge-cases` / `edge_cases` - "EDGE CASE TESTS"
-- `integration` - "INTEGRATION TESTS"
-- `cross-chain` / `cross_chain` - "CROSS-CHAIN INTENT ID CONVERSION TESTS"
-
-**When NOT to use section headers:**
-
-- `initialization`, `deposit`, `claim`, `cancel`, `expiry` - These files are straightforward and don't need section headers
-- `error-conditions` / `error_conditions` - Do not create "SVM-SPECIFIC TESTS" or "EVM-SPECIFIC TESTS" sections. Platform-specific tests should be placed at the end with numbered positions, and N/A comments should be inline at the same positions in other frameworks.
+See [Test File Section Headers](../../architecture/codestyle-testing.md#10-test-file-section-headers) in the coding guide for section header formatting guidelines.
 
 ### Test Descriptions
 
@@ -90,8 +73,35 @@ Use section headers for test files that group multiple related tests:
 
 ## Test Alignment Reference
 
-The escrow test alignment tables for the VM frameworks (EVM/SVM) live in
-`docs/intent-frameworks/framework-extension-completeness-lists.md`.
+> **⚠️ IMPORTANT: When adding a new framework, ensure maximal completeness by implementing all tests listed in the respective completeness files below.**
+
+These lists track alignment status by component category. The detailed test lists have been split into separate files located in their respective test directories for easier access during development.
+
+All tests listed are VM-specific; generic tests are intentionally excluded because they are not relevant when integrating a new VM.
+
+### VM Intent Framework
+
+Escrow test alignment for VM intent framework contracts:
+
+- See [`intent-frameworks/COMPLETENESS.md`](../../intent-frameworks/COMPLETENESS.md)
+
+### Verifier
+
+Test alignment for the verifier:
+
+- See [`verifier/tests/COMPLETENESS.md`](../../verifier/tests/COMPLETENESS.md)
+
+### Solver
+
+Test alignment for the solver:
+
+- See [`solver/tests/COMPLETENESS.md`](../../solver/tests/COMPLETENESS.md)
+
+### Frontend
+
+Test alignment for the frontend:
+
+- See [`frontend/src/COMPLETENESS.md`](../../frontend/src/COMPLETENESS.md)
 
 ## Handling Platform Differences
 

@@ -2,7 +2,7 @@
 
 > **⚠️ IMPORTANT: When adding a new framework, ensure maximal completeness by implementing all tests listed below.**
 
-This document tracks test alignment status for the solver. For the complete overview and other frameworks, see [Framework Extension Completeness Lists](../../docs/intent-frameworks/framework-extension-completeness-lists.md).
+This document tracks test alignment status for the solver. For the complete overview and other frameworks, see the [Framework Extension Guide](../../docs/intent-frameworks/framework-extension-guide.md#test-alignment-reference).
 
 All tests listed here are VM-specific; generic tests are intentionally excluded because they are not relevant when integrating a new VM.
 

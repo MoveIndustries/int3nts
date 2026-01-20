@@ -105,3 +105,24 @@ Match the expected format for each constant type:
 - **MVM addresses**: 32 bytes (64 hex chars + `0x` prefix = 66 chars)
 - **Transaction hashes**: 32 bytes (64 hex chars + `0x` prefix = 66 chars)
 - **IDs**: Match the format used by the system (typically 32 bytes for MVM)
+
+### 10. Test File Section Headers
+
+Use section headers for test files that group multiple related tests:
+
+```rust
+// ============================================================================
+// EDGE CASE TESTS
+// ============================================================================
+```
+
+**When to use section headers:**
+
+- `edge-cases` / `edge_cases` - "EDGE CASE TESTS"
+- `integration` - "INTEGRATION TESTS"
+- `cross-chain` / `cross_chain` - "CROSS-CHAIN INTENT ID CONVERSION TESTS"
+
+**When NOT to use section headers:**
+
+- `initialization`, `deposit`, `claim`, `cancel`, `expiry` - These files are straightforward and don't need section headers
+- `error-conditions` / `error_conditions` - Do not create platform-specific sections. Platform-specific tests should be placed at the end with numbered positions, and N/A comments should be inline at the same positions in other frameworks.

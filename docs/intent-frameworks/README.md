@@ -11,4 +11,3 @@ Documentation index for the on-chain intent frameworks organized by VM.
 ## Extension Guides
 
 - **[Framework Extension Guide](framework-extension-guide.md)** - How to add new blockchain frameworks while maintaining test alignment
-- **[Framework Extension Completeness Lists](framework-extension-completeness-lists.md)** - EVM/SVM test alignment checklists
