@@ -36,11 +36,11 @@ Specialized guides in `docs/component-name/` cover specific implementation topic
 - **Detailed implementation**: Specialized guides in `docs/component-name/`
 - **System overview**: `docs/README.md`
 - **Cross-cutting topics**: Files in `docs/` root (e.g., `protocol.md`)
-- **Design rationale**: `.taskmaster/docs/` (internal architecture documentation)
+- **Design rationale**: `docs/architecture/` (architecture documentation)
 
 ## Documentation Philosophy
 
 1. **Navigation layer** (Component READMEs): Quick access from code
 2. **Implementation layer** (Docs READMEs + Specialized guides): How the code works
-3. **Design layer** (`.taskmaster/docs/`): Why we develop this way - architecture rationale
+3. **Design layer** (`docs/architecture/`): Why we develop this way - architecture rationale
 4. **No duplication**: Each layer serves a distinct purpose

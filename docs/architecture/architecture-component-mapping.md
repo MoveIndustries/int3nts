@@ -498,7 +498,7 @@ This section documents comprehensive communication patterns between domains, inc
 
 ## Domain Boundaries and Interfaces
 
-Detailed architectural definitions of domain boundaries, external interfaces, internal components, data ownership, and interaction protocols are documented internally in `.taskmaster/docs/domain-boundaries-and-interfaces.md`. This internal document follows RPG methodology principles and serves as architectural guidance for development decisions.
+Detailed architectural definitions of domain boundaries, external interfaces, internal components, data ownership, and interaction protocols are documented in [`domain-boundaries-and-interfaces.md`](domain-boundaries-and-interfaces.md). This document follows RPG methodology principles and serves as architectural guidance for development decisions.
 
 ---
 
