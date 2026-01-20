@@ -119,6 +119,12 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
         .duration_since(std::time::UNIX_EPOCH)?
         .as_secs();
 
+    // Only process events from the last 7 days to avoid processing very old intents
+    // This prevents errors when the verifier starts and queries historical events
+    // for intents that no longer have escrows (e.g., after contract redeployment)
+    const MAX_EVENT_AGE_SECONDS: u64 = 7 * 24 * 60 * 60; // 7 days
+    let min_timestamp = timestamp.saturating_sub(MAX_EVENT_AGE_SECONDS);
+
     // Query each address (requesters + solvers) for events
     for address in &addresses_to_poll {
         let address_normalized = address.strip_prefix("0x").unwrap_or(address);
@@ -146,6 +152,13 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                         .timestamp
                         .parse::<u64>()
                         .context("Failed to parse timestamp")?;
+                    
+                    // Skip events that are too old (older than 7 days)
+                    // This prevents processing old fulfillment events for intents that
+                    // no longer have escrows (e.g., after contract redeployment)
+                    if event_timestamp < min_timestamp {
+                        continue;
+                    }
                     
                     // Create fulfillment event
                     // Normalize intent_id to 64 hex characters to ensure it can be safely parsed as hex
