@@ -5,6 +5,10 @@ use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 use trusted_verifier::validator::extract_svm_fulfillment_params;
 
+#[path = "mod.rs"]
+mod test_helpers;
+use test_helpers::DUMMY_INTENT_ID_FULL;
+
 const MEMO_PROGRAM_ID: &str = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
 // Use deterministic pubkeys derived from fixed byte patterns.
 
@@ -68,7 +72,7 @@ fn build_tx(memo_first: bool, memo: &str) -> serde_json::Value {
 /// Why: Ensure SVM outflow parsing returns normalized fulfillment parameters
 #[test]
 fn test_extract_svm_fulfillment_params_success() {
-    let intent_id = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let intent_id = DUMMY_INTENT_ID_FULL;
     let tx = build_tx(true, &format!("intent_id={}", intent_id));
 
     let params = extract_svm_fulfillment_params(&tx).unwrap();
@@ -83,7 +87,7 @@ fn test_extract_svm_fulfillment_params_success() {
 /// Why: Enforce strict memo + transfer ordering for outflow validation
 #[test]
 fn test_extract_svm_fulfillment_params_requires_memo_first() {
-    let intent_id = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let intent_id = DUMMY_INTENT_ID_FULL;
     let tx = build_tx(false, &format!("intent_id={}", intent_id));
 
     let err = extract_svm_fulfillment_params(&tx).unwrap_err();

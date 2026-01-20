@@ -8,7 +8,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-REPO_ROOT="$(dirname "$PROJECT_DIR")"
+REPO_ROOT="$(dirname "$(dirname "$PROJECT_DIR")")"
 
 # If not in nix shell, re-exec inside nix develop ./nix
 if [ -z "$IN_NIX_SHELL" ]; then

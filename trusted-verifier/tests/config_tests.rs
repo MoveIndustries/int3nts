@@ -8,7 +8,7 @@ use trusted_verifier::monitor::ChainType;
 use trusted_verifier::validator::{get_chain_type_from_chain_id, normalize_address};
 #[path = "mod.rs"]
 mod test_helpers;
-use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_VERIFIER_EVM_PUBKEY_HASH};
+use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_INTENT_ID_FULL, DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_TOKEN_ADDR_FANTOM, DUMMY_VERIFIER_EVM_PUBKEY_HASH};
 
 /// Test that default configuration creates valid structure
 /// Why: Verify default config is valid and doesn't panic
@@ -53,15 +53,18 @@ fn test_connected_chain_mvm_with_values() {
 /// Why: Verifier should only store pairs and fetch ratios live from solver
 #[test]
 fn test_acceptance_pairs_deserialize() {
-    let toml = r#"
+    let toml = format!(
+        r#"
 solver_url = "http://127.0.0.1:4444"
 pairs = [
-  { source_chain_id = 250, source_token = "0xb89077cfd2a82a0c1450534d49cfd5f2707643155273069bc23a912bcfefdee7", target_chain_id = 84532, target_token = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" },
-  { source_chain_id = 250, source_token = "0xb89077cfd2a82a0c1450534d49cfd5f2707643155273069bc23a912bcfefdee7", target_chain_id = 901, target_token = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU" }
+  {{ source_chain_id = 250, source_token = "{}", target_chain_id = 84532, target_token = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" }},
+  {{ source_chain_id = 250, source_token = "{}", target_chain_id = 901, target_token = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU" }}
 ]
-"#;
+"#,
+        DUMMY_TOKEN_ADDR_FANTOM, DUMMY_TOKEN_ADDR_FANTOM
+    );
 
-    let acceptance: AcceptanceConfig = toml::from_str(toml).expect("Should deserialize acceptance config");
+    let acceptance: AcceptanceConfig = toml::from_str(&toml).expect("Should deserialize acceptance config");
     assert_eq!(acceptance.solver_url, "http://127.0.0.1:4444");
     assert_eq!(acceptance.pairs.len(), 2);
 }
@@ -82,7 +85,7 @@ fn test_config_validate_acceptance_svm_base58() {
         solver_url: "http://127.0.0.1:4444".to_string(),
         pairs: vec![TokenPairConfig {
             source_chain_id: 250,
-            source_token: "0xb89077cfd2a82a0c1450534d49cfd5f2707643155273069bc23a912bcfefdee7".to_string(),
+            source_token: DUMMY_TOKEN_ADDR_FANTOM.to_string(),
             target_chain_id: 901,
             target_token: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
         }],
@@ -340,7 +343,7 @@ fn test_normalize_address_mvm_pads_short_address() {
 /// Why: Addresses that are already correct length should not be modified
 #[test]
 fn test_normalize_address_mvm_keeps_full_address() {
-    let address = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; // 64 chars
+    let address = DUMMY_INTENT_ID_FULL; // 64 chars
     let normalized = normalize_address(address, ChainType::Mvm);
 
     assert_eq!(normalized, address, "Should remain unchanged");
