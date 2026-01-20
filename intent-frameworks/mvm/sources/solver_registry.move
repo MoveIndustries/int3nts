@@ -41,8 +41,8 @@ module mvmt_intent::solver_registry {
     struct SolverInfo has store, drop {
         solver_addr: address,
         public_key: vector<u8>,  // Ed25519 public key (32 bytes)
-        connected_chain_evm_addr: Option<vector<u8>>, // EVM address on connected chain (20 bytes, None if not applicable)
         connected_chain_mvm_addr: Option<address>, // Move VM address on connected chain (None if not applicable)
+        connected_chain_evm_addr: Option<vector<u8>>, // EVM address on connected chain (20 bytes, None if not applicable)
         connected_chain_svm_addr: Option<vector<u8>>, // SVM address on connected chain (32 bytes, None if not applicable)
         registered_at: u64,
     }
@@ -59,8 +59,8 @@ module mvmt_intent::solver_registry {
     struct SolverRegistered has drop, store {
         solver: address,
         public_key: vector<u8>,
-        connected_chain_evm_addr: Option<vector<u8>>,
         connected_chain_mvm_addr: Option<address>,
+        connected_chain_evm_addr: Option<vector<u8>>,
         connected_chain_svm_addr: Option<vector<u8>>,
         timestamp: u64,
     }
@@ -69,8 +69,8 @@ module mvmt_intent::solver_registry {
     struct SolverUpdated has drop, store {
         solver: address,
         public_key: vector<u8>,
-        connected_chain_evm_addr: Option<vector<u8>>,
         connected_chain_mvm_addr: Option<address>,
+        connected_chain_evm_addr: Option<vector<u8>>,
         connected_chain_svm_addr: Option<vector<u8>>,
         timestamp: u64,
     }
@@ -184,8 +184,8 @@ module mvmt_intent::solver_registry {
         event::emit(SolverRegistered {
             solver: solver_addr,
             public_key: solver_data.public_key,
-            connected_chain_evm_addr: solver_data.connected_chain_evm_addr,
             connected_chain_mvm_addr: solver_data.connected_chain_mvm_addr,
+            connected_chain_evm_addr: solver_data.connected_chain_evm_addr,
             connected_chain_svm_addr: solver_data.connected_chain_svm_addr,
             timestamp: timestamp::now_seconds(),
         });
@@ -446,8 +446,8 @@ module mvmt_intent::solver_registry {
             event::emit(SolverRegistered {
                 solver: solver_addr,
                 public_key: solver_info.public_key,
-                connected_chain_evm_addr: solver_info.connected_chain_evm_addr,
                 connected_chain_mvm_addr: solver_info.connected_chain_mvm_addr,
+                connected_chain_evm_addr: solver_info.connected_chain_evm_addr,
                 connected_chain_svm_addr: solver_info.connected_chain_svm_addr,
                 timestamp: solver_info.registered_at,
             });
@@ -455,8 +455,8 @@ module mvmt_intent::solver_registry {
             event::emit(SolverRegistered {
                 solver: solver_addr,
                 public_key: vector::empty(),
-                connected_chain_evm_addr: option::none(),
                 connected_chain_mvm_addr: option::none(),
+                connected_chain_evm_addr: option::none(),
                 connected_chain_svm_addr: option::none(),
                 timestamp: 0,
             });
@@ -485,8 +485,8 @@ module mvmt_intent::solver_registry {
             event::emit(SolverRegistered {
                 solver: solver_addr,
                 public_key: solver_info.public_key,
-                connected_chain_evm_addr: solver_info.connected_chain_evm_addr,
                 connected_chain_mvm_addr: solver_info.connected_chain_mvm_addr,
+                connected_chain_evm_addr: solver_info.connected_chain_evm_addr,
                 connected_chain_svm_addr: solver_info.connected_chain_svm_addr,
                 timestamp: solver_info.registered_at,
             });

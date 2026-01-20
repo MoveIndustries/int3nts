@@ -32,8 +32,9 @@ fn create_solver_registry_resource(
             "key": solver_addr,
             "value": {
                 "public_key": DUMMY_PUBLIC_KEY,
-                "connected_chain_evm_addr": {"vec": []}, // None
                 "connected_chain_mvm_addr": {"vec": [mvm_addr]}, // Some(address)
+                "connected_chain_evm_addr": {"vec": []}, // None
+                "connected_chain_svm_addr": {"vec": []}, // None
                 "registered_at": DUMMY_REGISTERED_AT
             }
         })
@@ -248,8 +249,9 @@ fn create_solver_registry_resource_with_evm_address_hex_string(
             "key": solver_addr,
             "value": {
                 "public_key": DUMMY_PUBLIC_KEY,
-                "connected_chain_evm_addr": {"vec": [evm_addr]}, // Some(vector<u8>) as hex string
                 "connected_chain_mvm_addr": {"vec": []}, // None
+                "connected_chain_evm_addr": {"vec": [evm_addr]}, // Some(vector<u8>) as hex string
+                "connected_chain_svm_addr": {"vec": []}, // None
                 "registered_at": DUMMY_REGISTERED_AT
             }
         })
@@ -296,8 +298,9 @@ fn create_solver_registry_resource_with_evm_address_array(
             "key": solver_addr,
             "value": {
                 "public_key": DUMMY_PUBLIC_KEY,
-                "connected_chain_evm_addr": {"vec": [bytes]}, // Some(vector<u8>) as array
                 "connected_chain_mvm_addr": {"vec": []}, // None
+                "connected_chain_evm_addr": {"vec": [bytes]}, // Some(vector<u8>) as array
+                "connected_chain_svm_addr": {"vec": []}, // None
                 "registered_at": DUMMY_REGISTERED_AT
             }
         })
@@ -415,8 +418,9 @@ fn create_solver_registry_resource_with_stripped_zeros(
             "key": solver_addr,
             "value": {
                 "public_key": DUMMY_PUBLIC_KEY,
-                "connected_chain_evm_addr": {"vec": []},
                 "connected_chain_mvm_addr": {"vec": [mvm_addr]},
+                "connected_chain_evm_addr": {"vec": []},
+                "connected_chain_svm_addr": {"vec": []},
                 "registered_at": DUMMY_REGISTERED_AT
             }
         })
@@ -425,8 +429,9 @@ fn create_solver_registry_resource_with_stripped_zeros(
             "key": solver_addr,
             "value": {
                 "public_key": DUMMY_PUBLIC_KEY,
-                "connected_chain_evm_addr": {"vec": []},
                 "connected_chain_mvm_addr": {"vec": []},
+                "connected_chain_evm_addr": {"vec": []},
+                "connected_chain_svm_addr": {"vec": []},
                 "registered_at": DUMMY_REGISTERED_AT
             }
         })
@@ -512,8 +517,9 @@ async fn test_get_solver_evm_address_leading_zero_mismatch() {
         "key": solver_addr,
         "value": {
             "public_key": DUMMY_PUBLIC_KEY,
-            "connected_chain_evm_addr": {"vec": [solver_connected_chain_evm_addr]},
             "connected_chain_mvm_addr": {"vec": []},
+            "connected_chain_evm_addr": {"vec": [solver_connected_chain_evm_addr]},
+            "connected_chain_svm_addr": {"vec": []},
             "registered_at": DUMMY_REGISTERED_AT
         }
     });

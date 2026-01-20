@@ -37,8 +37,9 @@ pub fn create_solver_registry_resource_with_mvm_address(
             "key": solver_addr,
             "value": {
                 "public_key": DUMMY_PUBLIC_KEY,
-                "connected_chain_evm_addr": {"vec": []},
                 "connected_chain_mvm_addr": {"vec": [mvm_addr]},
+                "connected_chain_evm_addr": {"vec": []},
+                "connected_chain_svm_addr": {"vec": []},
                 "registered_at": DUMMY_REGISTERED_AT
             }
         })
@@ -47,8 +48,9 @@ pub fn create_solver_registry_resource_with_mvm_address(
             "key": solver_addr,
             "value": {
                 "public_key": DUMMY_PUBLIC_KEY,
-                "connected_chain_evm_addr": {"vec": []},
                 "connected_chain_mvm_addr": {"vec": []},
+                "connected_chain_evm_addr": {"vec": []},
+                "connected_chain_svm_addr": {"vec": []},
                 "registered_at": DUMMY_REGISTERED_AT
             }
         })
@@ -85,8 +87,9 @@ pub fn create_solver_registry_resource_with_evm_address(
             "key": solver_addr,
             "value": {
                 "public_key": DUMMY_PUBLIC_KEY,
-                "connected_chain_evm_addr": {"vec": [bytes]}, // Some(vector<u8>)
                 "connected_chain_mvm_addr": {"vec": []}, // None
+                "connected_chain_evm_addr": {"vec": [bytes]}, // Some(vector<u8>)
+                "connected_chain_svm_addr": {"vec": []}, // None
                 "registered_at": DUMMY_REGISTERED_AT
             }
         })
@@ -96,8 +99,9 @@ pub fn create_solver_registry_resource_with_evm_address(
             "key": solver_addr,
             "value": {
                 "public_key": DUMMY_PUBLIC_KEY,
-                "connected_chain_evm_addr": {"vec": []}, // None
                 "connected_chain_mvm_addr": {"vec": []}, // None
+                "connected_chain_evm_addr": {"vec": []}, // None
+                "connected_chain_svm_addr": {"vec": []}, // None
                 "registered_at": DUMMY_REGISTERED_AT
             }
         })
