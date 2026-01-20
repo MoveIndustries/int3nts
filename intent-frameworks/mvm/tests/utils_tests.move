@@ -6,6 +6,16 @@ module mvmt_intent::utils_tests {
     use mvmt_intent::test_utils;
 
     // ============================================================================
+    // TEST CONSTANTS
+    // ============================================================================
+
+    /// Dummy intent ID 1 (used in single-transfer tests and as first ID in multiple-transfer test)
+    const DUMMY_INTENT_ID_1: address = @0x1111111111111111111111111111111111111111111111111111111111111111;
+
+    /// Dummy intent ID 2 (used in multiple-transfer test to verify different intent IDs work correctly)
+    const DUMMY_INTENT_ID_2: address = @0x2222222222222222222222222222222222222222222222222222222222222222;
+
+    // ============================================================================
     // TESTS
     // ============================================================================
 
@@ -29,7 +39,7 @@ module mvmt_intent::utils_tests {
         assert!(primary_fungible_store::balance(signer::address_of(recipient), metadata) == 0, 2);
         
         // Transfer 50 tokens with intent_id
-        let intent_id = @0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
+        let intent_id = DUMMY_INTENT_ID_1;
         utils::transfer_with_intent_id(
             sender,
             signer::address_of(recipient),
@@ -59,7 +69,7 @@ module mvmt_intent::utils_tests {
         let (metadata, _) = test_utils::register_and_mint_tokens(aptos_framework, sender, 100);
         
         // Transfer 0 tokens
-        let intent_id = @0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
+        let intent_id = DUMMY_INTENT_ID_1;
         utils::transfer_with_intent_id(
             sender,
             signer::address_of(recipient),
@@ -90,7 +100,7 @@ module mvmt_intent::utils_tests {
         let (metadata, _) = test_utils::register_and_mint_tokens(aptos_framework, sender, 50);
         
         // Try to transfer 100 tokens (more than available)
-        let intent_id = @0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
+        let intent_id = DUMMY_INTENT_ID_1;
         utils::transfer_with_intent_id(
             sender,
             signer::address_of(recipient),
@@ -116,7 +126,7 @@ module mvmt_intent::utils_tests {
         let (metadata, _) = test_utils::register_and_mint_tokens(aptos_framework, sender, 100);
         
         // First transfer with intent_id_1
-        let intent_id_1 = @0x1111111111111111111111111111111111111111111111111111111111111111;
+        let intent_id_1 = DUMMY_INTENT_ID_1;
         utils::transfer_with_intent_id(
             sender,
             signer::address_of(recipient),
@@ -126,7 +136,7 @@ module mvmt_intent::utils_tests {
         );
         
         // Second transfer with intent_id_2
-        let intent_id_2 = @0x2222222222222222222222222222222222222222222222222222222222222222;
+        let intent_id_2 = DUMMY_INTENT_ID_2;
         utils::transfer_with_intent_id(
             sender,
             signer::address_of(recipient),

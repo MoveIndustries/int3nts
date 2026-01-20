@@ -1,6 +1,8 @@
 //! Unit tests for EVM chain clients
 
+use hex;
 use serde_json::json;
+use sha3::{Digest, Keccak256};
 use solver::chains::ConnectedEvmClient;
 use solver::config::EvmChainConfig;
 use wiremock::matchers::method;
@@ -49,8 +51,10 @@ async fn test_get_escrow_events_evm_success() {
 
     // EscrowInitialized event signature hash
     // keccak256("EscrowInitialized(uint256,address,address,address,address,uint256,uint256)")
-    let event_topic =
-        "0x104303e46c846fc43f53cd6c4ab9ce96acdf68dcee176382e71fc812218a25a0";
+    let event_signature = "EscrowInitialized(uint256,address,address,address,address,uint256,uint256)";
+    let mut hasher = Keccak256::new();
+    hasher.update(event_signature.as_bytes());
+    let event_topic = format!("0x{}", hex::encode(hasher.finalize()));
 
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({

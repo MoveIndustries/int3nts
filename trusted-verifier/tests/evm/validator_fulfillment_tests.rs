@@ -136,10 +136,11 @@ fn test_extract_evm_fulfillment_params_amount_exceeds_u64_max() {
     let amount_exceeding_u64_max =
         "0000000000000000000000000000000000000000000000010000000000000000"; // u64::MAX + 1, padded to 32 bytes
 
+    let intent_id_hex = DUMMY_INTENT_ID.strip_prefix("0x").unwrap();
     let calldata = format!(
         "a9059cbb000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa{}{}",
         amount_exceeding_u64_max,
-        "1111111111111111111111111111111111111111111111111111111111111111" // intent_id
+        intent_id_hex
     );
 
     let tx = EvmTransaction {
@@ -178,10 +179,11 @@ fn test_extract_evm_fulfillment_params_amount_equals_u64_max() {
     // Padded to 32 bytes (64 hex chars): 000000000000000000000000000000000000000000000000ffffffffffffffff
     let amount_u64_max = "000000000000000000000000000000000000000000000000ffffffffffffffff"; // u64::MAX, padded to 32 bytes
 
+    let intent_id_hex = DUMMY_INTENT_ID.strip_prefix("0x").unwrap();
     let calldata = format!(
         "a9059cbb000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa{}{}",
         amount_u64_max,
-        "1111111111111111111111111111111111111111111111111111111111111111" // intent_id
+        intent_id_hex
     );
 
     let tx = EvmTransaction {

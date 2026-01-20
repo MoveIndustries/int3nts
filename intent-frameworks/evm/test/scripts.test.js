@@ -5,6 +5,16 @@ const { main: getTokenBalance } = require("../scripts/get-token-balance");
 const { main: transferWithIntentId } = require("../scripts/transfer-with-intent-id");
 
 // ============================================================================
+// TEST CONSTANTS
+// ============================================================================
+
+/// Dummy intent ID 1 for transfer tests
+const DUMMY_INTENT_ID_1 = "0x1111111111111111111111111111111111111111111111111111111111111111";
+
+/// Dummy intent ID 2 for transfer tests
+const DUMMY_INTENT_ID_2 = "0x2222222222222222222222222222222222222222222222222222222222222222";
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
@@ -227,7 +237,7 @@ describe("EVM Scripts - Utility Functions", function () {
     /// Why: The verifier needs to extract intent_id from transaction calldata to validate outflow fulfillments. The script must format calldata correctly (100 bytes: selector + recipient + amount + intent_id).
     it("Should perform ERC20 transfer with intent_id in calldata", async function () {
       const transferAmount = ethers.parseEther("1000");
-      const intentId = "0x1111111111111111111111111111111111111111111111111111111111111111";
+      const intentId = DUMMY_INTENT_ID_1;
       
       // Get initial balances
       const aliceBalanceBefore = await token.balanceOf(alice.address);
@@ -284,7 +294,7 @@ describe("EVM Scripts - Utility Functions", function () {
     /// Why: Intent IDs from Move chain may have varying formats (with/without 0x prefix, different hex casing). The script must normalize and pad them correctly.
     it("Should handle different intent_id formats", async function () {
       const transferAmount = ethers.parseEther("500");
-      const intentId = "0x2222222222222222222222222222222222222222222222222222222222222222";
+      const intentId = DUMMY_INTENT_ID_2;
       
       process.env.TOKEN_ADDR = tokenAddress;
       process.env.RECIPIENT = alice.address;
@@ -342,7 +352,7 @@ describe("EVM Scripts - Utility Functions", function () {
     /// Why: E2E tests transfer 1000 ETH (1000000000000000000000 wei). The script must correctly encode large amounts in calldata without overflow.
     it("Should handle large transfer amounts", async function () {
       const transferAmount = ethers.parseEther("1000000");
-      const intentId = "0x2222222222222222222222222222222222222222222222222222222222222222";
+      const intentId = DUMMY_INTENT_ID_2;
       
       // Ensure Bob has enough tokens
       await token.connect(deployer).mint(bob.address, transferAmount);
@@ -372,7 +382,7 @@ describe("EVM Scripts - Utility Functions", function () {
     /// Why: The verifier expects a specific calldata format. Incorrect length would cause parsing failures. This ensures the script matches the expected format.
     it("Should verify calldata length is 100 bytes", async function () {
       const transferAmount = ethers.parseEther("1000");
-      const intentId = "0x1111111111111111111111111111111111111111111111111111111111111111";
+      const intentId = DUMMY_INTENT_ID_1;
       
       process.env.TOKEN_ADDR = tokenAddress;
       process.env.RECIPIENT = alice.address;
