@@ -4,7 +4,7 @@ This guide covers how to run the verifier locally with the dual‑chain setup, t
 
 ## Configuration
 
-File: `trusted-verifier/config/verifier.toml` (relative to project root)
+File: `verifier/config/verifier.toml` (relative to project root)
 
 - **hub_chain**: `rpc_url`, `chain_id`, `intent_module_addr` (required)
 - **connected_chain_mvm**: `rpc_url`, `chain_id`, `intent_module_addr`, `escrow_module_addr` (optional, for MVM escrow monitoring)

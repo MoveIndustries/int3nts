@@ -107,7 +107,7 @@ async function main() {
         console.error("   But signature recovers to:", recoveredAddr);
         console.error("   Action: Either redeploy contract with correct verifier address,");
         console.error("   or verify the verifier's EVM address matches the contract.");
-        console.error("   Get verifier EVM address: cargo run --bin get_verifier_eth_address --manifest-path trusted-verifier/Cargo.toml");
+        console.error("   Get verifier EVM address: cargo run --bin get_verifier_eth_address --manifest-path verifier/Cargo.toml");
       }
     } catch (e) {
       console.log("Failed to recover address:", e.message);

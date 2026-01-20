@@ -26,7 +26,7 @@ echo "================================================================"
 echo ""
 echo " Step 1: Build bins and pre-pull docker images"
 echo "========================================"
-pushd "$PROJECT_ROOT/trusted-verifier" > /dev/null
+pushd "$PROJECT_ROOT/verifier" > /dev/null
 cargo build --bin trusted-verifier --bin generate_keys 2>&1 | tail -5
 popd > /dev/null
 echo "   ✅ Verifier: trusted-verifier, generate_keys"

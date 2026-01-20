@@ -13,7 +13,7 @@ A framework for creating programmable intents. Supports single-chain intents (un
 ## Components
 
 - **[Intent Frameworks](intent-frameworks/README.md)** - Move, EVM, and SVM intent frameworks
-- **[Trusted Verifier](trusted-verifier/README.md)** - Chain monitoring and approval signature service
+- **[Trusted Verifier](verifier/README.md)** - Chain monitoring and approval signature service
 - **[Solver Tools](solver/README.md)** - Solver service and tools for automatic signature generation and transaction templates
 - **[Testing Infrastructure](testing-infra/README.md)** - Chain setup and testing infrastructure
 - **[Frontend](frontend/README.md)** - Next.js web interface for intent creation and tracking

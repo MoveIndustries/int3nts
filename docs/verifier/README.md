@@ -32,7 +32,7 @@ Supports monitoring multiple connected chains simultaneously. MVM chains monitor
 ## Project Structure
 
 ```text
-trusted-verifier/
+verifier/
 ├── config/          # Configuration files
 ├── src/
 │   ├── monitor/     # Event monitoring (hub and connected chains)
@@ -57,7 +57,7 @@ This strict pattern prevents forged memos from being accepted without a matching
 
 ## Quick Start
 
-See the [component README](../../trusted-verifier/README.md) for quick start commands.
+See the [component README](../../verifier/README.md) for quick start commands.
 
 ## API Endpoints
 

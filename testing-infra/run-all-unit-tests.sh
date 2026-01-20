@@ -5,7 +5,7 @@
 # Don't use set -e so we can capture all test results even if some fail
 
 echo "Running Verifier tests..."
-VERIFIER_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-verifier && cargo test --quiet 2>&1") || {
+VERIFIER_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd verifier && cargo test --quiet 2>&1") || {
     echo "Verifier tests failed:"
     echo "$VERIFIER_TEST_OUTPUT"
 }

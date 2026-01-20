@@ -16,7 +16,7 @@ Escrow test alignment for VM intent framework contracts:
 
 Test alignment for the trusted verifier:
 
-- See [`trusted-verifier/tests/COMPLETENESS.md`](../../trusted-verifier/tests/COMPLETENESS.md)
+- See [`verifier/tests/COMPLETENESS.md`](../../verifier/tests/COMPLETENESS.md)
 
 ## Solver
 

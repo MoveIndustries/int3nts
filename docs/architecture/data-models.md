@@ -8,7 +8,7 @@ For detailed field-by-field documentation, see:
 - [Move event structures](../../intent-frameworks/mvm/sources/fa_intent.move) - LimitOrderEvent, LimitOrderFulfillmentEvent
 - [EVM Escrow documentation](../../docs/intent-frameworks/evm/README.md)
 - [SVM Escrow documentation](../../docs/intent-frameworks/svm/README.md)
-- [Rust verifier structures](../../trusted-verifier/src/monitor/mod.rs) - RequestIntentEvent, EscrowEvent, FulfillmentEvent, EscrowApproval
+- [Rust verifier structures](../../verifier/src/monitor/mod.rs) - RequestIntentEvent, EscrowEvent, FulfillmentEvent, EscrowApproval
 
 ## Overview
 
@@ -31,13 +31,13 @@ The verifier service normalizes blockchain events from different chains into com
 
 **Key Normalization Patterns**:
 
-- **RequestIntentEvent** (`trusted-verifier/src/monitor/mod.rs`) - Normalizes `LimitOrderEvent` from Move hub chain
-- **EscrowEvent** (`trusted-verifier/src/monitor/mod.rs`) - Normalizes `OracleLimitOrderEvent` (Move) and `EscrowInitialized` (EVM) from connected chains
-- **FulfillmentEvent** (`trusted-verifier/src/monitor/mod.rs`) - Normalizes `LimitOrderFulfillmentEvent` from hub chain
-- **EscrowApproval** (`trusted-verifier/src/monitor/mod.rs`) - Cryptographic approval structure for escrow release
-- **ChainType** (`trusted-verifier/src/monitor/mod.rs`) - Enum representing blockchain type (Mvm, Evm, Svm) for escrow events
+- **RequestIntentEvent** (`verifier/src/monitor/mod.rs`) - Normalizes `LimitOrderEvent` from Move hub chain
+- **EscrowEvent** (`verifier/src/monitor/mod.rs`) - Normalizes `OracleLimitOrderEvent` (Move) and `EscrowInitialized` (EVM) from connected chains
+- **FulfillmentEvent** (`verifier/src/monitor/mod.rs`) - Normalizes `LimitOrderFulfillmentEvent` from hub chain
+- **EscrowApproval** (`verifier/src/monitor/mod.rs`) - Cryptographic approval structure for escrow release
+- **ChainType** (`verifier/src/monitor/mod.rs`) - Enum representing blockchain type (Mvm, Evm, Svm) for escrow events
 
-**Normalization Purpose**: These structures abstract away chain-specific differences (Move address types vs EVM address types, BCS vs ABI encoding) to enable unified cross-chain validation logic. See [`trusted-verifier/src/monitor/mod.rs`](../../trusted-verifier/src/monitor/mod.rs) for complete field definitions.
+**Normalization Purpose**: These structures abstract away chain-specific differences (Move address types vs EVM address types, BCS vs ABI encoding) to enable unified cross-chain validation logic. See [`verifier/src/monitor/mod.rs`](../../verifier/src/monitor/mod.rs) for complete field definitions.
 
 ## Cross-Chain Data Linking
 

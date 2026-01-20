@@ -265,7 +265,7 @@ graph TB
 
 #### Event Monitoring
 
-- **`trusted-verifier/src/monitor/`**
+- **`verifier/src/monitor/`**
   - **`mod.rs`**: Main monitor module with `EventMonitor` struct, shared types, and generic monitoring logic
   - **`inflow_mvm.rs`**: Move VM-specific escrow event polling (`poll_mvm_escrow_events()`)
   - **`inflow_evm.rs`**: EVM-specific escrow event polling (`poll_evm_escrow_events()`)
@@ -276,7 +276,7 @@ graph TB
 
 #### Cross-Chain Validation
 
-- **`trusted-verifier/src/validator/`**
+- **`verifier/src/validator/`**
   - **`mod.rs`**: Module declarations and re-exports of public types and functions
   - **`generic.rs`**: Shared structures (`ValidationResult`, `FulfillmentTransactionParams`) and `CrossChainValidator` struct definition and implementation
   - **`inflow_generic.rs`**: Chain-agnostic inflow validation logic (`validate_request_intent_fulfillment()`)
@@ -293,7 +293,7 @@ graph TB
 
 #### Cryptographic Operations
 
-- **`trusted-verifier/src/crypto/mod.rs`**
+- **`verifier/src/crypto/mod.rs`**
   - **Purpose**: Cryptographic operations for approval signatures
   - **Key Structures**: `ApprovalSignature`, `CryptoService`
   - **Key Functions**: `create_mvm_approval_signature(intent_id)`, `create_evm_approval_signature(intent_id)`, `verify_signature()`, `get_public_key()`
@@ -301,7 +301,7 @@ graph TB
 
 #### REST API Server
 
-- **`trusted-verifier/src/api/`**
+- **`verifier/src/api/`**
   - **`mod.rs`**: Main API module with route definitions, shared handlers, and `ApiServer` struct
   - **`outflow_mvm.rs`**: Move VM-specific transaction querying (`query_mvm_fulfillment_transaction()`)
   - **`outflow_evm.rs`**: EVM-specific transaction querying (`query_evm_fulfillment_transaction()`)
@@ -312,44 +312,44 @@ graph TB
 
 #### Configuration Management
 
-- **`trusted-verifier/src/config/mod.rs`**
+- **`verifier/src/config/mod.rs`**
   - **Purpose**: Service configuration management
   - **Key Structures**: `Config`, `ChainConfig`, `EvmChainConfig`, `VerifierConfig`, `ApiConfig`
   - **Responsibilities**: Configuration loading, validation, chain-specific settings
 
 #### Move VM Client
 
-- **`trusted-verifier/src/mvm_client.rs`**
+- **`verifier/src/mvm_client.rs`**
   - **Purpose**: Move VM blockchain client for event querying
   - **Key Functions**: `get_events()`, `get_limit_order_events()`, `get_escrow_events()`, `get_intent_solver()`, `get_solver_evm_address()`, `call_view_function()`
   - **Responsibilities**: Blockchain RPC communication, event parsing, solver registry queries
 
 #### EVM Client
 
-- **`trusted-verifier/src/evm_client.rs`**
+- **`verifier/src/evm_client.rs`**
   - **Purpose**: EVM blockchain client for event querying via JSON-RPC
   - **Key Functions**: `get_escrow_initialized_events()`, `get_block_number()`
   - **Responsibilities**: EVM JSON-RPC communication, event log parsing, EscrowInitialized event extraction
 
 #### Core Library
 
-- **`trusted-verifier/src/lib.rs`**
+- **`verifier/src/lib.rs`**
   - **Purpose**: Library root, re-exports common types
   - **Responsibilities**: Module organization, public API definition
 
 #### Main Entry Point
 
-- **`trusted-verifier/src/main.rs`**
+- **`verifier/src/main.rs`**
   - **Purpose**: Application entry point
   - **Responsibilities**: Service initialization, event loop orchestration
 
 #### Utility Binaries
 
-- **`trusted-verifier/src/bin/generate_keys.rs`**
+- **`verifier/src/bin/generate_keys.rs`**
   - **Purpose**: Key pair generation utility
   - **Domain**: Development tooling
 
-- **`trusted-verifier/src/bin/get_verifier_eth_address.rs`**
+- **`verifier/src/bin/get_verifier_eth_address.rs`**
   - **Purpose**: Derive Ethereum address from Ed25519 key
   - **Domain**: Development tooling
 

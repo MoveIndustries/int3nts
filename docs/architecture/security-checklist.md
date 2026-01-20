@@ -47,7 +47,7 @@ Assume every endpoint will be abused. Attackers don't follow happy paths.
 
 | Component | File/Module | Checks |
 |-----------|-------------|--------|
-| Verifier API | `trusted-verifier/src/api/` | Rate limits, input validation |
+| Verifier API | `verifier/src/api/` | Rate limits, input validation |
 | Draft Intent Endpoint | `POST /draftintent` | Idempotency, rate limiting |
 | Signature Endpoint | `POST /draftintent/:id/signature` | FCFS protection, replay prevention |
 | Validation Endpoint | `POST /validate-outflow-fulfillment` | Input sanitization |
@@ -117,7 +117,7 @@ Auth working once doesn't mean auth is safe. Test edge cases.
 | Component | File | Checks |
 |-----------|------|--------|
 | Solver Registry | `intent-frameworks/mvm/sources/solver_registry.move` | Public key management |
-| Signature Verification | `trusted-verifier/src/crypto/` | Ed25519/ECDSA validation |
+| Signature Verification | `verifier/src/crypto/` | Ed25519/ECDSA validation |
 | Intent Creation | `create_inflow_intent`, `create_outflow_intent` | Solver signature verification |
 
 ---

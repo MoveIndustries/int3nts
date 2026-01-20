@@ -2,7 +2,7 @@
  * Shared test constants for frontend unit tests
  *
  * This module provides constants used across multiple test files, following
- * the same pattern as the Rust test helpers (trusted-verifier/tests/helpers.rs).
+ * the same pattern as the Rust test helpers (verifier/tests/helpers.rs).
  *
  * Constants are numbered sequentially (0x...0001, 0x...0002, etc.) to maintain
  * consistency and make them easily identifiable in test output.

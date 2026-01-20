@@ -14,7 +14,7 @@
 #   - Solver service running (to sign drafts)
 #   - Movement CLI installed
 #   - .env.testnet with MOVEMENT_REQUESTER_PRIVATE_KEY
-#   - trusted-verifier/config/verifier_testnet.toml configured
+#   - verifier/config/verifier_testnet.toml configured
 #
 # Usage:
 #   ./create-intent.sh inflow <amount>   # Create inflow intent (USDC Base → USDC Movement)
@@ -161,7 +161,7 @@ if [ ! -f "$ASSETS_CONFIG_FILE" ]; then
 fi
 
 # Load verifier config
-VERIFIER_CONFIG="$PROJECT_ROOT/trusted-verifier/config/verifier_testnet.toml"
+VERIFIER_CONFIG="$PROJECT_ROOT/verifier/config/verifier_testnet.toml"
 
 if [ ! -f "$VERIFIER_CONFIG" ]; then
     echo "❌ ERROR: verifier_testnet.toml not found at $VERIFIER_CONFIG"

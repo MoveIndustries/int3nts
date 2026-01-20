@@ -25,10 +25,10 @@ log_and_echo "=========================================================="
 log_and_echo ""
 log_and_echo " Step 1: Build bins and pre-pull docker images"
 log_and_echo "========================================"
-pushd "$PROJECT_ROOT/trusted-verifier" > /dev/null
-cargo build --bin trusted-verifier --bin generate_keys 2>&1 | tail -5
+pushd "$PROJECT_ROOT/verifier" > /dev/null
+cargo build --bin verifier --bin generate_keys 2>&1 | tail -5
 popd > /dev/null
-log_and_echo "   ✅ Verifier: trusted-verifier, generate_keys"
+log_and_echo "   ✅ Verifier: verifier, generate_keys"
 
 pushd "$PROJECT_ROOT/solver" > /dev/null
 cargo build --bin solver 2>&1 | tail -5
