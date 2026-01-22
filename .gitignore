@@ -37,7 +37,6 @@ testing-infra/ci-e2e/.verifier-keys.env
 
 # Editor and OS files
 .idea
-.vscode
 *.suo
 *.ntvs*
 *.njsproj
