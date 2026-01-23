@@ -7,14 +7,12 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use warp::{http::{Method, StatusCode}, Filter, Rejection, Reply};
-use warp::hyper::body::Bytes;
 
 use crate::config::Config;
 use crate::crypto::CryptoService;
 use crate::monitor::EventMonitor;
-use crate::storage::DraftintentStore;
 use crate::validator::CrossChainValidator;
 
 // ============================================================================
@@ -175,20 +173,20 @@ pub async fn is_intent_approved_handler(
     let monitor = monitor.read().await;
     let normalized = crate::monitor::normalize_intent_id(&intent_id);
     let approved = monitor.is_intent_approved(&intent_id).await;
-    
+
     tracing::info!(
         "Checking approval status: intent_id={}, normalized={}, approved={}",
         intent_id,
         normalized,
         approved
     );
-    
+
     #[derive(serde::Serialize)]
     struct ApprovalStatus {
         intent_id: String,
         approved: bool,
     }
-    
+
     Ok(warp::reply::json(&ApiResponse {
         success: true,
         data: Some(ApprovalStatus { intent_id, approved }),
@@ -288,24 +286,24 @@ pub async fn get_exchange_rate_handler(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     use std::collections::HashMap;
     use url::Url;
-    
+
     // Parse query parameters
     let parsed = Url::parse(&format!("http://dummy?{}", query))
         .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Invalid query string: {}", e))))?;
-    
+
     let params: HashMap<String, String> = parsed
         .query_pairs()
         .into_owned()
         .collect();
-    
+
     let offered_chain_id = params.get("offered_chain_id")
         .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Missing offered_chain_id parameter".to_string())))?;
     let offered_token = params.get("offered_token")
         .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Missing offered_token parameter".to_string())))?;
-    
+
     let desired_chain_id = params.get("desired_chain_id");
     let desired_token = params.get("desired_token");
-    
+
     // Get acceptance config
     let acceptance = config.acceptance.as_ref()
         .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Acceptance criteria not configured".to_string())))?;
@@ -454,7 +452,7 @@ fn create_cors_filter(allowed_origins: &[String]) -> warp::cors::Builder {
         Method::DELETE,
         Method::OPTIONS,
     ];
-    
+
     if allowed_origins.contains(&"*".to_string()) {
         warp::cors()
             .allow_any_origin()
@@ -513,10 +511,10 @@ pub async fn handle_rejection(rej: Rejection) -> Result<impl Reply, std::convert
 // API SERVER IMPLEMENTATION
 // ============================================================================
 
-/// REST API server for the trusted verifier service.
+/// REST API server for the trusted GMP service.
 ///
 /// This server exposes HTTP endpoints for external systems to interact with
-/// the verifier service, including event monitoring, validation, and signature
+/// the service, including event monitoring, validation, and signature
 /// retrieval.
 pub struct ApiServer {
     /// Service configuration
@@ -527,8 +525,6 @@ pub struct ApiServer {
     validator: Arc<RwLock<CrossChainValidator>>,
     /// Cryptographic service for signature operations
     crypto_service: Arc<RwLock<CryptoService>>,
-    /// Draft intent store for negotiation routing
-    draft_store: Arc<RwLock<DraftintentStore>>,
 }
 
 impl ApiServer {
@@ -558,7 +554,6 @@ impl ApiServer {
             monitor: Arc::new(RwLock::new(monitor)),
             validator: Arc::new(RwLock::new(validator)),
             crypto_service: Arc::new(RwLock::new(crypto_service)),
-            draft_store: Arc::new(RwLock::new(DraftintentStore::new())),
         }
     }
 
@@ -606,20 +601,18 @@ impl ApiServer {
         &self,
     ) -> impl Filter<Extract = impl warp::Reply, Error = std::convert::Infallible> + Clone {
         use super::inflow_generic;
-        use super::negotiation;
         use super::outflow_generic;
 
         let _config = self.config.clone();
         let monitor = self.monitor.clone();
         let _validator = self.validator.clone();
         let crypto_service = self.crypto_service.clone();
-        let draft_store = self.draft_store.clone();
 
         // Health check endpoint - returns service status
         let health = warp::path("health").and(warp::get()).map(|| {
             warp::reply::json(&ApiResponse::<String> {
                 success: true,
-                data: Some("Trusted Verifier Service is running".to_string()),
+                data: Some("Trusted GMP Service is running".to_string()),
                 error: None,
             })
         });
@@ -664,7 +657,7 @@ impl ApiServer {
             .and(warp::get())
             .and(with_crypto_service(crypto_service.clone()))
             .and_then(get_public_key_handler);
-        
+
         // Get exchange rate endpoint - returns desired token and exchange rate for offered token
         let exchange_rate_config = self.config.clone();
         let exchange_rate = warp::path("acceptance")
@@ -676,7 +669,6 @@ impl ApiServer {
                     get_exchange_rate_handler(config, query).await
                 }
             });
-        
 
         // Outflow validation endpoint - validates connected chain transactions for outflow intents
         // Signature is for hub chain intent fulfillment
@@ -700,90 +692,6 @@ impl ApiServer {
             .and(with_monitor(validate_inflow_monitor))
             .and_then(inflow_generic::handle_inflow_escrow_validation);
 
-        // Negotiation routing endpoints
-        // POST /draftintent - Submit draft intent (open to any solver)
-        let create_draft_store = draft_store.clone();
-        let create_draft = warp::path("draftintent")
-            .and(warp::path::end()) // Exact match - don't match /draftintent/:id/...
-            .and(warp::post())
-            .and(warp::body::bytes())
-            .and_then(move |body: Bytes| {
-                let store = create_draft_store.clone();
-                async move {
-                    // Log raw request body for debugging
-                    let body_str = String::from_utf8_lossy(&body);
-                    debug!("POST /draftintent - Received body: {}", body_str);
-
-                    // Deserialize and handle
-                    match serde_json::from_slice::<negotiation::DraftintentRequest>(&body) {
-                        Ok(request) => negotiation::create_draftintent_handler(request, store).await,
-                        Err(e) => {
-                            error!("Draft intent deserialization failed: {}. Body: {}", e, body_str);
-                            Err(warp::reject::custom(JsonDeserializeError(format!("Invalid JSON: {}", e))))
-                        }
-                    }
-                }
-            });
-
-        // GET /draftintent/:id - Get draft intent status
-        let get_draft_store = draft_store.clone();
-        let get_draft = warp::path("draftintent")
-            .and(warp::path::param())
-            .and(warp::path::end()) // Exact match - don't match /draftintent/:id/signature
-            .and(warp::get())
-            .and(negotiation::with_draft_store(get_draft_store))
-            .and_then(negotiation::get_draftintent_handler);
-
-        // GET /draftintents/pending - Get all pending drafts (all solvers see all drafts)
-        let get_pending_store = draft_store.clone();
-        let get_pending = warp::path("draftintents")
-            .and(warp::path("pending"))
-            .and(warp::get())
-            .and(negotiation::with_draft_store(get_pending_store))
-            .and_then(negotiation::get_pending_drafts_handler);
-
-        // POST /draftintent/:id/signature - Solver submits signature (FCFS)
-        let submit_sig_store = draft_store.clone();
-        let submit_sig_config = self.config.clone();
-        let submit_signature = warp::path("draftintent")
-            .and(warp::path::param())
-            .and(warp::path("signature"))
-            .and(warp::post())
-            .and(warp::body::bytes())
-            .and_then(move |draft_id: String, body: Bytes| {
-                let store = submit_sig_store.clone();
-                let config = submit_sig_config.clone();
-                async move {
-                    // Log raw request body for debugging
-                    let body_str = String::from_utf8_lossy(&body);
-                    debug!("POST /draftintent/{}/signature - Received body: {}", draft_id, body_str);
-
-                    // Deserialize and handle
-                    match serde_json::from_slice::<negotiation::SignatureSubmissionRequest>(&body) {
-                        Ok(request) => negotiation::submit_signature_handler(draft_id, request, store, config).await,
-                        Err(e) => {
-                            error!("Signature submission deserialization failed: {}. Body: {}", e, body_str);
-                            Err(warp::reject::custom(JsonDeserializeError(format!("Invalid JSON: {}", e))))
-                        }
-                    }
-                }
-            });
-
-        // GET /draftintent/:id/signature - Requester polls for signature
-        let get_sig_store = draft_store.clone();
-        let get_sig_config = self.config.clone();
-        let get_signature = warp::path("draftintent")
-            .and(warp::path::param())
-            .and(warp::path("signature"))
-            .and(warp::get())
-            .and(negotiation::with_draft_store(get_sig_store))
-            .and_then(move |draft_id: String, store: Arc<RwLock<DraftintentStore>>| {
-                let config = get_sig_config.clone();
-                async move {
-                    negotiation::get_signature_handler(draft_id, store, config).await
-                }
-            });
-
         // Combine all routes and apply rejection handler
         health
             .or(events)
@@ -794,11 +702,6 @@ impl ApiServer {
             .or(public_key)
             .or(validate_outflow)
             .or(validate_inflow)
-            .or(create_draft)
-            .or(get_draft)
-            .or(get_pending)
-            .or(submit_signature)
-            .or(get_signature)
             .or(exchange_rate)
             .with(create_cors_filter(&self.config.api.cors_origins))
             .recover(handle_rejection)

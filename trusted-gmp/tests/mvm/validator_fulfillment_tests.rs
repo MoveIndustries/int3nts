@@ -4,10 +4,10 @@
 //! from Move VM transactions for outflow fulfillment validation.
 
 use serde_json::json;
-use verifier::monitor::IntentEvent;
-use verifier::mvm_client::MvmTransaction;
-use verifier::validator::CrossChainValidator;
-use verifier::validator::{
+use trusted_gmp::monitor::IntentEvent;
+use trusted_gmp::mvm_client::MvmTransaction;
+use trusted_gmp::validator::CrossChainValidator;
+use trusted_gmp::validator::{
     extract_mvm_fulfillment_params, validate_outflow_fulfillment, FulfillmentTransactionParams,
 };
 use wiremock::matchers::{method, path};

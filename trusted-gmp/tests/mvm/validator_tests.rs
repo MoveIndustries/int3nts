@@ -3,9 +3,9 @@
 //! These tests verify that MVM escrow solver validation works correctly,
 //! including registry lookup, address matching, and error handling.
 
-use verifier::config::Config;
-use verifier::monitor::IntentEvent;
-use verifier::validator::CrossChainValidator;
+use trusted_gmp::config::Config;
+use trusted_gmp::monitor::IntentEvent;
+use trusted_gmp::validator::CrossChainValidator;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 #[path = "../mod.rs"]

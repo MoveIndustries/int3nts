@@ -3,7 +3,7 @@
 //! These tests verify EVM chain configuration loading, parsing, and defaults
 //! without requiring external services.
 
-use verifier::config::Config;
+use trusted_gmp::config::Config;
 
 #[path = "../mod.rs"]
 mod test_helpers;
@@ -13,7 +13,7 @@ use test_helpers::{build_test_config_with_evm, DUMMY_ESCROW_CONTRACT_ADDR_EVM, D
 /// Why: Verify EvmChainConfig struct fields are properly defined
 #[test]
 fn test_evm_chain_config_structure() {
-    use verifier::config::EvmChainConfig;
+    use trusted_gmp::config::EvmChainConfig;
 
     let evm_config = EvmChainConfig {
         name: "Connected EVM Chain".to_string(),
@@ -40,7 +40,7 @@ fn test_evm_chain_config_structure() {
 /// Why: Verify connected_chain_evm accepts actual values when configured
 #[test]
 fn test_connected_chain_evm_with_values() {
-    use verifier::config::EvmChainConfig;
+    use trusted_gmp::config::EvmChainConfig;
     let mut config = Config::default();
 
     config.connected_chain_evm = Some(EvmChainConfig {

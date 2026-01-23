@@ -3,7 +3,7 @@
 //! These tests verify that EVM escrow solver validation works correctly,
 //! including registry lookup, address matching, and error handling.
 
-use verifier::monitor::IntentEvent;
+use trusted_gmp::monitor::IntentEvent;
 #[path = "../mod.rs"]
 mod test_helpers;
 use test_helpers::{

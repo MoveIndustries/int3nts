@@ -3,8 +3,8 @@
 //! These tests verify Move VM-specific escrow validation logic, including
 //! solver address matching for Move VM escrows.
 
-use verifier::monitor::{EscrowEvent, IntentEvent};
-use verifier::validator::CrossChainValidator;
+use trusted_gmp::monitor::{EscrowEvent, IntentEvent};
+use trusted_gmp::validator::CrossChainValidator;
 #[path = "../mod.rs"]
 mod test_helpers;
 use test_helpers::{

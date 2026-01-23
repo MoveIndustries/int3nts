@@ -1,6 +1,6 @@
 //! REST API Server Module
 //!
-//! This module provides a REST API server for the trusted verifier service,
+//! This module provides a REST API server for the trusted GMP service,
 //! exposing endpoints for monitoring events, validating fulfillments, and
 //! retrieving approval signatures. It handles HTTP requests and provides
 //! JSON responses for external system integration.
@@ -25,14 +25,8 @@ mod outflow_evm;
 mod outflow_mvm;
 mod outflow_svm;
 
-// Negotiation routing module
-mod negotiation;
-
 // Re-export ApiServer for convenience
 pub use generic::ApiServer;
 // Re-export ApiResponse for testing
 #[allow(unused_imports)]
 pub use generic::ApiResponse;
-// Re-export negotiation validation functions for testing
-#[allow(unused_imports)]
-pub use negotiation::validate_signature_format;

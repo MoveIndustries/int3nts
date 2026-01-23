@@ -3,7 +3,7 @@
 use serde_json::json;
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
-use verifier::validator::extract_svm_fulfillment_params;
+use trusted_gmp::validator::extract_svm_fulfillment_params;
 
 #[path = "mod.rs"]
 mod test_helpers;

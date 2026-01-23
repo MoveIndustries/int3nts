@@ -3,9 +3,9 @@
 //! These tests verify configuration loading, parsing, and defaults
 //! without requiring external services.
 
-use verifier::config::{AcceptanceConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, TokenPairConfig};
-use verifier::monitor::ChainType;
-use verifier::validator::{get_chain_type_from_chain_id, normalize_address};
+use trusted_gmp::config::{AcceptanceConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, TokenPairConfig};
+use trusted_gmp::monitor::ChainType;
+use trusted_gmp::validator::{get_chain_type_from_chain_id, normalize_address};
 #[path = "mod.rs"]
 mod test_helpers;
 use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_INTENT_ID_FULL, DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_TOKEN_ADDR_FANTOM, DUMMY_VERIFIER_EVM_PUBKEY_HASH};
@@ -32,7 +32,7 @@ fn test_default_config_creation() {
 /// Why: Verify connected_chain_mvm accepts actual values when configured
 #[test]
 fn test_connected_chain_mvm_with_values() {
-    use verifier::config::ChainConfig;
+    use trusted_gmp::config::ChainConfig;
     let mut config = Config::default();
 
     config.connected_chain_mvm = Some(ChainConfig {

@@ -1,7 +1,7 @@
-//! Trusted Verifier Service Library
+//! Trusted GMP Service Library
 //!
-//! This crate provides a trusted verifier service that monitors escrow deposit events
-//! and triggers actions on other chains or systems.
+//! This crate provides message relay and validation services for cross-chain intents.
+//! It watches mock GMP endpoint events and delivers messages to destination contracts.
 
 pub mod api;
 pub mod config;
@@ -10,11 +10,7 @@ pub mod evm_client;
 pub mod svm_client;
 pub mod monitor;
 pub mod mvm_client;
-pub mod storage;
 pub mod validator;
-
-// Re-export storage types for tests
-pub use storage::draftintents::{DraftintentStatus, DraftintentStore};
 
 // Re-export commonly used types
 pub use config::{ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, VerifierConfig};

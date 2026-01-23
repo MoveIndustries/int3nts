@@ -4,7 +4,7 @@
 //! without requiring external services.
 
 use base64::Engine;
-use verifier::monitor::{EventMonitor, FulfillmentEvent};
+use trusted_gmp::monitor::{EventMonitor, FulfillmentEvent};
 #[path = "../mod.rs"]
 mod test_helpers;
 use test_helpers::{

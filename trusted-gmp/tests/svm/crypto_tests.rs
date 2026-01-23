@@ -2,7 +2,7 @@
 //!
 //! These tests verify Ed25519 signature functionality for SVM chain compatibility.
 
-use verifier::crypto::CryptoService;
+use trusted_gmp::crypto::CryptoService;
 
 #[path = "../mod.rs"]
 mod test_helpers;

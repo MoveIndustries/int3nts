@@ -3,7 +3,7 @@
 //! These tests verify that escrow events can be matched to intent events
 //! across different chains using intent_id.
 
-use verifier::monitor::{EscrowEvent, IntentEvent};
+use trusted_gmp::monitor::{EscrowEvent, IntentEvent};
 #[path = "mod.rs"]
 mod test_helpers;
 use test_helpers::{
@@ -240,7 +240,7 @@ async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_suc
 #[tokio::test]
 async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_rejection() {
     use test_helpers::build_test_config_with_mvm;
-    use verifier::validator::CrossChainValidator;
+    use trusted_gmp::validator::CrossChainValidator;
 
     let config = build_test_config_with_mvm();
     let validator = CrossChainValidator::new(&config)
@@ -575,7 +575,7 @@ async fn test_escrow_desired_amount_must_be_zero_success() {
 #[tokio::test]
 async fn test_escrow_desired_amount_must_be_zero_rejection() {
     use test_helpers::build_test_config_with_mvm;
-    use verifier::validator::CrossChainValidator;
+    use trusted_gmp::validator::CrossChainValidator;
 
     let config = build_test_config_with_mvm();
     let validator = CrossChainValidator::new(&config)
@@ -615,7 +615,7 @@ async fn test_escrow_desired_amount_must_be_zero_rejection() {
 #[tokio::test]
 async fn test_escrow_rejection_when_connected_chain_id_is_none() {
     use test_helpers::build_test_config_with_mvm;
-    use verifier::validator::CrossChainValidator;
+    use trusted_gmp::validator::CrossChainValidator;
 
     let config = build_test_config_with_mvm();
     let validator = CrossChainValidator::new(&config)
@@ -660,7 +660,7 @@ async fn test_escrow_rejection_when_connected_chain_id_is_none() {
 #[tokio::test]
 async fn test_escrow_chain_id_mismatch_rejection() {
     use test_helpers::build_test_config_with_mvm;
-    use verifier::validator::CrossChainValidator;
+    use trusted_gmp::validator::CrossChainValidator;
 
     let config = build_test_config_with_mvm();
     let validator = CrossChainValidator::new(&config)

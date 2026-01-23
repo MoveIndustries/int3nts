@@ -1,16 +1,16 @@
 [package]
-name = "verifier"
+name = "trusted-gmp"
 version = "0.1.0"
 edition = "2021"
 authors = ["Intent Framework Team"]
-description = "Trusted verifier service for cross-chain escrow validation"
+description = "Trusted GMP service for cross-chain message relay and validation"
 
 [lib]
-name = "verifier"
+name = "trusted_gmp"
 path = "src/lib.rs"
 
 [[bin]]
-name = "verifier"
+name = "trusted-gmp"
 path = "src/main.rs"
 
 [[bin]]

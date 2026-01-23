@@ -1,8 +1,8 @@
-# Verifier Test Completeness
+# Trusted GMP Test Completeness
 
 > **⚠️ IMPORTANT: When adding a new framework, ensure maximal completeness by implementing all tests listed below.**
 
-This document tracks test alignment status for the trusted verifier. For the complete overview and other frameworks, see the [Framework Extension Guide](../../docs/intent-frameworks/framework-extension-guide.md#test-alignment-reference).
+This document tracks test alignment status for the trusted GMP service. For the complete overview and other frameworks, see the [Framework Extension Guide](../../docs/intent-frameworks/framework-extension-guide.md#test-alignment-reference).
 
 All tests listed here are VM-specific; generic tests are intentionally excluded because they are not relevant when integrating a new VM.
 

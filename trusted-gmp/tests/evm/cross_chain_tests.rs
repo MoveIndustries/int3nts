@@ -3,7 +3,7 @@
 //! These tests verify that EVM escrow events can be matched to hub intent events
 //! across different chains using intent_id, and test intent ID format conversions.
 
-use verifier::monitor::{EscrowEvent, IntentEvent};
+use trusted_gmp::monitor::{EscrowEvent, IntentEvent};
 #[path = "../mod.rs"]
 mod test_helpers;
 use test_helpers::{create_default_escrow_event_evm, create_default_intent_evm, DUMMY_EXPIRY, DUMMY_INTENT_ID};

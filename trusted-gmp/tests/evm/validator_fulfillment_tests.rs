@@ -3,10 +3,10 @@
 //! These tests verify that transaction parameters can be correctly extracted
 //! from EVM transactions for outflow fulfillment validation.
 
-use verifier::evm_client::EvmTransaction;
-use verifier::monitor::{normalize_intent_id, IntentEvent};
-use verifier::validator::CrossChainValidator;
-use verifier::validator::{
+use trusted_gmp::evm_client::EvmTransaction;
+use trusted_gmp::monitor::{normalize_intent_id, IntentEvent};
+use trusted_gmp::validator::CrossChainValidator;
+use trusted_gmp::validator::{
     extract_evm_fulfillment_params, validate_outflow_fulfillment, FulfillmentTransactionParams,
 };
 #[path = "../mod.rs"]

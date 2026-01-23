@@ -4,7 +4,7 @@
 //! are correctly parsed and populate all required fields in IntentEvent.
 
 use serde_json::json;
-use verifier::monitor::EventMonitor;
+use trusted_gmp::monitor::EventMonitor;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 #[path = "../mod.rs"]
@@ -243,7 +243,7 @@ async fn test_poll_hub_events_handles_missing_requester_addr_connected_chain() {
 /// Why: Verify that the function correctly parses and converts valid amounts.
 #[test]
 fn test_parse_amount_with_u64_limit_success() {
-    use verifier::monitor::parse_amount_with_u64_limit;
+    use trusted_gmp::monitor::parse_amount_with_u64_limit;
 
     // Test small value
     let result = parse_amount_with_u64_limit("1000", "test_amount");
@@ -268,7 +268,7 @@ fn test_parse_amount_with_u64_limit_success() {
 /// Why: Verify that the function correctly validates the Move contract constraint.
 #[test]
 fn test_parse_amount_with_u64_limit_exceeds_max() {
-    use verifier::monitor::parse_amount_with_u64_limit;
+    use trusted_gmp::monitor::parse_amount_with_u64_limit;
 
     // Test u64::MAX + 1
     let amount_exceeding = (u64::MAX as u128 + 1).to_string();
@@ -300,7 +300,7 @@ fn test_parse_amount_with_u64_limit_exceeds_max() {
 /// Why: Verify that the function correctly handles invalid input.
 #[test]
 fn test_parse_amount_with_u64_limit_invalid_string() {
-    use verifier::monitor::parse_amount_with_u64_limit;
+    use trusted_gmp::monitor::parse_amount_with_u64_limit;
 
     // Test invalid string
     let result = parse_amount_with_u64_limit("not_a_number", "test_amount");
@@ -325,7 +325,7 @@ fn test_parse_amount_with_u64_limit_invalid_string() {
 /// Why: Verify that the function correctly handles large values within the limit.
 #[test]
 fn test_parse_amount_with_u64_limit_large_valid() {
-    use verifier::monitor::parse_amount_with_u64_limit;
+    use trusted_gmp::monitor::parse_amount_with_u64_limit;
 
     // Test a large but valid value (u64::MAX - 1)
     let large_valid = (u64::MAX - 1).to_string();

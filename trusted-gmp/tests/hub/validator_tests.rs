@@ -3,8 +3,8 @@
 //! These tests verify validation logic including intent safety checks,
 //! fulfillment validation, and expiry time handling.
 
-use verifier::monitor::{FulfillmentEvent, IntentEvent};
-use verifier::validator::CrossChainValidator;
+use trusted_gmp::monitor::{FulfillmentEvent, IntentEvent};
+use trusted_gmp::validator::CrossChainValidator;
 #[path = "../mod.rs"]
 mod test_helpers;
 use test_helpers::{

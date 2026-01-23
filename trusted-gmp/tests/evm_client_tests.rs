@@ -4,7 +4,7 @@
 //! including transaction queries and receipt status checks.
 
 use serde_json::json;
-use verifier::evm_client::EvmClient;
+use trusted_gmp::evm_client::EvmClient;
 use wiremock::matchers::{body_json, method};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

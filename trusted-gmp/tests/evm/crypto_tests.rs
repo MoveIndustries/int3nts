@@ -2,7 +2,7 @@
 //!
 //! These tests verify ECDSA signature functionality for EVM chain compatibility.
 
-use verifier::crypto::CryptoService;
+use trusted_gmp::crypto::CryptoService;
 
 #[path = "../mod.rs"]
 mod test_helpers;
