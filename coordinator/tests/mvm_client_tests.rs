@@ -4,7 +4,7 @@
 //! including resource queries and registry lookups.
 
 use serde_json::json;
-use verifier::mvm_client::MvmClient;
+use coordinator::mvm_client::MvmClient;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

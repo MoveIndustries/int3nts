@@ -1,27 +1,17 @@
 [package]
-name = "verifier"
+name = "coordinator"
 version = "0.1.0"
 edition = "2021"
 authors = ["Intent Framework Team"]
-description = "Trusted verifier service for cross-chain escrow validation"
+description = "Coordinator service for cross-chain intent monitoring and negotiation routing"
 
 [lib]
-name = "verifier"
+name = "coordinator"
 path = "src/lib.rs"
 
 [[bin]]
-name = "verifier"
+name = "coordinator"
 path = "src/main.rs"
-
-[[bin]]
-name = "generate_keys"
-path = "src/bin/generate_keys.rs"
-test = false
-
-[[bin]]
-name = "get_verifier_eth_address"
-path = "src/bin/get_verifier_eth_address.rs"
-test = false
 
 [dependencies]
 # Async runtime (matching aptos-core version)
@@ -40,17 +30,9 @@ borsh = "0.10"
 reqwest = { version = "0.11", features = ["json"] }
 url = "2.5"
 
-# Cryptography
-ed25519-dalek = "2.1.0"
-k256 = { version = "0.13", features = ["ecdsa"] }
-sha2 = "0.10"
-sha3 = "0.10"
-base64 = "0.21"
-elliptic-curve = "0.13"
+# SVM client dependencies (for escrow monitoring)
 solana-program = "2.1"
-
-# Random number generation
-rand = "0.8"
+base64 = "0.21"
 
 # Web framework for API
 warp = "0.3"

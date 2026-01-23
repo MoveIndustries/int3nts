@@ -1,31 +1,18 @@
 //! REST API Server Module
 //!
-//! This module provides a REST API server for the trusted verifier service,
-//! exposing endpoints for monitoring events, validating fulfillments, and
-//! retrieving approval signatures. It handles HTTP requests and provides
-//! JSON responses for external system integration.
+//! This module provides a REST API server for the coordinator service,
+//! exposing endpoints for monitoring events, retrieving cached data,
+//! and negotiation routing for draft intents.
 //!
-//! ## Security Requirements
+//! ## Security Model
 //!
-//! **CRITICAL**: All API endpoints must validate that escrow intents are **non-revocable**
-//! (`revocable = false`) before providing any approval signatures.
+//! The coordinator API is read-only for blockchain data and provides
+//! negotiation routing. It does NOT hold private keys or generate signatures.
 
-// Generic shared code
+// Generic shared code (health, events, approvals read-only)
 mod generic;
 
-// Flow-specific modules (chain-agnostic)
-mod inflow_generic;
-mod outflow_generic;
-
-// Flow + chain specific modules
-mod inflow_evm;
-mod inflow_mvm;
-mod inflow_svm;
-mod outflow_evm;
-mod outflow_mvm;
-mod outflow_svm;
-
-// Negotiation routing module
+// Negotiation routing module (draft intent FCFS matching)
 mod negotiation;
 
 // Re-export ApiServer for convenience

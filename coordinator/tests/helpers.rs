@@ -11,13 +11,13 @@
 use base64::{engine::general_purpose, Engine as _};
 use ed25519_dalek::SigningKey;
 use rand::{Rng, RngCore};
-use verifier::config::{
+use coordinator::config::{
     ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, VerifierConfig,
 };
-use verifier::evm_client::EvmTransaction;
-use verifier::monitor::{ChainType, EscrowEvent, FulfillmentEvent, IntentEvent};
-use verifier::mvm_client::MvmTransaction;
-use verifier::validator::FulfillmentTransactionParams;
+use coordinator::evm_client::EvmTransaction;
+use coordinator::monitor::{ChainType, EscrowEvent, FulfillmentEvent, IntentEvent};
+use coordinator::mvm_client::MvmTransaction;
+use coordinator::validator::FulfillmentTransactionParams;
 
 // ============================================================================
 // CONSTANTS

@@ -1,23 +1,19 @@
-//! Trusted Verifier Service Library
+//! Coordinator Service Library
 //!
-//! This crate provides a trusted verifier service that monitors escrow deposit events
-//! and triggers actions on other chains or systems.
+//! This crate provides a coordinator service that monitors blockchain events
+//! and provides negotiation routing for cross-chain intents. The coordinator
+//! is read-only - it does not hold private keys or perform cryptographic signing.
 
 pub mod api;
 pub mod config;
-pub mod crypto;
-pub mod evm_client;
-pub mod svm_client;
 pub mod monitor;
 pub mod mvm_client;
 pub mod storage;
-pub mod validator;
+pub mod svm_client;
 
 // Re-export storage types for tests
 pub use storage::draftintents::{DraftintentStatus, DraftintentStore};
 
 // Re-export commonly used types
 pub use config::{ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, VerifierConfig};
-pub use crypto::{ApprovalSignature, CryptoService};
-pub use monitor::{ChainType, EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent};
-pub use validator::{CrossChainValidator, ValidationResult};
+pub use monitor::{ChainType, EscrowApproval, EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent};

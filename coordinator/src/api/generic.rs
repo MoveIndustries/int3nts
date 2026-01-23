@@ -1,7 +1,8 @@
 //! Generic API structures and handlers
 //!
 //! This module contains shared structures, helper functions, and generic API handlers
-//! that are used across all flow types (inflow/outflow) and chain types (Move VM/EVM).
+//! for the coordinator service. The coordinator API is read-only for blockchain data
+//! and provides negotiation routing for draft intents.
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -12,10 +13,8 @@ use warp::{http::{Method, StatusCode}, Filter, Rejection, Reply};
 use warp::hyper::body::Bytes;
 
 use crate::config::Config;
-use crate::crypto::CryptoService;
 use crate::monitor::EventMonitor;
 use crate::storage::DraftintentStore;
-use crate::validator::CrossChainValidator;
 
 // ============================================================================
 // SHARED REQUEST/RESPONSE STRUCTURES
@@ -33,16 +32,6 @@ pub struct ApiResponse<T> {
     pub data: Option<T>,
     /// Error message (if failed)
     pub error: Option<String>,
-}
-
-/// Request structure for approval signature creation.
-///
-/// This structure contains the data needed to create an approval or rejection
-/// signature for escrow operations.
-#[derive(Debug, Deserialize)]
-pub struct ApprovalRequest {
-    /// Whether to approve (true) or reject (false) the operation
-    pub approve: bool,
 }
 
 // ============================================================================
@@ -97,7 +86,7 @@ pub async fn get_events_handler(
 /// Handler for the approvals endpoint.
 ///
 /// This function retrieves all cached approval signatures from the event monitor
-/// and returns them as a JSON response.
+/// and returns them as a JSON response. (Read-only - approvals generated externally)
 ///
 /// # Arguments
 ///
@@ -158,7 +147,7 @@ pub async fn get_approval_by_escrow_handler(
 /// Handler for checking if an intent has been approved.
 ///
 /// This is a simple endpoint for the frontend to check if an outflow intent
-/// has received approval from the verifier.
+/// has received approval.
 ///
 /// # Arguments
 ///
@@ -175,87 +164,23 @@ pub async fn is_intent_approved_handler(
     let monitor = monitor.read().await;
     let normalized = crate::monitor::normalize_intent_id(&intent_id);
     let approved = monitor.is_intent_approved(&intent_id).await;
-    
+
     tracing::info!(
         "Checking approval status: intent_id={}, normalized={}, approved={}",
         intent_id,
         normalized,
         approved
     );
-    
+
     #[derive(serde::Serialize)]
     struct ApprovalStatus {
         intent_id: String,
         approved: bool,
     }
-    
+
     Ok(warp::reply::json(&ApiResponse {
         success: true,
         data: Some(ApprovalStatus { intent_id, approved }),
-        error: None,
-    }))
-}
-
-/// Handler for the approval endpoint.
-///
-/// This function creates an approval or rejection signature based on
-/// the request parameters. It validates that escrow intents are
-/// non-revocable before creating approval signatures.
-///
-/// # Arguments
-///
-/// * `request` - The approval request containing approval decision
-/// * `crypto_service` - The cryptographic service instance
-///
-/// # Returns
-///
-/// * `Ok(warp::Reply)` - JSON response with approval signature
-/// * `Err(warp::Rejection)` - Failed to create signature
-pub async fn create_approval_handler(
-    request: ApprovalRequest,
-    crypto_service: Arc<RwLock<CryptoService>>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    let crypto_service = crypto_service.read().await;
-
-    // Create the approval signature
-    match crypto_service.create_approval_signature(request.approve) {
-        Ok(signature) => Ok(warp::reply::json(&ApiResponse {
-            success: true,
-            data: Some(signature),
-            error: None,
-        })),
-        Err(e) => Ok(warp::reply::json(&ApiResponse::<
-            crate::crypto::ApprovalSignature,
-        > {
-            success: false,
-            data: None,
-            error: Some(e.to_string()),
-        })),
-    }
-}
-
-/// Handler for the public key endpoint.
-///
-/// This function retrieves the verifier's public key for external
-/// signature verification.
-///
-/// # Arguments
-///
-/// * `crypto_service` - The cryptographic service instance
-///
-/// # Returns
-///
-/// * `Ok(warp::Reply)` - JSON response with public key
-/// * `Err(warp::Rejection)` - Failed to retrieve public key
-pub async fn get_public_key_handler(
-    crypto_service: Arc<RwLock<CryptoService>>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    let crypto_service = crypto_service.read().await;
-    let public_key = crypto_service.get_public_key();
-
-    Ok(warp::reply::json(&ApiResponse {
-        success: true,
-        data: Some(public_key),
         error: None,
     }))
 }
@@ -288,24 +213,24 @@ pub async fn get_exchange_rate_handler(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     use std::collections::HashMap;
     use url::Url;
-    
+
     // Parse query parameters
     let parsed = Url::parse(&format!("http://dummy?{}", query))
         .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Invalid query string: {}", e))))?;
-    
+
     let params: HashMap<String, String> = parsed
         .query_pairs()
         .into_owned()
         .collect();
-    
+
     let offered_chain_id = params.get("offered_chain_id")
         .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Missing offered_chain_id parameter".to_string())))?;
     let offered_token = params.get("offered_token")
         .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Missing offered_token parameter".to_string())))?;
-    
+
     let desired_chain_id = params.get("desired_chain_id");
     let desired_token = params.get("desired_token");
-    
+
     // Get acceptance config
     let acceptance = config.acceptance.as_ref()
         .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Acceptance criteria not configured".to_string())))?;
@@ -393,44 +318,6 @@ pub fn with_monitor(
     warp::any().map(move || monitor.clone())
 }
 
-/// Creates a warp filter that provides access to the cryptographic service.
-///
-/// This helper function creates a filter that injects the crypto service
-/// into request handlers.
-///
-/// # Arguments
-///
-/// * `crypto_service` - The cryptographic service instance
-///
-/// # Returns
-///
-/// A warp filter that provides the crypto service to handlers
-pub fn with_crypto_service(
-    crypto_service: Arc<RwLock<CryptoService>>,
-) -> impl Filter<Extract = (Arc<RwLock<CryptoService>>,), Error = std::convert::Infallible> + Clone
-{
-    warp::any().map(move || crypto_service.clone())
-}
-
-/// Creates a warp filter that provides access to the cross-chain validator.
-///
-/// This helper function creates a filter that injects the validator
-/// into request handlers.
-///
-/// # Arguments
-///
-/// * `validator` - The cross-chain validator instance
-///
-/// # Returns
-///
-/// A warp filter that provides the validator to handlers
-pub fn with_validator(
-    validator: Arc<RwLock<CrossChainValidator>>,
-) -> impl Filter<Extract = (Arc<RwLock<CrossChainValidator>>,), Error = std::convert::Infallible> + Clone
-{
-    warp::any().map(move || validator.clone())
-}
-
 // ============================================================================
 // CUSTOM REJECTION TYPES
 // ============================================================================
@@ -454,7 +341,7 @@ fn create_cors_filter(allowed_origins: &[String]) -> warp::cors::Builder {
         Method::DELETE,
         Method::OPTIONS,
     ];
-    
+
     if allowed_origins.contains(&"*".to_string()) {
         warp::cors()
             .allow_any_origin()
@@ -513,20 +400,21 @@ pub async fn handle_rejection(rej: Rejection) -> Result<impl Reply, std::convert
 // API SERVER IMPLEMENTATION
 // ============================================================================
 
-/// REST API server for the trusted verifier service.
+/// REST API server for the coordinator service.
 ///
 /// This server exposes HTTP endpoints for external systems to interact with
-/// the verifier service, including event monitoring, validation, and signature
-/// retrieval.
+/// the coordinator service, including event monitoring (read-only) and
+/// negotiation routing for draft intents.
+///
+/// ## Security Model
+///
+/// The coordinator has NO private keys and CANNOT generate signatures.
+/// All validation and signing is handled by the separate Trusted GMP service.
 pub struct ApiServer {
     /// Service configuration
     config: Arc<Config>,
     /// Event monitor for blockchain event processing
     monitor: Arc<RwLock<EventMonitor>>,
-    /// Cross-chain validator for fulfillment validation
-    validator: Arc<RwLock<CrossChainValidator>>,
-    /// Cryptographic service for signature operations
-    crypto_service: Arc<RwLock<CryptoService>>,
     /// Draft intent store for negotiation routing
     draft_store: Arc<RwLock<DraftintentStore>>,
 }
@@ -535,14 +423,12 @@ impl ApiServer {
     /// Creates a new API server with the given components.
     ///
     /// This function initializes the API server with all necessary components
-    /// for handling HTTP requests and providing verifier functionality.
+    /// for handling HTTP requests and providing coordinator functionality.
     ///
     /// # Arguments
     ///
     /// * `config` - Service configuration
     /// * `monitor` - Event monitor instance
-    /// * `validator` - Cross-chain validator instance
-    /// * `crypto_service` - Cryptographic service instance
     ///
     /// # Returns
     ///
@@ -550,14 +436,10 @@ impl ApiServer {
     pub fn new(
         config: Config,
         monitor: EventMonitor,
-        validator: CrossChainValidator,
-        crypto_service: CryptoService,
     ) -> Self {
         Self {
             config: Arc::new(config),
             monitor: Arc::new(RwLock::new(monitor)),
-            validator: Arc::new(RwLock::new(validator)),
-            crypto_service: Arc::new(RwLock::new(crypto_service)),
             draft_store: Arc::new(RwLock::new(DraftintentStore::new())),
         }
     }
@@ -596,8 +478,8 @@ impl ApiServer {
     /// Creates all API routes for the server.
     ///
     /// This function defines all HTTP endpoints and their handlers,
-    /// including health checks, event monitoring, validation, and
-    /// signature operations.
+    /// including health checks, event monitoring (read-only), and
+    /// negotiation routing.
     ///
     /// # Returns
     ///
@@ -605,38 +487,33 @@ impl ApiServer {
     pub(crate) fn create_routes(
         &self,
     ) -> impl Filter<Extract = impl warp::Reply, Error = std::convert::Infallible> + Clone {
-        use super::inflow_generic;
         use super::negotiation;
-        use super::outflow_generic;
 
-        let _config = self.config.clone();
         let monitor = self.monitor.clone();
-        let _validator = self.validator.clone();
-        let crypto_service = self.crypto_service.clone();
         let draft_store = self.draft_store.clone();
 
         // Health check endpoint - returns service status
         let health = warp::path("health").and(warp::get()).map(|| {
             warp::reply::json(&ApiResponse::<String> {
                 success: true,
-                data: Some("Trusted Verifier Service is running".to_string()),
+                data: Some("Coordinator Service is running".to_string()),
                 error: None,
             })
         });
 
-        // Get cached events endpoint - returns all monitored events
+        // Get cached events endpoint - returns all monitored events (read-only)
         let events = warp::path("events")
             .and(warp::get())
             .and(with_monitor(monitor.clone()))
             .and_then(get_events_handler);
 
-        // Get approvals endpoint - returns all cached approval signatures
+        // Get approvals endpoint - returns all cached approval signatures (read-only)
         let approvals = warp::path("approvals")
             .and(warp::get())
             .and(with_monitor(monitor.clone()))
             .and_then(get_approvals_handler);
 
-        // Get approval for specific escrow endpoint
+        // Get approval for specific escrow endpoint (read-only)
         let approval_by_escrow_monitor = monitor.clone();
         let approval_by_escrow = warp::path("approvals")
             .and(warp::path::param())
@@ -644,7 +521,7 @@ impl ApiServer {
             .and(with_monitor(approval_by_escrow_monitor))
             .and_then(get_approval_by_escrow_handler);
 
-        // Check if intent is approved endpoint - simple true/false for frontend polling
+        // Check if intent is approved endpoint - simple true/false for frontend polling (read-only)
         let is_approved_monitor = monitor.clone();
         let is_approved = warp::path("approved")
             .and(warp::path::param())
@@ -652,19 +529,6 @@ impl ApiServer {
             .and(with_monitor(is_approved_monitor))
             .and_then(is_intent_approved_handler);
 
-        // Create approval signature endpoint - creates approval/rejection signatures
-        let approval = warp::path("approval")
-            .and(warp::post())
-            .and(warp::body::json())
-            .and(with_crypto_service(crypto_service.clone()))
-            .and_then(create_approval_handler);
-
-        // Get public key endpoint - returns verifier's public key
-        let public_key = warp::path("public-key")
-            .and(warp::get())
-            .and(with_crypto_service(crypto_service.clone()))
-            .and_then(get_public_key_handler);
-        
         // Get exchange rate endpoint - returns desired token and exchange rate for offered token
         let exchange_rate_config = self.config.clone();
         let exchange_rate = warp::path("acceptance")
@@ -676,29 +540,6 @@ impl ApiServer {
                     get_exchange_rate_handler(config, query).await
                 }
             });
-        
-
-        // Outflow validation endpoint - validates connected chain transactions for outflow intents
-        // Signature is for hub chain intent fulfillment
-        let validate_outflow_monitor = monitor.clone();
-        let validate_outflow_validator = _validator.clone();
-        let validate_outflow_crypto = crypto_service.clone();
-        let validate_outflow = warp::path("validate-outflow-fulfillment")
-            .and(warp::post())
-            .and(warp::body::json())
-            .and(with_monitor(validate_outflow_monitor))
-            .and(with_validator(validate_outflow_validator))
-            .and(with_crypto_service(validate_outflow_crypto))
-            .and_then(outflow_generic::handle_outflow_fulfillment_validation);
-
-        // Inflow validation endpoint - validates escrow deposits on connected chain for inflow intents
-        // Signature is for connected chain escrow release (generated automatically by monitor)
-        let validate_inflow_monitor = monitor.clone();
-        let validate_inflow = warp::path("validate-inflow-escrow")
-            .and(warp::post())
-            .and(warp::body::json())
-            .and(with_monitor(validate_inflow_monitor))
-            .and_then(inflow_generic::handle_inflow_escrow_validation);
 
         // Negotiation routing endpoints
         // POST /draftintent - Submit draft intent (open to any solver)
@@ -790,10 +631,6 @@ impl ApiServer {
             .or(approvals)
             .or(approval_by_escrow)
             .or(is_approved)
-            .or(approval)
-            .or(public_key)
-            .or(validate_outflow)
-            .or(validate_inflow)
             .or(create_draft)
             .or(get_draft)
             .or(get_pending)

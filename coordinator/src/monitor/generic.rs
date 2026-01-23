@@ -8,8 +8,6 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use crate::config::Config;
-use crate::crypto::CryptoService;
-use crate::validator::CrossChainValidator;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -183,8 +181,8 @@ pub struct EscrowApproval {
 /// Event monitor that watches both hub and connected chains for relevant events.
 ///
 /// This monitor runs continuously, polling both chains for new events and
-/// processing them according to the verifier's validation rules. It maintains
-/// an in-memory cache of recent events for API access.
+/// caching them for API access. The coordinator monitor is read-only - it does
+/// not perform validation or generate signatures.
 #[derive(Clone)]
 pub struct EventMonitor {
     /// Service configuration
@@ -195,10 +193,6 @@ pub struct EventMonitor {
     /// HTTP client for connected chain communication
     #[allow(dead_code)]
     pub connected_client: reqwest::Client,
-    /// Cross-chain validator for validation logic
-    pub validator: Arc<CrossChainValidator>,
-    /// Cryptographic operations for signature generation
-    pub crypto: Arc<CryptoService>,
     /// In-memory cache of recent intent events
     ///
     /// **WARNING**: This field is public ONLY for unit testing purposes.
@@ -217,7 +211,7 @@ pub struct EventMonitor {
     /// It should not be accessed directly in production code.
     #[doc(hidden)]
     pub fulfillment_cache: Arc<RwLock<Vec<FulfillmentEvent>>>,
-    /// In-memory cache of approval signatures for escrow release
+    /// In-memory cache of approval signatures for escrow release (read from external source)
     pub approval_cache: Arc<RwLock<Vec<EscrowApproval>>>,
     /// Set of intent IDs that have been approved (for quick lookup by frontend)
     pub approved_intent_ids: Arc<RwLock<std::collections::HashSet<String>>>,
@@ -238,9 +232,6 @@ impl EventMonitor {
     /// * `Ok(EventMonitor)` - Successfully created monitor
     /// * `Err(anyhow::Error)` - Failed to create monitor
     pub async fn new(config: &Config) -> anyhow::Result<Self> {
-        use crate::crypto::CryptoService;
-        use crate::validator::CrossChainValidator;
-
         // Create HTTP client for hub chain with configured timeout
         let hub_client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_millis(
@@ -257,16 +248,10 @@ impl EventMonitor {
             .no_proxy() // Avoid macOS system-configuration issues in tests
             .build()?;
 
-        // Create validator and crypto instances
-        let validator = Arc::new(CrossChainValidator::new(config).await?);
-        let crypto = Arc::new(CryptoService::new(config)?);
-
         Ok(Self {
             config: Arc::new(config.clone()),
             hub_client,
             connected_client,
-            validator,
-            crypto,
             event_cache: Arc::new(RwLock::new(Vec::new())),
             escrow_cache: Arc::new(RwLock::new(Vec::new())),
             fulfillment_cache: Arc::new(RwLock::new(Vec::new())),
@@ -388,30 +373,6 @@ impl EventMonitor {
         inflow_generic::poll_connected_events(self).await
     }
 
-    /// Validates that an escrow event fulfills the conditions of an existing intent.
-    ///
-    /// This function checks whether the escrow deposit matches the requirements
-    /// specified in a previously created intent. It ensures that the solver
-    /// has provided the correct asset type and amount.
-    ///
-    /// # Arguments
-    ///
-    /// * `escrow_event` - The escrow deposit event to validate
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - Validation successful
-    /// * `Err(anyhow::Error)` - Validation failed
-    /// Note: Public for testing purposes
-    #[doc(hidden)]
-    pub async fn validate_intent_fulfillment(
-        &self,
-        escrow_event: &EscrowEvent,
-    ) -> anyhow::Result<()> {
-        use super::inflow_generic;
-        inflow_generic::validate_intent_fulfillment(self, escrow_event).await
-    }
-
     /// Returns a copy of all cached intent events.
     ///
     /// This function provides access to the event cache for API endpoints
@@ -448,38 +409,6 @@ impl EventMonitor {
     pub async fn get_cached_fulfillment_events(&self) -> Vec<FulfillmentEvent> {
         use super::outflow_generic;
         outflow_generic::get_cached_fulfillment_events(self).await
-    }
-
-    /// Generates approval signature after fulfillment is observed.
-    ///
-    /// This function:
-    /// 1. Confirms fulfillment event exists (Move already validated fulfillment conditions)
-    /// 2. Confirms matching escrow exists (verifier already validated escrow earlier)
-    /// 3. Generates approval signature for escrow release
-    ///
-    /// Note: We don't validate here because:
-    /// - Fulfillment validity: Move contract only emits fulfillment events when conditions are correct
-    /// - Escrow validity: Verifier validates escrow before solver fulfills (future: provides signature to solver)
-    /// - By the time we see fulfillment, both were already validated
-    ///
-    /// # Arguments
-    ///
-    /// * `fulfillment` - The fulfillment event that was observed
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - Approval generated successfully
-    /// * `Err(anyhow::Error)` - Failed to generate approval (e.g., missing escrow)
-    ///
-    /// Note: Public for testing purposes
-    #[doc(hidden)]
-    #[allow(dead_code)]
-    pub async fn validate_and_approve_fulfillment(
-        &self,
-        fulfillment: &FulfillmentEvent,
-    ) -> anyhow::Result<()> {
-        use super::inflow_generic;
-        inflow_generic::validate_and_approve_fulfillment(self, fulfillment).await
     }
 
     /// Returns a copy of all cached approval signatures.

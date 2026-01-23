@@ -7,7 +7,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use borsh::BorshSerialize;
 use serde_json::json;
 use solana_program::pubkey::Pubkey;
-use verifier::svm_client::{EscrowAccount, SvmClient};
+use coordinator::svm_client::{EscrowAccount, SvmClient};
 use wiremock::matchers::{body_json, method};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 

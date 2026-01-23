@@ -9,7 +9,6 @@ use tracing::{error, info};
 
 use super::generic::{EventMonitor, FulfillmentEvent, IntentEvent};
 use super::hub_mvm;
-use super::inflow_generic;
 
 // ============================================================================
 // HUB CHAIN MONITORING
@@ -77,12 +76,8 @@ pub async fn monitor_hub_chain(monitor: &EventMonitor) -> Result<()> {
                         }
                     };
 
-                    // If this is a new intent, try validation for any escrows/fulfillments
-                    if is_new_intent {
-                        if let Err(e) = inflow_generic::try_validate_for_intent(monitor, &event.intent_id).await {
-                            error!("Failed to validate for intent {}: {}", event.intent_id, e);
-                        }
-                    }
+                    // Note: No validation in coordinator - just cache new events
+                    let _ = is_new_intent; // Suppress unused variable warning
                 }
             }
             Err(e) => {

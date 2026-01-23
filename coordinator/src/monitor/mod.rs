@@ -18,7 +18,6 @@ mod outflow_generic;
 
 // Flow + chain specific modules
 mod hub_mvm;
-mod inflow_evm;
 mod inflow_mvm;
 mod inflow_svm;
 

@@ -8,7 +8,6 @@ use anyhow::{Context, Result};
 use tracing::{error, info};
 
 use crate::monitor::generic::{EventMonitor, FulfillmentEvent, IntentEvent};
-use crate::monitor::inflow_generic;
 use crate::mvm_client::{
     LimitOrderEvent as MvmLimitOrderEvent,
     LimitOrderFulfillmentEvent as MvmLimitOrderFulfillmentEvent, MvmClient,
@@ -196,12 +195,8 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                         }
                     };
 
-                    // If this is a new fulfillment, try validation for this intent
-                    if is_new_fulfillment {
-                        if let Err(e) = inflow_generic::try_validate_for_intent(monitor, &fulfillment_event.intent_id).await {
-                            error!("Failed to validate for intent {}: {}", fulfillment_event.intent_id, e);
-                        }
-                    }
+                    // Note: No validation in coordinator - just cache new events
+                    let _ = is_new_fulfillment; // Suppress unused variable warning
                 }
             } else if event_type.contains("OracleLimitOrderEvent") {
                 // Outflow intents use OracleLimitOrderEvent (from fa_intent_with_oracle)
