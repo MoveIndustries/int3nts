@@ -38,16 +38,16 @@ log "   Solver Hub:                  $SOLVER_HUB_ADDR"
 log "   Requester MVM (connected):             $REQUESTER_MVMCON_ADDR"
 log "   Solver MVM (connected):                $SOLVER_MVMCON_ADDR"
 
-# Load verifier keys (generated during deployment)
-load_verifier_keys
+# Load trusted-gmp keys (generated during deployment)
+load_trusted_gmp_keys
 
 # Get public key from environment variable
-VERIFIER_PUBLIC_KEY_B64="${E2E_VERIFIER_PUBLIC_KEY}"
+VERIFIER_PUBLIC_KEY_B64="${E2E_TRUSTED_GMP_PUBLIC_KEY}"
 
 if [ -z "$VERIFIER_PUBLIC_KEY_B64" ]; then
-    log_and_echo "❌ ERROR: E2E_VERIFIER_PUBLIC_KEY environment variable not set"
-    log_and_echo "   The verifier public key is required for escrow creation."
-    log_and_echo "   Please ensure E2E_VERIFIER_PUBLIC_KEY is set (generate_verifier_keys should do this)."
+    log_and_echo "❌ ERROR: E2E_TRUSTED_GMP_PUBLIC_KEY environment variable not set"
+    log_and_echo "   The trusted-gmp public key is required for escrow creation."
+    log_and_echo "   Please ensure E2E_TRUSTED_GMP_PUBLIC_KEY is set (generate_trusted_gmp_keys should do this)."
     exit 1
 fi
 
@@ -57,7 +57,7 @@ if [ -z "$ORACLE_PUBLIC_KEY_HEX" ] || [ ${#ORACLE_PUBLIC_KEY_HEX} -ne 64 ]; then
     log_and_echo "❌ ERROR: Invalid public key format"
     log_and_echo "   Expected: base64-encoded 32-byte Ed25519 public key"
     log_and_echo "   Got: $VERIFIER_PUBLIC_KEY_B64"
-    log_and_echo "   Please ensure E2E_VERIFIER_PUBLIC_KEY is valid base64 and decodes to 32 bytes (64 hex chars)."
+    log_and_echo "   Please ensure E2E_TRUSTED_GMP_PUBLIC_KEY is valid base64 and decodes to 32 bytes (64 hex chars)."
     exit 1
 fi
 

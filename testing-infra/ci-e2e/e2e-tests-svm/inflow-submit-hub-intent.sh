@@ -11,7 +11,8 @@ setup_project_root
 setup_logging "submit-hub-intent-svm-inflow"
 cd "$PROJECT_ROOT"
 
-verify_verifier_running
+verify_coordinator_running
+verify_trusted_gmp_running
 verify_solver_running
 verify_solver_registered
 

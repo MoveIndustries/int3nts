@@ -29,29 +29,28 @@ log ""
 log " Configuration:"
 log "   Computing verifier Ethereum address from config..."
 
-# Generate fresh ephemeral keys for CI/E2E testing
-load_verifier_keys
+# Load trusted-gmp keys (used for EVM verification)
+load_trusted_gmp_keys
 
 # Get verifier Ethereum address (derived from ECDSA public key)
-VERIFIER_DIR="$PROJECT_ROOT/verifier"
-export VERIFIER_CONFIG_PATH="$PROJECT_ROOT/verifier/config/verifier-e2e-ci-testing.toml"
-CONFIG_PATH="$VERIFIER_CONFIG_PATH"
+export TRUSTED_GMP_CONFIG_PATH="$PROJECT_ROOT/trusted-gmp/config/trusted-gmp-e2e-ci-testing.toml"
+CONFIG_PATH="$TRUSTED_GMP_CONFIG_PATH"
 
 # Use pre-built binary (must be built in Step 1)
-GET_VERIFIER_ETH_BIN="$PROJECT_ROOT/verifier/target/debug/get_verifier_eth_address"
+GET_VERIFIER_ETH_BIN="$PROJECT_ROOT/trusted-gmp/target/debug/get_verifier_eth_address"
 if [ ! -x "$GET_VERIFIER_ETH_BIN" ]; then
     log_and_echo "❌ PANIC: get_verifier_eth_address not built. Step 1 (build binaries) failed."
     exit 1
 fi
 
-VERIFIER_ETH_OUTPUT=$(cd "$PROJECT_ROOT" && env HOME="${HOME}" VERIFIER_CONFIG_PATH="$CONFIG_PATH" "$GET_VERIFIER_ETH_BIN" 2>&1 | tee -a "$LOG_FILE")
+VERIFIER_ETH_OUTPUT=$(cd "$PROJECT_ROOT" && env HOME="${HOME}" TRUSTED_GMP_CONFIG_PATH="$CONFIG_PATH" "$GET_VERIFIER_ETH_BIN" 2>&1 | tee -a "$LOG_FILE")
 VERIFIER_EVM_PUBKEY_HASH=$(echo "$VERIFIER_ETH_OUTPUT" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1 | tr -d '\n')
 
 if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then
     log_and_echo "❌ ERROR: Could not compute verifier EVM pubkey hash from config"
     log_and_echo "   Command output:"
     echo "$VERIFIER_ETH_OUTPUT"
-    log_and_echo "   Check that verifier/config/verifier-e2e-ci-testing.toml has valid keys"
+    log_and_echo "   Check that trusted-gmp/config/trusted-gmp-e2e-ci-testing.toml has valid keys"
     exit 1
 fi
 

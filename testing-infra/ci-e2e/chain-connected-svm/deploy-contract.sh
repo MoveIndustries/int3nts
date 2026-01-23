@@ -57,11 +57,11 @@ done
 
 log ""
 log " Initializing program state..."
-if [ -z "$E2E_VERIFIER_PUBLIC_KEY" ]; then
-    load_verifier_keys
+if [ -z "$E2E_TRUSTED_GMP_PUBLIC_KEY" ]; then
+    load_trusted_gmp_keys
 fi
 
-SVM_VERIFIER_PUBKEY=$(svm_base64_to_base58 "$E2E_VERIFIER_PUBLIC_KEY")
+SVM_VERIFIER_PUBKEY=$(svm_base64_to_base58 "$E2E_TRUSTED_GMP_PUBLIC_KEY")
 SVM_PROGRAM_ID="$PROGRAM_ID"
 log "   ⏳ Waiting for program to be executable..."
 sleep 10

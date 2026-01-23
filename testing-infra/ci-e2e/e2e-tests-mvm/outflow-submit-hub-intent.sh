@@ -11,7 +11,8 @@ setup_logging "submit-outflow-hub-intent"
 cd "$PROJECT_ROOT"
 
 # Verify services are running before proceeding
-verify_verifier_running
+verify_coordinator_running
+verify_trusted_gmp_running
 verify_solver_running
 verify_solver_registered
 
