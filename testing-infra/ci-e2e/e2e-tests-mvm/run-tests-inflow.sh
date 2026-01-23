@@ -33,9 +33,9 @@ popd > /dev/null
 echo "   ✅ Coordinator: coordinator"
 
 pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
-cargo build --bin trusted_gmp --bin generate_keys 2>&1 | tail -5
+cargo build --bin trusted-gmp --bin generate_keys 2>&1 | tail -5
 popd > /dev/null
-echo "   ✅ Trusted-GMP: trusted_gmp, generate_keys"
+echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys"
 
 pushd "$PROJECT_ROOT/solver" > /dev/null
 cargo build --bin solver --bin sign_intent 2>&1 | tail -5

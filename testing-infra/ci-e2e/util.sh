@@ -1114,9 +1114,9 @@ start_trusted_gmp() {
     log "   Log file: $log_file"
 
     # Use pre-built binary (must be built in Step 1)
-    local trusted_gmp_binary="$PROJECT_ROOT/trusted-gmp/target/debug/trusted_gmp"
+    local trusted_gmp_binary="$PROJECT_ROOT/trusted-gmp/target/debug/trusted-gmp"
     if [ ! -f "$trusted_gmp_binary" ]; then
-        log_and_echo "   ❌ PANIC: trusted_gmp not built. Step 1 (build binaries) failed."
+        log_and_echo "   ❌ PANIC: trusted-gmp not built. Step 1 (build binaries) failed."
         exit 1
     fi
 
