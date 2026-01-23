@@ -1,45 +1,50 @@
 #!/bin/bash
 
-# Start Trusted Verifier Service for MVM E2E Tests
-# 
-# This script configures and starts the trusted verifier service.
-# Configuration is done by calling the chain-level configure scripts.
+# Start Services for MVM E2E Tests
+#
+# This script configures and starts both coordinator and trusted-gmp services.
+# - Coordinator: Monitoring and negotiation (port 3333, NO keys)
+# - Trusted-GMP: Validation and signing (port 3334, HAS keys)
 
 set -e
 
-# Source common utilities
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
 
-# Setup project root and logging
 setup_project_root
-setup_logging "verifier-start"
+setup_logging "services-start"
 cd "$PROJECT_ROOT"
 
 log ""
-log " Starting Trusted Verifier Service..."
-log "========================================"
+log " Starting Coordinator and Trusted-GMP Services..."
+log "=================================================="
 log_and_echo " All output logged to: $LOG_FILE"
 log ""
 
 # ============================================================================
-# SECTION 1: CONFIGURE VERIFIER
+# SECTION 1: CONFIGURE AND START COORDINATOR
 # ============================================================================
-log " Configuring verifier..."
-
-# Configure hub chain section (use source to preserve env vars like E2E_VERIFIER_PRIVATE_KEY)
-source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-hub/configure-verifier.sh"
-
-# Configure connected MVM chain section
-# Must use source to preserve env vars from hub config
-source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-mvm/configure-verifier.sh"
-
-# ============================================================================
-# SECTION 2: START VERIFIER
-# ============================================================================
-log ""
-log "   Starting verifier service..."
-start_verifier "$LOG_DIR/verifier.log" "info"
+log " Configuring coordinator..."
+source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-hub/configure-coordinator.sh"
+source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-mvm/configure-coordinator.sh"
 
 log ""
-log_and_echo "✅ Verifier configured and started successfully"
+log "   Starting coordinator service..."
+start_coordinator "$LOG_DIR/coordinator.log" "info"
+
+# ============================================================================
+# SECTION 2: CONFIGURE AND START TRUSTED-GMP
+# ============================================================================
+log ""
+log " Configuring trusted-gmp..."
+source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-hub/configure-trusted-gmp.sh"
+source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-mvm/configure-trusted-gmp.sh"
+
+log ""
+log "   Starting trusted-gmp service..."
+start_trusted_gmp "$LOG_DIR/trusted-gmp.log" "info"
+
+log ""
+log_and_echo " Services started successfully"
+log_and_echo "   Coordinator: port 3333"
+log_and_echo "   Trusted-GMP: port 3334"

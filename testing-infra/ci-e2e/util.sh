@@ -732,6 +732,459 @@ start_solver() {
 }
 
 # ============================================================================
+# COORDINATOR SERVICE FUNCTIONS (Phase 0 - No Keys, Read-Only)
+# ============================================================================
+
+# Stop coordinator processes
+# Usage: stop_coordinator
+# Stops any running coordinator processes
+stop_coordinator() {
+    log "   Checking for existing coordinators..."
+
+    if pgrep -f "cargo.*coordinator" > /dev/null || pgrep -f "target/debug/coordinator" > /dev/null; then
+        log "   ️  Found existing coordinator processes, stopping them..."
+        pkill -f "cargo.*coordinator" || true
+        pkill -f "target/debug/coordinator" || true
+        sleep 2
+        log "   ✅ Coordinator processes stopped"
+    else
+        log "   ✅ No existing coordinator processes"
+    fi
+}
+
+# Check coordinator health
+# Usage: check_coordinator_health [port]
+# Checks if coordinator health endpoint responds
+# Returns 0 if healthy, 1 if not
+check_coordinator_health() {
+    local port="${1:-3333}"
+
+    if curl -s -f "http://127.0.0.1:${port}/health" > /dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Verify coordinator is running
+# Usage: verify_coordinator_running
+# Checks coordinator process, port, and health endpoint
+# Exits with error if coordinator is not running
+verify_coordinator_running() {
+    # Ensure LOG_DIR is set (for reading PID files)
+    if [ -z "$LOG_DIR" ] && [ -n "$PROJECT_ROOT" ]; then
+        LOG_DIR="$PROJECT_ROOT/.tmp/e2e-tests"
+    fi
+
+    log ""
+    log " Verifying coordinator is running..."
+
+    # Try to load COORDINATOR_PID from file if not set
+    if [ -z "$COORDINATOR_PID" ] && [ -n "$LOG_DIR" ] && [ -f "$LOG_DIR/coordinator.pid" ]; then
+        COORDINATOR_PID=$(cat "$LOG_DIR/coordinator.pid" 2>/dev/null || echo "")
+        export COORDINATOR_PID
+    fi
+
+    # Check coordinator process
+    if [ -z "$COORDINATOR_PID" ] || ! ps -p "$COORDINATOR_PID" > /dev/null 2>&1; then
+        log_and_echo "❌ ERROR: Coordinator process is not running"
+        log_and_echo "   Expected PID: ${COORDINATOR_PID:-<not set>}"
+        log_and_echo "   Please start coordinator first using start-coordinator.sh"
+        exit 1
+    fi
+
+    # Check if coordinator port is listening
+    COORDINATOR_PORT="${COORDINATOR_PORT:-3333}"
+    if ! check_port_listening "$COORDINATOR_PORT"; then
+        log_and_echo "❌ ERROR: Coordinator is not listening on port $COORDINATOR_PORT"
+        log_and_echo "   Coordinator PID: $COORDINATOR_PID"
+        log_and_echo "   Process exists but port is not accessible"
+        log_and_echo "   Check logs: ${COORDINATOR_LOG:-<not set>}"
+        exit 1
+    fi
+
+    # Check coordinator health endpoint
+    if ! check_coordinator_health "$COORDINATOR_PORT"; then
+        log_and_echo "❌ ERROR: Coordinator health check failed"
+        log_and_echo "   Coordinator PID: $COORDINATOR_PID"
+        log_and_echo "   Port $COORDINATOR_PORT is listening but /health endpoint failed"
+        log_and_echo "   Check logs: ${COORDINATOR_LOG:-<not set>}"
+        exit 1
+    fi
+    log "   ✅ Coordinator is running and healthy (PID: $COORDINATOR_PID, port: $COORDINATOR_PORT)"
+}
+
+# Start coordinator service
+# Usage: start_coordinator [log_file] [rust_log_level]
+# Starts coordinator in background and waits for it to be ready
+# Sets COORDINATOR_PID and COORDINATOR_LOG global variables
+# Exits with error if coordinator fails to start
+start_coordinator() {
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+
+    if [ -z "$COORDINATOR_CONFIG_PATH" ]; then
+        export COORDINATOR_CONFIG_PATH="$PROJECT_ROOT/coordinator/config/coordinator-e2e-ci-testing.toml"
+    fi
+
+    local log_file="${1:-$LOG_DIR/coordinator.log}"
+    local rust_log="${2:-info}"
+
+    # Ensure log directory exists
+    mkdir -p "$(dirname "$log_file")"
+
+    # Delete existing log file to start fresh for this test run
+    if [ -f "$log_file" ]; then
+        rm -f "$log_file"
+    fi
+
+    # Stop any existing coordinator first
+    stop_coordinator
+
+    log "   Starting coordinator service..."
+    log "   Using config: $COORDINATOR_CONFIG_PATH"
+    log "   Log file: $log_file"
+
+    # Use pre-built binary (must be built in Step 1)
+    local coordinator_binary="$PROJECT_ROOT/coordinator/target/debug/coordinator"
+    if [ ! -f "$coordinator_binary" ]; then
+        log_and_echo "   ❌ PANIC: coordinator not built. Step 1 (build binaries) failed."
+        exit 1
+    fi
+
+    log "   Using binary: $coordinator_binary"
+    COORDINATOR_CONFIG_PATH="$COORDINATOR_CONFIG_PATH" RUST_LOG="$rust_log" "$coordinator_binary" >> "$log_file" 2>&1 &
+    COORDINATOR_PID=$!
+
+    # Export PID so it persists across subshells
+    export COORDINATOR_PID
+
+    # Save PID to file for cross-script persistence
+    if [ -n "$LOG_DIR" ]; then
+        echo "$COORDINATOR_PID" > "$LOG_DIR/coordinator.pid"
+    fi
+
+    log "   ✅ Coordinator started with PID: $COORDINATOR_PID"
+
+    # Wait for coordinator to be ready
+    log "   - Waiting for coordinator to initialize..."
+    RETRY_COUNT=0
+    MAX_RETRIES=180
+
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        # Check if process is still running
+        if ! ps -p "$COORDINATOR_PID" > /dev/null 2>&1; then
+            log_and_echo "   ❌ Coordinator process died"
+            log_and_echo "   Coordinator log:"
+            log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
+            if [ -f "$log_file" ]; then
+                log_and_echo "   $(cat "$log_file")"
+            else
+                log_and_echo "   Log file not found at: $log_file"
+            fi
+            log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
+            exit 1
+        fi
+
+        # Check health endpoint
+        if check_coordinator_health; then
+            log "   ✅ Coordinator is ready!"
+
+            # Give coordinator time to start polling and collect initial events
+            log "   - Waiting for coordinator to poll and collect events (30 seconds)..."
+            sleep 30
+
+            COORDINATOR_LOG="$log_file"
+            export COORDINATOR_PID COORDINATOR_LOG
+            return 0
+        fi
+
+        sleep 1
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+    done
+
+    # If we get here, coordinator didn't become healthy
+    log_and_echo "   ❌ Coordinator failed to start after $MAX_RETRIES seconds"
+    log_and_echo "   Coordinator log:"
+    log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
+    if [ -f "$log_file" ]; then
+        log_and_echo "   $(cat "$log_file")"
+    else
+        log_and_echo "   Log file not found at: $log_file"
+    fi
+    log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
+    exit 1
+}
+
+# ============================================================================
+# TRUSTED GMP SERVICE FUNCTIONS (Phase 0 - Has Keys, Validation)
+# ============================================================================
+
+# Stop trusted-gmp processes
+# Usage: stop_trusted_gmp
+# Stops any running trusted-gmp processes
+stop_trusted_gmp() {
+    log "   Checking for existing trusted-gmp..."
+
+    if pgrep -f "cargo.*trusted.gmp" > /dev/null || pgrep -f "target/debug/trusted.gmp" > /dev/null; then
+        log "   ️  Found existing trusted-gmp processes, stopping them..."
+        pkill -f "cargo.*trusted.gmp" || true
+        pkill -f "target/debug/trusted.gmp" || true
+        sleep 2
+        log "   ✅ Trusted-GMP processes stopped"
+    else
+        log "   ✅ No existing trusted-gmp processes"
+    fi
+}
+
+# Check trusted-gmp health
+# Usage: check_trusted_gmp_health [port]
+# Checks if trusted-gmp health endpoint responds
+# Returns 0 if healthy, 1 if not
+check_trusted_gmp_health() {
+    local port="${1:-3334}"
+
+    if curl -s -f "http://127.0.0.1:${port}/health" > /dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Verify trusted-gmp is running
+# Usage: verify_trusted_gmp_running
+# Checks trusted-gmp process, port, and health endpoint
+# Exits with error if trusted-gmp is not running
+verify_trusted_gmp_running() {
+    # Ensure LOG_DIR is set (for reading PID files)
+    if [ -z "$LOG_DIR" ] && [ -n "$PROJECT_ROOT" ]; then
+        LOG_DIR="$PROJECT_ROOT/.tmp/e2e-tests"
+    fi
+
+    log ""
+    log " Verifying trusted-gmp is running..."
+
+    # Try to load TRUSTED_GMP_PID from file if not set
+    if [ -z "$TRUSTED_GMP_PID" ] && [ -n "$LOG_DIR" ] && [ -f "$LOG_DIR/trusted-gmp.pid" ]; then
+        TRUSTED_GMP_PID=$(cat "$LOG_DIR/trusted-gmp.pid" 2>/dev/null || echo "")
+        export TRUSTED_GMP_PID
+    fi
+
+    # Check trusted-gmp process
+    if [ -z "$TRUSTED_GMP_PID" ] || ! ps -p "$TRUSTED_GMP_PID" > /dev/null 2>&1; then
+        log_and_echo "❌ ERROR: Trusted-GMP process is not running"
+        log_and_echo "   Expected PID: ${TRUSTED_GMP_PID:-<not set>}"
+        log_and_echo "   Please start trusted-gmp first using start-trusted-gmp.sh"
+        exit 1
+    fi
+
+    # Check if trusted-gmp port is listening
+    TRUSTED_GMP_PORT="${TRUSTED_GMP_PORT:-3334}"
+    if ! check_port_listening "$TRUSTED_GMP_PORT"; then
+        log_and_echo "❌ ERROR: Trusted-GMP is not listening on port $TRUSTED_GMP_PORT"
+        log_and_echo "   Trusted-GMP PID: $TRUSTED_GMP_PID"
+        log_and_echo "   Process exists but port is not accessible"
+        log_and_echo "   Check logs: ${TRUSTED_GMP_LOG:-<not set>}"
+        exit 1
+    fi
+
+    # Check trusted-gmp health endpoint
+    if ! check_trusted_gmp_health "$TRUSTED_GMP_PORT"; then
+        log_and_echo "❌ ERROR: Trusted-GMP health check failed"
+        log_and_echo "   Trusted-GMP PID: $TRUSTED_GMP_PID"
+        log_and_echo "   Port $TRUSTED_GMP_PORT is listening but /health endpoint failed"
+        log_and_echo "   Check logs: ${TRUSTED_GMP_LOG:-<not set>}"
+        exit 1
+    fi
+    log "   ✅ Trusted-GMP is running and healthy (PID: $TRUSTED_GMP_PID, port: $TRUSTED_GMP_PORT)"
+}
+
+# Generate trusted-gmp keys (same as verifier keys, but for trusted-gmp)
+# Usage: generate_trusted_gmp_keys
+# Generates fresh ephemeral keys for E2E/CI testing and exports them as env vars.
+generate_trusted_gmp_keys() {
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+
+    TRUSTED_GMP_KEYS_FILE="$PROJECT_ROOT/testing-infra/ci-e2e/.trusted-gmp-keys.env"
+    TRUSTED_GMP_CONFIG_FILE="$PROJECT_ROOT/trusted-gmp/config/trusted-gmp-e2e-ci-testing.toml"
+
+    # If keys already exist, just load them
+    if [ -f "$TRUSTED_GMP_KEYS_FILE" ]; then
+        source "$TRUSTED_GMP_KEYS_FILE"
+        export E2E_TRUSTED_GMP_PRIVATE_KEY
+        export E2E_TRUSTED_GMP_PUBLIC_KEY
+        log_and_echo "   ✅ Loaded existing trusted-gmp ephemeral keys"
+        return
+    fi
+
+    log_and_echo "   Generating trusted-gmp ephemeral test keys..."
+    cd "$PROJECT_ROOT/trusted-gmp"
+
+    # Use pre-built binary (must be built in Step 1)
+    local generate_keys_bin="$PROJECT_ROOT/trusted-gmp/target/debug/generate_keys"
+    if [ ! -x "$generate_keys_bin" ]; then
+        log_and_echo "❌ PANIC: trusted-gmp generate_keys not built. Step 1 (build binaries) failed."
+        exit 1
+    fi
+    KEYS_OUTPUT=$("$generate_keys_bin" 2>/dev/null)
+
+    # Extract keys from output
+    PRIVATE_KEY=$(echo "$KEYS_OUTPUT" | grep "Private Key (base64):" | sed 's/.*: //')
+    PUBLIC_KEY=$(echo "$KEYS_OUTPUT" | grep "Public Key (base64):" | sed 's/.*: //')
+
+    if [ -z "$PRIVATE_KEY" ] || [ -z "$PUBLIC_KEY" ]; then
+        log_and_echo "❌ ERROR: Failed to generate trusted-gmp test keys"
+        exit 1
+    fi
+
+    # Export keys as environment variables (E2E prefix to avoid collision)
+    export E2E_TRUSTED_GMP_PRIVATE_KEY="$PRIVATE_KEY"
+    export E2E_TRUSTED_GMP_PUBLIC_KEY="$PUBLIC_KEY"
+
+    # Save keys to file for reuse within the same test run
+    cat > "$TRUSTED_GMP_KEYS_FILE" << EOF
+# Ephemeral trusted-gmp keys for E2E/CI testing
+# Generated at: $(date)
+# WARNING: These keys are for testing only. Do not use in production.
+E2E_TRUSTED_GMP_PRIVATE_KEY="$PRIVATE_KEY"
+E2E_TRUSTED_GMP_PUBLIC_KEY="$PUBLIC_KEY"
+EOF
+
+    cd "$PROJECT_ROOT"
+    log_and_echo "   ✅ Generated fresh trusted-gmp ephemeral keys"
+}
+
+# Load trusted-gmp keys
+# Usage: load_trusted_gmp_keys
+# Loads previously generated keys from the keys file.
+load_trusted_gmp_keys() {
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+
+    TRUSTED_GMP_KEYS_FILE="$PROJECT_ROOT/testing-infra/ci-e2e/.trusted-gmp-keys.env"
+
+    if [ -f "$TRUSTED_GMP_KEYS_FILE" ]; then
+        source "$TRUSTED_GMP_KEYS_FILE"
+        export E2E_TRUSTED_GMP_PRIVATE_KEY
+        export E2E_TRUSTED_GMP_PUBLIC_KEY
+    else
+        log_and_echo "❌ ERROR: Trusted-GMP keys file not found at $TRUSTED_GMP_KEYS_FILE"
+        log_and_echo "   Run generate_trusted_gmp_keys first."
+        exit 1
+    fi
+}
+
+# Start trusted-gmp service
+# Usage: start_trusted_gmp [log_file] [rust_log_level]
+# Starts trusted-gmp in background and waits for it to be ready
+# Sets TRUSTED_GMP_PID and TRUSTED_GMP_LOG global variables
+# Exits with error if trusted-gmp fails to start
+start_trusted_gmp() {
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+
+    if [ -z "$TRUSTED_GMP_CONFIG_PATH" ]; then
+        export TRUSTED_GMP_CONFIG_PATH="$PROJECT_ROOT/trusted-gmp/config/trusted-gmp-e2e-ci-testing.toml"
+    fi
+
+    # Load keys
+    load_trusted_gmp_keys
+
+    local log_file="${1:-$LOG_DIR/trusted-gmp.log}"
+    local rust_log="${2:-info}"
+
+    # Ensure log directory exists
+    mkdir -p "$(dirname "$log_file")"
+
+    # Delete existing log file to start fresh for this test run
+    if [ -f "$log_file" ]; then
+        rm -f "$log_file"
+    fi
+
+    # Stop any existing trusted-gmp first
+    stop_trusted_gmp
+
+    log "   Starting trusted-gmp service..."
+    log "   Using config: $TRUSTED_GMP_CONFIG_PATH"
+    log "   Log file: $log_file"
+
+    # Use pre-built binary (must be built in Step 1)
+    local trusted_gmp_binary="$PROJECT_ROOT/trusted-gmp/target/debug/trusted_gmp"
+    if [ ! -f "$trusted_gmp_binary" ]; then
+        log_and_echo "   ❌ PANIC: trusted_gmp not built. Step 1 (build binaries) failed."
+        exit 1
+    fi
+
+    log "   Using binary: $trusted_gmp_binary"
+    TRUSTED_GMP_CONFIG_PATH="$TRUSTED_GMP_CONFIG_PATH" RUST_LOG="$rust_log" "$trusted_gmp_binary" >> "$log_file" 2>&1 &
+    TRUSTED_GMP_PID=$!
+
+    # Export PID so it persists across subshells
+    export TRUSTED_GMP_PID
+
+    # Save PID to file for cross-script persistence
+    if [ -n "$LOG_DIR" ]; then
+        echo "$TRUSTED_GMP_PID" > "$LOG_DIR/trusted-gmp.pid"
+    fi
+
+    log "   ✅ Trusted-GMP started with PID: $TRUSTED_GMP_PID"
+
+    # Wait for trusted-gmp to be ready
+    log "   - Waiting for trusted-gmp to initialize..."
+    RETRY_COUNT=0
+    MAX_RETRIES=180
+
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        # Check if process is still running
+        if ! ps -p "$TRUSTED_GMP_PID" > /dev/null 2>&1; then
+            log_and_echo "   ❌ Trusted-GMP process died"
+            log_and_echo "   Trusted-GMP log:"
+            log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
+            if [ -f "$log_file" ]; then
+                log_and_echo "   $(cat "$log_file")"
+            else
+                log_and_echo "   Log file not found at: $log_file"
+            fi
+            log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
+            exit 1
+        fi
+
+        # Check health endpoint
+        if check_trusted_gmp_health; then
+            log "   ✅ Trusted-GMP is ready!"
+
+            # Give trusted-gmp time to start polling and collect initial events
+            log "   - Waiting for trusted-gmp to poll and collect events (30 seconds)..."
+            sleep 30
+
+            TRUSTED_GMP_LOG="$log_file"
+            export TRUSTED_GMP_PID TRUSTED_GMP_LOG
+            return 0
+        fi
+
+        sleep 1
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+    done
+
+    # If we get here, trusted-gmp didn't become healthy
+    log_and_echo "   ❌ Trusted-GMP failed to start after $MAX_RETRIES seconds"
+    log_and_echo "   Trusted-GMP log:"
+    log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
+    if [ -f "$log_file" ]; then
+        log_and_echo "   $(cat "$log_file")"
+    else
+        log_and_echo "   Log file not found at: $log_file"
+    fi
+    log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
+    exit 1
+}
+
+# ============================================================================
 # VERIFIER NEGOTIATION ROUTING HELPERS
 # ============================================================================
 
