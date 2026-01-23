@@ -27,9 +27,11 @@ testing-infra/testnet/.env.testnet
 
 # Testnet and CI config files (contain sensitive keys)
 solver/config/solver_testnet.toml
-verifier/config/verifier_testnet.toml
 solver/config/solver-e2e-ci-testing.toml
+verifier/config/verifier_testnet.toml
 verifier/config/verifier-e2e-ci-testing.toml
+coordinator/config/verifier_testnet.toml
+trusted-gmp/config/verifier_testnet.toml
 
 # E2E test artifacts
 verifier/tests/integration_test_e2e.rs
