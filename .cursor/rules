@@ -18,7 +18,7 @@ git commit -m "<type of change>: <description>
 - <more detailed points if needed (optional)>
 - <more detailed points if needed (optional)>
 
-Tests pass: Verifier <number>, Solver <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>"
+Tests pass: Coordinator <number>, Trusted-GMP <number>, Verifier <number>, Solver <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>"
 ```
 
 **If tests were NOT run (e.g., project setup, docs only, no test-affecting changes):**
@@ -36,13 +36,13 @@ git commit -m "<type of change>: <description>
 - **Run tests before committing** ONLY if changes affect existing test code (e.g., adding new tests, modifying code that has tests)
 - **Do NOT run tests for:** project setup, documentation-only changes, configuration files, or other non-code changes
 - **If sandbox prevents test execution**, ask user for help or skip tests (don't include "Tests pass:" line)
-- **Only include test results** in commit message if tests were actually run, in the format: `Tests pass: Verifier <number>, Solver <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>`
+- **Only include test results** in commit message if tests were actually run, in the format: `Tests pass: Coordinator <number>, Trusted-GMP <number>, Verifier <number>, Solver <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>`
 - **If tests were NOT run**, omit the "Tests pass:" line entirely from the commit message
-- **Display test summary table** after running tests using the commands in the next subsection, showing passed/total for each category (Verifier, Solver, Move, EVM, SVM, Frontend)
+- **Display test summary table** after running tests using the commands in the next subsection, showing passed/total for each category (Coordinator, Trusted-GMP, Verifier, Solver, Move, EVM, SVM, Frontend)
 - Follow conventional commit format (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`)
 - Keep commit messages brief and professional
 - Do NOT mention subtask or task IDs in commit messages
-- Do NOT include AI/Claude references or "Co-Authored-By" phrases
+- Do NOT advertise AI tools in commits - no AI/Claude/LLM references, "Co-Authored-By" phrases, or similar
 
 ### Test Count Commands
 
@@ -57,11 +57,17 @@ This script runs all tests and displays a summary table with passed/failed count
 Individual component commands:
 
 ```bash
-# Move tests
-nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123" 2>&1 | grep "Total tests:"
+# Coordinator tests
+RUST_LOG=off nix develop ./nix -c bash -c "cd coordinator && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
+
+# Trusted-GMP tests
+RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
 
 # Verifier tests
 RUST_LOG=off nix develop ./nix -c bash -c "cd verifier && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
+
+# Move tests
+nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123" 2>&1 | grep "Total tests:"
 
 # Solver tests
 RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'

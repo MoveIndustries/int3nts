@@ -150,7 +150,7 @@ async fn test_poll_hub_events_populates_requester_addr_connected_chain() {
     .await;
 
     // Call poll_hub_events (re-exported from monitor module for testing)
-    let events = verifier::monitor::poll_hub_events(&monitor)
+    let events = trusted_gmp::monitor::poll_hub_events(&monitor)
         .await
         .expect("poll_hub_events should succeed");
 
@@ -207,7 +207,7 @@ async fn test_poll_hub_events_handles_missing_requester_addr_connected_chain() {
     .await;
 
     // Call poll_hub_events (re-exported from monitor module for testing)
-    let events = verifier::monitor::poll_hub_events(&monitor)
+    let events = trusted_gmp::monitor::poll_hub_events(&monitor)
         .await
         .expect("poll_hub_events should succeed even if requester_addr_connected_chain is None");
 

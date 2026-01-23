@@ -6,8 +6,8 @@
 //! address in the IntentEscrow contract deployment.
 
 use anyhow::Result;
-use verifier::config::Config;
-use verifier::crypto::CryptoService;
+use trusted_gmp::config::Config;
+use trusted_gmp::crypto::CryptoService;
 
 fn main() -> Result<()> {
     // Load config

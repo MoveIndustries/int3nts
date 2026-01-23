@@ -9,9 +9,8 @@ mod helpers_mock_server;
 pub use helpers::{
     build_test_config_with_evm, build_test_config_with_mock_server, build_test_config_with_mvm,
     build_test_config_with_svm,
-    create_default_escrow_event, create_default_escrow_event_evm, create_default_evm_transaction,
-    create_default_fulfillment, create_default_fulfillment_transaction_params_evm,
-    create_default_fulfillment_transaction_params_mvm, create_default_mvm_transaction,
+    create_default_escrow_event, create_default_escrow_event_evm,
+    create_default_fulfillment, create_default_mvm_transaction,
     create_default_intent_evm, create_default_intent_mvm, DUMMY_ESCROW_ID_MVM, DUMMY_EXPIRY,
     DUMMY_INTENT_ID, DUMMY_PUBLIC_KEY, DUMMY_REGISTERED_AT, DUMMY_REQUESTER_ADDR_EVM,
     DUMMY_REQUESTER_ADDR_HUB, DUMMY_REQUESTER_ADDR_MVMCON, DUMMY_REQUESTER_ADDR_SVM,

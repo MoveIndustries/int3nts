@@ -5,19 +5,14 @@
 //! The module is organized into several categories:
 //! - **Configuration Builders**: Functions to create test configurations (MVM, EVM, with mock servers)
 //! - **Default Event Creators**: Functions to create default test events (intents, escrows, fulfillments)
-//! - **Default Transaction Creators**: Functions to create default test transactions (MVM, EVM)
-//! - **Transaction Params Creators**: Functions to create fulfillment transaction parameters
+//! - **Default Transaction Creators**: Functions to create default test transactions (MVM)
 
-use base64::{engine::general_purpose, Engine as _};
-use ed25519_dalek::SigningKey;
-use rand::{Rng, RngCore};
+use rand::Rng;
 use coordinator::config::{
     ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, VerifierConfig,
 };
-use coordinator::evm_client::EvmTransaction;
 use coordinator::monitor::{ChainType, EscrowEvent, FulfillmentEvent, IntentEvent};
 use coordinator::mvm_client::MvmTransaction;
-use coordinator::validator::FulfillmentTransactionParams;
 
 // ============================================================================
 // CONSTANTS
@@ -134,28 +129,20 @@ pub const DUMMY_SOLVER_REGISTRY_ADDR: &str = "0x1";
 // CONFIGURATION BUILDERS
 // ============================================================================
 
-/// Build a valid in-memory test configuration with a fresh Ed25519 keypair.
-/// Keys are encoded using standard Base64 and set as environment variables.
-/// The config references these env vars via private_key_env/public_key_env.
+/// Build a valid in-memory test configuration.
+/// The coordinator doesn't use crypto keys, so dummy values are used for verifier config.
 #[allow(dead_code)]
 pub fn build_test_config_with_mvm() -> Config {
     let mut rng = rand::thread_rng();
-    let mut sk_bytes = [0u8; 32];
-    rng.fill_bytes(&mut sk_bytes);
-    let signing_key = SigningKey::from_bytes(&sk_bytes);
-    let verifying_key = signing_key.verifying_key();
-
-    let private_key_b64 = general_purpose::STANDARD.encode(signing_key.to_bytes());
-    let public_key_b64 = general_purpose::STANDARD.encode(verifying_key.to_bytes());
 
     // Use unique env var names per invocation to avoid parallel test conflicts
     let unique_id: u64 = rng.gen();
-    let private_key_env_name = format!("TEST_VERIFIER_PRIVATE_KEY_{}", unique_id);
-    let public_key_env_name = format!("TEST_VERIFIER_PUBLIC_KEY_{}", unique_id);
+    let private_key_env_name = format!("TEST_COORDINATOR_PRIVATE_KEY_{}", unique_id);
+    let public_key_env_name = format!("TEST_COORDINATOR_PUBLIC_KEY_{}", unique_id);
 
-    // Set environment variables for the keys (CryptoService reads from env vars)
-    std::env::set_var(&private_key_env_name, &private_key_b64);
-    std::env::set_var(&public_key_env_name, &public_key_b64);
+    // Set dummy environment variables (coordinator doesn't use crypto keys)
+    std::env::set_var(&private_key_env_name, "dummy_private_key");
+    std::env::set_var(&public_key_env_name, "dummy_public_key");
 
     Config {
         hub_chain: ChainConfig {
@@ -355,47 +342,6 @@ pub fn create_default_escrow_event_evm() -> EscrowEvent {
     }
 }
 
-/// Create a default fulfillment transaction params with test values for Move VM connected chain.
-/// This can be customized using Rust's struct update syntax:
-/// ```
-/// let default = create_default_fulfillment_transaction_params_mvm();
-/// let custom = FulfillmentTransactionParams {
-///     intent_id: "0xcustom".to_string(),
-///     amount: 5000,
-///     ..default
-/// };
-/// ```
-#[allow(dead_code)]
-pub fn create_default_fulfillment_transaction_params_mvm() -> FulfillmentTransactionParams {
-    FulfillmentTransactionParams {
-        intent_id: DUMMY_INTENT_ID.to_string(),
-        recipient_addr: DUMMY_REQUESTER_ADDR_MVMCON.to_string(), // Requester who receives tokens on connected chain (Move VM format - 32 bytes)
-        amount: 0, // Should be set explicitly in tests
-        solver_addr: DUMMY_SOLVER_ADDR_MVMCON.to_string(), // Move VM address format (32 bytes)
-        token_metadata: DUMMY_TOKEN_ADDR_EVM.to_string(), // Token contract address (EVM) or metadata object (Move VM)
-    }
-}
-
-/// Create a default fulfillment transaction params with test values for EVM connected chain.
-/// This uses `create_default_fulfillment_transaction_params_mvm()` as a base and overrides EVM-specific fields.
-/// This can be customized using Rust's struct update syntax:
-/// ```
-/// let default = create_default_fulfillment_transaction_params_evm();
-/// let custom = FulfillmentTransactionParams {
-///     intent_id: "0xcustom".to_string(),
-///     amount: 5000,
-///     ..default
-/// };
-/// ```
-#[allow(dead_code)]
-pub fn create_default_fulfillment_transaction_params_evm() -> FulfillmentTransactionParams {
-    FulfillmentTransactionParams {
-        recipient_addr: DUMMY_REQUESTER_ADDR_EVM.to_string(), // EVM address format (20 bytes)
-        solver_addr: DUMMY_SOLVER_ADDR_EVM.to_string(), // EVM address format (20 bytes)
-        ..create_default_fulfillment_transaction_params_mvm()
-    }
-}
-
 /// Create a default Move VM transaction with test values.
 /// This can be customized using Rust's struct update syntax:
 /// ```
@@ -415,31 +361,5 @@ pub fn create_default_mvm_transaction() -> MvmTransaction {
         events: vec![],
         payload: None, // Should be set explicitly in tests
         sender: Some(DUMMY_SOLVER_ADDR_MVMCON.to_string()),
-    }
-}
-
-/// Create a default EVM transaction with test values.
-/// This can be customized using Rust's struct update syntax:
-/// ```
-/// let default = create_default_evm_transaction();
-/// let custom = EvmTransaction {
-///     hash: "0x123123".to_string(),
-///     status: Some("0x0".to_string()), // Failed
-///     ..default
-/// };
-/// ```
-#[allow(dead_code)]
-pub fn create_default_evm_transaction() -> EvmTransaction {
-    EvmTransaction {
-        hash: "0x123123".to_string(), // Transaction hash - arbitrary test value
-        block_number: Some("0x1000".to_string()), // Block 4096 - arbitrary test value
-        transaction_index: Some("0x0".to_string()),
-        from: DUMMY_SOLVER_ADDR_EVM.to_string(), // Solver who sends the transfer
-        to: Some(DUMMY_TOKEN_ADDR_EVM.to_string()), // Token contract address
-        input: "0x".to_string(), // Should be set explicitly in tests
-        value: "0x0".to_string(),
-        gas: "0xfde8".to_string(), // ~65,000 gas (typical for ERC20 transfer)
-        gas_price: "0x3b9aca00".to_string(), // 1 Gwei (1,000,000,000 wei) - typical test value
-        status: Some("0x1".to_string()), // Success
     }
 }

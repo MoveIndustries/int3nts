@@ -47,7 +47,7 @@ async fn test_successful_svm_solver_validation() {
 
     let intent = create_test_intent(Some(solver_addr.to_string()));
 
-    let result = verifier::validator::inflow_svm::validate_svm_escrow_solver(
+    let result = trusted_gmp::validator::inflow_svm::validate_svm_escrow_solver(
         &intent,
         solver_connected_chain_svm_addr,
         &config.hub_chain.rpc_url,
@@ -76,7 +76,7 @@ async fn test_rejection_when_solver_not_registered() {
 
     let intent = create_test_intent(Some(solver_addr.to_string()));
 
-    let result = verifier::validator::inflow_svm::validate_svm_escrow_solver(
+    let result = trusted_gmp::validator::inflow_svm::validate_svm_escrow_solver(
         &intent,
         DUMMY_SOLVER_ADDR_SVM,
         &config.hub_chain.rpc_url,
@@ -112,7 +112,7 @@ async fn test_rejection_when_svm_addresses_dont_match() {
     let intent = create_test_intent(Some(solver_addr.to_string()));
 
     let escrow_reserved_solver = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    let result = verifier::validator::inflow_svm::validate_svm_escrow_solver(
+    let result = trusted_gmp::validator::inflow_svm::validate_svm_escrow_solver(
         &intent,
         escrow_reserved_solver,
         &config.hub_chain.rpc_url,
@@ -165,7 +165,7 @@ async fn test_svm_address_normalization() {
 
         let intent = create_test_intent(Some(solver_addr.to_string()));
 
-        let result = verifier::validator::inflow_svm::validate_svm_escrow_solver(
+        let result = trusted_gmp::validator::inflow_svm::validate_svm_escrow_solver(
             &intent,
             escrow_addr,
             &config.hub_chain.rpc_url,
@@ -192,7 +192,7 @@ async fn test_error_handling_for_registry_query_failures() {
     let (_mock_server, config, _validator) = setup_mock_server_with_error(500).await;
 
     let intent = create_test_intent(Some(DUMMY_SOLVER_ADDR_HUB.to_string()));
-    let result = verifier::validator::inflow_svm::validate_svm_escrow_solver(
+    let result = trusted_gmp::validator::inflow_svm::validate_svm_escrow_solver(
         &intent,
         DUMMY_SOLVER_ADDR_SVM,
         &config.hub_chain.rpc_url,
@@ -225,7 +225,7 @@ async fn test_rejection_when_intent_has_no_solver() {
             .await;
 
     let intent = create_test_intent(None);
-    let result = verifier::validator::inflow_svm::validate_svm_escrow_solver(
+    let result = trusted_gmp::validator::inflow_svm::validate_svm_escrow_solver(
         &intent,
         DUMMY_SOLVER_ADDR_SVM,
         &config.hub_chain.rpc_url,

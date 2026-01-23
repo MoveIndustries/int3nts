@@ -4,6 +4,22 @@
 
 # Don't use set -e so we can capture all test results even if some fail
 
+echo "Running Coordinator tests..."
+COORDINATOR_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd coordinator && cargo test --quiet 2>&1") || {
+    echo "Coordinator tests failed:"
+    echo "$COORDINATOR_TEST_OUTPUT"
+}
+COORDINATOR_PASSED=$(echo "$COORDINATOR_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum+0}')
+COORDINATOR_FAILED=$(echo "$COORDINATOR_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
+
+echo "Running Trusted-GMP tests..."
+TRUSTED_GMP_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet 2>&1") || {
+    echo "Trusted-GMP tests failed:"
+    echo "$TRUSTED_GMP_TEST_OUTPUT"
+}
+TRUSTED_GMP_PASSED=$(echo "$TRUSTED_GMP_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum+0}')
+TRUSTED_GMP_FAILED=$(echo "$TRUSTED_GMP_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
+
 echo "Running Verifier tests..."
 VERIFIER_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd verifier && cargo test --quiet 2>&1") || {
     echo "Verifier tests failed:"
@@ -64,6 +80,8 @@ echo "=== Test Summary Table ==="
 echo ""
 echo "| Tests | Passed | Failed |"
 echo "|-------|--------|--------|"
+echo "| Coordinator | $COORDINATOR_PASSED | $COORDINATOR_FAILED |"
+echo "| Trusted-GMP | $TRUSTED_GMP_PASSED | $TRUSTED_GMP_FAILED |"
 echo "| Verifier | $VERIFIER_PASSED | $VERIFIER_FAILED |"
 echo "| Solver | $SOLVER_PASSED | $SOLVER_FAILED |"
 echo "| Move | $MOVE_PASSED | $MOVE_FAILED |"

@@ -1,10 +1,10 @@
 //! Unit tests for API error handling and request logging
+//!
+//! Tests negotiation endpoints and error handling for the coordinator service.
 
 use serde_json::json;
 use coordinator::api::{ApiResponse, ApiServer};
-use coordinator::crypto::CryptoService;
 use coordinator::monitor::EventMonitor;
-use coordinator::validator::CrossChainValidator;
 use warp::http::StatusCode;
 use warp::test::request;
 
@@ -22,10 +22,8 @@ use test_helpers::{
 async fn create_test_api_server() -> ApiServer {
     let config = test_helpers::build_test_config_with_mvm();
     let monitor = EventMonitor::new(&config).await.unwrap();
-    let validator = CrossChainValidator::new(&config).await.unwrap();
-    let crypto_service = CryptoService::new(&config).unwrap();
 
-    ApiServer::new(config, monitor, validator, crypto_service)
+    ApiServer::new(config, monitor)
 }
 
 /// Create a valid draft intent request for testing
@@ -35,6 +33,53 @@ fn valid_draft_request() -> serde_json::Value {
         "draft_data": { "offered_metadata": "0x1::test::Token", "offered_amount": 100 },
         "expiry_time": DUMMY_EXPIRY
     })
+}
+
+// ============================================================================
+// HEALTH ENDPOINT TESTS
+// ============================================================================
+
+/// Test that health endpoint returns success
+/// What is tested: Basic health check endpoint
+/// Why: Ensures service is running and responsive
+#[tokio::test]
+async fn test_health_endpoint() {
+    let api_server = create_test_api_server().await;
+    let routes = api_server.test_routes();
+
+    let response = request()
+        .method("GET")
+        .path("/health")
+        .reply(&routes)
+        .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body: ApiResponse<String> = serde_json::from_slice(response.body()).unwrap();
+    assert!(body.success);
+    assert!(body.data.is_some());
+}
+
+// ============================================================================
+// EVENTS ENDPOINT TESTS
+// ============================================================================
+
+/// Test that events endpoint returns success
+/// What is tested: Events retrieval endpoint
+/// Why: Ensures monitored events can be retrieved
+#[tokio::test]
+async fn test_events_endpoint() {
+    let api_server = create_test_api_server().await;
+    let routes = api_server.test_routes();
+
+    let response = request()
+        .method("GET")
+        .path("/events")
+        .reply(&routes)
+        .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body: ApiResponse<serde_json::Value> = serde_json::from_slice(response.body()).unwrap();
+    assert!(body.success);
 }
 
 // ============================================================================
