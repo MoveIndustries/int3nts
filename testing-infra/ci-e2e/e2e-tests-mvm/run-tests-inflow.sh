@@ -27,10 +27,15 @@ echo "================================================================"
 echo ""
 echo " Step 1: Build bins and pre-pull docker images"
 echo "========================================"
-pushd "$PROJECT_ROOT/verifier" > /dev/null
-cargo build --bin verifier --bin generate_keys 2>&1 | tail -5
+pushd "$PROJECT_ROOT/coordinator" > /dev/null
+cargo build --bin coordinator 2>&1 | tail -5
 popd > /dev/null
-echo "   ✅ Verifier: verifier, generate_keys"
+echo "   ✅ Coordinator: coordinator"
+
+pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
+cargo build --bin trusted_gmp --bin generate_keys 2>&1 | tail -5
+popd > /dev/null
+echo "   ✅ Trusted-GMP: trusted_gmp, generate_keys"
 
 pushd "$PROJECT_ROOT/solver" > /dev/null
 cargo build --bin solver --bin sign_intent 2>&1 | tail -5
@@ -40,9 +45,9 @@ echo "   ✅ Solver: solver, sign_intent"
 echo ""
 docker pull "$APTOS_DOCKER_IMAGE"
 
-echo " Step 2: Generating verifier keys..."
+echo " Step 2: Generating trusted-gmp keys..."
 echo "======================================="
-generate_verifier_keys
+generate_trusted_gmp_keys
 echo ""
 
 echo " Step 3: Setting up chains, deploying contracts, funding accounts"
