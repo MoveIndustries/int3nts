@@ -1,6 +1,6 @@
 //! Signing Service
 //!
-//! Main service loop that polls the verifier for pending drafts,
+//! Main service loop that polls the coordinator for pending drafts,
 //! evaluates acceptance, and signs/submits accepted drafts.
 
 use crate::acceptance::{evaluate_draft_acceptance, AcceptanceConfig, AcceptanceResult, DraftintentData};
@@ -90,7 +90,7 @@ impl SigningService {
     /// * `Result<usize>` - Number of drafts processed
     async fn poll_and_process_drafts(&self) -> Result<usize> {
         // Clone base_url for spawn_blocking
-        let base_url = self.config.service.verifier_url.clone();
+        let base_url = self.config.service.coordinator_url.clone();
         let drafts = tokio::task::spawn_blocking(move || {
             let client = VerifierClient::new(&base_url);
             client.poll_pending_drafts()
@@ -288,9 +288,9 @@ impl SigningService {
         // Get solver address again for submission
         let solver_hub_addr = self.config.solver.address.clone();
 
-        // Submit signature to verifier
+        // Submit signature to coordinator
         // Use spawn_blocking since verifier_client uses blocking HTTP
-        let base_url = self.config.service.verifier_url.clone();
+        let base_url = self.config.service.coordinator_url.clone();
         let draft_id_for_log = draft.draft_id.clone();
         let draft_id_for_submit = draft.draft_id.clone();
         let submission = crate::verifier_client::SignatureSubmission {
