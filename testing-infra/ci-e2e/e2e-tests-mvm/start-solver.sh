@@ -10,7 +10,7 @@
 # - MVMCON_URL: Connected chain RPC URL (default: http://127.0.0.1:8082/v1)
 # - HUB_CHAIN_ID: Hub chain ID (default: 1)
 # - MVMCON_CHAIN_ID: Connected chain ID (default: 2)
-# - VERIFIER_URL: Verifier URL (default: http://127.0.0.1:3333)
+# - COORDINATOR_URL: Coordinator URL (default: http://127.0.0.1:3333)
 
 set -e
 
