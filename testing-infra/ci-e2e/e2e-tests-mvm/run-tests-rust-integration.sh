@@ -2,8 +2,8 @@
 
 # E2E Integration Test Runner - Rust Integration Tests
 # 
-# This script runs the Rust integration tests for verifier and solver.
-# It sets up chains, deploys contracts, starts verifier, then runs Rust tests.
+# This script runs the Rust integration tests for coordinator and solver.
+# It sets up chains, deploys contracts, starts services, then runs Rust tests.
 
 set -e
 
@@ -59,14 +59,14 @@ echo "===================================================================="
 ./testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh
 
 echo ""
-echo " Step 4: Configuring and starting verifier..."
+echo " Step 4: Configuring and starting services..."
 echo "================================================"
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-verifier.sh
 
 echo ""
 echo " Step 5: Running Rust integration tests..."
 echo "============================================="
-./testing-infra/ci-e2e/e2e-tests-mvm/verifier-rust-integration-tests.sh
+./testing-infra/ci-e2e/e2e-tests-mvm/coordinator-rust-integration-tests.sh
 
 echo ""
 echo "✅ Rust integration tests completed!"
