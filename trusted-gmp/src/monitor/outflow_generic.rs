@@ -92,7 +92,7 @@ pub async fn monitor_hub_chain(monitor: &EventMonitor) -> Result<()> {
 
         // Wait before next poll
         tokio::time::sleep(std::time::Duration::from_millis(
-            monitor.config.verifier.polling_interval_ms,
+            monitor.config.trusted_gmp.polling_interval_ms,
         ))
         .await;
     }

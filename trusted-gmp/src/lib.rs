@@ -13,7 +13,7 @@ pub mod mvm_client;
 pub mod validator;
 
 // Re-export commonly used types
-pub use config::{ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, VerifierConfig};
+pub use config::{ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, TrustedGmpConfig};
 pub use crypto::{ApprovalSignature, CryptoService};
 pub use monitor::{ChainType, EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent};
 pub use validator::{CrossChainValidator, ValidationResult};

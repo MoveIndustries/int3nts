@@ -6,7 +6,7 @@
 use coordinator::config::{AcceptanceConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, TokenPairConfig};
 #[path = "mod.rs"]
 mod test_helpers;
-use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_TOKEN_ADDR_FANTOM, DUMMY_VERIFIER_EVM_PUBKEY_HASH};
+use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_TOKEN_ADDR_FANTOM};
 
 /// Test that default configuration creates valid structure
 /// Why: Verify default config is valid and doesn't panic
@@ -112,7 +112,7 @@ fn test_config_validation_multiple_connected_chains() {
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         chain_id: 31337,
-        verifier_evm_pubkey_hash: DUMMY_VERIFIER_EVM_PUBKEY_HASH.to_string(),
+
     });
 
     config.connected_chain_svm = Some(SvmChainConfig {
@@ -176,7 +176,7 @@ fn test_config_validate_hub_evm_duplicate_chain_id() {
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         chain_id: 100, // Same as hub
-        verifier_evm_pubkey_hash: DUMMY_VERIFIER_EVM_PUBKEY_HASH.to_string(),
+
     });
 
     let result = config.validate();
@@ -201,7 +201,7 @@ fn test_config_validate_mvm_evm_duplicate_chain_id() {
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         chain_id: 100, // Same as MVM
-        verifier_evm_pubkey_hash: DUMMY_VERIFIER_EVM_PUBKEY_HASH.to_string(),
+
     });
 
     let result = config.validate();
@@ -227,7 +227,7 @@ fn test_config_validate_unique_chain_ids() {
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         chain_id: 31337, // Different from hub and MVM
-        verifier_evm_pubkey_hash: DUMMY_VERIFIER_EVM_PUBKEY_HASH.to_string(),
+
     });
 
     let result = config.validate();

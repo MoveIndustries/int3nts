@@ -44,7 +44,7 @@ chain_id = 4
 EOF
 
 awk -v svm_section="$(cat $TEMP_FILE)" '
-/^\[verifier\]/ { print svm_section; print ""; }
+/^\[trusted_gmp\]/ { print svm_section; print ""; }
 { print }
 ' "$TRUSTED_GMP_E2E_CI_TESTING_CONFIG" > "${TRUSTED_GMP_E2E_CI_TESTING_CONFIG}.tmp"
 mv "${TRUSTED_GMP_E2E_CI_TESTING_CONFIG}.tmp" "$TRUSTED_GMP_E2E_CI_TESTING_CONFIG"

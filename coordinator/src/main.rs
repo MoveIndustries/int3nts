@@ -78,14 +78,14 @@ async fn main() -> Result<()> {
 
     // Set config path based on flags
     if let Some(path) = config_path {
-        std::env::set_var("VERIFIER_CONFIG_PATH", &path);
+        std::env::set_var("COORDINATOR_CONFIG_PATH", &path);
         info!("Using custom config: {}", path);
     } else if args.iter().any(|arg| arg == "--testnet" || arg == "-t") {
-        std::env::set_var("VERIFIER_CONFIG_PATH", "config/coordinator_testnet.toml");
+        std::env::set_var("COORDINATOR_CONFIG_PATH", "config/coordinator_testnet.toml");
         info!("Using testnet configuration");
     }
 
-    // Load configuration from config file (or VERIFIER_CONFIG_PATH env var)
+    // Load configuration from config file (or COORDINATOR_CONFIG_PATH env var)
     let config = Config::load()?;
     info!("Configuration loaded successfully");
 

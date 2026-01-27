@@ -12,7 +12,7 @@ use base64::{engine::general_purpose, Engine as _};
 use ed25519_dalek::SigningKey;
 use rand::{Rng, RngCore};
 use trusted_gmp::config::{
-    ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, VerifierConfig,
+    ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, TrustedGmpConfig,
 };
 use trusted_gmp::evm_client::EvmTransaction;
 use trusted_gmp::monitor::{ChainType, EscrowEvent, FulfillmentEvent, IntentEvent};
@@ -172,7 +172,7 @@ pub fn build_test_config_with_mvm() -> Config {
             intent_module_addr: "0x2".to_string(),
             escrow_module_addr: Some("0x2".to_string()),
         }),
-        verifier: VerifierConfig {
+        trusted_gmp: TrustedGmpConfig {
             private_key_env: private_key_env_name,
             public_key_env: public_key_env_name,
             polling_interval_ms: 1000,

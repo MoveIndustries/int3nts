@@ -33,7 +33,30 @@ log "   Computing verifier Ethereum address from config..."
 load_trusted_gmp_keys
 
 # Get verifier Ethereum address (derived from ECDSA public key)
-export TRUSTED_GMP_CONFIG_PATH="$PROJECT_ROOT/trusted-gmp/config/trusted-gmp-e2e-ci-testing.toml"
+# The full trusted-gmp config file may not exist yet (it's created later by configure-trusted-gmp.sh),
+# so we create a minimal temporary config with just enough for get_verifier_eth_address to read the keys.
+TEMP_CONFIG="$PROJECT_ROOT/.tmp/trusted-gmp-minimal.toml"
+mkdir -p "$(dirname "$TEMP_CONFIG")"
+cat > "$TEMP_CONFIG" << 'TMPEOF'
+[hub_chain]
+name = "placeholder"
+rpc_url = "http://127.0.0.1:8080"
+chain_id = 1
+intent_module_addr = "0x1"
+
+[trusted_gmp]
+private_key_env = "E2E_TRUSTED_GMP_PRIVATE_KEY"
+public_key_env = "E2E_TRUSTED_GMP_PUBLIC_KEY"
+polling_interval_ms = 2000
+validation_timeout_ms = 30000
+
+[api]
+host = "127.0.0.1"
+port = 3334
+cors_origins = []
+TMPEOF
+
+export TRUSTED_GMP_CONFIG_PATH="$TEMP_CONFIG"
 CONFIG_PATH="$TRUSTED_GMP_CONFIG_PATH"
 
 # Use pre-built binary (must be built in Step 1)
@@ -50,7 +73,7 @@ if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then
     log_and_echo "❌ ERROR: Could not compute verifier EVM pubkey hash from config"
     log_and_echo "   Command output:"
     echo "$VERIFIER_ETH_OUTPUT"
-    log_and_echo "   Check that trusted-gmp/config/trusted-gmp-e2e-ci-testing.toml has valid keys"
+    log_and_echo "   Check that E2E_TRUSTED_GMP_PRIVATE_KEY and E2E_TRUSTED_GMP_PUBLIC_KEY env vars are set"
     exit 1
 fi
 

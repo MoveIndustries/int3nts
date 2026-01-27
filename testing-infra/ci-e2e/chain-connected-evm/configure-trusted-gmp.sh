@@ -37,7 +37,7 @@ if [ ! -f "$TRUSTED_GMP_E2E_CI_TESTING_CONFIG" ]; then
     exit 1
 fi
 
-# Append connected_chain_evm section to config (insert before [verifier] section)
+# Append connected_chain_evm section to config (insert before [trusted_gmp] section)
 TEMP_FILE=$(mktemp)
 cat > "$TEMP_FILE" << EOF
 
@@ -49,9 +49,9 @@ chain_id = 3
 verifier_evm_pubkey_hash = "$VERIFIER_ADDR"
 EOF
 
-# Insert the EVM section before [verifier] section
+# Insert the EVM section before [trusted_gmp] section
 awk -v evm_section="$(cat $TEMP_FILE)" '
-/^\[verifier\]/ { print evm_section; print ""; }
+/^\[trusted_gmp\]/ { print evm_section; print ""; }
 { print }
 ' "$TRUSTED_GMP_E2E_CI_TESTING_CONFIG" > "${TRUSTED_GMP_E2E_CI_TESTING_CONFIG}.tmp"
 mv "${TRUSTED_GMP_E2E_CI_TESTING_CONFIG}.tmp" "$TRUSTED_GMP_E2E_CI_TESTING_CONFIG"

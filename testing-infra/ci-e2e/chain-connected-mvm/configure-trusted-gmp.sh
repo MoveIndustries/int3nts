@@ -38,7 +38,7 @@ if [ ! -f "$TRUSTED_GMP_E2E_CI_TESTING_CONFIG" ]; then
     exit 1
 fi
 
-# Append connected_chain_mvm section to config (insert before [verifier] section)
+# Append connected_chain_mvm section to config (insert before [trusted_gmp] section)
 TEMP_FILE=$(mktemp)
 cat > "$TEMP_FILE" << EOF
 
@@ -50,9 +50,9 @@ intent_module_addr = "0x$CHAIN2_ADDR"
 escrow_module_addr = "0x$CHAIN2_ADDR"
 EOF
 
-# Insert the MVM section before [verifier] section
+# Insert the MVM section before [trusted_gmp] section
 awk -v mvm_section="$(cat $TEMP_FILE)" '
-/^\[verifier\]/ { print mvm_section; print ""; }
+/^\[trusted_gmp\]/ { print mvm_section; print ""; }
 { print }
 ' "$TRUSTED_GMP_E2E_CI_TESTING_CONFIG" > "${TRUSTED_GMP_E2E_CI_TESTING_CONFIG}.tmp"
 mv "${TRUSTED_GMP_E2E_CI_TESTING_CONFIG}.tmp" "$TRUSTED_GMP_E2E_CI_TESTING_CONFIG"

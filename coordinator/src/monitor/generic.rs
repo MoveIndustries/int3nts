@@ -235,7 +235,7 @@ impl EventMonitor {
         // Create HTTP client for hub chain with configured timeout
         let hub_client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_millis(
-                config.verifier.validation_timeout_ms,
+                config.coordinator.validation_timeout_ms,
             ))
             .no_proxy() // Avoid macOS system-configuration issues in tests
             .build()?;
@@ -243,7 +243,7 @@ impl EventMonitor {
         // Create HTTP client for connected chain with configured timeout
         let connected_client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_millis(
-                config.verifier.validation_timeout_ms,
+                config.coordinator.validation_timeout_ms,
             ))
             .no_proxy() // Avoid macOS system-configuration issues in tests
             .build()?;
@@ -443,6 +443,7 @@ impl EventMonitor {
     ///
     /// This is called when an approval signature is generated for an intent.
     /// The frontend can then check if an intent has been approved.
+    #[allow(dead_code)] // Called from api::outflow_generic; lint false positive
     pub async fn mark_intent_approved(&self, intent_id: &str) {
         let normalized = normalize_intent_id(intent_id);
         let mut approved = self.approved_intent_ids.write().await;

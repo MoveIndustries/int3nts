@@ -6,7 +6,8 @@
 A framework for creating cross-chain intents with the following components
 
 - [intent-frameworks](docs/intent-frameworks/README.md)
-- [verifier](docs/verifier/README.md)
+- [coordinator](docs/verifier/README.md)
+- [trusted-gmp](docs/verifier/README.md)
 - [frontend](docs/frontend/README.md)
 - [solver tools](docs/solver/README.md)
 - [testing infrastructure](docs/testing-infra/README.md)
@@ -33,7 +34,8 @@ Run from project root:
 nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
 nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm test"
 nix develop ./nix -c bash -c "cd intent-frameworks/svm && ./scripts/test.sh"
-RUST_LOG=off nix develop ./nix -c bash -c "cd verifier && cargo test --quiet"
+RUST_LOG=off nix develop ./nix -c bash -c "cd coordinator && cargo test --quiet"
+RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet"
 nix develop ./nix -c bash -c "cd frontend && npm test"
 ```

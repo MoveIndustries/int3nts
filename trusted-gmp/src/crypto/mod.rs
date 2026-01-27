@@ -75,7 +75,7 @@ impl CryptoService {
     /// * `Err(anyhow::Error)` - Failed to create crypto service
     pub fn new(config: &Config) -> Result<Self> {
         // Load private key from environment variable
-        let private_key_b64 = config.verifier.get_private_key()?;
+        let private_key_b64 = config.trusted_gmp.get_private_key()?;
         let private_key_bytes = general_purpose::STANDARD.decode(&private_key_b64)?;
 
         if private_key_bytes.len() != 32 {
@@ -93,13 +93,13 @@ impl CryptoService {
         let verifying_key = signing_key.verifying_key();
 
         // Verify public key matches environment variable
-        let expected_public_key_b64 = config.verifier.get_public_key()?;
+        let expected_public_key_b64 = config.trusted_gmp.get_public_key()?;
         let actual_public_key_b64 = general_purpose::STANDARD.encode(verifying_key.to_bytes());
 
         if actual_public_key_b64 != expected_public_key_b64 {
             return Err(anyhow::anyhow!(
                 "Public key mismatch: environment variable '{}' has {}, but private key corresponds to {}",
-                config.verifier.public_key_env,
+                config.trusted_gmp.public_key_env,
                 expected_public_key_b64,
                 actual_public_key_b64
             ));

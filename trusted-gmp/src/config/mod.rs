@@ -1,7 +1,7 @@
 //! Configuration Management Module
 //!
-//! This module handles loading and managing configuration for the trusted verifier service.
-//! Configuration includes chain endpoints, verifier keys, API settings, and validation parameters.
+//! This module handles loading and managing configuration for the Trusted GMP service.
+//! Configuration includes chain endpoints, cryptographic keys, API settings, and validation parameters.
 
 use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
@@ -17,7 +17,7 @@ use std::str::FromStr;
 /// - Hub chain connection details
 /// - Connected Move VM chain connection details (optional, for Move VM escrow chains)
 /// - Connected EVM chain configuration (optional, for EVM escrow chains)
-/// - Verifier cryptographic keys and settings
+/// - Trusted GMP cryptographic keys and settings
 /// - API server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -32,8 +32,8 @@ pub struct Config {
     /// Connected Solana chain configuration (optional, for escrow on SVM)
     #[serde(default)]
     pub connected_chain_svm: Option<SvmChainConfig>,
-    /// Verifier-specific configuration (keys, timeouts, etc.)
-    pub verifier: VerifierConfig,
+    /// Trusted GMP configuration (keys, timeouts, etc.)
+    pub trusted_gmp: TrustedGmpConfig,
     /// API server configuration (host, port, CORS settings)
     pub api: ApiConfig,
     /// Default solver acceptance criteria (exchange rates for token pairs)
@@ -92,21 +92,21 @@ pub struct SvmChainConfig {
     pub escrow_program_id: String,
 }
 
-/// Verifier-specific configuration including cryptographic keys and timing parameters.
+/// Trusted GMP configuration including cryptographic keys and timing parameters.
 ///
-/// This configuration is critical for the verifier's operation and security.
+/// This configuration is critical for the service's operation and security.
 /// The private key must be kept secure and never exposed.
 ///
 /// Keys are loaded from environment variables at runtime for security.
 /// The config file contains the environment variable names, not the actual keys.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VerifierConfig {
+pub struct TrustedGmpConfig {
     /// Environment variable name containing Ed25519 private key (base64 encoded)
-    /// Default: "VERIFIER_PRIVATE_KEY"
+    /// Default: "TRUSTED_GMP_PRIVATE_KEY"
     #[serde(default = "default_private_key_env")]
     pub private_key_env: String,
     /// Environment variable name containing Ed25519 public key (base64 encoded)
-    /// Default: "VERIFIER_PUBLIC_KEY"
+    /// Default: "TRUSTED_GMP_PUBLIC_KEY"
     #[serde(default = "default_public_key_env")]
     pub public_key_env: String,
     /// Polling interval for event monitoring in milliseconds
@@ -116,14 +116,14 @@ pub struct VerifierConfig {
 }
 
 fn default_private_key_env() -> String {
-    "VERIFIER_PRIVATE_KEY".to_string()
+    "TRUSTED_GMP_PRIVATE_KEY".to_string()
 }
 
 fn default_public_key_env() -> String {
-    "VERIFIER_PUBLIC_KEY".to_string()
+    "TRUSTED_GMP_PUBLIC_KEY".to_string()
 }
 
-impl VerifierConfig {
+impl TrustedGmpConfig {
     /// Loads the private key from the environment variable.
     ///
     /// # Returns
@@ -330,7 +330,7 @@ impl Config {
     /// Loads configuration from the TOML file.
     ///
     /// This function:
-    /// 1. Checks if config/verifier.toml exists
+    /// 1. Checks if config/trusted-gmp.toml exists
     /// 2. If it exists, loads and parses the configuration
     /// 3. Validates the configuration for duplicate chain IDs
     /// 4. If it doesn't exist, returns an error asking user to copy template
@@ -341,8 +341,8 @@ impl Config {
     /// - `Err(anyhow::Error)` - Failed to load configuration, file doesn't exist, or validation failed
     pub fn load() -> anyhow::Result<Self> {
         // Check for custom config path via environment variable (for tests)
-        let config_path = std::env::var("VERIFIER_CONFIG_PATH")
-            .unwrap_or_else(|_| "config/verifier.toml".to_string());
+        let config_path = std::env::var("TRUSTED_GMP_CONFIG_PATH")
+            .unwrap_or_else(|_| "config/trusted-gmp.toml".to_string());
 
         if std::path::Path::new(&config_path).exists() {
             // Load existing configuration
@@ -355,8 +355,8 @@ impl Config {
             // Configuration file doesn't exist - user needs to copy template
             Err(anyhow::anyhow!(
                 "Configuration file '{}' not found. Please copy the template:\n\
-                cp config/verifier.template.toml config/verifier.toml\n\
-                Then edit config/verifier.toml with your actual values.",
+                cp config/trusted-gmp.template.toml config/trusted-gmp.toml\n\
+                Then edit config/trusted-gmp.toml with your actual values.",
                 config_path
             ))
         }
@@ -378,9 +378,9 @@ impl Config {
                 escrow_module_addr: None,
             },
             connected_chain_mvm: None, // Optional connected Move VM chain configuration
-            verifier: VerifierConfig {
-                private_key_env: "VERIFIER_PRIVATE_KEY".to_string(),
-                public_key_env: "VERIFIER_PUBLIC_KEY".to_string(),
+            trusted_gmp: TrustedGmpConfig {
+                private_key_env: "TRUSTED_GMP_PRIVATE_KEY".to_string(),
+                public_key_env: "TRUSTED_GMP_PUBLIC_KEY".to_string(),
                 polling_interval_ms: 2000,
                 validation_timeout_ms: 30000,
             },

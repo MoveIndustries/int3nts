@@ -116,8 +116,10 @@ impl ConnectedChainConfig {
 /// Service-level configuration for the solver.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceConfig {
-    /// Verifier API base URL (e.g., "http://127.0.0.1:3333")
+    /// Coordinator API base URL (e.g., "http://127.0.0.1:3333") - used for draft negotiation
     pub verifier_url: String,
+    /// Trusted GMP API base URL (e.g., "http://127.0.0.1:3334") - used for approvals and validation
+    pub trusted_gmp_url: String,
     /// Polling interval for checking pending drafts in milliseconds
     pub polling_interval_ms: u64,
     /// E2E testing mode: if true, use aptos CLI with profiles; if false, use movement CLI with private keys

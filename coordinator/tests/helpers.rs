@@ -7,9 +7,8 @@
 //! - **Default Event Creators**: Functions to create default test events (intents, escrows, fulfillments)
 //! - **Default Transaction Creators**: Functions to create default test transactions (MVM)
 
-use rand::Rng;
 use coordinator::config::{
-    ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, VerifierConfig,
+    ApiConfig, ChainConfig, Config, CoordinatorConfig, EvmChainConfig, SvmChainConfig,
 };
 use coordinator::monitor::{ChainType, EscrowEvent, FulfillmentEvent, IntentEvent};
 use coordinator::mvm_client::MvmTransaction;
@@ -130,20 +129,9 @@ pub const DUMMY_SOLVER_REGISTRY_ADDR: &str = "0x1";
 // ============================================================================
 
 /// Build a valid in-memory test configuration.
-/// The coordinator doesn't use crypto keys, so dummy values are used for verifier config.
+/// The coordinator doesn't use crypto keys — only timing parameters.
 #[allow(dead_code)]
 pub fn build_test_config_with_mvm() -> Config {
-    let mut rng = rand::thread_rng();
-
-    // Use unique env var names per invocation to avoid parallel test conflicts
-    let unique_id: u64 = rng.gen();
-    let private_key_env_name = format!("TEST_COORDINATOR_PRIVATE_KEY_{}", unique_id);
-    let public_key_env_name = format!("TEST_COORDINATOR_PUBLIC_KEY_{}", unique_id);
-
-    // Set dummy environment variables (coordinator doesn't use crypto keys)
-    std::env::set_var(&private_key_env_name, "dummy_private_key");
-    std::env::set_var(&public_key_env_name, "dummy_public_key");
-
     Config {
         hub_chain: ChainConfig {
             name: "hub".to_string(),
@@ -159,9 +147,7 @@ pub fn build_test_config_with_mvm() -> Config {
             intent_module_addr: "0x2".to_string(),
             escrow_module_addr: Some("0x2".to_string()),
         }),
-        verifier: VerifierConfig {
-            private_key_env: private_key_env_name,
-            public_key_env: public_key_env_name,
+        coordinator: CoordinatorConfig {
             polling_interval_ms: 1000,
             validation_timeout_ms: 1000,
         },
@@ -186,7 +172,7 @@ pub fn build_test_config_with_evm() -> Config {
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         chain_id: 31337,
-        verifier_evm_pubkey_hash: DUMMY_VERIFIER_EVM_PUBKEY_HASH.to_string(),
+
     });
     config
 }
@@ -359,7 +345,5 @@ pub fn create_default_mvm_transaction() -> MvmTransaction {
         hash: "0x123123".to_string(), // Transaction hash - arbitrary test value
         success: true,
         events: vec![],
-        payload: None, // Should be set explicitly in tests
-        sender: Some(DUMMY_SOLVER_ADDR_MVMCON.to_string()),
     }
 }

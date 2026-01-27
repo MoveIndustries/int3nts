@@ -37,7 +37,7 @@ pub async fn query_svm_fulfillment_transaction(
     });
 
     let client = reqwest::Client::new();
-    let timeout_ms = validator.config.verifier.validation_timeout_ms;
+    let timeout_ms = validator.config.trusted_gmp.validation_timeout_ms;
     let start = Instant::now();
     let mut response: serde_json::Value;
     loop {

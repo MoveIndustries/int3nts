@@ -23,8 +23,8 @@ pub struct InflowService {
     config: SolverConfig,
     /// Intent tracker for tracking signed intents (shared with other services)
     tracker: Arc<IntentTracker>,
-    /// Verifier base URL (client created on-demand to avoid blocking client in async context)
-    verifier_url: String,
+    /// Trusted GMP base URL for approval polling
+    trusted_gmp_url: String,
     /// Optional connected MVM chain client
     mvm_client: Option<ConnectedMvmClient>,
     /// Optional connected EVM chain client
@@ -52,17 +52,17 @@ impl InflowService {
     /// * `Ok(InflowService)` - Successfully created service
     /// * `Err(anyhow::Error)` - Failed to create service
     pub fn new(config: SolverConfig, tracker: Arc<IntentTracker>) -> Result<Self> {
-        let verifier_url = config.service.verifier_url.clone();
+        let trusted_gmp_url = config.service.trusted_gmp_url.clone();
 
         // Create connected chain clients for all configured chains
         let mvm_client = config.get_mvm_config()
             .map(|cfg| ConnectedMvmClient::new(cfg))
             .transpose()?;
-        
+
         let evm_client = config.get_evm_config()
             .map(|cfg| ConnectedEvmClient::new(cfg))
             .transpose()?;
-        
+
         let svm_client = config.get_svm_config()
             .map(|cfg| ConnectedSvmClient::new(cfg))
             .transpose()?;
@@ -70,7 +70,7 @@ impl InflowService {
         Ok(Self {
             config,
             tracker,
-            verifier_url,
+            trusted_gmp_url,
             mvm_client,
             evm_client,
             svm_client,
@@ -303,26 +303,26 @@ impl InflowService {
         intent: &TrackedIntent,
         escrow_id: &str,
     ) -> Result<String> {
-        // Poll verifier for approval until escrow expiry
-        let verifier_url = self.verifier_url.clone();
+        // Poll trusted-gmp for approval until escrow expiry
+        let trusted_gmp_url = self.trusted_gmp_url.clone();
         let intent_id_normalized = normalize_intent_id(&intent.intent_id);
         let poll_interval = Duration::from_secs(2);
         let expiry_time = intent.expiry_time;
-        
+
         let approval = loop {
             let current_time = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_secs();
-            
+
             if current_time >= expiry_time {
                 anyhow::bail!("Escrow expired while waiting for approval (expiry: {})", expiry_time);
             }
-            
+
             let approvals = tokio::task::spawn_blocking({
-                let verifier_url = verifier_url.clone();
+                let trusted_gmp_url = trusted_gmp_url.clone();
                 move || {
-                    let client = VerifierClient::new(&verifier_url);
+                    let client = VerifierClient::new(&trusted_gmp_url);
                     client.get_approvals()
                 }
             })

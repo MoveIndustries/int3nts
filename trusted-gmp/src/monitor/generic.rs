@@ -244,7 +244,7 @@ impl EventMonitor {
         // Create HTTP client for hub chain with configured timeout
         let hub_client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_millis(
-                config.verifier.validation_timeout_ms,
+                config.trusted_gmp.validation_timeout_ms,
             ))
             .no_proxy() // Avoid macOS system-configuration issues in tests
             .build()?;
@@ -252,7 +252,7 @@ impl EventMonitor {
         // Create HTTP client for connected chain with configured timeout
         let connected_client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_millis(
-                config.verifier.validation_timeout_ms,
+                config.trusted_gmp.validation_timeout_ms,
             ))
             .no_proxy() // Avoid macOS system-configuration issues in tests
             .build()?;

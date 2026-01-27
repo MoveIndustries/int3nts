@@ -41,6 +41,7 @@ generate_solver_config_svm() {
     fi
 
     local verifier_url="${VERIFIER_URL:-http://127.0.0.1:3333}"
+    local trusted_gmp_url="${TRUSTED_GMP_URL:-http://127.0.0.1:3334}"
     local hub_rpc="${CHAIN1_URL:-http://127.0.0.1:8080/v1}"
     local hub_chain_id="${HUB_CHAIN_ID:-1}"
     local svm_rpc="${SVM_RPC_URL:-http://127.0.0.1:8899}"
@@ -57,6 +58,7 @@ generate_solver_config_svm() {
 
     log "   Generating solver config:"
     log "   - Verifier URL: $verifier_url"
+    log "   - Trusted GMP URL: $trusted_gmp_url"
     log "   - Hub RPC: $hub_rpc (chain ID: $hub_chain_id)"
     log "   - SVM RPC: $svm_rpc (chain ID: $svm_chain_id)"
     log "   - Hub module address: $module_addr"
@@ -72,6 +74,7 @@ generate_solver_config_svm() {
 
 [service]
 verifier_url = "$verifier_url"
+trusted_gmp_url = "$trusted_gmp_url"
 polling_interval_ms = 1000
 e2e_mode = true
 

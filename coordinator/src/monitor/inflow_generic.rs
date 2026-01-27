@@ -81,7 +81,7 @@ pub async fn monitor_connected_chain(monitor: &EventMonitor) -> Result<()> {
         }
 
         tokio::time::sleep(std::time::Duration::from_millis(
-            monitor.config.verifier.polling_interval_ms,
+            monitor.config.coordinator.polling_interval_ms,
         ))
         .await;
     }
@@ -159,7 +159,7 @@ pub async fn monitor_svm_chain(monitor: &EventMonitor) -> Result<()> {
         }
 
         tokio::time::sleep(std::time::Duration::from_millis(
-            monitor.config.verifier.polling_interval_ms,
+            monitor.config.coordinator.polling_interval_ms,
         ))
         .await;
     }

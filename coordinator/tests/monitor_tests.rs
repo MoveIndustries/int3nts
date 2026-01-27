@@ -6,7 +6,7 @@
 //! Note: Validation-related tests are in trusted-gmp since the coordinator
 //! is read-only and doesn't perform validation or signing.
 
-use coordinator::monitor::{EscrowEvent, EventMonitor, IntentEvent};
+use coordinator::monitor::{EventMonitor, IntentEvent};
 #[path = "mod.rs"]
 mod test_helpers;
 use test_helpers::{

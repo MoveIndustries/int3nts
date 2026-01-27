@@ -50,7 +50,7 @@ rpc_url = "http://127.0.0.1:8080"
 chain_id = 1
 intent_module_addr = "0x$HUB_MODULE_ADDR"
 
-[verifier]
+[trusted_gmp]
 private_key_env = "E2E_TRUSTED_GMP_PRIVATE_KEY"
 public_key_env = "E2E_TRUSTED_GMP_PUBLIC_KEY"
 polling_interval_ms = 2000

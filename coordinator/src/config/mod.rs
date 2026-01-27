@@ -1,7 +1,7 @@
 //! Configuration Management Module
 //!
-//! This module handles loading and managing configuration for the trusted verifier service.
-//! Configuration includes chain endpoints, verifier keys, API settings, and validation parameters.
+//! This module handles loading and managing configuration for the coordinator service.
+//! Configuration includes chain endpoints, timing settings, and API settings.
 
 use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
@@ -17,7 +17,7 @@ use std::str::FromStr;
 /// - Hub chain connection details
 /// - Connected Move VM chain connection details (optional, for Move VM escrow chains)
 /// - Connected EVM chain configuration (optional, for EVM escrow chains)
-/// - Verifier cryptographic keys and settings
+/// - Coordinator timing settings
 /// - API server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -32,8 +32,8 @@ pub struct Config {
     /// Connected Solana chain configuration (optional, for escrow on SVM)
     #[serde(default)]
     pub connected_chain_svm: Option<SvmChainConfig>,
-    /// Verifier-specific configuration (keys, timeouts, etc.)
-    pub verifier: VerifierConfig,
+    /// Coordinator-specific configuration (timing settings)
+    pub coordinator: CoordinatorConfig,
     /// API server configuration (host, port, CORS settings)
     pub api: ApiConfig,
     /// Default solver acceptance criteria (exchange rates for token pairs)
@@ -73,10 +73,6 @@ pub struct EvmChainConfig {
     pub escrow_contract_addr: String,
     /// Chain ID (e.g., 31337 for Hardhat, 1 for Ethereum mainnet)
     pub chain_id: u64,
-    /// Verifier EVM public key hash (keccak256 hash of ECDSA public key, last 20 bytes)
-    /// This is the Ethereum address derived from the verifier's ECDSA public key
-    #[serde(rename = "verifier_evm_pubkey_hash", alias = "verifier_addr")]
-    pub verifier_evm_pubkey_hash: String,
 }
 
 /// Configuration for a Solana chain (SVM).
@@ -92,65 +88,16 @@ pub struct SvmChainConfig {
     pub escrow_program_id: String,
 }
 
-/// Verifier-specific configuration including cryptographic keys and timing parameters.
+/// Coordinator-specific configuration for timing parameters.
 ///
-/// This configuration is critical for the verifier's operation and security.
-/// The private key must be kept secure and never exposed.
-///
-/// Keys are loaded from environment variables at runtime for security.
-/// The config file contains the environment variable names, not the actual keys.
+/// The coordinator is a read-only service that monitors events and handles
+/// negotiation routing. It does NOT hold any cryptographic keys.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VerifierConfig {
-    /// Environment variable name containing Ed25519 private key (base64 encoded)
-    /// Default: "VERIFIER_PRIVATE_KEY"
-    #[serde(default = "default_private_key_env")]
-    pub private_key_env: String,
-    /// Environment variable name containing Ed25519 public key (base64 encoded)
-    /// Default: "VERIFIER_PUBLIC_KEY"
-    #[serde(default = "default_public_key_env")]
-    pub public_key_env: String,
+pub struct CoordinatorConfig {
     /// Polling interval for event monitoring in milliseconds
     pub polling_interval_ms: u64,
     /// Timeout for validation operations in milliseconds
     pub validation_timeout_ms: u64,
-}
-
-fn default_private_key_env() -> String {
-    "VERIFIER_PRIVATE_KEY".to_string()
-}
-
-fn default_public_key_env() -> String {
-    "VERIFIER_PUBLIC_KEY".to_string()
-}
-
-impl VerifierConfig {
-    /// Loads the private key from the environment variable.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(String)` - The private key (base64 encoded)
-    /// * `Err(anyhow::Error)` - Failed to load from environment
-    pub fn get_private_key(&self) -> anyhow::Result<String> {
-        std::env::var(&self.private_key_env)
-            .map_err(|_| anyhow::anyhow!(
-                "Environment variable '{}' not set. Please set it with your Ed25519 private key (base64 encoded).",
-                self.private_key_env
-            ))
-    }
-
-    /// Loads the public key from the environment variable.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(String)` - The public key (base64 encoded)
-    /// * `Err(anyhow::Error)` - Failed to load from environment
-    pub fn get_public_key(&self) -> anyhow::Result<String> {
-        std::env::var(&self.public_key_env)
-            .map_err(|_| anyhow::anyhow!(
-                "Environment variable '{}' not set. Please set it with your Ed25519 public key (base64 encoded).",
-                self.public_key_env
-            ))
-    }
 }
 
 /// API server configuration for external communication.
@@ -341,8 +288,8 @@ impl Config {
     /// - `Err(anyhow::Error)` - Failed to load configuration, file doesn't exist, or validation failed
     pub fn load() -> anyhow::Result<Self> {
         // Check for custom config path via environment variable (for tests)
-        let config_path = std::env::var("VERIFIER_CONFIG_PATH")
-            .unwrap_or_else(|_| "config/verifier.toml".to_string());
+        let config_path = std::env::var("COORDINATOR_CONFIG_PATH")
+            .unwrap_or_else(|_| "config/coordinator.toml".to_string());
 
         if std::path::Path::new(&config_path).exists() {
             // Load existing configuration
@@ -355,8 +302,8 @@ impl Config {
             // Configuration file doesn't exist - user needs to copy template
             Err(anyhow::anyhow!(
                 "Configuration file '{}' not found. Please copy the template:\n\
-                cp config/verifier.template.toml config/verifier.toml\n\
-                Then edit config/verifier.toml with your actual values.",
+                cp config/coordinator.template.toml config/coordinator.toml\n\
+                Then edit config/coordinator.toml with your actual values.",
                 config_path
             ))
         }
@@ -378,9 +325,7 @@ impl Config {
                 escrow_module_addr: None,
             },
             connected_chain_mvm: None, // Optional connected Move VM chain configuration
-            verifier: VerifierConfig {
-                private_key_env: "VERIFIER_PRIVATE_KEY".to_string(),
-                public_key_env: "VERIFIER_PUBLIC_KEY".to_string(),
+            coordinator: CoordinatorConfig {
                 polling_interval_ms: 2000,
                 validation_timeout_ms: 30000,
             },

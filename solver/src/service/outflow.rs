@@ -254,9 +254,9 @@ impl OutflowService {
             intent_id: Some(intent_id.to_string()),
         };
 
-        // Call verifier API (blocking call)
+        // Call trusted-gmp API for validation (blocking call)
         let response = tokio::task::spawn_blocking({
-            let base_url = self.config.service.verifier_url.clone();
+            let base_url = self.config.service.trusted_gmp_url.clone();
             let request = request.clone();
             move || {
                 let client = VerifierClient::new(&base_url);
@@ -264,7 +264,7 @@ impl OutflowService {
             }
         })
         .await
-        .context("Failed to spawn blocking task for verifier approval")??;
+        .context("Failed to spawn blocking task for trusted-gmp approval")??;
 
         if !response.validation.valid {
             anyhow::bail!(
