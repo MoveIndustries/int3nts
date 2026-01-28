@@ -33,7 +33,7 @@ in stdenv.mkDerivation rec {
     sha256 = hashes.${platform};
   };
 
-  nativeBuildInputs = [ gnutar gzip autoPatchelfHook ];
+  nativeBuildInputs = [ gnutar gzip ] ++ lib.optionals stdenv.isLinux [ autoPatchelfHook ];
   buildInputs = [
     stdenv.cc.cc.lib  # libstdc++
     openssl           # libssl.so.3, libcrypto.so.3

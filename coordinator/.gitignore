@@ -21,3 +21,5 @@ Thumbs.db
 
 # Configuration files with secrets
 config/verifier.toml
+config/coordinator.toml
+config/coordinator_testnet.toml

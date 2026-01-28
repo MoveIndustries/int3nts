@@ -9,7 +9,7 @@
 # Use this to test before deploying to EC2.
 #
 # Prerequisites:
-#   - trusted-gmp/config/verifier_testnet.toml configured with actual deployed addresses
+#   - trusted-gmp/config/trusted-gmp_testnet.toml configured with actual deployed addresses
 #   - .env.testnet with VERIFIER_PRIVATE_KEY and VERIFIER_PUBLIC_KEY
 #   - Rust toolchain installed
 #
@@ -28,13 +28,13 @@ echo "================================================"
 echo ""
 
 # Check config exists
-VERIFIER_CONFIG="$PROJECT_ROOT/trusted-gmp/config/verifier_testnet.toml"
+TRUSTED_GMP_CONFIG="$PROJECT_ROOT/trusted-gmp/config/trusted-gmp_testnet.toml"
 
-if [ ! -f "$VERIFIER_CONFIG" ]; then
-    echo "❌ ERROR: verifier_testnet.toml not found at $VERIFIER_CONFIG"
+if [ ! -f "$TRUSTED_GMP_CONFIG" ]; then
+    echo "❌ ERROR: trusted-gmp_testnet.toml not found at $TRUSTED_GMP_CONFIG"
     echo ""
     echo "   Create it from the template:"
-    echo "   cp trusted-gmp/config/verifier.template.toml trusted-gmp/config/verifier_testnet.toml"
+    echo "   cp trusted-gmp/config/trusted-gmp.template.toml trusted-gmp/config/trusted-gmp_testnet.toml"
     echo ""
     echo "   Then populate with actual deployed contract addresses:"
     echo "   - intent_module_addr (hub_chain section)"
@@ -84,8 +84,8 @@ fi
 
 # Validate config has actual addresses (not placeholders)
 # Check for common placeholder patterns
-if grep -qE "(0x123|0x\.\.\.|0xalice|0xbob)" "$VERIFIER_CONFIG"; then
-    echo "❌ ERROR: verifier_testnet.toml still has placeholder addresses"
+if grep -qE "(0x123|0x\.\.\.|0xalice|0xbob)" "$TRUSTED_GMP_CONFIG"; then
+    echo "❌ ERROR: trusted-gmp_testnet.toml still has placeholder addresses"
     echo ""
     echo "   Update the config file with actual deployed addresses:"
     echo "   - intent_module_addr (hub_chain section)"
@@ -97,11 +97,11 @@ if grep -qE "(0x123|0x\.\.\.|0xalice|0xbob)" "$VERIFIER_CONFIG"; then
 fi
 
 # Extract config values for display
-HUB_RPC=$(grep -A5 "\[hub_chain\]" "$VERIFIER_CONFIG" | grep "rpc_url" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
-EVM_RPC=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "rpc_url" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
-API_PORT=$(grep -A5 "\[api\]" "$VERIFIER_CONFIG" | grep "port" | head -1 | sed 's/.*= *\([0-9]*\).*/\1/')
-INTENT_MODULE=$(grep -A5 "\[hub_chain\]" "$VERIFIER_CONFIG" | grep "intent_module_addr" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
-ESCROW_CONTRACT=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "escrow_contract_addr" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
+HUB_RPC=$(grep -A5 "\[hub_chain\]" "$TRUSTED_GMP_CONFIG" | grep "rpc_url" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
+EVM_RPC=$(grep -A5 "\[connected_chain_evm\]" "$TRUSTED_GMP_CONFIG" | grep "rpc_url" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
+API_PORT=$(grep -A5 "\[api\]" "$TRUSTED_GMP_CONFIG" | grep "port" | head -1 | sed 's/.*= *\([0-9]*\).*/\1/')
+INTENT_MODULE=$(grep -A5 "\[hub_chain\]" "$TRUSTED_GMP_CONFIG" | grep "intent_module_addr" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
+ESCROW_CONTRACT=$(grep -A5 "\[connected_chain_evm\]" "$TRUSTED_GMP_CONFIG" | grep "escrow_contract_addr" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
 
 # Check for API key placeholders in RPC URLs
 if [[ "$HUB_RPC" == *"ALCHEMY_API_KEY"* ]] || [[ "$EVM_RPC" == *"ALCHEMY_API_KEY"* ]]; then
@@ -112,7 +112,7 @@ if [[ "$HUB_RPC" == *"ALCHEMY_API_KEY"* ]] || [[ "$EVM_RPC" == *"ALCHEMY_API_KEY
 fi
 
 echo " Configuration:"
-echo "   Config file: $VERIFIER_CONFIG"
+echo "   Config file: $TRUSTED_GMP_CONFIG"
 echo "   Keys file:   $TESTNET_KEYS_FILE"
 echo ""
 echo "   Hub Chain:"

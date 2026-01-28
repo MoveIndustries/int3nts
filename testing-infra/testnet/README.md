@@ -78,9 +78,7 @@ Test the services locally before deploying to EC2:
 #### Terminal 4: Start Frontend
 
 ```bash
-cd frontend
-npm install --legacy-peer-deps
-npm run dev
+cd frontend && npm install --legacy-peer-deps && npm run dev
 ```
 
 Create `frontend/.env.local` with testnet values:
@@ -107,8 +105,8 @@ curl -s http://localhost:3334/health | jq
 #### Prerequisites for Local Testing
 
 - Coordinator and solver config files populated with deployed addresses:
-  - `coordinator/config/verifier_testnet.toml`
-  - `trusted-gmp/config/verifier_testnet.toml`
+  - `coordinator/config/coordinator_testnet.toml`
+  - `trusted-gmp/config/trusted-gmp_testnet.toml`
   - `solver/config/solver_testnet.toml`
 - `.env.testnet` in this directory with all required keys
 - Movement CLI profile configured (solver only)
@@ -119,8 +117,8 @@ curl -s http://localhost:3334/health | jq
 All scripts read from:
 
 - `.env.testnet` - Private keys and addresses in this directory (gitignored)
-- `coordinator/config/verifier_testnet.toml` - Coordinator service config (gitignored)
-- `trusted-gmp/config/verifier_testnet.toml` - Trusted GMP service config (gitignored)
+- `coordinator/config/coordinator_testnet.toml` - Coordinator service config (gitignored)
+- `trusted-gmp/config/trusted-gmp_testnet.toml` - Trusted GMP service config (gitignored)
 - `solver/config/solver_testnet.toml` - Solver service config (gitignored)
 - `config/testnet-assets.toml` - Public asset addresses and decimals
 

@@ -21,3 +21,4 @@ Thumbs.db
 
 # Configuration files with secrets
 config/verifier.toml
+config/verifier_testnet.toml
