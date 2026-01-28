@@ -4,7 +4,7 @@
 **Depends On:** Phase 3
 **Blocks:** Phase 5
 
-**Note:** Coordinator service is already extracted in Phase 0. This phase focuses on integrating GMP message tracking and status updates into the coordinator.
+**Note:** Coordinator service already exists. This phase adds GMP message tracking and status updates to the coordinator.
 
 ---
 
@@ -25,9 +25,8 @@
 
 **Tasks:**
 
-- [ ] Create `coordinator/` as standalone Rust crate (like `verifier/` and `solver/`)
-- [ ] Initialize new Rust crate for coordinator service
-- [ ] Add dependencies: axum, sqlx, tokio, ethers, aptos-sdk
+- [ ] Coordinator crate already exists; add GMP message tracking
+- [ ] Add dependencies as needed: sqlx, migrations
 - [ ] Define `intents` table (id, status, requester, requirements, timestamps)
 - [ ] Define `escrows` table (id, intent_id, status, chain_id, timestamps)
 - [ ] Define `fulfillments` table (id, intent_id, solver, timestamps)

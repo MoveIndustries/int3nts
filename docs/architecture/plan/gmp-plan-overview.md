@@ -1,8 +1,8 @@
-# GMP Integration Proposal: Replacing the Trusted Verifier
+# GMP Integration Proposal
 
 **Status:** Proposal
 **Date:** 2026-01-22
-**Summary:** Architectural proposal to replace the trusted off-chain verifier with Generic Message Passing (GMP) protocol integration, moving validation on-chain and leveraging cross-chain messaging for authorization.
+**Summary:** Add Generic Message Passing (GMP) so production can use LayerZero instead of our off-chain signer. Validation moves on-chain; cross-chain messaging replaces approval signatures. Coordinator and Trusted GMP are assumed (already in place).
 
 > **🔷 GMP Protocol: LayerZero v2**
 >
@@ -12,41 +12,37 @@
 
 ## Executive Summary
 
-### Current System
+### Current System (Given)
 
-The intent framework uses a **trusted off-chain verifier service** that:
+- **Coordinator** – event monitoring, REST API, negotiation (no keys, cannot authorize releases)
+- **Trusted GMP** – off-chain signer; validates and signs (Ed25519/ECDSA) to authorize escrow releases. Used in local/CI; can steal funds if compromised.
 
-- Monitors events across hub and connected chains (Movement, Base, Solana)
-- Validates transaction details (amounts, recipients, tokens, solver addresses)
-- Generates cryptographic signatures (Ed25519/ECDSA) to authorize escrow releases
-- Provides REST API for frontend and solver coordination
+### Proposed Addition: GMP
 
-### Proposed System
-
-Replace the verifier with **on-chain validation + GMP messaging**:
+Add **on-chain validation + GMP messaging** so production does not depend on our signer:
 
 - Validation logic moves into smart contracts on each chain
-- GMPs (LayerZero, Axelar, Wormhole, CCIP) handle cross-chain message delivery
-- Contracts authenticate via GMP message verification (not signatures)
-- Coordinator service for UX (no private keys, no validation, handles negotiation/discovery)
+- GMP (LayerZero v2) handles cross-chain message delivery
+- Contracts authenticate via GMP message verification instead of our signatures
+- Coordinator unchanged (still no keys, UX only); Trusted GMP remains for local/CI only
 
 ### Key Benefits
 
 | Benefit | Impact |
 |---------|--------|
-| **Eliminate trusted party** | No single verifier key that can compromise system |
-| **Censorship resistance** | Permissionless GMP networks vs. single verifier service |
-| **Decentralization** | Trust GMP validator networks instead of single service |
+| **Production: no our signer** | Production uses LayerZero; no single key we operate that can compromise system |
+| **Censorship resistance** | Permissionless GMP networks vs. our Trusted GMP signer |
+| **Decentralization** | Trust GMP validator networks instead of our service |
 | **Security** | Validation logic is transparent on-chain |
-| **Operational simplicity** | No critical infrastructure to secure and maintain |
+| **Operational simplicity** | Coordinator only (no signer to run in production) |
 
 ### Key Trade-offs
 
-| Trade-off | Current | New |
-|-----------|---------|-----|
+| Trade-off | Current (Trusted GMP signs) | With GMP |
+|-----------|-----------------------------|----------|
 | **Gas costs** | Low (signatures cheap) | Higher (GMP fees + on-chain validation) |
 | **Contract complexity** | Low | Medium (validation logic on-chain) |
-| **Infrastructure burden** | High (run verifier service) | Low (coordinator only) |
+| **Infrastructure** | Coordinator + Trusted GMP | Coordinator + (optional Trusted GMP for CI only) |
 | **Flexibility** | Easy to update validation logic | Requires contract redeployment |
 
 ---
@@ -55,100 +51,45 @@ Replace the verifier with **on-chain validation + GMP messaging**:
 
 See execution phase documents for detailed implementation plan:
 
-- [Phase 0: Verifier Separation](gmp-plan-execution-phase0.md) (3-4 days) - Separate verifier into Coordinator + Trusted GMP
 - [Phase 1: Research & Design](gmp-plan-execution-phase1.md) (2-3 days)
 - [Phase 2: SVM Prototype](gmp-plan-execution-phase2.md) (3-4 days)
 - [Phase 3: Multi-Chain Expansion](gmp-plan-execution-phase3.md) (5-7 days)
-- [Phase 4: Coordinator GMP Integration](gmp-plan-execution-phase4.md) (2 days) - Coordinator already extracted in Phase 0; this phase adds GMP message tracking
+- [Phase 4: Coordinator GMP Integration](gmp-plan-execution-phase4.md) (2 days) - Add GMP message tracking to coordinator
 - [Phase 5: Integration & Documentation](gmp-plan-execution-phase5.md) (2-3 days)
 
-**Total Timeline:** 3-4 weeks (testnet only)
+**Total Timeline:** ~3 weeks (testnet only)
+
+**Assumed starting point:** Coordinator and Trusted GMP already exist. This plan adds GMP so production uses LayerZero instead of our signer.
 
 ---
 
-## Verifier Separation (Phase 0)
+## Starting Point: Coordinator + Trusted GMP (Given)
 
-**Critical first step:** Before migrating to real GMP protocols, we split the current verifier into two independent services:
-
-### Current Verifier (Monolithic)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    VERIFIER SERVICE                         │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐   │
-│  │ Event       │ │ Validation  │ │ Signature           │   │
-│  │ Monitoring  │ │ Logic       │ │ Generation          │   │
-│  └─────────────┘ └─────────────┘ └─────────────────────┘   │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐   │
-│  │ REST API    │ │ Negotiation │ │ 🔴 PRIVATE KEYS     │   │
-│  └─────────────┘ └─────────────┘ └─────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### New Architecture (Split)
+Current architecture (no change in this plan):
 
 ```text
 ┌─────────────────────────────────┐  ┌─────────────────────────────────┐
 │      COORDINATOR SERVICE        │  │      TRUSTED GMP SERVICE        │
-│  ┌─────────────┐ ┌───────────┐  │  │  ┌─────────────┐ ┌───────────┐  │
-│  │ Event       │ │ REST API  │  │  │  │ GMP Event   │ │ Message   │  │
-│  │ Monitoring  │ │ (read)    │  │  │  │ Monitoring  │ │ Delivery  │  │
-│  └─────────────┘ └───────────┘  │  │  └─────────────┘ └───────────┘  │
-│  ┌─────────────┐ ┌───────────┐  │  │  ┌─────────────────────────┐    │
-│  │ Event       │ │Negotiation│  │  │  │ 🔴 OPERATOR WALLET       │    │
-│  │ Caching     │ │ API       │  │  │  │    (privkey in config)   │    │
-│  └─────────────┘ └───────────┘  │  │  └─────────────────────────┘    │
-│                                 │  │                                 │
-│  🟢 NO KEYS                     │  │  🔴 CAN STEAL FUNDS             │
-│  🟢 NO VALIDATION               │  │     (same risk as verifier)     │
-│  🟢 CANNOT STEAL FUNDS          │  │                                 │
-│                                 │  │  (Only for local/CI testing -   │
-│                                 │  │   production uses real GMP)     │
+│  Event monitoring, REST API,   │  │  Signs approvals (Ed25519/ECDSA)│
+│  negotiation. NO KEYS.         │  │  Used in local/CI. HAS KEYS.    │
+│  🟢 Cannot steal funds          │  │  🔴 Can steal funds if compromised│
 └─────────────────────────────────┘  └─────────────────────────────────┘
 ```
 
-**Security model by environment:**
+**After GMP (this plan):** Production uses LayerZero for cross-chain approval; Trusted GMP remains for local/CI only. Coordinator unchanged.
 
-| Environment | Message Verification | Trust Model |
-|-------------|---------------------|-------------|
-| **Current (Verifier)** | Verifier signatures | 🔴 Our service can steal funds |
-| **Local/CI (Trusted GMP)** | Trusted GMP relays | 🔴 Our service can steal funds (same risk) |
-| **Production (Real GMP)** | LayerZero DVNs | 🟡 LayerZero DVNs can steal funds |
-
-**We are not eliminating trust - we are moving it.** In production, we trust LayerZero's DVN network instead of our own verifier. Whether this is "better" depends on:
-
-- LayerZero's security track record
-- DVN decentralization (how many, who operates them)
-- Economic incentives and slashing mechanisms
-- Your threat model (internal vs external attackers)
-
-### Why This Matters
-
-| Aspect | Current Verifier | Coordinator | Trusted GMP (testing) | Production (real GMP) |
-|--------|------------------|-------------|----------------------|----------------------|
-| **Can steal funds** | 🔴 YES (us) | 🟢 NO | 🔴 YES (us) | 🟡 YES (LayerZero DVNs) |
-| **Validation logic** | 🔴 Off-chain | 🟢 On-chain | 🟢 On-chain | 🟢 On-chain |
-| **If compromised** | 🔴 Steal funds | 🟢 Disrupt UX | 🔴 Steal funds | 🟡 Steal funds |
-| **Trust assumption** | 🔴 Our service | 🟢 None | 🔴 Our service | 🟡 LayerZero network |
-
-### Migration Benefits
-
-- ✅ **Coordinator has no keys** - Cannot steal funds, only affects UX
-- ✅ **Clean break** - Old verifier completely removed, no legacy code
-- ✅ **Cleaner architecture** - Clear separation of concerns
-- ✅ **On-chain validation** - All validation logic is transparent and auditable
-- ✅ **Production security** - Trust moves from us to LayerZero DVNs
-- ⚠️ **Testing still requires trust** - Trusted GMP for local/CI has same risk as verifier
-
-> **See [Phase 0: Verifier Separation](gmp-plan-execution-phase0.md) for implementation details.**
+| Environment | Who authorizes releases | Trust |
+|-------------|-------------------------|--------|
+| **Local/CI (today & after)** | Trusted GMP (our signer) | 🔴 Our service |
+| **Production (after GMP)** | LayerZero DVNs | 🟡 GMP network |
 
 ---
 
 ## Architectural Changes
 
-This migration moves validation logic on-chain and uses GMP for cross-chain message delivery. The table below shows how each current verifier task maps to the new architecture.
+This plan moves validation logic on-chain and uses GMP for cross-chain message delivery. The table below shows how each current approval-task (today done by Trusted GMP) maps to the GMP design.
 
-### Verifier Task Migration
+### Approval-Flow Task Migration
 
 | # | Task | How Architectural Redesign Addresses It |
 | --- | ------ | --------------------------------------- |
@@ -168,7 +109,7 @@ This migration moves validation logic on-chain and uses GMP for cross-chain mess
 | 14 | **Cache & Serve Events** | Coordinator service (no keys, no validation) for UX |
 | 15 | **Negotiation Routing** | Coordinator includes negotiation API (application logic, not security-critical) |
 
-**Key Finding:** While GMPs cannot directly replace the verifier's current functions, **architectural redesign moving validation on-chain makes all 15 verifier tasks feasible** through different mechanisms (on-chain validation + GMP messaging).
+**Key Finding:** Moving validation on-chain and using GMP for delivery makes all 15 approval-flow tasks feasible (on-chain validation + GMP messaging).
 
 ---
 
@@ -176,20 +117,20 @@ This migration moves validation logic on-chain and uses GMP for cross-chain mess
 
 ### Core Principle
 
-Replace **"trusted off-chain validation + signatures"** with **"trustless on-chain validation + GMP messages"**.
+Replace **"our off-chain signer (Trusted GMP) validates and signs"** with **"on-chain validation + GMP messages"** in production.
 
 ### How It Works
 
-#### Current Model
+#### Current (Trusted GMP signs)
 
 ```
-Off-chain Verifier parses arbitrary txs → Validates details → Signs approval
+Trusted GMP (off-chain) validates → Signs approval → Contract checks signature
 ```
 
-#### Proposed Model
+#### After GMP (production)
 
 ```
-On-chain Contract validates locally → Emits event → GMP delivers message → Receiving contract accepts
+On-chain contract validates → Sends GMP message → Receiving contract accepts via GMP
 ```
 
 ### GMP Auto-Execution Support
@@ -213,10 +154,10 @@ On-chain Contract validates locally → Emits event → GMP delivers message →
 
 1. Hub: Requester creates intent (wants assets on hub), emits event
 2. Connected Chain: Requester creates escrow (offers their assets, reserved for solver) → emits `EscrowCreated` event
-3. **Verifier**: Observes escrow event, validates (amount, token, reservation match intent)
+3. **Trusted GMP**: Observes escrow event, validates (amount, token, reservation match intent)
 4. Hub: Solver fulfills intent (provides desired assets to requester)
-5. **Verifier**: Observes fulfillment event, validates, generates signature
-6. Connected Chain: Solver submits verifier signature → escrow releases requester's offering to solver
+5. **Trusted GMP**: Observes fulfillment event, validates, generates signature
+6. Connected Chain: Solver submits Trusted GMP signature → escrow releases requester's offering to solver
 
 #### GMP Flow
 
@@ -235,23 +176,23 @@ On-chain Contract validates locally → Emits event → GMP delivers message →
 | **Hub Intent Contract** | N/A | Add GMP receive handler for escrow confirmations | **NEW** - Add inbound handler |
 | **Hub Intent Contract** | Emits fulfillment event | Add GMP send on fulfillment | **MODIFY** - Add outbound message |
 | **Connected Chain Escrow** | Just locks funds + emits event | Add GMP receive handler for intent requirements | **NEW** - Add inbound handler |
-| **Connected Chain Escrow** | Validates via verifier signature | Validate requirements on-chain during creation | **MODIFY** - Move validation logic on-chain |
-| **Connected Chain Escrow** | Validates via verifier signature | Add GMP send on escrow creation | **NEW** - Add outbound message |
+| **Connected Chain Escrow** | Validates via Trusted GMP signature | Validate requirements on-chain during creation | **MODIFY** - Move validation logic on-chain |
+| **Connected Chain Escrow** | Validates via Trusted GMP signature | Add GMP send on escrow creation | **NEW** - Add outbound message |
 | **Connected Chain Escrow** | Requires signature for release | Add GMP receive handler for fulfillment proof | **NEW** - Add inbound handler |
 | **Connected Chain Escrow** | Uses `ed25519::verify_signature` | Use GMP message verification | **REPLACE** - Different auth mechanism |
-| **Verifier Service** | Observes, validates, signs | **ELIMINATED** | **DELETE** |
+| **Trusted GMP (production)** | Observes, validates, signs | **Not used in production** | Production uses GMP only; Trusted GMP stays for local/CI |
 
 ### Outflow (Hub → Connected Chain)
 
 #### Current Flow
 
 1. Hub: Intent created (locks funds), emits event with requirements (recipient, amount, token, connected_chain_id)
-2. **Verifier**: Observes intent event, caches it
+2. **Trusted GMP**: Observes intent event, caches it
 3. Connected Chain: Solver submits **arbitrary transaction** (ERC20 transfer, SPL transfer, etc.)
-4. **Verifier**: Queries transaction by hash, parses arguments/logs, validates (recipient, amount, token, solver address)
-5. **Verifier**: Queries hub solver registry for solver's connected-chain address
-6. **Verifier**: Signs intent_id if valid
-7. Hub: Solver submits verifier signature → intent releases escrow
+4. **Trusted GMP**: Queries transaction by hash, parses arguments/logs, validates (recipient, amount, token, solver address)
+5. **Trusted GMP**: Queries hub solver registry for solver's connected-chain address
+6. **Trusted GMP**: Signs intent_id if valid
+7. Hub: Solver submits Trusted GMP signature → intent releases escrow
 
 #### GMP Flow
 
@@ -289,7 +230,7 @@ On-chain Contract validates locally → Emits event → GMP delivers message →
 | **Validation Contract** | N/A | Validate requirements and forward tokens to user | **NEW** - On-chain validation and forwarding |
 | **Validation Contract** | N/A | Send GMP message on success | **NEW** - Outbound message |
 | **Solver Flow** | Submit arbitrary tx → wait → submit signature | Approve contract (one-time) → Call validation contract function (transfer + validation + GMP send in one tx) | **REPLACE** - Different interaction pattern |
-| **Verifier Service** | Parses txs, validates, queries registry, signs | **ELIMINATED** | **DELETE** |
+| **Trusted GMP (production)** | Parses txs, validates, queries registry, signs | **Not used in production** | Production uses GMP; Trusted GMP for local/CI only |
 
 ---
 
@@ -328,37 +269,29 @@ On-chain Contract validates locally → Emits event → GMP delivers message →
 |-----------|-------------|-----------------|
 | **Validation Logic** | Off-chain validation of 15+ checks | 🔴 **CRITICAL** - Bugs can cause fund loss |
 | **Signature Generation** | Ed25519/ECDSA signing of approvals | 🔴 **CRITICAL** - Wrong signature = wrong outcome |
-| **Private Key Management** | Secure storage of verifier keys | 🔴 **CRITICAL** - Key compromise = total system breach |
+| **Private Key Management** | Secure storage of Trusted GMP keys | 🔴 **CRITICAL** - Key compromise = total system breach |
 | **Transaction Parsing** | Extract data from arbitrary transactions | 🔴 **HIGH** - Parsing bugs can validate wrong data |
 | **Cross-Chain State Queries** | Query solver registry on hub | 🟡 **MEDIUM** - Must remain synced |
 
-### What Remains (Transformed)
+### What Remains (Given)
 
-The verifier service transforms from **"Trusted Authority"** to **"Coordinator"**:
+**Coordinator** (unchanged by this plan): event monitoring, caching, REST API, negotiation. No keys. **Trusted GMP** (unchanged): still used for local/CI signing; not used in production once GMP is live.
 
-| Function | Current "Verifier" | New "Coordinator" | Change |
-|----------|-------------------|---------------|--------|
-| **Event monitoring** | ✅ YES | ✅ YES | Same functionality |
-| **Event caching** | ✅ YES | ✅ YES | Same functionality |
-| **REST API** | ✅ YES | ✅ YES | Same functionality |
-| **Transaction parsing** | ✅ Complex parsing | ❌ NO | **Eliminated** |
-| **Validation logic** | ✅ 15+ validation checks | ❌ NO | **Eliminated** |
-| **Signature generation** | ✅ Ed25519/ECDSA signing | ❌ NO | **Eliminated** |
-| **Private keys** | ✅ Critical security | ❌ NO KEYS | **Eliminated** |
-| **Trust level** | 🔴 **CRITICAL** (can steal funds) | 🟢 **LOW** (read-only) | **Major improvement** |
-| **If compromised** | 🔴 Funds can be stolen | 🟢 Worst case: API DoS | **Major improvement** |
-| **If it goes down** | 🔴 System broken | 🟡 Security works, UX degraded (no negotiation) | **Major improvement** |
+| Function | Coordinator (given) | Trusted GMP (given) | After GMP (production) |
+|----------|---------------------|---------------------|-------------------------|
+| **Event monitoring / API** | ✅ YES | — | Coordinator only |
+| **Who authorizes releases** | — | Trusted GMP (local/CI) | LayerZero (production) |
+| **Our signer in production** | — | Today: yes | No (GMP only) |
 
-### Updated Infrastructure Complexity
+### Updated Infrastructure Complexity (After GMP)
 
-| Aspect | Current | New | Impact |
-|--------|---------|-----|--------|
-| **Infrastructure YOU run** | Verifier service (Rust, monitoring, RPC, DB, keys, API) | Coordinator (monitoring, DB, API only) | **Major reduction** |
-| **Infrastructure SOMEONE runs** | Just you | **GMP protocol operators** (already exists) | **Shifts to decentralized network** |
-| **Service criticality** | 🔴 **CRITICAL** (system doesn't work without it) | 🟡 **REQUIRED FOR UX** (security works without it) | **Much better** |
-| **Security requirements** | 🔴 **MAXIMUM** (holds keys, can steal funds) | 🟢 **MINIMAL** (read-only, no keys) | **Massive improvement** |
-| **Operational burden** | 🔴 **HIGH** (key management, uptime critical) | 🟡 **MEDIUM** (uptime nice-to-have) | **Improved** |
-| **Censorship power** | 🔴 **HIGH** (can refuse to sign valid txs) | 🟢 **NONE** (users can query chain directly) | **Eliminated** |
+| Aspect | Current (Trusted GMP signs) | After GMP (production) | Impact |
+|--------|-----------------------------|------------------------|--------|
+| **Infrastructure YOU run** | Coordinator + Trusted GMP | Coordinator only (Trusted GMP for CI only) | **No signer in production** |
+| **Infrastructure SOMEONE runs** | Just you (signer) | **GMP protocol operators** | **Shifts to decentralized network** |
+| **Signer criticality in prod** | 🔴 **CRITICAL** | 🟢 **NONE** (GMP delivers) | **Much better** |
+| **Security requirements** | 🔴 **MAXIMUM** (signer holds keys) | 🟢 **MINIMAL** (coordinator read-only) | **Massive improvement** |
+| **Censorship power** | 🔴 **HIGH** (can refuse to sign) | 🟢 **NONE** (permissionless GMP) | **Eliminated** |
 
 ---
 
@@ -366,23 +299,23 @@ The verifier service transforms from **"Trusted Authority"** to **"Coordinator"*
 
 ### Trust Model Comparison
 
-| Aspect | Current (Verifier) | New (GMP) |
-|--------|-------------------|-----------|
-| **Authority source** | Single verifier private key | GMP protocol (oracle network, validators, relayers) |
-| **Validation location** | Off-chain (verifier service) | On-chain (smart contracts) |
-| **Censorship resistance** | ❌ Verifier can refuse to sign | ✅ Permissionless GMP networks |
-| **Liveness dependency** | Single verifier service must be online | GMP network must be operational (highly redundant) |
-| **Security assumption** | Trust verifier key security + validation logic correctness | Trust GMP security model + on-chain validation correctness |
-| **Key compromise impact** | 🔴 Total system breach - attacker can steal all escrowed funds | 🟢 No keys in coordinator - worst case is API DoS |
-| **Validation bug impact** | 🔴 Wrong signatures issued, funds lost | 🟡 Contract bug affects only that contract (isolated, auditable) |
-| **Transparency** | ❌ Off-chain logic, opaque validation | ✅ On-chain logic, fully transparent |
+| Aspect | Current (Trusted GMP signs) | After GMP (production) |
+|--------|-----------------------------|-------------------------|
+| **Authority source** | Our Trusted GMP private key | GMP protocol (LayerZero DVNs, relayers) |
+| **Validation location** | Off-chain (Trusted GMP) | On-chain (smart contracts) |
+| **Censorship resistance** | ❌ Our signer can refuse | ✅ Permissionless GMP networks |
+| **Liveness dependency** | Our signer must be online | GMP network (highly redundant) |
+| **Security assumption** | Trust our signer + validation logic | Trust GMP + on-chain validation |
+| **Key compromise impact** | 🔴 Total breach (our keys) | 🟢 No our keys in prod; worst case API DoS |
+| **Validation bug impact** | 🔴 Wrong signatures, funds lost | 🟡 Contract bug isolated, auditable |
+| **Transparency** | ❌ Off-chain logic | ✅ On-chain logic, transparent |
 
 ### Attack Surface Reduction
 
-**Current attack vectors:**
+**Current attack vectors (Trusted GMP as signer):**
 
-- Verifier private key theft
-- Verifier service compromise
+- Trusted GMP private key theft
+- Trusted GMP service compromise
 - Validation logic bugs in off-chain code
 - Transaction parsing vulnerabilities
 - Cross-chain state desynchronization
@@ -392,24 +325,24 @@ The verifier service transforms from **"Trusted Authority"** to **"Coordinator"*
 - GMP protocol vulnerability (mitigated by established protocols)
 - On-chain validation logic bugs (mitigated by audits, formal verification)
 
-**Eliminated attack vectors:**
+**Eliminated in production (with GMP):**
 
-- ✅ No verifier private key to steal
-- ✅ No off-chain validation logic bugs
-- ✅ No transaction parsing vulnerabilities
-- ✅ No key management security concerns
+- ✅ No our signer key to steal in production
+- ✅ No off-chain validation logic bugs (on-chain only)
+- ✅ No transaction parsing vulnerabilities (contracts enforce structure)
+- ✅ No key management for production signer
 
 ---
 
 ## Cost Analysis
 
-### Current System Costs
+### Current System Costs (Trusted GMP as signer)
 
 | Component | Cost Type | Estimate |
 |-----------|-----------|----------|
-| **Verifier Infrastructure** | Fixed monthly | $X/month (servers, monitoring) |
+| **Coordinator + Trusted GMP** | Fixed monthly | $X/month (servers, monitoring) |
 | **Development/Maintenance** | Ongoing | Y hours/month |
-| **Security Audits** | Periodic | High (critical component) |
+| **Security Audits** | Periodic | High (signer is critical) |
 | **Key Management** | Operational | Security overhead |
 
 ### GMP System Costs
@@ -455,11 +388,11 @@ The verifier service transforms from **"Trusted Authority"** to **"Coordinator"*
 
 ---
 
-## Trusted GMP Mode: Verifier as GMP Alternative
+## Trusted GMP Mode: Local/CI GMP Alternative
 
 ### The Concept
 
-**The Trusted GMP Service** replaces the verifier as a message relay for testing. It is used for:
+**The Trusted GMP Service** acts as a message relay for testing. It is used for:
 
 - **Local development** - No need for testnet GMP infrastructure
 - **CI testing** - Fast, deterministic message delivery
@@ -480,20 +413,19 @@ The verifier service transforms from **"Trusted Authority"** to **"Coordinator"*
 - **Production**: Real LayerZero endpoint
 - **Local/CI/Testing**: Mock endpoint + Trusted GMP service
 
-### Verifier Transformation
+### Trusted GMP Role (Given)
 
-| Aspect | Current Verifier | Trusted GMP Mode | Production (Real GMP) |
-|--------|-----------------|------------------|----------------------|
-| **Watches events** | `IntentCreated`, `EscrowCreated` | `MessageSent` (from mock endpoints) | N/A - not running |
-| **Validates logic** | 15+ validation checks | ❌ NONE - contracts validate | N/A |
-| **Action taken** | Generates signatures | Calls `lzReceive()` on destination contracts | N/A - real GMP delivers |
-| **Private keys** | ✅ YES (verifier signing) | ✅ YES (operator wallet privkey per chain) | N/A |
-| **Can steal funds** | 🔴 YES (forge signatures) | 🔴 YES (forge messages) | 🟡 LayerZero DVNs can |
-| **Security impact** | 🔴 CRITICAL | 🔴 SAME AS VERIFIER | 🟡 Trust LayerZero |
+| Aspect | Today (Trusted GMP signs) | After GMP – Local/CI | After GMP – Production |
+|--------|---------------------------|------------------------|------------------------|
+| **Watches events** | Intent/escrow events | `MessageSent` (mock endpoints) | N/A – not used |
+| **Validates logic** | 15+ checks off-chain | ❌ None (contracts validate) | N/A |
+| **Action taken** | Generates signatures | Calls `lzReceive()` (mock) | N/A – LayerZero delivers |
+| **Private keys** | ✅ YES (signing) | ✅ YES (operator wallet per chain) | N/A |
+| **Can steal funds** | 🔴 YES | 🔴 YES (same risk in CI) | 🟡 LayerZero DVNs |
 
 ### Implementation
 
-**Phase 0 splits the verifier into two separate services:**
+**Coordinator and Trusted GMP already exist as separate services:**
 
 1. **Coordinator Service** - UX functions (event monitoring, API, negotiation) - NO KEYS, CANNOT STEAL FUNDS
 2. **Trusted GMP Service** - message relay for local/CI testing - REQUIRES FUNDED OPERATOR WALLET on each chain (private key in config, pays gas to call `lzReceive()`), CAN FORGE MESSAGES, CAN STEAL FUNDS
@@ -503,7 +435,7 @@ The verifier service transforms from **"Trusted Authority"** to **"Coordinator"*
 - **Local/CI**: Mock endpoint → Trusted GMP service relays messages
 - **Production**: Real LayerZero endpoint → LayerZero handles delivery
 
-> ⚠️ **No backwards compatibility.** The current verifier (with keys, validation, signatures) is completely replaced. Old architecture is deprecated and removed.
+> ⚠️ **Production only.** In production, contracts use GMP (no our signer). Trusted GMP remains for local/CI; current signature-based flow is deprecated for production.
 
 ### Benefits
 
@@ -533,7 +465,7 @@ The verifier service transforms from **"Trusted Authority"** to **"Coordinator"*
 3. **Coordinator Role:** The coordinator handles negotiation/discovery - security doesn't depend on it, but UX does.
 4. **Failure Modes:** How to handle GMP message delivery failures or delays? ✅ **RESOLVED** - On-chain expiry handles stuck intents, idempotency handles duplicate messages
 5. **State Synchronization:** How to ensure intent requirements are always in sync across chains?
-6. **Trusted GMP Mode:** Should the verifier be converted to a "trusted GMP" provider for local/CI/testing? ✅ **RECOMMENDED** - Provides seamless development/testing experience while keeping production contracts identical.
+6. **Trusted GMP Mode:** Use Trusted GMP for local/CI (mock GMP) so production contracts stay identical. ✅ **ASSUMED** – already in place.
 
 ---
 
@@ -541,22 +473,21 @@ The verifier service transforms from **"Trusted Authority"** to **"Coordinator"*
 
 ### Summary
 
-Replacing the trusted verifier with GMP integration is **FEASIBLE** but requires:
+Adding GMP so production does not use our signer is **FEASIBLE** but requires:
 
-- **Major architectural redesign** - not a drop-in replacement
-- **On-chain validation** - move logic from verifier to contracts
-- **GMP integration** - add cross-chain messaging to all contracts
-- **New validation contracts** - deploy on all connected chains
-- **Coordinator service** - handles negotiation/discovery (no keys, no validation)
-- **3-4 week timeline** - achievable with AI-assisted development (testnet only)
+- **On-chain validation** – move approval logic from Trusted GMP into contracts
+- **GMP integration** – add cross-chain messaging to all contracts
+- **New validation contracts** – deploy on all connected chains
+- **Coordinator** – unchanged (already in place; no keys, no validation)
+- **~3 week timeline** – testnet only
 
 ### Key Benefits
 
-- ✅ **Eliminate trusted verifier** - no single point of failure
-- ✅ **Decentralize trust** - leverage GMP validator networks
-- ✅ **Increase transparency** - validation logic on-chain
-- ✅ **Improve security** - no private keys to compromise
-- ✅ **Enable censorship resistance** - permissionless execution
+- ✅ **Production: no our signer** – no single key we operate
+- ✅ **Decentralize trust** – leverage GMP validator networks
+- ✅ **Transparency** – validation logic on-chain
+- ✅ **Security** – no our private keys in production
+- ✅ **Censorship resistance** – permissionless GMP execution
 
 ### Key Trade-offs
 

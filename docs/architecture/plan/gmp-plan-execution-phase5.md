@@ -123,7 +123,7 @@
 
 **Tasks:**
 
-- [ ] Verify old verifier code is completely removed (done in Phase 0)
+- [ ] Verify no legacy verifier code remains (architecture uses coordinator + trusted-gmp only)
 - [ ] Update CHANGELOG with GMP integration notes
 - [ ] Update README with new architecture diagram
 - [ ] Verify coordinator has no private keys (trusted-gmp requires operator wallet privkeys per chain)
@@ -135,8 +135,8 @@
 # Run all unit tests
 ./testing-infra/run-all-unit-tests.sh
 
-# Verify no verifier directory exists
-test ! -d verifier && echo "Old verifier removed"
+# Verify no legacy verifier directory exists
+test ! -d verifier && echo "No legacy verifier (coordinator + trusted-gmp only)"
 
 # Verify coordinator has no private key references
 grep -r "private_key\|secret_key\|signing_key" coordinator/ && exit 1 || echo "Coordinator has no keys"
@@ -178,5 +178,5 @@ At the end of Phase 5, update:
 - [ ] Solver uses validation contracts (GMP flow only)
 - [ ] Full cross-chain testnet integration passes
 - [ ] Documentation complete
-- [ ] Old verifier completely removed (no legacy code)
+- [ ] No legacy verifier code (coordinator + trusted-gmp only)
 - [ ] All conception documents reviewed and updated
