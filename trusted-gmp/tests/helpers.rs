@@ -185,7 +185,6 @@ pub fn build_test_config_with_mvm() -> Config {
         },
         connected_chain_evm: None, // No connected EVM chain for unit tests
         connected_chain_svm: None, // No connected SVM chain for unit tests
-        acceptance: None, // No acceptance criteria for unit tests
     }
 }
 

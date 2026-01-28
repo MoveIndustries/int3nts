@@ -258,117 +258,6 @@ pub async fn get_public_key_handler(
     }))
 }
 
-/// Response structure for exchange rate query
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ExchangeRateResponse {
-    /// Desired token metadata address
-    pub desired_token: String,
-    /// Desired chain ID
-    pub desired_chain_id: u64,
-    /// Exchange rate (how many offered tokens per 1 desired token)
-    pub exchange_rate: f64,
-}
-
-/// Handler for the acceptance/exchange rate endpoint.
-///
-/// Query parameters:
-/// - offered_chain_id: Chain ID of the offered token
-/// - offered_token: Metadata address of the offered token
-/// - desired_chain_id: Chain ID of the desired token (optional - if not provided, returns first match)
-/// - desired_token: Metadata address of the desired token (optional - if not provided, returns first match)
-///
-/// Returns the desired token, desired chain ID, and exchange rate.
-///
-/// Exchange rates are fetched live from the solver to avoid stale ratios.
-pub async fn get_exchange_rate_handler(
-    config: Arc<crate::config::Config>,
-    query: String,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    use std::collections::HashMap;
-    use url::Url;
-
-    // Parse query parameters
-    let parsed = Url::parse(&format!("http://dummy?{}", query))
-        .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Invalid query string: {}", e))))?;
-
-    let params: HashMap<String, String> = parsed
-        .query_pairs()
-        .into_owned()
-        .collect();
-
-    let offered_chain_id = params.get("offered_chain_id")
-        .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Missing offered_chain_id parameter".to_string())))?;
-    let offered_token = params.get("offered_token")
-        .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Missing offered_token parameter".to_string())))?;
-
-    let desired_chain_id = params.get("desired_chain_id");
-    let desired_token = params.get("desired_token");
-
-    // Get acceptance config
-    let acceptance = config.acceptance.as_ref()
-        .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Acceptance criteria not configured".to_string())))?;
-
-    // Find matching pair in trusted-gmp's configured list
-    let offered_chain_id_u64 = offered_chain_id
-        .parse::<u64>()
-        .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Invalid offered_chain_id: {}", e))))?;
-
-    let matched_pair = if let (Some(d_chain_id), Some(d_token)) = (desired_chain_id, desired_token) {
-        let desired_chain_id_u64 = d_chain_id
-            .parse::<u64>()
-            .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Invalid desired_chain_id: {}", e))))?;
-        acceptance.pairs.iter().find(|pair| {
-            pair.source_chain_id == offered_chain_id_u64
-                && pair.source_token == *offered_token
-                && pair.target_chain_id == desired_chain_id_u64
-                && pair.target_token == *d_token
-        })
-    } else {
-        acceptance.pairs.iter().find(|pair| {
-            pair.source_chain_id == offered_chain_id_u64
-                && pair.source_token == *offered_token
-        })
-    }.ok_or_else(|| {
-        warp::reject::custom(JsonDeserializeError(format!(
-            "No exchange rate found for offered token {} on chain {}",
-            offered_token, offered_chain_id
-        )))
-    })?;
-
-    // Fetch live ratio from solver
-    let solver_url = acceptance.solver_url.trim_end_matches('/');
-    let solver_request = format!(
-        "{}/acceptance?offered_chain_id={}&offered_token={}&desired_chain_id={}&desired_token={}",
-        solver_url,
-        matched_pair.source_chain_id,
-        matched_pair.source_token,
-        matched_pair.target_chain_id,
-        matched_pair.target_token,
-    );
-
-    let response = reqwest::get(&solver_request).await
-        .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Solver request failed: {}", e))))?;
-    let status = response.status();
-    if !status.is_success() {
-        return Err(warp::reject::custom(JsonDeserializeError(format!(
-            "Solver returned error status {}",
-            status
-        ))));
-    }
-
-    let solver_response: ApiResponse<ExchangeRateResponse> = response.json().await
-        .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Invalid solver response: {}", e))))?;
-    let exchange_rate = solver_response.data.ok_or_else(|| {
-        warp::reject::custom(JsonDeserializeError("Solver response missing data".to_string()))
-    })?;
-
-    Ok(warp::reply::json(&ApiResponse::<ExchangeRateResponse> {
-        success: true,
-        data: Some(exchange_rate),
-        error: None,
-    }))
-}
-
 // ============================================================================
 // WARP FILTER HELPERS
 // ============================================================================
@@ -658,18 +547,6 @@ impl ApiServer {
             .and(with_crypto_service(crypto_service.clone()))
             .and_then(get_public_key_handler);
 
-        // Get exchange rate endpoint - returns desired token and exchange rate for offered token
-        let exchange_rate_config = self.config.clone();
-        let exchange_rate = warp::path("acceptance")
-            .and(warp::get())
-            .and(warp::query::raw())
-            .and_then(move |query: String| {
-                let config = exchange_rate_config.clone();
-                async move {
-                    get_exchange_rate_handler(config, query).await
-                }
-            });
-
         // Outflow validation endpoint - validates connected chain transactions for outflow intents
         // Signature is for hub chain intent fulfillment
         let validate_outflow_monitor = monitor.clone();
@@ -702,7 +579,6 @@ impl ApiServer {
             .or(public_key)
             .or(validate_outflow)
             .or(validate_inflow)
-            .or(exchange_rate)
             .with(create_cors_filter(&self.config.api.cors_origins))
             .recover(handle_rejection)
     }

@@ -3,7 +3,7 @@
 //! These tests verify configuration loading, parsing, and defaults
 //! without requiring external services.
 
-use trusted_gmp::config::{AcceptanceConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, TokenPairConfig};
+use trusted_gmp::config::{ChainConfig, Config, EvmChainConfig, SvmChainConfig};
 use trusted_gmp::monitor::ChainType;
 use trusted_gmp::validator::{get_chain_type_from_chain_id, normalize_address};
 #[path = "mod.rs"]
@@ -47,53 +47,6 @@ fn test_connected_chain_mvm_with_values() {
         config.connected_chain_mvm.as_ref().unwrap().name,
         "Connected Move VM Chain"
     );
-}
-
-/// What is tested: AcceptanceConfig parses pairs list without ratios.
-/// Why: AcceptanceConfig stores which token pairs are supported; exchange rates are
-/// fetched live from the solver when the acceptance/rate API is called (no ratios in config).
-#[test]
-fn test_acceptance_pairs_deserialize() {
-    let toml = format!(
-        r#"
-solver_url = "http://127.0.0.1:4444"
-pairs = [
-  {{ source_chain_id = 250, source_token = "{}", target_chain_id = 84532, target_token = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" }},
-  {{ source_chain_id = 250, source_token = "{}", target_chain_id = 901, target_token = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU" }}
-]
-"#,
-        DUMMY_TOKEN_ADDR_FANTOM, DUMMY_TOKEN_ADDR_FANTOM
-    );
-
-    let acceptance: AcceptanceConfig = toml::from_str(&toml).expect("Should deserialize acceptance config");
-    assert_eq!(acceptance.solver_url, "http://127.0.0.1:4444");
-    assert_eq!(acceptance.pairs.len(), 2);
-}
-
-/// What is tested: Config::validate() accepts base58 SVM mints in pairs
-/// Why: SVM tokens must be base58, not hex
-#[test]
-fn test_config_validate_acceptance_svm_base58() {
-    let mut config = Config::default();
-    config.hub_chain.chain_id = 250;
-    config.connected_chain_svm = Some(SvmChainConfig {
-        name: "SVM Chain".to_string(),
-        rpc_url: "http://127.0.0.1:8899".to_string(),
-        chain_id: 901,
-        escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
-    });
-    config.acceptance = Some(AcceptanceConfig {
-        solver_url: "http://127.0.0.1:4444".to_string(),
-        pairs: vec![TokenPairConfig {
-            source_chain_id: 250,
-            source_token: DUMMY_TOKEN_ADDR_FANTOM.to_string(),
-            target_chain_id: 901,
-            target_token: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
-        }],
-    });
-
-    let result = config.validate();
-    assert!(result.is_ok(), "Should accept base58 SVM mints");
 }
 
 /// What is tested: Config::validate() accepts multiple connected chains
