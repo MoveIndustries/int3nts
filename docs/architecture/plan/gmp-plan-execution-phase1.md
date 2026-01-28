@@ -81,16 +81,16 @@
 
 **Tasks:**
 
-- [ ] Define wire format for `IntentRequirements` message (hub → connected chain)
+- [x] Define wire format for `IntentRequirements` message (hub → connected chain)
   - Fields: message_type, intent_id, recipient, amount, token, authorized_solver, expiry
   - Encoding: fixed-width fields, big-endian integers, 32-byte addresses
-- [ ] Define wire format for `EscrowConfirmation` message (connected chain → hub)
+- [x] Define wire format for `EscrowConfirmation` message (connected chain → hub)
   - Fields: message_type, intent_id, escrow_id, amount, token, creator
-- [ ] Define wire format for `FulfillmentProof` message (hub → connected chain, or connected → hub)
+- [x] Define wire format for `FulfillmentProof` message (hub → connected chain, or connected → hub)
   - Fields: message_type, intent_id, solver, amount, timestamp
-- [ ] Document byte layout for each message type
-- [ ] Document message_type discriminator bytes
-- [ ] Explain why this format was chosen (simplicity, no dependencies, easy to implement in Move/Rust/Solidity)
+- [x] Document byte layout for each message type
+- [x] Document message_type discriminator bytes
+- [x] Explain why this format was chosen (simplicity, no dependencies, easy to implement in Move/Rust/Solidity)
 
 **Test:**
 
