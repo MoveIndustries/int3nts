@@ -9,7 +9,7 @@
 //! The coordinator API is read-only for blockchain data and provides
 //! negotiation routing. It does NOT hold private keys or generate signatures.
 
-// Generic shared code (health, events, approvals read-only)
+// Generic shared code (health, events, exchange rate, draft intent routing)
 mod generic;
 
 // Negotiation routing module (draft intent FCFS matching)
