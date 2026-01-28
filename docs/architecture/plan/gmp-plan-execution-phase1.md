@@ -1,10 +1,10 @@
 # Phase 1: Research & Design (2-3 days)
 
 **Status:** Not Started
-**Depends On:** Phase 0 (Verifier Separation)
+**Depends On:** None
 **Blocks:** Phase 2
 
-**Note:** Phase 0 separates the verifier into Coordinator and Trusted GMP. Phase 1 can now focus on on-chain validation design, knowing the architecture is cleaner.
+**Note:** Coordinator and Trusted GMP already exist as separate services. Phase 1 focuses on on-chain validation design.
 
 ---
 
@@ -186,7 +186,7 @@
 
 - [ ] Script to estimate validation program compute units
 - [ ] Script to estimate LayerZero message fees
-- [ ] Document cost comparison vs current verifier system
+- [ ] Document cost comparison vs current Trusted GMP (signer) system
 
 **Test:**
 
