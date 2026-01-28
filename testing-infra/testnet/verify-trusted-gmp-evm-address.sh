@@ -9,7 +9,7 @@
 # Usage: ./verify-trusted-gmp-evm-address.sh
 #
 # Checks:
-#   1. Computes EVM address from TRUSTED_GMP_PRIVATE_KEY (via get_verifier_eth_address)
+#   1. Computes EVM address from TRUSTED_GMP_PRIVATE_KEY (via get_approver_eth_address)
 #   2. Compares to TRUSTED_GMP_EVM_PUBKEY_HASH in this directory's .env.testnet
 #   3. Queries on-chain IntentEscrow contract's verifier() function (if config available)
 #   4. Compares on-chain address to computed address
@@ -51,11 +51,11 @@ echo "   Config file: $ENV_FILE"
 echo "   Expected:    $TRUSTED_GMP_EVM_PUBKEY_HASH"
 echo ""
 
-# Compute EVM address from private key (get_verifier_eth_address reads TRUSTED_GMP_* from env when building config)
+# Compute EVM address from private key (get_approver_eth_address reads TRUSTED_GMP_* from env when building config)
 echo "   Computing EVM address from TRUSTED_GMP_PRIVATE_KEY..."
 COMPUTED_ADDR=$(cd "$PROJECT_ROOT/trusted-gmp" && \
     TRUSTED_GMP_CONFIG_PATH=config/trusted-gmp_testnet.toml \
-    nix develop "$PROJECT_ROOT/nix" -c bash -c "cargo run --bin get_verifier_eth_address --quiet 2>&1" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1)
+    nix develop "$PROJECT_ROOT/nix" -c bash -c "cargo run --bin get_approver_eth_address --quiet 2>&1" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1)
 
 if [ -z "$COMPUTED_ADDR" ]; then
     echo "❌ ERROR: Failed to compute EVM address from private key"

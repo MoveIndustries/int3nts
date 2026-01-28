@@ -73,9 +73,9 @@ pub const DUMMY_REQUESTER_ADDR_SVM: &str =
 pub const DUMMY_SOLVER_ADDR_SVM: &str =
     "0x000000000000000000000000000000000000000000000000000000000000000b";
 
-/// Dummy trusted-gmp EVM public key hash (keccak256 hash of ECDSA public key, last 20 bytes; on-chain "verifier" address)
+/// Dummy trusted-gmp EVM public key hash (keccak256 hash of ECDSA public key, last 20 bytes; on-chain approver address)
 #[allow(dead_code)]
-pub const DUMMY_VERIFIER_EVM_PUBKEY_HASH: &str = "0x000000000000000000000000000000000000000c";
+pub const DUMMY_APPROVER_EVM_PUBKEY_HASH: &str = "0x000000000000000000000000000000000000000c";
 
 // ------------------------- TOKENS AND CONTRACTS -------------------------
 
@@ -199,7 +199,7 @@ pub fn build_test_config_with_evm() -> Config {
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         chain_id: 31337,
-        verifier_evm_pubkey_hash: DUMMY_VERIFIER_EVM_PUBKEY_HASH.to_string(),
+        approver_evm_pubkey_hash: DUMMY_APPROVER_EVM_PUBKEY_HASH.to_string(),
     });
     config
 }

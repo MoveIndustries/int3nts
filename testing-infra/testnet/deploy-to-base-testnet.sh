@@ -37,7 +37,7 @@ fi
 
 if [ -z "$TRUSTED_GMP_EVM_PUBKEY_HASH" ]; then
     echo "❌ ERROR: TRUSTED_GMP_EVM_PUBKEY_HASH not set in .env.testnet"
-    echo "   Run: nix develop ./nix -c bash -c 'cd trusted-gmp && TRUSTED_GMP_CONFIG_PATH=config/trusted-gmp_testnet.toml cargo run --bin get_verifier_eth_address'"
+    echo "   Run: nix develop ./nix -c bash -c 'cd trusted-gmp && TRUSTED_GMP_CONFIG_PATH=config/trusted-gmp_testnet.toml cargo run --bin get_approver_eth_address'"
     exit 1
 fi
 
@@ -76,7 +76,7 @@ cd "$PROJECT_ROOT/intent-frameworks/evm"
 
 # Export environment variables for Hardhat
 export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"
-export VERIFIER_ADDR="$TRUSTED_GMP_EVM_PUBKEY_HASH"
+export APPROVER_ADDR="$TRUSTED_GMP_EVM_PUBKEY_HASH"
 export BASE_SEPOLIA_RPC_URL
 
 echo " Environment configured for Hardhat"

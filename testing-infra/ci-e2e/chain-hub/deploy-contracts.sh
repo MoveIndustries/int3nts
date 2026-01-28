@@ -77,7 +77,7 @@ log " Initializing trusted-gmp config for outflow intents..."
 load_trusted_gmp_keys
 VERIFIER_PUBLIC_KEY_HEX=$(echo "$E2E_TRUSTED_GMP_PUBLIC_KEY" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
 aptos move run --profile intent-account-chain1 --assume-yes \
-    --function-id ${HUB_MODULE_ADDR}::fa_intent_outflow::initialize_verifier \
+    --function-id ${HUB_MODULE_ADDR}::fa_intent_outflow::initialize_approver \
     --args "hex:${VERIFIER_PUBLIC_KEY_HEX}" >> "$LOG_FILE" 2>&1
 
 if [ $? -eq 0 ]; then

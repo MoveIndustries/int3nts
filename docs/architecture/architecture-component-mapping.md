@@ -330,7 +330,7 @@ The old monolithic "verifier" service has been split into two services:
 
 - **`trusted-gmp/src/config/mod.rs`** (key-related and validation configuration)
   - **Purpose**: Trusted GMP service configuration management
-  - **Key Structures**: `Config`, `ChainConfig`, `EvmChainConfig`, `VerifierConfig`, `ApiConfig`
+  - **Key Structures**: `Config`, `ChainConfig`, `EvmChainConfig`, `ApproverConfig`, `ApiConfig`
   - **Responsibilities**: Configuration loading, validation, chain-specific settings, key management configuration
 
 #### Move VM Client
@@ -378,7 +378,7 @@ The old monolithic "verifier" service has been split into two services:
   - **Purpose**: Key pair generation utility
   - **Domain**: Development tooling
 
-- **`trusted-gmp/src/bin/get_verifier_eth_address.rs`**
+- **`trusted-gmp/src/bin/get_approver_eth_address.rs`**
   - **Purpose**: Derive Ethereum address from Ed25519 key
   - **Domain**: Development tooling
 
@@ -476,7 +476,7 @@ This section documents comprehensive communication patterns between domains, inc
 
 - Trusted GMP: Generates approval signature using Ed25519 (Move) or ECDSA (EVM)
 - Settlement: Retrieves signature via trusted-gmp REST API (`/approvals/:escrow_id`) or cached events
-- Escrow: Verifies signature matches verifier public key before releasing funds (on-chain parameter name `verifier_public_key` kept as-is)
+- Escrow: Verifies signature matches approver public key before releasing funds (on-chain parameter name `approver_public_key`)
 
 ### API Call Patterns
 
@@ -492,7 +492,7 @@ This section documents comprehensive communication patterns between domains, inc
 **Settlement → Trusted GMP**:
 
 - Settlement queries trusted-gmp `/approvals/:escrow_id` to retrieve approval signatures
-- Settlement validates signature format and verifier public key before use (on-chain parameter name kept as-is)
+- Settlement validates signature format and approver public key before use (on-chain parameter name kept as-is)
 
 ### Error Handling and Rollback Scenarios
 

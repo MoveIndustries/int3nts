@@ -74,9 +74,9 @@ pub struct EvmChainConfig {
     /// Chain ID (e.g., 31337 for Hardhat, 1 for Ethereum mainnet)
     pub chain_id: u64,
     /// Trusted-gmp EVM public key hash (keccak256 hash of ECDSA public key, last 20 bytes).
-    /// This is the Ethereum address derived from the trusted-gmp's ECDSA public key (on-chain "verifier" address).
-    #[serde(rename = "verifier_evm_pubkey_hash", alias = "verifier_addr")]
-    pub verifier_evm_pubkey_hash: String,
+    /// This is the Ethereum address derived from the trusted-gmp's ECDSA public key (on-chain approver address).
+    #[serde(rename = "approver_evm_pubkey_hash", alias = "verifier_evm_pubkey_hash", alias = "verifier_addr")]
+    pub approver_evm_pubkey_hash: String,
 }
 
 /// Configuration for a Solana chain (SVM).

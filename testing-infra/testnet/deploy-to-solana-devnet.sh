@@ -195,14 +195,14 @@ echo " Deployed program ID: $PROGRAM_ID"
 echo ""
 
 # =============================================================================
-# Initialize the program with verifier public key
+# Initialize the program with approver public key
 # =============================================================================
 
 echo ""
-echo " Initializing program with verifier..."
+echo " Initializing program with approver..."
 echo ""
 
-# Check for trusted-gmp public key (used as on-chain verifier)
+# Check for trusted-gmp public key (used as on-chain approver)
 if [ -z "$TRUSTED_GMP_PUBLIC_KEY" ]; then
     echo "⚠️  WARNING: TRUSTED_GMP_PUBLIC_KEY not set in .env.testnet"
     echo "   Skipping initialization - you'll need to run it manually later"
@@ -286,13 +286,13 @@ console.log(JSON.stringify(b58decode('$SOLANA_DEPLOYER_PRIVATE_KEY')));
             "$CLI_BIN" initialize \
                 --program-id "$PROGRAM_ID" \
                 --payer "$DEPLOYER_KEYPAIR" \
-                --verifier "$TRUSTED_GMP_PUBKEY_BASE58" \
+                --approver "$TRUSTED_GMP_PUBKEY_BASE58" \
                 --rpc "$SOLANA_RPC_URL" && {
-                echo "✅ Program initialized with verifier"
+                echo "✅ Program initialized with approver"
             } || {
                 INIT_EXIT=$?
                 if [ $INIT_EXIT -eq 0 ]; then
-                    echo "✅ Program initialized with verifier"
+                    echo "✅ Program initialized with approver"
                 else
                     echo "⚠️  Initialization returned exit code $INIT_EXIT"
                     echo "   This may be OK if the program was already initialized"

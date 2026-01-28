@@ -38,9 +38,9 @@ popd > /dev/null
 log_and_echo "   ✅ Coordinator: coordinator"
 
 pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
-cargo build --bin trusted-gmp --bin generate_keys --bin get_verifier_eth_address 2>&1 | tail -5
+cargo build --bin trusted-gmp --bin generate_keys --bin get_approver_eth_address 2>&1 | tail -5
 popd > /dev/null
-log_and_echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys, get_verifier_eth_address"
+log_and_echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys, get_approver_eth_address"
 
 pushd "$PROJECT_ROOT/solver" > /dev/null
 cargo build --bin solver --bin sign_intent 2>&1 | tail -5

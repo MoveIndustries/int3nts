@@ -42,7 +42,7 @@ module mvmt_intent::intent_as_escrow {
     /// - `requester_signer`: Signer of the escrow creator (requester who created the intent on hub chain)
     /// - `offered_asset`: Asset to be escrowed
     /// - `offered_chain_id`: Chain ID where the escrow is created (connected chain)
-    /// - `verifier_public_key`: Public key of authorized verifier
+    /// - `approver_public_key`: Public key of authorized trusted-gmp (approver)
     /// - `expiry_time`: Unix timestamp when escrow expires
     /// - `intent_id`: Intent ID from the hub chain (for cross-chain matching)
     /// - `reservation`: Required reservation specifying which solver can claim the escrow
@@ -57,18 +57,18 @@ module mvmt_intent::intent_as_escrow {
         requester_signer: &signer,
         offered_asset: FungibleAsset,
         offered_chain_id: u64,
-        verifier_public_key: ed25519::UnvalidatedPublicKey,
+        approver_public_key: ed25519::UnvalidatedPublicKey,
         expiry_time: u64,
         intent_id: address,
         reservation: IntentReserved,
         desired_chain_id: u64
     ): Object<Intent<fa_intent_with_oracle::FungibleStoreManager, fa_intent_with_oracle::OracleGuardedLimitOrder>> {
-        // Create verifier requirement: signature itself is the approval, min_reported_value is 0
+        // Create approver requirement: signature itself is the approval, min_reported_value is 0
         // (the signature verification is what matters, not the reported_value)
         let requirement =
             fa_intent_with_oracle::new_oracle_signature_requirement(
                 0, // min_reported_value: signature verification is what matters, this check always passes
-                verifier_public_key
+                approver_public_key
             );
 
         // Create the verifier-guarded intent with placeholder values

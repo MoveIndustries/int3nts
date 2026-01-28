@@ -139,7 +139,7 @@ public fun create_outflow_intent(
     expiry_time: u64,
     intent_id: address,
     requester_addr_connected_chain: address,
-    verifier_public_key: vector<u8>,
+    approver_public_key: vector<u8>,
     solver: address,
     solver_signature: vector<u8>,
 ): Object<Intent<FungibleStoreManager, OracleGuardedLimitOrder>>
@@ -159,7 +159,7 @@ public fun create_outflow_intent(
 - `expiry_time`: Unix timestamp when intent expires
 - `intent_id`: Intent ID for cross-chain linking
 - `requester_addr_connected_chain`: Address on connected chain where solver should send tokens
-- `verifier_public_key`: Public key of the verifier that will approve the connected chain transaction (32 bytes)
+- `approver_public_key`: Public key of the trusted-gmp that will approve the connected chain transaction (32 bytes)
 - `solver`: Address of the solver authorized to fulfill this intent (must be registered in solver registry)
 - `solver_signature`: Ed25519 signature from the solver authorizing this intent
 

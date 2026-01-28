@@ -38,7 +38,7 @@ module mvmt_intent::intent_as_escrow_tests {
 
         // Generate verifier key pair
         let (verifier_secret_key, validated_pk) = ed25519::generate_keys();
-        let verifier_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
+        let approver_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
         // Requester creates escrow (must specify reserved solver)
         let offered_asset = primary_fungible_store::withdraw(user, offered_token_type, 50);
@@ -47,7 +47,7 @@ module mvmt_intent::intent_as_escrow_tests {
             user,
             offered_asset,
             2, // offered_chain_id: connected chain where escrow is created
-            verifier_public_key,
+            approver_public_key,
             timestamp::now_seconds() + 3600, // 1 hour expiry
             @0x1, // dummy intent_id for testing
             reservation, // Escrow must be reserved for a specific solver
@@ -101,7 +101,7 @@ module mvmt_intent::intent_as_escrow_tests {
         primary_fungible_store::deposit(signer::address_of(solver), solver_payment_tokens);
 
         let (verifier_secret_key, validated_pk) = ed25519::generate_keys();
-        let verifier_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
+        let approver_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
         // Create escrow with intent_id = @0x1
         let offered_asset = primary_fungible_store::withdraw(user, offered_token_type, 50);
@@ -110,7 +110,7 @@ module mvmt_intent::intent_as_escrow_tests {
             user,
             offered_asset,
             2, // offered_chain_id: connected chain where escrow is created
-            verifier_public_key,
+            approver_public_key,
             timestamp::now_seconds() + 3600,
             @0x1, // Escrow created with intent_id = @0x1
             reservation,
@@ -159,7 +159,7 @@ module mvmt_intent::intent_as_escrow_tests {
         primary_fungible_store::deposit(signer::address_of(solver), solver_payment_tokens);
 
         let (verifier_secret_key, validated_pk) = ed25519::generate_keys();
-        let verifier_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
+        let approver_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
         // Create escrow A with intent_id = @0x1
         let offered_asset_a = primary_fungible_store::withdraw(user, offered_token_type, 30);
@@ -168,7 +168,7 @@ module mvmt_intent::intent_as_escrow_tests {
             user,
             offered_asset_a,
             2, // offered_chain_id: connected chain where escrow is created
-            verifier_public_key,
+            approver_public_key,
             timestamp::now_seconds() + 3600,
             @0x1, // Escrow A with intent_id = @0x1
             reservation_a,
@@ -182,7 +182,7 @@ module mvmt_intent::intent_as_escrow_tests {
             user,
             offered_asset_b,
             2, // offered_chain_id: connected chain where escrow is created
-            verifier_public_key,
+            approver_public_key,
             timestamp::now_seconds() + 3600,
             @0x2, // Escrow B with intent_id = @0x2
             reservation_b,
@@ -227,7 +227,7 @@ module mvmt_intent::intent_as_escrow_tests {
         let (_desired_token_type, _) = test_utils::register_and_mint_tokens(aptos_framework, solver, 100);
 
         let (_verifier_secret_key, validated_pk) = ed25519::generate_keys();
-        let verifier_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
+        let approver_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
         let offered_asset = primary_fungible_store::withdraw(user, offered_token_type, 50);
         let reservation = intent_reservation::new_reservation(signer::address_of(solver));
@@ -235,7 +235,7 @@ module mvmt_intent::intent_as_escrow_tests {
             user,
             offered_asset,
             2, // offered_chain_id: connected chain where escrow is created
-            verifier_public_key,
+            approver_public_key,
             timestamp::now_seconds() + 3600,
             @0x1, // dummy intent_id for testing
             reservation, // Escrow must be reserved for a specific solver
@@ -265,10 +265,10 @@ module mvmt_intent::intent_as_escrow_tests {
         
         // Generate verifier key pair
         let (_, validated_pk) = ed25519::generate_keys();
-        let verifier_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
+        let approver_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
         // Convert to vector<u8> for the wrapper function
-        let verifier_public_key_bytes = ed25519::unvalidated_public_key_to_bytes(&verifier_public_key);
+        let approver_public_key_bytes = ed25519::unvalidated_public_key_to_bytes(&approver_public_key);
         
         // Test the wrapper function: create escrow from FA (must specify reserved solver)
         mvmt_intent::intent_as_escrow_entry::create_escrow_from_fa(
@@ -276,7 +276,7 @@ module mvmt_intent::intent_as_escrow_tests {
             fa_metadata,
             50,
             2, // offered_chain_id: connected chain where escrow is created
-            verifier_public_key_bytes,
+            approver_public_key_bytes,
             timestamp::now_seconds() + 3600,
             @0x1, // dummy intent_id for testing
             signer::address_of(solver), // Reserved solver address

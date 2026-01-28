@@ -35,7 +35,7 @@ trusted-gmp/
 │   ├── validator/   # Cross-chain validation logic
 │   ├── crypto/      # Cryptographic operations and key management
 │   ├── api/         # REST API server
-│   └── bin/         # Utility binaries (generate_keys, get_verifier_eth_address)
+│   └── bin/         # Utility binaries (generate_keys, get_approver_eth_address)
 └── Cargo.toml
 ```
 

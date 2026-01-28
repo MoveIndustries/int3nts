@@ -26,7 +26,7 @@ See [conception_inflow.md](conception_inflow.md) for the conceptual design.
 | Step | Function | Description |
 |------|----------|-------------|
 | Request-Intent Creation | `create_inflow_request_intent(offered_metadata, offered_amount, offered_chain_id, desired_metadata, desired_amount, desired_chain_id, expiry_time, intent_id, solver, solver_signature)` | Creates reserved intent on Hub |
-| Escrow (Move) | `create_escrow_from_fa(offered_metadata, offered_amount, offered_chain_id, verifier_public_key, expiry_time, intent_id, reserved_solver, desired_chain_id)` | Creates escrow on Move connected chain |
+| Escrow (Move) | `create_escrow_from_fa(offered_metadata, offered_amount, offered_chain_id, approver_public_key, expiry_time, intent_id, reserved_solver, desired_chain_id)` | Creates escrow on Move connected chain |
 | Escrow (EVM) | `createEscrow(intentId, token, amount, reservedSolver)` | Creates escrow on EVM connected chain |
 | Fulfillment | `fulfill_inflow_request_intent(intent, payment_amount)` | Solver fulfills intent on Hub |
 | Escrow Release (Move) | `complete_escrow_from_fa(escrow_intent, payment_amount, verifier_signature_bytes)` | Releases escrow on Move chain |
@@ -53,7 +53,7 @@ See [conception_outflow.md](conception_outflow.md) for the conceptual design.
 
 | Step | Function | Description |
 |------|----------|-------------|
-| Request-Intent Creation | `create_outflow_request_intent(offered_metadata, offered_amount, offered_chain_id, desired_metadata, desired_amount, desired_chain_id, expiry_time, intent_id, requester_addr_connected_chain, verifier_public_key, solver, solver_signature)` | Creates reserved intent with escrow on Hub |
+| Request-Intent Creation | `create_outflow_request_intent(offered_metadata, offered_amount, offered_chain_id, desired_metadata, desired_amount, desired_chain_id, expiry_time, intent_id, requester_addr_connected_chain, approver_public_key, solver, solver_signature)` | Creates reserved intent with escrow on Hub |
 | Validation | `POST /validate-outflow-fulfillment(transaction_hash, chain_type, intent_id)` | Trusted-gmp validates solver transfer |
 | Fulfillment | `fulfill_outflow_request_intent(intent, verifier_signature_bytes)` | Solver claims escrow on Hub with trusted-gmp (verifier) signature |
 
@@ -100,12 +100,12 @@ sequenceDiagram
     Requester->>Solver: Send draft
     Solver->>Solver: Solver signs<br/>(off-chain, returns Ed25519 signature)
     Solver->>Requester: Returns signature
-    Requester->>Hub: create_cross_chain_request_intent(<br/>offered_metadata, offered_amount, offered_chain_id (source),<br/>desired_metadata, desired_amount, desired_chain_id (dest),<br/>expiry_time, intent_id, requester_address_dest_chain,<br/>verifier_public_key, solver, solver_signature)
+    Requester->>Hub: create_cross_chain_request_intent(<br/>offered_metadata, offered_amount, offered_chain_id (source),<br/>desired_metadata, desired_amount, desired_chain_id (dest),<br/>expiry_time, intent_id, requester_address_dest_chain,<br/>approver_public_key, solver, solver_signature)
     Hub->>TrustedGMP: CrossChainOrderEvent(intent_id, offered_amount,<br/>offered_chain_id (source), desired_amount,<br/>desired_chain_id (dest), expiry, revocable=false)
 
     Note over Requester,Solver: Phase 2: Escrow Creation on Source Connected Chain
     alt Move Chain
-        Requester->>Source: create_escrow_from_fa(<br/>offered_metadata, offered_amount, offered_chain_id,<br/>verifier_public_key, expiry_time, intent_id,<br/>reserved_solver, desired_chain_id)
+        Requester->>Source: create_escrow_from_fa(<br/>offered_metadata, offered_amount, offered_chain_id,<br/>approver_public_key, expiry_time, intent_id,<br/>reserved_solver, desired_chain_id)
     else EVM Chain
         Requester->>Source: createEscrow(intentId, token,<br/>amount, reservedSolver)
     end

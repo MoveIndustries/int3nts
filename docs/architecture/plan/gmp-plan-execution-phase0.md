@@ -75,8 +75,8 @@ CI-E2E scripts (submit intents - verify_verifier_running):
 
 CI-E2E scripts (other):
 
-- `testing-infra/ci-e2e/chain-hub/deploy-contracts.sh` - initialize_verifier
-- `testing-infra/ci-e2e/chain-connected-evm/deploy-contract.sh` - get_verifier_eth_address
+- `testing-infra/ci-e2e/chain-hub/deploy-contracts.sh` - initialize_approver
+- `testing-infra/ci-e2e/chain-connected-evm/deploy-contract.sh` - get_approver_eth_address
 - `testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh` - load_verifier_keys
 - `testing-infra/ci-e2e/chain-*/cleanup.sh` - stop_verifier
 - `testing-infra/ci-e2e/util.sh` - verifier helper functions

@@ -18,7 +18,7 @@ let reservation = intent_reservation::new_reservation(solver_addr);
 let escrow_intent = intent_as_escrow::create_escrow(
     requester_signer,
     offered_asset,
-    verifier_public_key,
+    approver_public_key,
     expiry_time,
     intent_id, // Intent ID from hub chain (for cross-chain matching)
     reservation, // Required - escrow must specify a solver address
@@ -105,7 +105,7 @@ let reservation = intent_reservation::new_reservation(solver_addr);
 let escrow = intent_as_escrow::create_escrow(
     requester_signer,
     token_a_asset,
-    verifier_public_key,
+    approver_public_key,
     expiry_time,
     intent_id, // Intent ID from hub chain
     reservation, // Required - must specify solver address

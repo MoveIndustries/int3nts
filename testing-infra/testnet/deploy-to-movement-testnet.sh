@@ -330,7 +330,7 @@ fi
 TRUSTED_GMP_PUBLIC_KEY_HEX=$(echo "$TRUSTED_GMP_PUBLIC_KEY" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
 movement move run \
   --profile "$TEMP_PROFILE" \
-  --function-id "${DEPLOY_ADDR_FULL}::fa_intent_outflow::initialize_verifier" \
+  --function-id "${DEPLOY_ADDR_FULL}::fa_intent_outflow::initialize_approver" \
   --args "hex:${TRUSTED_GMP_PUBLIC_KEY_HEX}" \
   --assume-yes
 

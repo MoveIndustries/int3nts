@@ -34,7 +34,7 @@ load_trusted_gmp_keys
 
 # Get trusted-gmp Ethereum address (derived from ECDSA public key; on-chain "verifier")
 # The full trusted-gmp config file may not exist yet (it's created later by configure-trusted-gmp.sh),
-# so we create a minimal temporary config with just enough for get_verifier_eth_address to read the keys.
+# so we create a minimal temporary config with just enough for get_approver_eth_address to read the keys.
 TEMP_CONFIG="$PROJECT_ROOT/.tmp/trusted-gmp-minimal.toml"
 mkdir -p "$(dirname "$TEMP_CONFIG")"
 cat > "$TEMP_CONFIG" << 'TMPEOF'
@@ -60,9 +60,9 @@ export TRUSTED_GMP_CONFIG_PATH="$TEMP_CONFIG"
 CONFIG_PATH="$TRUSTED_GMP_CONFIG_PATH"
 
 # Use pre-built binary (must be built in Step 1)
-GET_VERIFIER_ETH_BIN="$PROJECT_ROOT/trusted-gmp/target/debug/get_verifier_eth_address"
+GET_VERIFIER_ETH_BIN="$PROJECT_ROOT/trusted-gmp/target/debug/get_approver_eth_address"
 if [ ! -x "$GET_VERIFIER_ETH_BIN" ]; then
-    log_and_echo "❌ PANIC: get_verifier_eth_address not built. Step 1 (build binaries) failed."
+    log_and_echo "❌ PANIC: get_approver_eth_address not built. Step 1 (build binaries) failed."
     exit 1
 fi
 
@@ -83,7 +83,7 @@ log "   RPC URL: http://127.0.0.1:8545"
 # Deploy escrow contract (run in nix develop ./nix)
 log ""
 log " Deploying IntentEscrow..."
-DEPLOY_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/deploy.js --network localhost" "VERIFIER_ADDR='$VERIFIER_EVM_PUBKEY_HASH'" 2>&1 | tee -a "$LOG_FILE")
+DEPLOY_OUTPUT=$(run_hardhat_command "npx hardhat run scripts/deploy.js --network localhost" "APPROVER_ADDR='$VERIFIER_EVM_PUBKEY_HASH'" 2>&1 | tee -a "$LOG_FILE")
 
 # Extract contract address from output
 CONTRACT_ADDR=$(extract_escrow_contract_address "$DEPLOY_OUTPUT")

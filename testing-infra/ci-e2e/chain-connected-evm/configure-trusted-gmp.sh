@@ -24,10 +24,10 @@ log_and_echo ""
 CONTRACT_ADDR=$(extract_escrow_contract_address)
 log_and_echo "   EVM Escrow Contract: $CONTRACT_ADDR"
 
-# Get trusted-gmp Ethereum address (Hardhat account 0; on-chain verifier)
+# Get trusted-gmp Ethereum address (Hardhat account 0; on-chain approver)
 log "   - Getting trusted-gmp Ethereum address (Hardhat account 0)..."
-VERIFIER_ADDR=$(get_hardhat_account_address "0")
-log_and_echo "   EVM Verifier: $VERIFIER_ADDR"
+APPROVER_ADDR=$(get_hardhat_account_address "0")
+log_and_echo "   EVM Approver: $APPROVER_ADDR"
 
 # Config file path (created by chain-hub/configure-trusted-gmp.sh)
 TRUSTED_GMP_E2E_CI_TESTING_CONFIG="$PROJECT_ROOT/trusted-gmp/config/trusted-gmp-e2e-ci-testing.toml"
@@ -46,7 +46,7 @@ name = "Connected EVM Chain"
 rpc_url = "http://127.0.0.1:8545"
 escrow_contract_addr = "$CONTRACT_ADDR"
 chain_id = 3
-verifier_evm_pubkey_hash = "$VERIFIER_ADDR"
+approver_evm_pubkey_hash = "$APPROVER_ADDR"
 EOF
 
 # Insert the EVM section before [trusted_gmp] section
