@@ -123,7 +123,7 @@
 
 **Tasks:**
 
-- [ ] Verify no legacy single-signer code remains (architecture uses coordinator + trusted-gmp only)
+- [ ] Confirm architecture: coordinator + trusted-gmp only (no monolithic signer code or directory)
 - [ ] Update CHANGELOG with GMP integration notes
 - [ ] Update README with new architecture diagram
 - [ ] Verify coordinator has no private keys (trusted-gmp requires operator wallet privkeys per chain)
@@ -135,11 +135,11 @@
 # Run all unit tests
 ./testing-infra/run-all-unit-tests.sh
 
-# Verify no legacy 'verifier' directory exists (coordinator + trusted-gmp only)
-test ! -d verifier && echo "No legacy verifier directory (coordinator + trusted-gmp only)"
+# Architecture check: coordinator + trusted-gmp only (no monolithic signer directory)
+test ! -d verifier && echo "OK: coordinator + trusted-gmp only"
 
-# Verify coordinator has no private key references
-grep -r "private_key\|secret_key\|signing_key" coordinator/ && exit 1 || echo "Coordinator has no keys"
+# Coordinator must not reference private keys
+grep -r "private_key\|secret_key\|signing_key" coordinator/ && exit 1 || echo "OK: coordinator has no keys"
 ```
 
 > ⚠️ **CI e2e tests must pass before Phase 5 is complete.**
@@ -167,7 +167,7 @@ At the end of Phase 5, update:
 - [ ] `README.md` - Update with new architecture diagram
 - [ ] `CHANGELOG.md` - Document GMP integration milestone
 - [ ] Review ALL conception documents for accuracy after full GMP migration
-- [ ] Final audit: Check if any files still reference legacy single-signer architecture and update them
+- [ ] Final audit: No references to monolithic signer; architecture is coordinator + trusted-gmp only
 
 ---
 
@@ -178,5 +178,5 @@ At the end of Phase 5, update:
 - [ ] Solver uses validation contracts (GMP flow only)
 - [ ] Full cross-chain testnet integration passes
 - [ ] Documentation complete
-- [ ] No legacy single-signer code (coordinator + trusted-gmp only)
+- [ ] Architecture confirmed: coordinator + trusted-gmp only (no monolithic signer)
 - [ ] All conception documents reviewed and updated

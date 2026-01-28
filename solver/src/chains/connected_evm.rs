@@ -387,7 +387,7 @@ impl ConnectedEvmClient {
     ///
     /// * `escrow_addr` - Address of the IntentEscrow contract
     /// * `intent_id` - Intent ID (hex string with 0x prefix, will be converted to uint256)
-    /// * `signature` - Verifier's ECDSA signature (65 bytes: r || s || v)
+    /// * `signature` - Approver's (Trusted GMP) ECDSA signature (65 bytes: r || s || v)
     ///
     /// # Returns
     ///

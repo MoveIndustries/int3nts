@@ -48,12 +48,12 @@ pub struct EscrowAccount {
 #[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
 pub struct EscrowState {
     pub discriminator: [u8; 8],
-    pub verifier: Pubkey,
+    pub approver: Pubkey,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub enum EscrowInstruction {
-    Initialize { verifier: Pubkey },
+    Initialize { approver: Pubkey },
     CreateEscrow {
         intent_id: [u8; 32],
         amount: u64,
@@ -188,7 +188,7 @@ impl ConnectedSvmClient {
     ///
     /// * `escrow_id` - Escrow PDA address
     /// * `intent_id` - Intent id
-    /// * `signature` - Verifier signature bytes
+    /// * `signature` - Approver (Trusted GMP) signature bytes
     ///
     /// # Returns
     ///
@@ -251,7 +251,7 @@ impl ConnectedSvmClient {
         let ed25519_ix = new_ed25519_instruction_with_signature(
             &intent_bytes,
             &signature_bytes,
-            &state.verifier.to_bytes(),
+            &state.approver.to_bytes(),
         );
 
         let claim_ix = Instruction {

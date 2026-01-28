@@ -150,8 +150,8 @@ pub fn build_test_config_with_mvm() -> Config {
 
     // Use unique env var names per invocation to avoid parallel test conflicts
     let unique_id: u64 = rng.gen();
-    let private_key_env_name = format!("TEST_VERIFIER_PRIVATE_KEY_{}", unique_id);
-    let public_key_env_name = format!("TEST_VERIFIER_PUBLIC_KEY_{}", unique_id);
+    let private_key_env_name = format!("TEST_APPROVER_PRIVATE_KEY_{}", unique_id);
+    let public_key_env_name = format!("TEST_APPROVER_PUBLIC_KEY_{}", unique_id);
 
     // Set environment variables for the keys (CryptoService reads from env vars)
     std::env::set_var(&private_key_env_name, &private_key_b64);
