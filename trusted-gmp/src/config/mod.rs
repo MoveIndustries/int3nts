@@ -73,8 +73,8 @@ pub struct EvmChainConfig {
     pub escrow_contract_addr: String,
     /// Chain ID (e.g., 31337 for Hardhat, 1 for Ethereum mainnet)
     pub chain_id: u64,
-    /// Verifier EVM public key hash (keccak256 hash of ECDSA public key, last 20 bytes)
-    /// This is the Ethereum address derived from the verifier's ECDSA public key
+    /// Trusted-gmp EVM public key hash (keccak256 hash of ECDSA public key, last 20 bytes).
+    /// This is the Ethereum address derived from the trusted-gmp's ECDSA public key (on-chain "verifier" address).
     #[serde(rename = "verifier_evm_pubkey_hash", alias = "verifier_addr")]
     pub verifier_evm_pubkey_hash: String,
 }
@@ -155,7 +155,7 @@ impl TrustedGmpConfig {
 
 /// API server configuration for external communication.
 ///
-/// Controls how the verifier service exposes its REST API endpoints
+/// Controls how the trusted-gmp service exposes its REST API endpoints
 /// and handles cross-origin requests.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiConfig {

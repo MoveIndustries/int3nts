@@ -119,7 +119,7 @@ async fn test_escrow_chain_id_validation() {
     // We just verify it doesn't fail on connected_chain_id check
 }
 
-/// Test that verifier rejects escrows where offered_amount doesn't match hub intent's offered amount
+/// Test that trusted-gmp rejects escrows where offered_amount doesn't match hub intent's offered amount
 /// Why: Verify that escrow amount validation works correctly
 #[tokio::test]
 async fn test_escrow_amount_must_match_hub_intent_offered_amount() {
@@ -191,7 +191,7 @@ async fn test_escrow_amount_must_match_hub_intent_offered_amount() {
     );
 }
 
-/// Test that verifier accepts escrows where offered_metadata exactly matches hub intent's offered_metadata
+/// Test that trusted-gmp accepts escrows where offered_metadata exactly matches hub intent's offered_metadata
 /// Why: Verify that metadata matching validation works correctly for successful cases
 #[tokio::test]
 async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_success() {
@@ -235,7 +235,7 @@ async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_suc
     );
 }
 
-/// Test that verifier rejects escrows where offered_metadata doesn't match hub intent's offered_metadata
+/// Test that trusted-gmp rejects escrows where offered_metadata doesn't match hub intent's offered_metadata
 /// Why: Verify that metadata mismatch validation works correctly
 #[tokio::test]
 async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_rejection() {
@@ -277,7 +277,7 @@ async fn test_escrow_offered_metadata_must_match_hub_intent_offered_metadata_rej
     );
 }
 
-/// Test that verifier correctly handles empty metadata strings
+/// Test that trusted-gmp correctly handles empty metadata strings
 /// Why: Verify that empty metadata strings are handled correctly (both empty should match, one empty one not should fail)
 #[tokio::test]
 async fn test_escrow_offered_metadata_empty_strings() {
@@ -377,7 +377,7 @@ async fn test_escrow_offered_metadata_empty_strings() {
     );
 }
 
-/// Test that verifier correctly handles complex JSON metadata structures
+/// Test that trusted-gmp correctly handles complex JSON metadata structures
 /// Why: Verify that exact string matching works for complex nested JSON, escaped characters, etc.
 #[tokio::test]
 async fn test_escrow_offered_metadata_complex_json() {
@@ -475,7 +475,7 @@ async fn test_escrow_offered_metadata_complex_json() {
     );
 }
 
-/// Test that verifier accepts escrows where offered_metadata addresses match after normalizing leading zeros
+/// Test that trusted-gmp accepts escrows where offered_metadata addresses match after normalizing leading zeros
 /// What is tested: Validating an escrow where the escrow's offered_metadata has a leading zero (0x036c...)
 /// but the hub intent's offered_metadata doesn't (0x36c...) should pass after normalization.
 /// Why: EVM addresses may be stored with or without leading zeros, but they represent the same address.
@@ -525,7 +525,7 @@ async fn test_escrow_offered_metadata_normalizes_leading_zeros() {
     );
 }
 
-/// Test that verifier accepts escrows where desired_amount is 0
+/// Test that trusted-gmp accepts escrows where desired_amount is 0
 /// Why: Verify that escrow desired_amount validation works correctly for successful cases
 #[tokio::test]
 async fn test_escrow_desired_amount_must_be_zero_success() {
@@ -570,7 +570,7 @@ async fn test_escrow_desired_amount_must_be_zero_success() {
     );
 }
 
-/// Test that verifier rejects escrows where desired_amount is non-zero
+/// Test that trusted-gmp rejects escrows where desired_amount is non-zero
 /// Why: Verify that escrow desired_amount validation works correctly for rejection cases
 #[tokio::test]
 async fn test_escrow_desired_amount_must_be_zero_rejection() {
@@ -610,7 +610,7 @@ async fn test_escrow_desired_amount_must_be_zero_rejection() {
     );
 }
 
-/// Test that verifier rejects escrows when intent has no connected_chain_id
+/// Test that trusted-gmp rejects escrows when intent has no connected_chain_id
 /// Why: Verify that intents must specify connected_chain_id for escrow validation
 #[tokio::test]
 async fn test_escrow_rejection_when_connected_chain_id_is_none() {
@@ -655,7 +655,7 @@ async fn test_escrow_rejection_when_connected_chain_id_is_none() {
     );
 }
 
-/// Test that verifier rejects escrows when connected_chain_id doesn't match escrow chain_id
+/// Test that trusted-gmp rejects escrows when connected_chain_id doesn't match escrow chain_id
 /// Why: Verify that chain_id mismatch validation works correctly
 #[tokio::test]
 async fn test_escrow_chain_id_mismatch_rejection() {

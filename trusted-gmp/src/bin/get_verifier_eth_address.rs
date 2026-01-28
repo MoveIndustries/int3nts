@@ -1,9 +1,9 @@
-//! Get Verifier EVM Public Key Hash
+//! Get Trusted-GMP EVM Public Key Hash
 //!
-//! This binary reads the verifier configuration and outputs the EVM public key hash
+//! This binary reads the trusted-gmp configuration and outputs the EVM public key hash
 //! (keccak256 hash of ECDSA public key, last 20 bytes). This is the Ethereum address
-//! derived from the verifier's ECDSA public key and should be used as the verifier
-//! address in the IntentEscrow contract deployment.
+//! derived from the trusted-gmp's ECDSA public key and should be used as the "verifier"
+//! address in the IntentEscrow contract deployment (on-chain verifier address).
 
 use anyhow::Result;
 use trusted_gmp::config::Config;

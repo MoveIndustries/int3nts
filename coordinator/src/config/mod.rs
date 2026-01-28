@@ -102,7 +102,7 @@ pub struct CoordinatorConfig {
 
 /// API server configuration for external communication.
 ///
-/// Controls how the verifier service exposes its REST API endpoints
+/// Controls how the coordinator service exposes its REST API endpoints
 /// and handles cross-origin requests.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiConfig {
@@ -277,7 +277,7 @@ impl Config {
     /// Loads configuration from the TOML file.
     ///
     /// This function:
-    /// 1. Checks if config/verifier.toml exists
+    /// 1. Checks if config/coordinator.toml exists
     /// 2. If it exists, loads and parses the configuration
     /// 3. Validates the configuration for duplicate chain IDs
     /// 4. If it doesn't exist, returns an error asking user to copy template

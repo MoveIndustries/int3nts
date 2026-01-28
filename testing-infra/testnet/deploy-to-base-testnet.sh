@@ -35,9 +35,9 @@ if [ -z "$BASE_DEPLOYER_PRIVATE_KEY" ]; then
     exit 1
 fi
 
-if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then
-    echo "❌ ERROR: VERIFIER_EVM_PUBKEY_HASH not set in .env.testnet"
-    echo "   Run: nix develop ./nix -c bash -c 'cd trusted-gmp && VERIFIER_CONFIG_PATH=config/verifier_testnet.toml cargo run --bin get_verifier_eth_address'"
+if [ -z "$TRUSTED_GMP_EVM_PUBKEY_HASH" ]; then
+    echo "❌ ERROR: TRUSTED_GMP_EVM_PUBKEY_HASH not set in .env.testnet"
+    echo "   Run: nix develop ./nix -c bash -c 'cd trusted-gmp && TRUSTED_GMP_CONFIG_PATH=config/trusted-gmp_testnet.toml cargo run --bin get_verifier_eth_address'"
     exit 1
 fi
 
@@ -59,7 +59,7 @@ fi
 
 echo " Configuration:"
 echo "   Deployer Address: $BASE_DEPLOYER_ADDR"
-echo "   Verifier EVM Pubkey Hash: $VERIFIER_EVM_PUBKEY_HASH"
+echo "   Trusted-GMP EVM Pubkey Hash: $TRUSTED_GMP_EVM_PUBKEY_HASH"
 echo "   Network: Base Sepolia"
 echo "   RPC URL: $BASE_SEPOLIA_RPC_URL"
 echo ""
@@ -76,7 +76,7 @@ cd "$PROJECT_ROOT/intent-frameworks/evm"
 
 # Export environment variables for Hardhat
 export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"
-export VERIFIER_ADDR="$VERIFIER_EVM_PUBKEY_HASH"
+export VERIFIER_ADDR="$TRUSTED_GMP_EVM_PUBKEY_HASH"
 export BASE_SEPOLIA_RPC_URL
 
 echo " Environment configured for Hardhat"

@@ -24,8 +24,8 @@ log_and_echo ""
 CONTRACT_ADDR=$(extract_escrow_contract_address)
 log_and_echo "   EVM Escrow Contract: $CONTRACT_ADDR"
 
-# Get verifier Ethereum address (Hardhat account 0)
-log "   - Getting verifier Ethereum address (Hardhat account 0)..."
+# Get trusted-gmp Ethereum address (Hardhat account 0; on-chain verifier)
+log "   - Getting trusted-gmp Ethereum address (Hardhat account 0)..."
 VERIFIER_ADDR=$(get_hardhat_account_address "0")
 log_and_echo "   EVM Verifier: $VERIFIER_ADDR"
 

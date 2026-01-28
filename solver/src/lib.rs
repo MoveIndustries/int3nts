@@ -1,6 +1,6 @@
 //! Solver library for intent framework
 //!
-//! Provides signing, acceptance logic, and verifier communication.
+//! Provides signing, acceptance logic, and coordinator/trusted-gmp API communication.
 
 pub mod acceptance;
 pub mod api;

@@ -20,6 +20,5 @@ Thumbs.db
 .env.local
 
 # Configuration files with secrets
-config/verifier.toml
 config/trusted-gmp.toml
 config/trusted-gmp_testnet.toml

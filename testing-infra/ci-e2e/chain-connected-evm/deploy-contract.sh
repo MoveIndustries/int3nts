@@ -27,12 +27,12 @@ fi
 
 log ""
 log " Configuration:"
-log "   Computing verifier Ethereum address from config..."
+log "   Computing trusted-gmp Ethereum address (on-chain verifier) from config..."
 
 # Load trusted-gmp keys (used for EVM verification)
 load_trusted_gmp_keys
 
-# Get verifier Ethereum address (derived from ECDSA public key)
+# Get trusted-gmp Ethereum address (derived from ECDSA public key; on-chain "verifier")
 # The full trusted-gmp config file may not exist yet (it's created later by configure-trusted-gmp.sh),
 # so we create a minimal temporary config with just enough for get_verifier_eth_address to read the keys.
 TEMP_CONFIG="$PROJECT_ROOT/.tmp/trusted-gmp-minimal.toml"
@@ -70,14 +70,14 @@ VERIFIER_ETH_OUTPUT=$(cd "$PROJECT_ROOT" && env HOME="${HOME}" TRUSTED_GMP_CONFI
 VERIFIER_EVM_PUBKEY_HASH=$(echo "$VERIFIER_ETH_OUTPUT" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1 | tr -d '\n')
 
 if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then
-    log_and_echo "❌ ERROR: Could not compute verifier EVM pubkey hash from config"
+    log_and_echo "❌ ERROR: Could not compute trusted-gmp EVM pubkey hash from config"
     log_and_echo "   Command output:"
     echo "$VERIFIER_ETH_OUTPUT"
     log_and_echo "   Check that E2E_TRUSTED_GMP_PRIVATE_KEY and E2E_TRUSTED_GMP_PUBLIC_KEY env vars are set"
     exit 1
 fi
 
-log "   ✅ Verifier EVM pubkey hash: $VERIFIER_EVM_PUBKEY_HASH"
+log "   ✅ Trusted-gmp EVM pubkey hash: $VERIFIER_EVM_PUBKEY_HASH"
 log "   RPC URL: http://127.0.0.1:8545"
 
 # Deploy escrow contract (run in nix develop ./nix)
@@ -98,7 +98,7 @@ log "   RPC URL:      http://127.0.0.1:8545"
 log "   Chain ID:     31337 (Hardhat default)"
 log ""
 log " Verify deployment:"
-log "   npx hardhat verify --network localhost $CONTRACT_ADDR <verifier_address>"
+log "   npx hardhat verify --network localhost $CONTRACT_ADDR <trusted_gmp_eth_address>"
 
 log ""
 log "✅ IntentEscrow deployed"

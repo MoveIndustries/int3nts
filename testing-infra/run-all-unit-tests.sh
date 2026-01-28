@@ -20,14 +20,6 @@ TRUSTED_GMP_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-
 TRUSTED_GMP_PASSED=$(echo "$TRUSTED_GMP_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum+0}')
 TRUSTED_GMP_FAILED=$(echo "$TRUSTED_GMP_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
 
-echo "Running Verifier tests..."
-VERIFIER_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd verifier && cargo test --quiet 2>&1") || {
-    echo "Verifier tests failed:"
-    echo "$VERIFIER_TEST_OUTPUT"
-}
-VERIFIER_PASSED=$(echo "$VERIFIER_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum+0}')
-VERIFIER_FAILED=$(echo "$VERIFIER_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
-
 echo "Running Solver tests..."
 SOLVER_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet 2>&1") || {
     echo "Solver tests failed:"
@@ -82,7 +74,6 @@ echo "| Tests | Passed | Failed |"
 echo "|-------|--------|--------|"
 echo "| Coordinator | $COORDINATOR_PASSED | $COORDINATOR_FAILED |"
 echo "| Trusted-GMP | $TRUSTED_GMP_PASSED | $TRUSTED_GMP_FAILED |"
-echo "| Verifier | $VERIFIER_PASSED | $VERIFIER_FAILED |"
 echo "| Solver | $SOLVER_PASSED | $SOLVER_FAILED |"
 echo "| MVM | $MOVE_PASSED | $MOVE_FAILED |"
 echo "| EVM | $EVM_PASSED | $EVM_FAILED |"

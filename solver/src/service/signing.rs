@@ -16,7 +16,7 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-/// Signing service that polls verifier and signs accepted drafts.
+/// Signing service that polls coordinator and signs accepted drafts.
 pub struct SigningService {
     /// Solver configuration
     config: SolverConfig,
@@ -56,7 +56,7 @@ impl SigningService {
 
     /// Run the main signing service loop.
     ///
-    /// This function polls the verifier for pending drafts at the configured interval,
+    /// This function polls the coordinator for pending drafts at the configured interval,
     /// evaluates each draft for acceptance, and signs/submits accepted drafts.
     ///
     /// Runs indefinitely until the service is stopped.
@@ -83,7 +83,7 @@ impl SigningService {
         }
     }
 
-    /// Poll verifier for pending drafts and process them.
+    /// Poll coordinator for pending drafts and process them.
     ///
     /// # Returns
     ///
@@ -151,7 +151,7 @@ impl SigningService {
     ///
     /// # Arguments
     ///
-    /// * `draft` - Pending draft from verifier
+    /// * `draft` - Pending draft from coordinator
     ///
     /// # Returns
     ///
@@ -197,11 +197,11 @@ impl SigningService {
         parse_draft_data(draft_data)
     }
 
-    /// Sign a draftintent and submit to verifier.
+    /// Sign a draftintent and submit to coordinator.
     ///
     /// # Arguments
     ///
-    /// * `draft` - Pending draft from verifier
+    /// * `draft` - Pending draft from coordinator
     /// * `draft_data` - Parsed draft data
     ///
     /// # Returns
@@ -289,7 +289,7 @@ impl SigningService {
         let solver_hub_addr = self.config.solver.address.clone();
 
         // Submit signature to coordinator
-        // Use spawn_blocking since verifier_client uses blocking HTTP
+        // Use spawn_blocking since verifier_client uses blocking HTTP (coordinator API)
         let base_url = self.config.service.coordinator_url.clone();
         let draft_id_for_log = draft.draft_id.clone();
         let draft_id_for_submit = draft.draft_id.clone();
@@ -337,7 +337,7 @@ impl SigningService {
 
 /// Parse draft data from JSON value.
 ///
-/// Extracts intent fields from the JSON structure returned by the verifier.
+/// Extracts intent fields from the JSON structure returned by the coordinator.
 ///
 /// # Arguments
 ///

@@ -3,8 +3,8 @@
 # E2E Integration Test Runner - OUTFLOW (EVM)
 # 
 # This script runs the outflow E2E tests with EVM connected chain.
-# It sets up chains, deploys contracts, starts verifier for negotiation routing,
-# submits outflow intents via verifier, then runs the tests.
+# It sets up chains, deploys contracts, starts coordinator and trusted-gmp for negotiation routing,
+# submits outflow intents via coordinator, then runs the tests.
 
 set -e
 
@@ -64,7 +64,7 @@ log_and_echo "======================================================"
 ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
 
 log_and_echo ""
-log_and_echo " Step 4: Configuring and starting verifier (for negotiation routing)..."
+log_and_echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
 log_and_echo "=========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-evm/start-verifier.sh
 
@@ -80,7 +80,7 @@ log_and_echo "======================================="
 log_and_echo ""
 log_and_echo " Step 5: Testing OUTFLOW intents (hub chain → connected EVM chain)..."
 log_and_echo "====================================================================="
-log_and_echo "   Submitting outflow cross-chain intents via verifier negotiation routing..."
+log_and_echo "   Submitting outflow cross-chain intents via coordinator negotiation routing..."
 log_and_echo ""
 log_and_echo " Pre-Intent Balance Validation"
 log_and_echo "=========================================="
@@ -101,7 +101,7 @@ log_and_echo "==========================================================="
 log_and_echo "   The solver service is running and will:"
 log_and_echo "   1. Detect the intent on hub chain"
 log_and_echo "   2. Transfer tokens to requester on connected EVM chain"
-log_and_echo "   3. Call verifier to validate and get approval signature"
+log_and_echo "   3. Call trusted-gmp to validate and get approval signature"
 log_and_echo "   4. Fulfill the hub intent with approval"
 log_and_echo ""
 

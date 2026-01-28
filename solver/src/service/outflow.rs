@@ -4,8 +4,8 @@
 //!
 //! Flow:
 //! 1. **Execute Transfer**: Transfer tokens on connected chain to requester_addr_connected_chain
-//! 2. **Get Verifier Approval**: Call verifier `/validate-outflow-fulfillment` with transaction hash
-//! 3. **Fulfill Intent**: Call hub chain `fulfill_outflow_intent` with verifier signature
+//! 2. **Get Trusted-GMP Approval**: Call trusted-gmp `/validate-outflow-fulfillment` with transaction hash
+//! 3. **Fulfill Intent**: Call hub chain `fulfill_outflow_intent` with trusted-gmp signature
 
 use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient, HubChainClient};
 use crate::config::SolverConfig;
@@ -230,7 +230,7 @@ impl OutflowService {
             .context("requester_addr_connected_chain not set. This may happen if the intent is inflow (not outflow) or the event data didn't include this field.")
     }
 
-    /// Gets verifier approval for an outflow fulfillment transaction
+    /// Gets trusted-gmp approval for an outflow fulfillment transaction
     ///
     /// # Arguments
     ///
@@ -240,7 +240,7 @@ impl OutflowService {
     ///
     /// # Returns
     ///
-    /// * `Ok(ApprovalSignature)` - Verifier approval signature
+    /// * `Ok(ApprovalSignature)` - Trusted-gmp approval signature
     /// * `Err(anyhow::Error)` - Failed to get approval
     pub async fn get_verifier_approval(
         &self,
@@ -285,12 +285,12 @@ impl OutflowService {
         Ok(signature_bytes)
     }
 
-    /// Fulfills an outflow intent on the hub chain with verifier approval
+    /// Fulfills an outflow intent on the hub chain with trusted-gmp approval
     ///
     /// # Arguments
     ///
     /// * `intent` - Tracked intent to fulfill
-    /// * `verifier_signature_bytes` - Verifier's Ed25519 signature as bytes
+    /// * `verifier_signature_bytes` - Trusted-gmp's Ed25519 signature as bytes (on-chain "verifier" address)
     ///
     /// # Returns
     ///
@@ -324,8 +324,8 @@ impl OutflowService {
     ///
     /// This loop:
     /// 1. Polls for pending outflow intents and executes transfers
-    /// 2. Gets verifier approval for executed transfers
-    /// 3. Fulfills hub intents with verifier signatures
+    /// 2. Gets trusted-gmp approval for executed transfers
+    /// 3. Fulfills hub intents with trusted-gmp signatures
     ///
     /// # Arguments
     ///
@@ -337,7 +337,7 @@ impl OutflowService {
             match self.poll_and_execute_transfers().await {
                 Ok(executed_transfers) => {
                     for (intent, tx_hash) in executed_transfers {
-                        // Get verifier approval - determine chain type from intent's desired_chain_id
+                        // Get trusted-gmp approval - determine chain type from intent's desired_chain_id
                         let chain_type = match self.get_target_chain_for_intent(&intent) {
                             Some((ct, _)) => ct,
                             None => {
@@ -366,7 +366,7 @@ impl OutflowService {
                                 }
                             }
                             Err(e) => {
-                                error!("Failed to get verifier approval for intent {}: {}", intent.intent_id, e);
+                                error!("Failed to get trusted-gmp approval for intent {}: {}", intent.intent_id, e);
                             }
                         }
                     }

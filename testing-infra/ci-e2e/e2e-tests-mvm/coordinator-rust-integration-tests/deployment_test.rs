@@ -6,10 +6,10 @@
 use coordinator::mvm_client::MvmClient;
 
 /// Test that intent framework contracts are deployed on the chains
-/// Why: Verifier needs contracts to be deployed before it can monitor events
+/// Why: Coordinator needs contracts to be deployed before it can monitor events
 #[tokio::test]
 async fn test_contracts_deployed_on_chain1() {
-    // Load the verifier config to get the actual module addresses
+    // Load the coordinator config to get the actual module addresses
     let config = coordinator::config::Config::load()
         .expect("Failed to load coordinator config - ensure config/coordinator.toml exists with module addresses");
     
@@ -54,10 +54,10 @@ async fn test_contracts_deployed_on_chain1() {
 }
 
 /// Test that intent framework contracts are deployed on the chains
-/// Why: Verifier needs contracts to be deployed before it can monitor events
+/// Why: Coordinator needs contracts to be deployed before it can monitor events
 #[tokio::test]
 async fn test_contracts_deployed_on_chain2() {
-    // Load the verifier config to get the actual module addresses
+    // Load the coordinator config to get the actual module addresses
     let config = coordinator::config::Config::load()
         .expect("Failed to load coordinator config - ensure config/coordinator.toml exists with module addresses");
     

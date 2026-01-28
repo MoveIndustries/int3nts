@@ -2,15 +2,15 @@
 
 # Verify Trusted GMP EVM Address Script (Testnet)
 #
-# Verifies that VERIFIER_EVM_PUBKEY_HASH in this directory's .env.testnet matches
-# the EVM address derived from VERIFIER_PRIVATE_KEY, and optionally checks
-# that the on-chain IntentEscrow contract has the correct verifier address.
+# Verifies that TRUSTED_GMP_EVM_PUBKEY_HASH in this directory's .env.testnet matches
+# the EVM address derived from TRUSTED_GMP_PRIVATE_KEY (and TRUSTED_GMP_PUBLIC_KEY), and optionally
+# checks that the on-chain IntentEscrow contract has the correct verifier address.
 #
 # Usage: ./verify-trusted-gmp-evm-address.sh
 #
 # Checks:
-#   1. Computes EVM address from VERIFIER_PRIVATE_KEY
-#   2. Compares to VERIFIER_EVM_PUBKEY_HASH in this directory's .env.testnet
+#   1. Computes EVM address from TRUSTED_GMP_PRIVATE_KEY (via get_verifier_eth_address)
+#   2. Compares to TRUSTED_GMP_EVM_PUBKEY_HASH in this directory's .env.testnet
 #   3. Queries on-chain IntentEscrow contract's verifier() function (if config available)
 #   4. Compares on-chain address to computed address
 #
@@ -32,15 +32,15 @@ else
     exit 1
 fi
 
-# Check if VERIFIER_EVM_PUBKEY_HASH is set
-if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then
-    echo "❌ ERROR: VERIFIER_EVM_PUBKEY_HASH not set in $ENV_FILE"
+# Check if TRUSTED_GMP_EVM_PUBKEY_HASH is set
+if [ -z "$TRUSTED_GMP_EVM_PUBKEY_HASH" ]; then
+    echo "❌ ERROR: TRUSTED_GMP_EVM_PUBKEY_HASH not set in $ENV_FILE"
     exit 1
 fi
 
-# Check if VERIFIER_PRIVATE_KEY is set
-if [ -z "$VERIFIER_PRIVATE_KEY" ]; then
-    echo "❌ ERROR: VERIFIER_PRIVATE_KEY not set in $ENV_FILE"
+# Check if TRUSTED_GMP_PRIVATE_KEY is set
+if [ -z "$TRUSTED_GMP_PRIVATE_KEY" ]; then
+    echo "❌ ERROR: TRUSTED_GMP_PRIVATE_KEY not set in $ENV_FILE"
     exit 1
 fi
 
@@ -48,18 +48,18 @@ echo " Verifying Trusted GMP EVM Address"
 echo "======================================="
 echo ""
 echo "   Config file: $ENV_FILE"
-echo "   Expected:    $VERIFIER_EVM_PUBKEY_HASH"
+echo "   Expected:    $TRUSTED_GMP_EVM_PUBKEY_HASH"
 echo ""
 
-# Compute EVM address from private key
-echo "   Computing EVM address from VERIFIER_PRIVATE_KEY..."
+# Compute EVM address from private key (get_verifier_eth_address reads TRUSTED_GMP_* from env when building config)
+echo "   Computing EVM address from TRUSTED_GMP_PRIVATE_KEY..."
 COMPUTED_ADDR=$(cd "$PROJECT_ROOT/trusted-gmp" && \
-    VERIFIER_CONFIG_PATH=config/verifier_testnet.toml \
+    TRUSTED_GMP_CONFIG_PATH=config/trusted-gmp_testnet.toml \
     nix develop "$PROJECT_ROOT/nix" -c bash -c "cargo run --bin get_verifier_eth_address --quiet 2>&1" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1)
 
 if [ -z "$COMPUTED_ADDR" ]; then
     echo "❌ ERROR: Failed to compute EVM address from private key"
-    echo "   Make sure VERIFIER_PRIVATE_KEY and VERIFIER_PUBLIC_KEY are set correctly"
+    echo "   Make sure TRUSTED_GMP_PRIVATE_KEY and TRUSTED_GMP_PUBLIC_KEY are set in $ENV_FILE (and sourced by trusted-gmp config)"
     exit 1
 fi
 
@@ -67,7 +67,7 @@ echo "   Computed:    $COMPUTED_ADDR"
 echo ""
 
 # Normalize addresses for comparison (lowercase)
-EXPECTED_NORM=$(echo "$VERIFIER_EVM_PUBKEY_HASH" | tr '[:upper:]' '[:lower:]')
+EXPECTED_NORM=$(echo "$TRUSTED_GMP_EVM_PUBKEY_HASH" | tr '[:upper:]' '[:lower:]')
 COMPUTED_NORM=$(echo "$COMPUTED_ADDR" | tr '[:upper:]' '[:lower:]')
 
 # Compare env file vs computed
@@ -78,20 +78,20 @@ if [ "$EXPECTED_NORM" = "$COMPUTED_NORM" ]; then
 else
     echo "❌ MISMATCH: Config file address does not match computed!"
     echo ""
-    echo "   Expected: $VERIFIER_EVM_PUBKEY_HASH"
+    echo "   Expected: $TRUSTED_GMP_EVM_PUBKEY_HASH"
     echo "   Computed: $COMPUTED_ADDR"
     echo ""
-    echo "   Action: Update VERIFIER_EVM_PUBKEY_HASH in $ENV_FILE to:"
-    echo "   VERIFIER_EVM_PUBKEY_HASH=$COMPUTED_ADDR"
+    echo "   Action: Update TRUSTED_GMP_EVM_PUBKEY_HASH in $ENV_FILE to:"
+    echo "   TRUSTED_GMP_EVM_PUBKEY_HASH=$COMPUTED_ADDR"
 fi
 
 # Check on-chain contract (if config is available)
 ONCHAIN_MATCH=false
-VERIFIER_CONFIG="$PROJECT_ROOT/trusted-gmp/config/verifier_testnet.toml"
-if [ -f "$VERIFIER_CONFIG" ]; then
+TRUSTED_GMP_CONFIG="$PROJECT_ROOT/trusted-gmp/config/trusted-gmp_testnet.toml"
+if [ -f "$TRUSTED_GMP_CONFIG" ]; then
     # Extract escrow contract address and RPC URL from config
-    ESCROW_ADDR=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "escrow_contract_addr" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' | head -1)
-    RPC_URL=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "rpc_url" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' | head -1)
+    ESCROW_ADDR=$(grep -A5 "\[connected_chain_evm\]" "$TRUSTED_GMP_CONFIG" | grep "escrow_contract_addr" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' | head -1)
+    RPC_URL=$(grep -A5 "\[connected_chain_evm\]" "$TRUSTED_GMP_CONFIG" | grep "rpc_url" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' | head -1)
     
     if [ -n "$ESCROW_ADDR" ] && [ -n "$RPC_URL" ]; then
         echo ""

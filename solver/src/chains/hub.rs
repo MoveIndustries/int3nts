@@ -420,7 +420,7 @@ impl HubChainClient {
     /// # Arguments
     ///
     /// * `intent_addr` - Object address of the intent to fulfill
-    /// * `verifier_signature_bytes` - Verifier's Ed25519 signature as bytes
+    /// * `verifier_signature_bytes` - Trusted-gmp's Ed25519 signature as bytes (on-chain "verifier" address)
     ///
     /// # Returns
     ///

@@ -1,6 +1,6 @@
 # Trusted GMP API
 
-Base URL: `http://<host>:<port>` (defaults to `127.0.0.1:3333`)
+Base URL: `http://<host>:<port>` (defaults to `127.0.0.1:3334`)
 
 All responses share the shape:
 
@@ -47,7 +47,7 @@ Note: The signature itself is the approval - trusted-gmp signs the `intent_id` t
 Example:
 
 ```bash
-curl -s http://127.0.0.1:3333/approvals | jq
+curl -s http://127.0.0.1:3334/approvals | jq
 ```
 
 ## POST /approval

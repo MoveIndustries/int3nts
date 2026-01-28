@@ -1,4 +1,4 @@
-//! Unit tests for verifier client
+//! Unit tests for coordinator/trusted-gmp API client (verifier_client module)
 
 use serde_json::json;
 use solver::{
@@ -30,7 +30,7 @@ fn test_verifier_client_new() {
 }
 
 /// What is tested: VerifierClient methods handle API response format correctly
-/// Why: Ensure we correctly parse the ApiResponse<T> wrapper from verifier
+/// Why: Ensure we correctly parse the ApiResponse<T> wrapper from coordinator/trusted-gmp
 #[test]
 fn test_api_response_parsing() {
     // Test successful response
@@ -72,7 +72,7 @@ fn test_api_response_parsing() {
 }
 
 /// What is tested: API error response parsing
-/// Why: Ensure we correctly handle error responses from verifier
+/// Why: Ensure we correctly handle error responses from coordinator/trusted-gmp
 #[test]
 fn test_api_error_response_parsing() {
     let json = r#"{
@@ -92,7 +92,7 @@ fn test_api_error_response_parsing() {
 }
 
 /// What is tested: SignatureSubmission serialization
-/// Why: Ensure request format matches verifier API expectations
+/// Why: Ensure request format matches coordinator/trusted-gmp API expectations
 #[test]
 fn test_signature_submission_serialization() {
     let submission = SignatureSubmission {
@@ -110,7 +110,7 @@ fn test_signature_submission_serialization() {
 }
 
 /// What is tested: PendingDraft deserialization with various draft_data formats
-/// Why: Ensure we can handle different draft_data JSON structures from verifier
+/// Why: Ensure we can handle different draft_data JSON structures from coordinator
 #[test]
 fn test_pending_draft_deserialization() {
     // Using test-specific timestamp (1000000) and expiry_time (2000000) for mock data

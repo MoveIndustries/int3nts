@@ -1,6 +1,6 @@
 //! Cryptographic Operations Module
 //!
-//! This module handles all cryptographic operations for the trusted verifier service,
+//! This module handles all cryptographic operations for the trusted-gmp service,
 //! including Ed25519 key generation, message signing, signature verification, and
 //! secure random number generation. It provides the cryptographic foundation
 //! for secure cross-chain validation and approval signatures.
@@ -29,7 +29,7 @@ use crate::config::Config;
 
 /// Cryptographic signature for approval.
 ///
-/// The signature itself is the approval - verifier signs the intent_id to approve it.
+/// The signature itself is the approval - trusted-gmp signs the intent_id to approve it.
 /// This structure contains the signature and timestamp for escrow releases.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApprovalSignature {
@@ -43,7 +43,7 @@ pub struct ApprovalSignature {
 // CRYPTOGRAPHIC SERVICE IMPLEMENTATION
 // ============================================================================
 
-/// Cryptographic service that handles all crypto operations for the verifier.
+/// Cryptographic service that handles all crypto operations for the trusted-gmp.
 ///
 /// This service provides secure key generation, message signing, signature
 /// verification, and other cryptographic operations required for secure
@@ -159,7 +159,7 @@ impl CryptoService {
 
     /// Creates a Move VM approval signature by signing the intent_id.
     ///
-    /// The verifier signs the intent_id to approve it. The signature itself is the approval.
+    /// The trusted-gmp signs the intent_id to approve it. The signature itself is the approval.
     /// Each signature is unique per intent_id.
     ///
     /// # Arguments
@@ -219,7 +219,7 @@ impl CryptoService {
 
     /// Creates an SVM approval signature by signing the intent_id bytes directly.
     ///
-    /// The verifier signs the raw 32-byte intent_id (no BCS encoding).
+    /// The trusted-gmp signs the raw 32-byte intent_id (no BCS encoding).
     pub fn create_svm_approval_signature(&self, intent_id: &str) -> Result<ApprovalSignature> {
         let intent_id_hex = intent_id.strip_prefix("0x").unwrap_or(intent_id);
         let padded_hex = if intent_id_hex.len() < 64 {
@@ -292,7 +292,7 @@ impl CryptoService {
     /// Verifies a cryptographic signature against a message.
     ///
     /// This function validates that a signature was created by the holder
-    /// of the private key corresponding to the verifier's public key.
+    /// of the private key corresponding to the trusted-gmp's public key.
     ///
     /// # Arguments
     ///
@@ -321,9 +321,9 @@ impl CryptoService {
 
     /// Returns the public key for external signature verification.
     ///
-    /// This function provides access to the verifier's public key,
+    /// This function provides access to the trusted-gmp's public key,
     /// which can be used by external systems to verify signatures
-    /// created by this verifier.
+    /// created by this service.
     ///
     /// # Returns
     ///
@@ -334,7 +334,7 @@ impl CryptoService {
 
     /// Creates an ECDSA signature for EVM escrow release.
     ///
-    /// The verifier signs the intent_id to approve it. The signature itself is the approval.
+    /// The trusted-gmp signs the intent_id to approve it. The signature itself is the approval.
     /// Each signature is unique per intent_id.
     ///
     /// Message format: keccak256(intentId) - only the intent_id is signed

@@ -36,7 +36,7 @@ use config::Config;
 // MAIN APPLICATION ENTRY POINT
 // ============================================================================
 
-/// Main application entry point that initializes and runs the trusted verifier service.
+/// Main application entry point that initializes and runs the trusted-gmp service.
 ///
 /// This function:
 /// 1. Initializes logging and tracing

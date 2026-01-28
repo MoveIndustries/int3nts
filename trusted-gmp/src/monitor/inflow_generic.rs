@@ -10,7 +10,7 @@
 //! 2. Verifier monitors connected chain for escrow events
 //! 3. Verifier validates escrow matches hub intent requirements
 //! 4. Verifier monitors hub chain for fulfillment events
-//! 5. When hub fulfillment is observed, verifier generates approval signature for escrow release
+//! 5. When hub fulfillment is observed, trusted-gmp generates approval signature for escrow release
 //! 6. Solver uses signature to release escrow on connected chain
 //!
 //! ## Security Requirements

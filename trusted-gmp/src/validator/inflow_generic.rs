@@ -82,7 +82,7 @@ pub async fn validate_intent_fulfillment(
 
     // Note: We don't validate escrow's desired_metadata because it's a placeholder.
     // The actual requirement is the hub intent's desired_metadata, which the solver
-    // must fulfill on the hub chain before the verifier approves escrow release
+    // must fulfill on the hub chain before the trusted-gmp approves escrow release
 
     if let Some(result) =
         validate_reserved_solver(validator, intent_event, escrow_event).await?

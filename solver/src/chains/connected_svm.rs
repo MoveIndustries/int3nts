@@ -1,7 +1,7 @@
 //! Connected SVM Chain Client
 //!
 //! Client for interacting with connected SVM chains to query escrow accounts
-//! and release escrows after verifier approval.
+//! and release escrows after trusted-gmp approval.
 
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -182,7 +182,7 @@ impl ConnectedSvmClient {
         Ok(events)
     }
 
-    /// Claims an escrow using a verifier signature (not yet implemented).
+    /// Claims an escrow using a trusted-gmp signature (not yet implemented).
     ///
     /// # Arguments
     ///

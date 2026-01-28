@@ -319,23 +319,23 @@ movement move run \
 
 echo ""
 
-# Initialize verifier config for outflow intents
-echo " Step 10: Initializing verifier config..."
+# Initialize trusted-gmp config for outflow intents (on-chain "verifier" public key)
+echo " Step 10: Initializing trusted-gmp (verifier) config..."
 
-if [ -z "$VERIFIER_PUBLIC_KEY" ]; then
-    echo "❌ ERROR: VERIFIER_PUBLIC_KEY not set in .env.testnet"
+if [ -z "$TRUSTED_GMP_PUBLIC_KEY" ]; then
+    echo "❌ ERROR: TRUSTED_GMP_PUBLIC_KEY not set in .env.testnet"
     exit 1
 fi
 
-VERIFIER_PUBLIC_KEY_HEX=$(echo "$VERIFIER_PUBLIC_KEY" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
+TRUSTED_GMP_PUBLIC_KEY_HEX=$(echo "$TRUSTED_GMP_PUBLIC_KEY" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
 movement move run \
   --profile "$TEMP_PROFILE" \
   --function-id "${DEPLOY_ADDR_FULL}::fa_intent_outflow::initialize_verifier" \
-  --args "hex:${VERIFIER_PUBLIC_KEY_HEX}" \
+  --args "hex:${TRUSTED_GMP_PUBLIC_KEY_HEX}" \
   --assume-yes
 
 if [ $? -ne 0 ]; then
-    echo "❌ ERROR: Failed to initialize verifier config"
+    echo "❌ ERROR: Failed to initialize trusted-gmp (verifier) config"
     exit 1
 fi
 echo "   ✅ Verifier config initialized"

@@ -5,7 +5,7 @@
 //! Flow:
 //! 1. **Monitor Escrows**: Poll connected chain for escrow deposits matching tracked inflow intents
 //! 2. **Fulfill Intent**: Call hub chain `fulfill_inflow_intent` when escrow is detected
-//! 3. **Release Escrow**: Poll verifier for approval signature, then release escrow on connected chain
+//! 3. **Release Escrow**: Poll trusted-gmp for approval signature, then release escrow on connected chain
 
 use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient};
 use crate::config::SolverConfig;
@@ -179,7 +179,7 @@ impl InflowService {
         if let Some(client) = &self.evm_client {
             match client.get_block_number().await {
                 Ok(current_block) => {
-                    // Look back 200 blocks (~7 minutes on Base, same as verifier)
+                    // Look back 200 blocks (~7 minutes on Base, same as trusted-gmp)
                     let from_block = if current_block > 200 {
                         current_block - 200
                     } else {
@@ -279,10 +279,10 @@ impl InflowService {
         hub_client.fulfill_inflow_intent(intent_addr, payment_amount)
     }
 
-    /// Releases an escrow on the connected chain after getting verifier approval
+    /// Releases an escrow on the connected chain after getting trusted-gmp approval
     ///
     /// This function:
-    /// 1. Polls the verifier for an approval signature matching the intent_id (with retries)
+    /// 1. Polls the trusted-gmp for an approval signature matching the intent_id (with retries)
     /// 2. Converts the signature to the appropriate format (Ed25519 for MVM, ECDSA for EVM)
     /// 3. Calls the escrow release function on the connected chain
     ///
@@ -378,7 +378,7 @@ impl InflowService {
     /// This function continuously:
     /// 1. Polls for escrows matching tracked inflow intents
     /// 2. Fulfills intents on hub chain when escrows are detected
-    /// 3. Releases escrows after getting verifier approval
+    /// 3. Releases escrows after getting trusted-gmp approval
     ///
     /// The loop runs at the configured polling interval.
     pub async fn run(&self) -> Result<()> {
@@ -413,7 +413,7 @@ impl InflowService {
                             }
                         }
 
-                        // Release escrow after a delay (wait for verifier to generate approval)
+                        // Release escrow after a delay (wait for trusted-gmp to generate approval)
                         tokio::time::sleep(Duration::from_secs(2)).await;
 
                         match self

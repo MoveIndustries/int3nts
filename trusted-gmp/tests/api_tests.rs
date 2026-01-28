@@ -102,7 +102,7 @@ async fn test_approvals_endpoint() {
 
 /// Test that public-key endpoint returns success
 /// What is tested: Public key retrieval endpoint
-/// Why: Ensures verifier public key can be retrieved for signature verification
+/// Why: Ensures trusted-gmp public key can be retrieved for signature verification
 #[tokio::test]
 async fn test_public_key_endpoint() {
     let api_server = create_test_api_server().await;

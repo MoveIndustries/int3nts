@@ -3,8 +3,8 @@
 # E2E Integration Test Runner - OUTFLOW
 # 
 # This script runs the outflow E2E tests that require Docker chains.
-# It sets up chains, deploys contracts, starts verifier for negotiation routing,
-# submits outflow intents via verifier, then runs the tests.
+# It sets up chains, deploys contracts, starts coordinator and trusted-gmp for negotiation routing,
+# submits outflow intents via coordinator, then runs the tests.
 
 set -e
 
@@ -64,7 +64,7 @@ echo "===================================================================="
 source "$PROJECT_ROOT/.tmp/chain-info.env"
 
 echo ""
-echo " Step 4: Configuring and starting verifier (for negotiation routing)..."
+echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
 echo "=========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-verifier.sh
 
@@ -84,7 +84,7 @@ echo "======================================="
 echo ""
 echo " Step 5: Testing OUTFLOW intents (hub chain → connected chain)..."
 echo "===================================================================="
-echo "   Submitting outflow cross-chain intents via verifier negotiation routing..."
+echo "   Submitting outflow cross-chain intents via coordinator negotiation routing..."
 echo ""
 echo " Pre-Intent Balance Validation"
 echo "=========================================="
@@ -105,7 +105,7 @@ echo "==========================================================="
 echo "   The solver service is running and will:"
 echo "   1. Detect the intent on hub chain"
 echo "   2. Transfer tokens to requester on connected MVM chain"
-echo "   3. Call verifier to validate and get approval signature"
+echo "   3. Call trusted-gmp to validate and get approval signature"
 echo "   4. Fulfill the hub intent with approval"
 echo ""
 

@@ -46,23 +46,24 @@ For cross-chain intent flows involving multiple chains and verifiers, see [archi
 - Verifier finalization with collateral management and slashing mechanisms
 - Instant credit model where solver provides tokens before verification completes
 
-### 2.3 Trusted Verifier Service
+### 2.3 Coordinator and Trusted-GMP Services
 
-The system must provide a verifier service with the following capabilities:
+The system must provide coordinator and trusted-gmp services with the following capabilities:
 
-- **Event Monitoring**: Monitor blockchain events from hub and connected chains, cache and process events in real-time
-- **Cross-Chain Validation**: Validate escrow deposits match intent requirements, verify intent ID matching, validate metadata and amounts
-- **Approval/Rejection Service**: Generate Ed25519 signatures for approval/rejection decisions, expose via REST API
-- **Security Validation**: Enforce non-revocable escrow requirement, validate cryptographic signatures
-- **REST API**: Provide health check, event queries, approval signature creation, and public key retrieval endpoints
+- **Event Monitoring** (coordinator): Monitor blockchain events from hub and connected chains, cache and process events in real-time
+- **Draft/Negotiation API** (coordinator): Expose draft intent submission, pending draft queries, and signature retrieval for solver negotiation
+- **Cross-Chain Validation** (trusted-gmp): Validate escrow deposits match intent requirements, verify intent ID matching, validate metadata and amounts
+- **Approval/Rejection Service** (trusted-gmp): Generate Ed25519/ECDSA signatures for approval/rejection decisions, expose via REST API
+- **Security Validation** (trusted-gmp): Enforce non-revocable escrow requirement, validate cryptographic signatures
+- **REST API**: Coordinator provides health check and event/draft endpoints; trusted-gmp provides health check, approval signature creation, and public key retrieval endpoints
 
 ## 3. Non-Functional Requirements
 
 ### 3.1 Reliability & Availability
 
-#### 3.1.1 Verifier Service Availability
+#### 3.1.1 Coordinator and Trusted-GMP Service Availability
 
-- Verifier service must maintain high availability for cross-chain operations
+- Coordinator and trusted-gmp services must maintain high availability for cross-chain operations
 - Support graceful shutdown and restart without data loss
 - Implement event caching to prevent data loss during service downtime
 - Provide health check endpoint (`GET /health`) for monitoring service status
@@ -81,18 +82,18 @@ The system must provide a verifier service with the following capabilities:
 - Intent creation and execution require blockchain to be operational
 - Escrow operations require both hub and connected chain availability
 - System must handle blockchain network unavailability gracefully (fail-safe behavior)
-- Intent expiry mechanism provides automatic cleanup even if verifier is unavailable
+- Intent expiry mechanism provides automatic cleanup even if coordinator or trusted-gmp is unavailable
 
 #### 3.1.4 Fault Tolerance
 
-- Verifier service must handle validation timeouts (configurable, default 30 seconds)
+- Trusted-gmp service must handle validation timeouts (configurable, default 30 seconds)
 - Support idempotent approval/rejection signature generation
 - Handle network failures in cross-chain validation
 - Provide mechanisms to recover from missed events (event replay capabilities)
 
 #### 3.1.5 Data Persistence
 
-- Verifier service must maintain state for last observed events across restarts
+- Coordinator must maintain state for last observed events across restarts; trusted-gmp maintains approval state
 - Cache intent and escrow event data for validation and signature retrieval
 - Support persistence of approval/rejection decisions
 
@@ -100,10 +101,10 @@ The system must provide a verifier service with the following capabilities:
 
 #### 3.2.1 API Design
 
-- Provide clear, consistent REST API endpoints for verifier service
+- Provide clear, consistent REST API endpoints for coordinator and trusted-gmp services
 - Use standard HTTP status codes and error responses
 - Support CORS configuration for web application integration
-- Expose comprehensive event data via API (`GET /events`)
+- Expose comprehensive event data via coordinator API (`GET /events`)
 - Provide self-documenting API design with clear endpoint purposes
 
 #### 3.2.2 Error Handling
@@ -123,7 +124,7 @@ The system must provide a verifier service with the following capabilities:
 
 #### 3.2.4 Configuration Management
 
-- Support configuration via TOML files for verifier service
+- Support configuration via TOML files for coordinator and trusted-gmp services
 - Provide configuration templates with default values
 - Enable configuration of chain endpoints, keys, timeouts, and API settings
 - Support different configurations for different environments (development, production)
@@ -170,7 +171,7 @@ The system must provide a verifier service with the following capabilities:
 #### 3.3.5 Cross-Chain Protocol Compatibility
 
 - Support intent linking across different chains via `intent_id` field
-- Enable verifier service to connect to multiple blockchain networks simultaneously
+- Enable coordinator and trusted-gmp services to connect to multiple blockchain networks simultaneously
 - Support different RPC endpoint formats and chain identifiers
 - Handle network-specific differences in API responses gracefully
 
@@ -182,9 +183,9 @@ The system must provide a verifier service with the following capabilities:
 
 ### 6.1 Unit Tests
 
-#### 6.1.1 Verifier Service Unit Tests
+#### 6.1.1 Coordinator and Trusted-GMP Unit Tests
 
-- Unit tests for verifier service components (event monitoring, cross-chain validation, cryptographic signing)
+- Unit tests for coordinator (event monitoring, draft storage) and trusted-gmp (cross-chain validation, cryptographic signing)
 
 #### 6.1.2 Move Intent Framework Unit Tests
 
@@ -194,7 +195,7 @@ The system must provide a verifier service with the following capabilities:
 
 - End-to-end tests using Docker setup with two chains (hub chain and connected chain)
 - Test complete intent flows including cross-chain escrow validation
-- Verify verifier service integration with multiple blockchain networks
+- Verify coordinator and trusted-gmp service integration with multiple blockchain networks
 
 ## 7. Constraints and Assumptions
 

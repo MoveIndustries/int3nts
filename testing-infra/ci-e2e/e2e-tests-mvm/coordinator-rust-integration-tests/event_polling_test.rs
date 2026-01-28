@@ -54,7 +54,7 @@ async fn test_get_account_events_chain2() {
 async fn test_poll_hub_events_api() {
     // This test requires chains to be running with deployed contracts
     let config = coordinator::config::Config::load()
-        .expect("Failed to load verifier config");
+        .expect("Failed to load coordinator config");
     
     // Create a temporary monitor to test polling
     let monitor = coordinator::monitor::EventMonitor::new(&config).await
@@ -82,7 +82,7 @@ async fn test_poll_hub_events_api() {
 async fn test_poll_connected_events_api() {
     // This test requires chains to be running with deployed contracts
     let config = coordinator::config::Config::load()
-        .expect("Failed to load verifier config");
+        .expect("Failed to load coordinator config");
     
     // Create a temporary monitor to test polling
     let monitor = coordinator::monitor::EventMonitor::new(&config).await
@@ -117,7 +117,7 @@ async fn test_poll_connected_events_api() {
 //     // This test runs BEFORE inflow-fulfill-hub-intent.sh, so the intent should still exist.
 //     
 //     let config = coordinator::config::Config::load()
-//         .expect("Failed to load verifier config");
+//         .expect("Failed to load coordinator config");
 //     
 //     // Create a temporary monitor to test polling
 //     let monitor = coordinator::monitor::EventMonitor::new(&config).await

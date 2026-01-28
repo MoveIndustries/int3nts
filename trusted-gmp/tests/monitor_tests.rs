@@ -192,7 +192,7 @@ async fn test_returns_error_when_no_matching_escrow() {
 }
 
 /// Test that multiple concurrent intents are handled correctly
-/// Why: Verify the verifier can handle multiple intents/escrows/fulfillments happening simultaneously
+/// Why: Verify the trusted-gmp can handle multiple intents/escrows/fulfillments happening simultaneously
 ///
 /// Note: This test is in monitor_tests.rs (not cross_chain_tests.rs) because it primarily tests
 /// EventMonitor's concurrent handling capabilities - specifically that the monitor can process

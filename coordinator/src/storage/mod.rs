@@ -1,6 +1,6 @@
 //! Storage Module
 //!
-//! This module provides storage abstractions for the trusted verifier service,
+//! This module provides storage abstractions for the coordinator service,
 //! including draft intent storage for negotiation routing.
 
 pub mod draftintents;

@@ -71,9 +71,9 @@ log ""
 log " Initializing intent registry..."
 initialize_intent_registry "intent-account-chain1" "$HUB_MODULE_ADDR" "$LOG_FILE"
 
-# Initialize verifier config for outflow intents (uses trusted-gmp keys)
+# Initialize trusted-gmp config for outflow intents (uses trusted-gmp keys)
 log ""
-log " Initializing verifier config for outflow intents..."
+log " Initializing trusted-gmp config for outflow intents..."
 load_trusted_gmp_keys
 VERIFIER_PUBLIC_KEY_HEX=$(echo "$E2E_TRUSTED_GMP_PUBLIC_KEY" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
 aptos move run --profile intent-account-chain1 --assume-yes \
@@ -83,7 +83,7 @@ aptos move run --profile intent-account-chain1 --assume-yes \
 if [ $? -eq 0 ]; then
     log "   ✅ Verifier config initialized"
 else
-    log_and_echo "   ❌ Failed to initialize verifier config"
+    log_and_echo "   ❌ Failed to initialize trusted-gmp config"
     exit 1
 fi
 

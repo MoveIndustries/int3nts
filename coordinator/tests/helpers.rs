@@ -67,9 +67,9 @@ pub const DUMMY_REQUESTER_ADDR_SVM: &str =
 pub const DUMMY_SOLVER_ADDR_SVM: &str =
     "0x000000000000000000000000000000000000000000000000000000000000000b";
 
-/// Dummy verifier EVM public key hash (keccak256 hash of ECDSA public key, last 20 bytes)
+/// Dummy trusted-gmp EVM public key hash (keccak256 hash of ECDSA public key, last 20 bytes)
 #[allow(dead_code)]
-pub const DUMMY_VERIFIER_EVM_PUBKEY_HASH: &str = "0x000000000000000000000000000000000000000c";
+pub const DUMMY_TRUSTED_GMP_EVM_PUBKEY_HASH: &str = "0x000000000000000000000000000000000000000c";
 
 // ------------------------- TOKENS AND CONTRACTS -------------------------
 

@@ -4,7 +4,7 @@ This guide covers how to run the coordinator service, configure chain monitoring
 
 ## Configuration
 
-File: `coordinator/config/verifier.toml` (relative to project root)
+File: `coordinator/config/coordinator.toml` (relative to project root)
 
 - **hub_chain**: `rpc_url`, `chain_id`, `intent_module_addr` (required)
 - **connected_chain_mvm**: `rpc_url`, `chain_id`, `intent_module_addr`, `escrow_module_addr` (optional, for MVM escrow monitoring)

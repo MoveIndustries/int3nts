@@ -16,7 +16,7 @@ use test_helpers::{
 // MOVE VM ESCROW SOLVER VALIDATION TESTS
 // ============================================================================
 
-/// Test that verifier accepts escrows where reserved_solver matches hub intent solver for Move VM escrows
+/// Test that trusted-gmp accepts escrows where reserved_solver matches hub intent solver for Move VM escrows
 /// Why: Verify that solver address matching validation works correctly for successful cases
 #[tokio::test]
 async fn test_escrow_solver_address_matching_success() {
@@ -61,7 +61,7 @@ async fn test_escrow_solver_address_matching_success() {
     );
 }
 
-/// Test that verifier rejects escrows where reserved_solver doesn't match hub intent solver for Move VM escrows
+/// Test that trusted-gmp rejects escrows where reserved_solver doesn't match hub intent solver for Move VM escrows
 /// Why: Verify that solver address mismatch validation works correctly
 #[tokio::test]
 async fn test_escrow_solver_address_mismatch_rejection() {
@@ -106,7 +106,7 @@ async fn test_escrow_solver_address_mismatch_rejection() {
     );
 }
 
-/// Test that verifier rejects escrows when one has reserved_solver and the other doesn't for Move VM escrows
+/// Test that trusted-gmp rejects escrows when one has reserved_solver and the other doesn't for Move VM escrows
 /// Why: Verify that reservation mismatch validation works correctly
 #[tokio::test]
 async fn test_escrow_solver_reservation_mismatch_rejection() {

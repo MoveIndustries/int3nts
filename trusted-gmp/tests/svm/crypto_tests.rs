@@ -9,7 +9,7 @@ mod test_helpers;
 use test_helpers::{build_test_config_with_svm, create_default_fulfillment, DUMMY_INTENT_ID};
 
 /// Test that crypto service creates different key pairs for each instance
-/// Why: Ensure each verifier instance has a unique cryptographic identity to prevent key collisions
+/// Why: Ensure each trusted-gmp instance has a unique cryptographic identity to prevent key collisions
 #[test]
 fn test_unique_key_generation() {
     let config1 = build_test_config_with_svm();

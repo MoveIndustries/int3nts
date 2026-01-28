@@ -125,7 +125,7 @@ pub struct ServiceConfig {
     /// E2E testing mode: if true, use aptos CLI with profiles; if false, use movement CLI with private keys
     #[serde(default)]
     pub e2e_mode: bool,
-    /// Solver acceptance API host (used by verifier to fetch ratios)
+    /// Solver acceptance API host (used by coordinator to fetch ratios)
     #[serde(default = "default_acceptance_api_host")]
     pub acceptance_api_host: String,
     /// Solver acceptance API port

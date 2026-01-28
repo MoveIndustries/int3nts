@@ -50,7 +50,7 @@ solver/
 ├── src/
 │   ├── bin/              # Binaries (solver service, sign_intent, connected_chain_tx_template)
 │   ├── service/          # Service modules
-│   │   ├── signing.rs    # Signing service loop (polls verifier, signs drafts)
+│   │   ├── signing.rs    # Signing service loop (polls coordinator, signs drafts)
 │   │   ├── tracker.rs    # Intent tracker (monitors signed intents)
 │   │   ├── inflow.rs     # Inflow fulfillment service (monitors escrows, fulfills intents)
 │   │   └── outflow.rs    # Outflow fulfillment service (executes transfers, fulfills intents)
@@ -62,7 +62,7 @@ solver/
 │   ├── acceptance.rs      # Token pair acceptance logic
 │   ├── config.rs          # Configuration management
 │   ├── crypto/            # Cryptographic operations (hashing, signing)
-│   └── verifier_client.rs # HTTP client for verifier API
+│   └── verifier_client.rs # HTTP client for coordinator (drafts) and trusted-gmp (approvals) APIs
 ├── config/               # Configuration templates
 └── Cargo.toml
 ```

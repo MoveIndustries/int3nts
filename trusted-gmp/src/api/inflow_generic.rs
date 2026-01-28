@@ -6,7 +6,7 @@
 //! The validation flow:
 //! 1. Solver creates escrow on connected chain (tokens locked)
 //! 2. Verifier monitors hub chain for fulfillment event
-//! 3. When hub fulfillment is observed, verifier validates escrow matches intent
+//! 3. When hub fulfillment is observed, trusted-gmp validates escrow matches intent
 //! 4. Verifier generates approval signature for connected chain escrow release
 //! 5. Solver uses signature to release escrow on connected chain
 //!

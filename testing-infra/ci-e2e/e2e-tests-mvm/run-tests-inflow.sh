@@ -3,8 +3,8 @@
 # E2E Integration Test Runner - INFLOW
 # 
 # This script runs the inflow E2E tests that require Docker chains.
-# It sets up chains, deploys contracts, starts verifier for negotiation routing,
-# submits inflow intents via verifier, then runs the tests.
+# It sets up chains, deploys contracts, starts coordinator and trusted-gmp for negotiation routing,
+# submits inflow intents via coordinator, then runs the tests.
 
 set -e
 
@@ -60,7 +60,7 @@ echo "===================================================================="
 ./testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh
 
 echo ""
-echo " Step 4: Configuring and starting verifier (for negotiation routing)..."
+echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
 echo "=========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-verifier.sh
 
@@ -76,7 +76,7 @@ echo "======================================="
 echo ""
 echo " Step 5: Testing INFLOW intents (connected chain → hub chain)..."
 echo "==================================================================="
-echo "   Submitting inflow cross-chain intents via verifier negotiation routing..."
+echo "   Submitting inflow cross-chain intents via coordinator negotiation routing..."
 ./testing-infra/ci-e2e/e2e-tests-mvm/inflow-submit-hub-intent.sh
 echo ""
 echo " Pre-Escrow Balance Validation"

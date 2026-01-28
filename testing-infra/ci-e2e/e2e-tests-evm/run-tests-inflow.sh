@@ -65,7 +65,7 @@ log_and_echo "======================================================"
 ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
 
 log_and_echo ""
-log_and_echo " Step 4: Configuring and starting verifier (for negotiation routing)..."
+log_and_echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
 log_and_echo "=========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-evm/start-verifier.sh
 
@@ -79,7 +79,7 @@ log_and_echo "======================================="
 ./testing-infra/ci-e2e/verify-solver-running.sh
 
 log_and_echo ""
-log_and_echo " Step 5: Submitting cross-chain intents via verifier negotiation routing..."
+log_and_echo " Step 5: Submitting cross-chain intents via coordinator negotiation routing..."
 log_and_echo "============================================================================="
 ./testing-infra/ci-e2e/e2e-tests-evm/inflow-submit-hub-intent.sh
 log_and_echo ""

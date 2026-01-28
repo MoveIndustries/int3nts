@@ -70,7 +70,7 @@ pub enum ChainType {
 /// Request-intent creation event from the hub chain.
 ///
 /// This event is emitted when a new intent is created on the hub chain.
-/// The verifier monitors these events to track new trading opportunities
+/// The trusted-gmp monitors these events to track new trading opportunities
 /// and validate their safety for escrow operations.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntentEvent {
@@ -104,7 +104,7 @@ pub struct IntentEvent {
 /// Escrow deposit event from the connected chain.
 ///
 /// This event is emitted when a solver deposits assets into an escrow
-/// on the connected chain. The verifier validates that this deposit
+/// on the connected chain. The trusted-gmp validates that this deposit
 /// fulfills the conditions specified in the original intent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscrowEvent {
@@ -129,11 +129,11 @@ pub struct EscrowEvent {
     /// For EVM escrows: EVM address (0x-prefixed hex string)
     pub reserved_solver_addr: Option<String>,
     /// Chain ID where this escrow is located
-    /// Note: This is set by the verifier based on which monitor discovered the event (from config),
+    /// Note: This is set by the trusted-gmp based on which monitor discovered the event (from config),
     /// not from the event data itself, so it can be trusted for validation.
     pub chain_id: u64,
     /// Type of blockchain where this escrow is located
-    /// Note: This is set by the verifier based on which monitor discovered the event,
+    /// Note: This is set by the trusted-gmp based on which monitor discovered the event,
     /// not from the event data itself, so it can be trusted for validation.
     pub chain_type: ChainType,
     /// Unix timestamp when the escrow expires
@@ -145,7 +145,7 @@ pub struct EscrowEvent {
 /// Fulfillment event from the hub chain.
 ///
 /// This event is emitted when a intent is fulfilled by a solver.
-/// The verifier monitors these events to track when hub intents are completed,
+/// The trusted-gmp monitors these events to track when hub intents are completed,
 /// which triggers the approval workflow for escrow release on the connected chain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FulfillmentEvent {
@@ -183,7 +183,7 @@ pub struct EscrowApproval {
 /// Event monitor that watches both hub and connected chains for relevant events.
 ///
 /// This monitor runs continuously, polling both chains for new events and
-/// processing them according to the verifier's validation rules. It maintains
+/// processing them according to the trusted-gmp's validation rules. It maintains
 /// an in-memory cache of recent events for API access.
 #[derive(Clone)]
 pub struct EventMonitor {
@@ -454,7 +454,7 @@ impl EventMonitor {
     ///
     /// This function:
     /// 1. Confirms fulfillment event exists (Move already validated fulfillment conditions)
-    /// 2. Confirms matching escrow exists (verifier already validated escrow earlier)
+    /// 2. Confirms matching escrow exists (trusted-gmp already validated escrow earlier)
     /// 3. Generates approval signature for escrow release
     ///
     /// Note: We don't validate here because:

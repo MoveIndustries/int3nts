@@ -202,14 +202,14 @@ echo ""
 echo " Initializing program with verifier..."
 echo ""
 
-# Check for verifier public key
-if [ -z "$VERIFIER_PUBLIC_KEY" ]; then
-    echo "⚠️  WARNING: VERIFIER_PUBLIC_KEY not set in .env.testnet"
+# Check for trusted-gmp public key (used as on-chain verifier)
+if [ -z "$TRUSTED_GMP_PUBLIC_KEY" ]; then
+    echo "⚠️  WARNING: TRUSTED_GMP_PUBLIC_KEY not set in .env.testnet"
     echo "   Skipping initialization - you'll need to run it manually later"
     echo ""
 else
-    # Convert verifier public key from base64 to base58 (Solana format)
-    VERIFIER_PUBKEY_BASE58=$(node -e "
+    # Convert trusted-gmp public key from base64 to base58 (Solana format)
+    TRUSTED_GMP_PUBKEY_BASE58=$(node -e "
 // Inline base58 encoder
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 function b58encode(bytes) {
@@ -232,16 +232,16 @@ function b58encode(bytes) {
     }
     return digits.reverse().map(d => ALPHABET[d]).join('');
 }
-const base64Key = '$VERIFIER_PUBLIC_KEY';
+const base64Key = '$TRUSTED_GMP_PUBLIC_KEY';
 const keyBytes = Buffer.from(base64Key, 'base64');
 console.log(b58encode(Array.from(keyBytes)));
 ")
 
-    if [ -z "$VERIFIER_PUBKEY_BASE58" ]; then
-        echo "❌ ERROR: Failed to convert verifier public key to base58"
+    if [ -z "$TRUSTED_GMP_PUBKEY_BASE58" ]; then
+        echo "❌ ERROR: Failed to convert trusted-gmp public key to base58"
         echo "   Skipping initialization - you'll need to run it manually"
     else
-        echo " Verifier public key (base58): $VERIFIER_PUBKEY_BASE58"
+        echo " Trusted-GMP public key (base58): $TRUSTED_GMP_PUBKEY_BASE58"
         
         # Recreate deployer keypair for initialization
         TEMP_KEYPAIR_DIR=$(mktemp -d)
@@ -286,7 +286,7 @@ console.log(JSON.stringify(b58decode('$SOLANA_DEPLOYER_PRIVATE_KEY')));
             "$CLI_BIN" initialize \
                 --program-id "$PROGRAM_ID" \
                 --payer "$DEPLOYER_KEYPAIR" \
-                --verifier "$VERIFIER_PUBKEY_BASE58" \
+                --verifier "$TRUSTED_GMP_PUBKEY_BASE58" \
                 --rpc "$SOLANA_RPC_URL" && {
                 echo "✅ Program initialized with verifier"
             } || {

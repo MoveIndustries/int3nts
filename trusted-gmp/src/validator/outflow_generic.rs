@@ -30,7 +30,7 @@ use crate::monitor::{ChainType, IntentEvent};
 /// EVM address for EVM chains) must be provided during registration. If the solver
 /// address for the connected chain is not found in the registry, this indicates an
 /// error on the solver's side - they must register correctly before attempting to
-/// fulfill intents. The verifier will reject transactions from unregistered or
+/// fulfill intents. The trusted-gmp will reject transactions from unregistered or
 /// incorrectly registered solvers.
 ///
 /// # Arguments
@@ -500,14 +500,14 @@ async fn validate_evm_solver(
                 1. Solver is not registered\n\
                 2. Solver is registered but has no connected_chain_evm_addr set\n\
                 3. Resource query failed or returned unexpected format\n\
-                Check verifier logs for detailed parsing information.",
+                Check trusted-gmp logs for detailed parsing information.",
                 reserved_solver,
                 hub_registry_addr
             );
             return Ok(Some(ValidationResult {
                 valid: false,
                 message: format!(
-                    "Reserved solver '{}' is not registered in hub chain solver registry or has no connected chain EVM address. Check verifier logs for detailed parsing information.",
+                    "Reserved solver '{}' is not registered in hub chain solver registry or has no connected chain EVM address. Check trusted-gmp logs for detailed parsing information.",
                     reserved_solver
                 ),
                 timestamp: chrono::Utc::now().timestamp() as u64,

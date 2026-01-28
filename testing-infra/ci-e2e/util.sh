@@ -250,9 +250,9 @@ verify_solver_running() {
 # Note: verify_solver_registered() is defined in util_mvm.sh with auto-detection
 # Both MVM and EVM E2E tests source util_mvm.sh since the hub chain is always MVM
 
-# Display solver and verifier logs for debugging
+# Display solver, coordinator, and trusted-gmp logs for debugging
 # Usage: display_service_logs [context_message]
-# Shows last 100 lines of solver.log and verifier.log if they exist
+# Shows last 100 lines of solver.log, coordinator.log, and trusted-gmp.log if they exist
 display_service_logs() {
     local context="${1:-Error occurred}"
     
@@ -262,7 +262,8 @@ display_service_logs() {
     
     local log_dir="$PROJECT_ROOT/.tmp/e2e-tests"
     local solver_log="$log_dir/solver.log"
-    local verifier_log="$log_dir/verifier.log"
+    local coordinator_log="$log_dir/coordinator.log"
+    local trusted_gmp_log="$log_dir/trusted-gmp.log"
     
     # Get current timestamp in ISO format (matches Rust log format)
     local error_timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.%NZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -273,14 +274,24 @@ display_service_logs() {
     log_and_echo "⏰ Error occurred at: $error_timestamp"
     log_and_echo ""
     
-    if [ -f "$verifier_log" ]; then
+    if [ -f "$coordinator_log" ]; then
         log_and_echo ""
-        log_and_echo " Verifier logs:"
+        log_and_echo " Coordinator logs:"
         log_and_echo "-----------------------------------"
-        cat "$verifier_log" | sed 's/^/   /'
+        tail -100 "$coordinator_log" | sed 's/^/   /'
     else
         log_and_echo ""
-        log_and_echo "️  Verifier log not found: $verifier_log"
+        log_and_echo "️  Coordinator log not found: $coordinator_log"
+    fi
+    
+    if [ -f "$trusted_gmp_log" ]; then
+        log_and_echo ""
+        log_and_echo " Trusted-GMP logs:"
+        log_and_echo "-----------------------------------"
+        tail -100 "$trusted_gmp_log" | sed 's/^/   /'
+    else
+        log_and_echo ""
+        log_and_echo "️  Trusted-GMP log not found: $trusted_gmp_log"
     fi
     
     if [ -f "$solver_log" ]; then
@@ -896,19 +907,19 @@ start_trusted_gmp() {
 }
 
 # ============================================================================
-# VERIFIER NEGOTIATION ROUTING HELPERS
+# COORDINATOR NEGOTIATION ROUTING HELPERS
 # ============================================================================
 
-# Get verifier API base URL
-# Usage: get_verifier_url [port]
-# Returns the base URL for verifier API calls
-get_verifier_url() {
+# Get coordinator API base URL (drafts, negotiation - port 3333)
+# Usage: get_coordinator_url [port]
+# Returns the base URL for coordinator API calls
+get_coordinator_url() {
     local port="${1:-3333}"
     echo "http://127.0.0.1:${port}"
 }
 
-# Submit draft intent to verifier
-# Usage: submit_draft_intent <requester_addr> <draft_data_json> <expiry_time> [verifier_port]
+# Submit draft intent to coordinator
+# Usage: submit_draft_intent <requester_addr> <draft_data_json> <expiry_time> [coordinator_port]
 # Returns the draft_id on success, exits on error
 # draft_data_json should be a JSON object with intent details
 # Note: Cannot use log/log_and_echo for success path because this function's output
@@ -917,19 +928,19 @@ submit_draft_intent() {
     local requester_addr="$1"
     local draft_data_json="$2"
     local expiry_time="$3"
-    local verifier_port="${4:-3333}"
+    local coordinator_port="${4:-3333}"
     
     if [ -z "$requester_addr" ] || [ -z "$draft_data_json" ] || [ -z "$expiry_time" ]; then
         log_and_echo "❌ ERROR: submit_draft_intent() requires requester_addr, draft_data_json, and expiry_time"
         exit 1
     fi
     
-    local verifier_url=$(get_verifier_url "$verifier_port")
+    local coordinator_url=$(get_coordinator_url "$coordinator_port")
     
     # Log to stderr so it doesn't contaminate the return value
-    echo "   Submitting draft intent to verifier..." >&2
+    echo "   Submitting draft intent to coordinator..." >&2
     echo "     Requester: $requester_addr" >&2
-    [ -n "$LOG_FILE" ] && echo "   Submitting draft intent to verifier..." >> "$LOG_FILE"
+    [ -n "$LOG_FILE" ] && echo "   Submitting draft intent to coordinator..." >> "$LOG_FILE"
     [ -n "$LOG_FILE" ] && echo "     Requester: $requester_addr" >> "$LOG_FILE"
     
     # Build request body using jq to ensure valid JSON
@@ -951,13 +962,13 @@ submit_draft_intent() {
     [ -n "$LOG_FILE" ] && echo "$request_body" >> "$LOG_FILE"
     
     local response
-    response=$(curl -s -X POST "${verifier_url}/draftintent" \
+    response=$(curl -s -X POST "${coordinator_url}/draftintent" \
         -H "Content-Type: application/json" \
         -d "$request_body" 2>&1)
     
     local curl_exit=$?
     if [ $curl_exit -ne 0 ]; then
-        log_and_echo "❌ ERROR: Failed to connect to verifier at ${verifier_url}"
+        log_and_echo "❌ ERROR: Failed to connect to coordinator at ${coordinator_url}"
         log_and_echo "   curl exit code: $curl_exit"
         exit 1
     fi
@@ -985,22 +996,22 @@ submit_draft_intent() {
     echo "$draft_id"
 }
 
-# Poll verifier for pending drafts (solver perspective)
-# Usage: poll_pending_drafts [verifier_port]
+# Poll coordinator for pending drafts (solver perspective)
+# Usage: poll_pending_drafts [coordinator_port]
 # Returns JSON array of pending drafts
 # Note: Cannot use log/log_and_echo for success path because this function's output
 # is captured via command substitution (e.g., PENDING_DRAFTS=$(poll_pending_drafts)),
 # and log functions write to stdout which would contaminate the JSON output.
 poll_pending_drafts() {
-    local verifier_port="${1:-3333}"
-    local verifier_url=$(get_verifier_url "$verifier_port")
+    local coordinator_port="${1:-3333}"
+    local coordinator_url=$(get_coordinator_url "$coordinator_port")
     
     local response
-    response=$(curl -s -X GET "${verifier_url}/draftintents/pending" 2>&1)
+    response=$(curl -s -X GET "${coordinator_url}/draftintents/pending" 2>&1)
     
     local curl_exit=$?
     if [ $curl_exit -ne 0 ]; then
-        log_and_echo "❌ ERROR: Failed to connect to verifier at ${verifier_url}"
+        log_and_echo "❌ ERROR: Failed to connect to coordinator at ${coordinator_url}"
         exit 1
     fi
     
@@ -1017,25 +1028,25 @@ poll_pending_drafts() {
 }
 
 # Get draft intent by ID
-# Usage: get_draft_intent <draft_id> [verifier_port]
+# Usage: get_draft_intent <draft_id> [coordinator_port]
 # Returns the draft data JSON
 get_draft_intent() {
     local draft_id="$1"
-    local verifier_port="${2:-3333}"
+    local coordinator_port="${2:-3333}"
     
     if [ -z "$draft_id" ]; then
         log_and_echo "❌ ERROR: get_draft_intent() requires draft_id"
         exit 1
     fi
     
-    local verifier_url=$(get_verifier_url "$verifier_port")
+    local coordinator_url=$(get_coordinator_url "$coordinator_port")
     
     local response
-    response=$(curl -s -X GET "${verifier_url}/draftintent/${draft_id}" 2>&1)
+    response=$(curl -s -X GET "${coordinator_url}/draftintent/${draft_id}" 2>&1)
     
     local curl_exit=$?
     if [ $curl_exit -ne 0 ]; then
-        log_and_echo "❌ ERROR: Failed to connect to verifier at ${verifier_url}"
+        log_and_echo "❌ ERROR: Failed to connect to coordinator at ${coordinator_url}"
         exit 1
     fi
     
@@ -1050,15 +1061,15 @@ get_draft_intent() {
     echo "$response" | jq -r '.data'
 }
 
-# Submit signature to verifier (solver submits after signing)
-# Usage: submit_signature_to_verifier <draft_id> <solver_addr> <signature_hex> <public_key_hex> [verifier_port]
+# Submit signature to coordinator (solver submits after signing)
+# Usage: submit_signature_to_verifier <draft_id> <solver_addr> <signature_hex> <public_key_hex> [coordinator_port]
 # Returns success/failure, exits on error
 submit_signature_to_verifier() {
     local draft_id="$1"
     local solver_addr="$2"
     local signature_hex="$3"
     local public_key_hex="$4"
-    local verifier_port="${5:-3333}"
+    local coordinator_port="${5:-3333}"
     
     if [ -z "$draft_id" ] || [ -z "$solver_addr" ] || [ -z "$signature_hex" ] || [ -z "$public_key_hex" ]; then
         log_and_echo "❌ ERROR: submit_signature_to_verifier() requires draft_id, solver_addr, signature_hex, public_key_hex"
@@ -1075,14 +1086,14 @@ submit_signature_to_verifier() {
         normalized_solver_addr="0x$solver_addr"
     fi
     
-    local verifier_url=$(get_verifier_url "$verifier_port")
+    local coordinator_url=$(get_coordinator_url "$coordinator_port")
     
-    log "   Submitting signature to verifier..."
+    log "   Submitting signature to coordinator..."
     log "     Draft ID: $draft_id"
     log "     Solver: $normalized_solver_addr"
     
     local response
-    response=$(curl -s -X POST "${verifier_url}/draftintent/${draft_id}/signature" \
+    response=$(curl -s -X POST "${coordinator_url}/draftintent/${draft_id}/signature" \
         -H "Content-Type: application/json" \
         -d "{
             \"solver_hub_addr\": \"$normalized_solver_addr\",
@@ -1092,7 +1103,7 @@ submit_signature_to_verifier() {
     
     local curl_exit=$?
     if [ $curl_exit -ne 0 ]; then
-        log_and_echo "❌ ERROR: Failed to connect to verifier at ${verifier_url}"
+        log_and_echo "❌ ERROR: Failed to connect to coordinator at ${coordinator_url}"
         exit 1
     fi
     
@@ -1114,34 +1125,34 @@ submit_signature_to_verifier() {
     return 0
 }
 
-# Poll verifier for signature (requester polls after submitting draft)
-# Usage: poll_for_signature <draft_id> [max_attempts] [sleep_seconds] [verifier_port]
+# Poll coordinator for signature (requester polls after submitting draft)
+# Usage: poll_for_signature <draft_id> [max_attempts] [sleep_seconds] [coordinator_port]
 # Returns signature JSON on success, exits on timeout
 poll_for_signature() {
     local draft_id="$1"
     local max_attempts="${2:-60}"
     local sleep_seconds="${3:-2}"
-    local verifier_port="${4:-3333}"
+    local coordinator_port="${4:-3333}"
     
     if [ -z "$draft_id" ]; then
         log_and_echo "❌ ERROR: poll_for_signature() requires draft_id"
         exit 1
     fi
     
-    local verifier_url=$(get_verifier_url "$verifier_port")
+    local coordinator_url=$(get_coordinator_url "$coordinator_port")
     
     # Use >&2 for all logs to avoid capturing them in command substitution
-    echo "   Polling verifier for signature..." >&2
+    echo "   Polling coordinator for signature..." >&2
     echo "     Draft ID: $draft_id" >&2
     echo "     Max attempts: $max_attempts, interval: ${sleep_seconds}s" >&2
-    [ -n "$LOG_FILE" ] && echo "   Polling verifier for signature..." >> "$LOG_FILE"
+    [ -n "$LOG_FILE" ] && echo "   Polling coordinator for signature..." >> "$LOG_FILE"
     [ -n "$LOG_FILE" ] && echo "     Draft ID: $draft_id" >> "$LOG_FILE"
     [ -n "$LOG_FILE" ] && echo "     Max attempts: $max_attempts, interval: ${sleep_seconds}s" >> "$LOG_FILE"
     
     local attempt=0
     while [ $attempt -lt $max_attempts ]; do
         local response
-        response=$(curl -s -X GET "${verifier_url}/draftintent/${draft_id}/signature" 2>/dev/null)
+        response=$(curl -s -X GET "${coordinator_url}/draftintent/${draft_id}/signature" 2>/dev/null)
         
         local curl_exit=$?
         if [ $curl_exit -ne 0 ] || [ -z "$response" ]; then
@@ -1243,7 +1254,7 @@ build_draft_data() {
 }
 
 # Wait for solver to automatically fulfill an intent
-# Polls the verifier's /events endpoint for fulfillment events matching the intent
+# Polls the coordinator's /events endpoint for fulfillment events matching the intent
 # Usage: wait_for_solver_fulfillment <intent_id> <flow_type> [timeout_seconds]
 #   intent_id: The intent ID to wait for
 #   flow_type: "inflow" or "outflow"
@@ -1256,7 +1267,7 @@ wait_for_solver_fulfillment() {
     local poll_interval=3
     local elapsed=0
     
-    local verifier_url="${VERIFIER_URL:-http://127.0.0.1:3333}"
+    local coordinator_url="${COORDINATOR_URL:-http://127.0.0.1:3333}"
     
     log ""
     log "⏳ Waiting for solver to automatically fulfill $flow_type intent..."
@@ -1272,9 +1283,9 @@ wait_for_solver_fulfillment() {
     local solver_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/solver.log"
     
     while [ $elapsed -lt $timeout_seconds ]; do
-        # Check for fulfillment event in verifier (works for inflow)
+        # Check for fulfillment event in coordinator (works for inflow)
         local events_response
-        events_response=$(curl -s "${verifier_url}/events" 2>/dev/null)
+        events_response=$(curl -s "${coordinator_url}/events" 2>/dev/null)
         
         if [ $? -eq 0 ]; then
             # Check if fulfillment event exists for this intent
@@ -1284,7 +1295,7 @@ wait_for_solver_fulfillment() {
                 2>/dev/null | head -1)
             
             if [ -n "$fulfillment_found" ]; then
-                log "   ✅ Solver fulfilled the intent! (detected via verifier after ${elapsed}s)"
+                log "   ✅ Solver fulfilled the intent! (detected via coordinator after ${elapsed}s)"
                 log "   Fulfillment event found for intent: $fulfillment_found"
                 return 0
             fi
@@ -1325,24 +1336,28 @@ wait_for_solver_fulfillment() {
         log "   Solver log file not found at: $solver_log_file"
     fi
     
-    # Show verifier logs
-    local verifier_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/verifier.log"
-    if [ -f "$verifier_log_file" ]; then
-        log ""
-        log "   Verifier logs (last 100 lines):"
-        log "   + + + + + + + + + + + + + + + + + + + +"
-        tail -100 "$verifier_log_file" | while IFS= read -r line; do log "   $line"; done
-        log "   + + + + + + + + + + + + + + + + + + + +"
-    else
-        log ""
-        log "   Verifier log file not found (checked: $verifier_log_file)"
-    fi
+    # Show coordinator and trusted-gmp logs
+    local coordinator_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/coordinator.log"
+    local trusted_gmp_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/trusted-gmp.log"
+    for log_label in "Coordinator" "Trusted-GMP"; do
+        local f; [ "$log_label" = "Coordinator" ] && f="$coordinator_log_file" || f="$trusted_gmp_log_file"
+        if [ -f "$f" ]; then
+            log ""
+            log "   $log_label logs (last 100 lines):"
+            log "   + + + + + + + + + + + + + + + + + + + +"
+            tail -100 "$f" | while IFS= read -r line; do log "   $line"; done
+            log "   + + + + + + + + + + + + + + + + + + + +"
+        else
+            log ""
+            log "   $log_label log file not found (checked: $f)"
+        fi
+    done
     
-    # Show verifier events
+    # Show coordinator events
     log ""
-    log "   Verifier events:"
+    log "   Coordinator events:"
     local events_response
-    events_response=$(curl -s "${verifier_url}/events" 2>/dev/null)
+    events_response=$(curl -s "${coordinator_url}/events" 2>/dev/null)
     if [ $? -eq 0 ]; then
         local escrow_count fulfillment_count intent_count
         escrow_count=$(echo "$events_response" | jq -r '.data.escrow_events | length' 2>/dev/null || echo "0")
@@ -1359,7 +1374,7 @@ wait_for_solver_fulfillment() {
             echo "$events_response" | jq -r '.data.escrow_events[] | "         \(.intent_id) - amount: \(.offered_amount)"' 2>/dev/null || log "         (parse error)"
         fi
     else
-        log "      Failed to query verifier events"
+        log "      Failed to query coordinator events"
     fi
     
     return 1

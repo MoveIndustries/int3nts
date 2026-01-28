@@ -10,7 +10,7 @@
 #
 # Prerequisites:
 #   - trusted-gmp/config/trusted-gmp_testnet.toml configured with actual deployed addresses
-#   - .env.testnet with VERIFIER_PRIVATE_KEY and VERIFIER_PUBLIC_KEY
+#   - .env.testnet with TRUSTED_GMP_PRIVATE_KEY and TRUSTED_GMP_PUBLIC_KEY
 #   - Rust toolchain installed
 #
 # Usage:
@@ -61,8 +61,8 @@ source "$TESTNET_KEYS_FILE"
 
 # Check required environment variables (keys only)
 REQUIRED_VARS=(
-    "VERIFIER_PRIVATE_KEY"
-    "VERIFIER_PUBLIC_KEY"
+    "TRUSTED_GMP_PRIVATE_KEY"
+    "TRUSTED_GMP_PUBLIC_KEY"
 )
 
 MISSING_VARS=()
@@ -129,9 +129,9 @@ echo ""
 
 cd "$PROJECT_ROOT/trusted-gmp"
 
-# Export environment variables for verifier keys
-export VERIFIER_PRIVATE_KEY
-export VERIFIER_PUBLIC_KEY
+# Export environment variables for trusted-gmp keys
+export TRUSTED_GMP_PRIVATE_KEY
+export TRUSTED_GMP_PUBLIC_KEY
 
 # Check if --release flag is passed
 if [ "$1" = "--release" ]; then

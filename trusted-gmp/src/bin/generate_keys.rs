@@ -1,6 +1,6 @@
 //! Ed25519 Key Generation Utility
 //!
-//! This binary generates a new Ed25519 key pair for the trusted verifier service.
+//! This binary generates a new Ed25519 key pair for the trusted-gmp service.
 //!
 //! ## Usage
 //!
@@ -8,7 +8,7 @@
 //! # Generate new keys
 //! cargo run --bin generate_keys
 //!
-//! # Copy the output to your config/verifier.toml file
+//! # Copy the output to your config/trusted-gmp.toml file
 //! ```
 //!
 //! ## Output
@@ -17,7 +17,7 @@
 //! - Private key (base64 encoded) - for signing operations
 //! - Public key (base64 encoded) - for signature verification
 //!
-//! Copy these values to the `[verifier]` section of your `config/verifier.toml` file.
+//! Copy these values to the `[trusted_gmp]` section of your `config/trusted-gmp.toml` file.
 
 use base64::{engine::general_purpose, Engine as _};
 use ed25519_dalek::SigningKey;
@@ -39,5 +39,5 @@ fn main() {
     println!("Private Key (base64): {}", private_key_b64);
     println!("Public Key (base64): {}", public_key_b64);
     println!();
-    println!("Copy these keys to your config/verifier.toml file.");
+    println!("Copy these keys to your config/trusted-gmp.toml file.");
 }

@@ -235,7 +235,7 @@ pub async fn get_exchange_rate_handler(
     let acceptance = config.acceptance.as_ref()
         .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Acceptance criteria not configured".to_string())))?;
 
-    // Find matching pair in verifier's configured list
+    // Find matching pair in coordinator's configured list
     let offered_chain_id_u64 = offered_chain_id
         .parse::<u64>()
         .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Invalid offered_chain_id: {}", e))))?;

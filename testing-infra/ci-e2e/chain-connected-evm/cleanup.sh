@@ -2,7 +2,7 @@
 
 # Cleanup for E2E Tests
 # 
-# This script stops all chains and verifier processes.
+# This script stops all chains and coordinator/trusted-gmp processes.
 # Used by both Aptos and EVM e2e tests.
 
 set -e

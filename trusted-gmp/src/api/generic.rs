@@ -156,7 +156,7 @@ pub async fn get_approval_by_escrow_handler(
 /// Handler for checking if an intent has been approved.
 ///
 /// This is a simple endpoint for the frontend to check if an outflow intent
-/// has received approval from the verifier.
+/// has received approval from the trusted-gmp.
 ///
 /// # Arguments
 ///
@@ -234,7 +234,7 @@ pub async fn create_approval_handler(
 
 /// Handler for the public key endpoint.
 ///
-/// This function retrieves the verifier's public key for external
+/// This function retrieves the trusted-gmp's public key for external
 /// signature verification.
 ///
 /// # Arguments
@@ -308,7 +308,7 @@ pub async fn get_exchange_rate_handler(
     let acceptance = config.acceptance.as_ref()
         .ok_or_else(|| warp::reject::custom(JsonDeserializeError("Acceptance criteria not configured".to_string())))?;
 
-    // Find matching pair in verifier's configured list
+    // Find matching pair in trusted-gmp's configured list
     let offered_chain_id_u64 = offered_chain_id
         .parse::<u64>()
         .map_err(|e| warp::reject::custom(JsonDeserializeError(format!("Invalid offered_chain_id: {}", e))))?;
@@ -531,7 +531,7 @@ impl ApiServer {
     /// Creates a new API server with the given components.
     ///
     /// This function initializes the API server with all necessary components
-    /// for handling HTTP requests and providing verifier functionality.
+    /// for handling HTTP requests and providing trusted-gmp functionality.
     ///
     /// # Arguments
     ///
@@ -652,7 +652,7 @@ impl ApiServer {
             .and(with_crypto_service(crypto_service.clone()))
             .and_then(create_approval_handler);
 
-        // Get public key endpoint - returns verifier's public key
+        // Get public key endpoint - returns trusted-gmp's public key
         let public_key = warp::path("public-key")
             .and(warp::get())
             .and(with_crypto_service(crypto_service.clone()))

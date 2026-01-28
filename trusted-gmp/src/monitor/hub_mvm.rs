@@ -120,7 +120,7 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
         .as_secs();
 
     // Only process events from the last 7 days to avoid processing very old intents
-    // This prevents errors when the verifier starts and queries historical events
+    // This prevents errors when the trusted-gmp starts and queries historical events
     // for intents that no longer have escrows (e.g., after contract redeployment)
     const MAX_EVENT_AGE_SECONDS: u64 = 7 * 24 * 60 * 60; // 7 days
     let min_timestamp = timestamp.saturating_sub(MAX_EVENT_AGE_SECONDS);
@@ -248,8 +248,8 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                     None // Regular single-chain intent (shouldn't happen for outflow, but handle gracefully)
                 };
 
-                // Convert Move event (OracleLimitOrderEvent) to verifier's internal IntentEvent structure
-                // IntentEvent is NOT an on-chain event - it's the verifier's internal representation
+                // Convert Move event (OracleLimitOrderEvent) to trusted-gmp's internal IntentEvent structure
+                // IntentEvent is NOT an on-chain event - it's the trusted-gmp's internal representation
                 // used for caching and validation
                 
                 // Determine desired_metadata string format:
@@ -379,8 +379,8 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                     None // Regular single-chain intent (shouldn't happen for outflow, but handle gracefully)
                 };
 
-                // Convert Move event (OracleLimitOrderEvent) to verifier's internal IntentEvent structure
-                // IntentEvent is NOT an on-chain event - it's the verifier's internal representation
+                // Convert Move event (OracleLimitOrderEvent) to trusted-gmp's internal IntentEvent structure
+                // IntentEvent is NOT an on-chain event - it's the trusted-gmp's internal representation
                 // used for caching and validation
                 
                 // Determine desired_metadata string format:
