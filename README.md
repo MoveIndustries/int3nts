@@ -6,8 +6,8 @@
 A framework for creating cross-chain intents with the following components
 
 - [intent-frameworks](docs/intent-frameworks/README.md)
-- [coordinator](docs/verifier/README.md)
-- [trusted-gmp](docs/verifier/README.md)
+- [coordinator](docs/coordinator/README.md)
+- [trusted-gmp](docs/trusted-gmp/README.md)
 - [frontend](docs/frontend/README.md)
 - [solver tools](docs/solver/README.md)
 - [testing infrastructure](docs/testing-infra/README.md)

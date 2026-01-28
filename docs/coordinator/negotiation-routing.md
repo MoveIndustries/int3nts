@@ -1,6 +1,6 @@
 # Negotiation Routing Guide
 
-This guide explains how to use the verifier's negotiation routing capabilities for off-chain communication between requesters and solvers.
+This guide explains how to use the coordinator's negotiation routing capabilities for off-chain communication between requesters and solvers.
 
 ## Overview
 
@@ -10,7 +10,7 @@ The negotiation routing system enables:
 - **Solvers** to discover and sign drafts through a centralized message queue
 - **FCFS (First Come First Served)** logic where the first solver to sign wins
 
-**Architecture**: Polling-based system where solvers poll the verifier for drafts. The verifier does NOT push/forward messages to solvers.
+**Architecture**: Polling-based system where solvers poll the coordinator for drafts. The coordinator does NOT push/forward messages to solvers.
 
 ## Prerequisites
 
@@ -18,7 +18,7 @@ The negotiation routing system enables:
 
 - Must be registered on-chain via `solver_registry::register_solver()` with public key and addresses
 - Must have Ed25519 keypair for signing drafts
-- Must poll the verifier regularly (e.g., every 5-30 seconds)
+- Must poll the coordinator regularly (e.g., every 5-30 seconds)
 
 ### Requester Prerequisites
 
@@ -29,7 +29,7 @@ The negotiation routing system enables:
 
 ### 1. Submit Draft Intent
 
-Submit a draft intent to the verifier. The draft is open to any solver (no `solver_hub_addr` required).
+Submit a draft intent to the coordinator. The draft is open to any solver (no `solver_hub_addr` required).
 
 ```bash
 curl -X POST http://127.0.0.1:3333/draftintent \
@@ -50,7 +50,7 @@ curl -X POST http://127.0.0.1:3333/draftintent \
 
 ### 2. Poll for Signature
 
-Poll the verifier regularly to check if a solver has signed your draft.
+Poll the coordinator regularly to check if a solver has signed your draft.
 
 ```bash
 # Poll every 5 seconds
@@ -97,7 +97,7 @@ movement move run \
 
 ### 2. Poll for Pending Drafts
 
-Poll the verifier regularly to discover new drafts. All solvers see all pending drafts.
+Poll the coordinator regularly to discover new drafts. All solvers see all pending drafts.
 
 ```bash
 # Poll every 10 seconds
@@ -150,7 +150,7 @@ Continue polling for new drafts. If your signature was rejected (409), try the n
 - **Type**: Ed25519
 - **Length**: 64 bytes (128 hex characters)
 - **Format**: Hex string (with or without `0x` prefix)
-- **Validation**: Verifier checks signature format and verifies solver is registered on-chain
+- **Validation**: Coordinator checks signature format and verifies solver is registered on-chain
 
 ## Error Handling
 
@@ -172,7 +172,7 @@ Continue polling for new drafts. If your signature was rejected (409), try the n
 
 **500 Internal Server Error**:
 
-- Verifier failed to connect to hub chain
+- Coordinator failed to connect to hub chain
 - Internal server error
 
 ## Best Practices
@@ -251,7 +251,7 @@ done
 
 ## Limitations
 
-- **In-memory storage**: Drafts are lost on verifier restart (acceptable for MVP)
+- **In-memory storage**: Drafts are lost on coordinator restart (acceptable for MVP)
 - **No persistence**: No database backing (future enhancement)
 - **Polling overhead**: Solvers must poll regularly (future: WebSocket support)
 - **No authentication**: Currently no rate limiting or authentication (future enhancement)

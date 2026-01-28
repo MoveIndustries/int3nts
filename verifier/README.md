@@ -2,7 +2,7 @@
 
 Service that monitors chains and provides approval signatures.
 
- **Full documentation: [docs/verifier/](../docs/verifier/README.md)**
+ **Full documentation: [docs/coordinator/](../docs/coordinator/README.md) and [docs/trusted-gmp/](../docs/trusted-gmp/README.md)**
 
 ## Quick Start
 

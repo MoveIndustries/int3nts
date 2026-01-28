@@ -1,29 +1,25 @@
-# Trusted Verifier – Usage Guide
+# Coordinator – Usage Guide
 
-This guide covers how to run the verifier locally with the dual‑chain setup, the event linkage the verifier relies on, and operational debugging tips.
+This guide covers how to run the coordinator service, configure chain monitoring, and understand event discovery.
 
 ## Configuration
 
-File: `verifier/config/verifier.toml` (relative to project root)
+File: `coordinator/config/verifier.toml` (relative to project root)
 
 - **hub_chain**: `rpc_url`, `chain_id`, `intent_module_addr` (required)
 - **connected_chain_mvm**: `rpc_url`, `chain_id`, `intent_module_addr`, `escrow_module_addr` (optional, for MVM escrow monitoring)
-- **connected_chain_evm**: `rpc_url`, `chain_id`, `escrow_contract_addr`, `verifier_addr` (optional, for EVM escrow monitoring)
+- **connected_chain_evm**: `rpc_url`, `chain_id`, `escrow_contract_addr` (optional, for EVM escrow monitoring)
 - **connected_chain_svm**: `rpc_url`, `chain_id`, `escrow_program_id` (optional, for SVM escrow monitoring)
-- **verifier**: `private_key` (base64, 32‑byte), `public_key` (base64, 32‑byte), polling/timeout
 - **api**: `host`, `port`
 
-The verifier automatically monitors all configured chains concurrently:
+The coordinator automatically monitors all configured chains concurrently:
 
 - Hub chain monitoring is always enabled
 - MVM connected chain monitoring starts if `[connected_chain_mvm]` is configured
 - EVM connected chain monitoring starts if `[connected_chain_evm]` is configured
 - SVM connected chain monitoring starts if `[connected_chain_svm]` is configured
 
-Keys
-
-- Use `cargo run --bin generate_keys` to print base64 keys
-- Copy into `verifier.toml` (both keys must correspond)
+**Note**: The coordinator does NOT require private keys. It is read-only.
 
 ## Running
 
@@ -33,11 +29,11 @@ Run the full E2E test flow:
 ./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh
 ```
 
-This script sets up chains, deploys contracts, submits intents, runs integration tests, starts the verifier, and releases escrow.
+This script sets up chains, deploys contracts, submits intents, runs integration tests, starts the coordinator, and releases escrow.
 
 ## Event Discovery
 
-The verifier uses different mechanisms to discover events on each chain:
+The coordinator uses different mechanisms to discover events on each chain:
 
 ```mermaid
 flowchart TD
@@ -74,7 +70,7 @@ flowchart TD
     end
 ```
 
-The verifier uses different mechanisms to discover events on each chain:
+The coordinator uses different mechanisms to discover events on each chain:
 
 **Hub chain** — uses `intent_registry`:
 
@@ -113,28 +109,15 @@ The verifier uses different mechanisms to discover events on each chain:
   - Escrow PDA account state — escrow creation (intent_id, requester, token_mint, reserved_solver)
 - **Linking**
   - Shared `intent_id` across chains links hub intents to escrows on connected chains
-  - Verifier validates `chain_id` matches between intent `offered_chain_id` and escrow `chain_id`
-  - Each `EscrowEvent` includes a `chain_type` field (Mvm, Evm, Svm) set by the verifier based on which monitor discovered the event. This is trusted because it comes from the verifier's configuration, not from untrusted event data.
-
-## Cross‑Chain Flow
-
-1) Hub: Requester creates regular (non‑oracle) intent
-2) Connected: Requester creates escrow (non‑revocable), includes verifier public key, links `intent_id`
-3) Hub: Solver fulfills the intent
-4) Verifier: observes fulfillment + escrow, generates approval (signature over BCS(u64=1))
-5) Script: submits `complete_escrow_from_fa` on connected chain with approval
+  - Each `EscrowEvent` includes a `chain_type` field (Mvm, Evm, Svm) set by the coordinator based on which monitor discovered the event
 
 ## Negotiation Routing
 
-The verifier provides negotiation routing capabilities for off-chain communication between requesters and solvers. Requesters can submit draft intents to the verifier, and solvers can poll for drafts and submit signatures (FCFS). See [Negotiation Routing Guide](negotiation-routing.md) for details.
+The coordinator provides negotiation routing capabilities for off-chain communication between requesters and solvers. Requesters can submit draft intents to the coordinator, and solvers can poll for drafts and submit signatures (FCFS). See [Negotiation Routing Guide](negotiation-routing.md) for details.
 
-## Balances and Debugging
+## Debugging
 
-- The integration script prints initial and final balances for Requester/Solver on both chains
-- For APT, CLI coin balance is not the FA store balance; scripts focus on consistent before/after checks
 - Useful commands:
   - `curl -s http://127.0.0.1:3333/health`
-  - `curl -s http://127.0.0.1:3333/public-key`
   - `curl -s http://127.0.0.1:3333/events | jq`
-  - `curl -s http://127.0.0.1:3333/approvals | jq`
   - `curl -s http://127.0.0.1:3333/draftintents/pending | jq` (negotiation routing)
