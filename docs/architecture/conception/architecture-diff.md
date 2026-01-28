@@ -78,7 +78,7 @@ See [conception_routerflow.md](conception_routerflow.md) for the conceptual desi
 - **Multi-RPC Quorum**: Trusted-gmp uses multiple RPC endpoints with quorum validation (≥2 matching receipts) for enhanced security
 - **Protocol Fees**: Automatic fee deduction from escrow/hub transfers to solver
 - **Solver Collateral**: Solvers lock collateral that can be slashed (0.5-1%) if validation fails or intent expires
-- **Bypass/Verifier-Gated Modes**: Alternative flow modes where verifier commits transactions on behalf of users
+- **Bypass/Trusted-gmp-gated Modes**: Alternative flow modes where trusted-gmp (or coordinator) commits transactions on behalf of users
 
 ---
 
@@ -90,7 +90,7 @@ This section contains the detailed implementation diagram for the Router Flow, w
 sequenceDiagram
     participant Requester
     participant Hub as Hub Chain<br/>(Move)
-    participant Verifier as Trusted Verifier<br/>(Rust)
+    participant TrustedGMP as Trusted-GMP<br/>(Rust)
     participant Source as Source Connected Chain<br/>(Move/EVM)
     participant Dest as Destination Connected Chain<br/>(Move/EVM)
     participant Solver
@@ -101,7 +101,7 @@ sequenceDiagram
     Solver->>Solver: Solver signs<br/>(off-chain, returns Ed25519 signature)
     Solver->>Requester: Returns signature
     Requester->>Hub: create_cross_chain_request_intent(<br/>offered_metadata, offered_amount, offered_chain_id (source),<br/>desired_metadata, desired_amount, desired_chain_id (dest),<br/>expiry_time, intent_id, requester_address_dest_chain,<br/>verifier_public_key, solver, solver_signature)
-    Hub->>Verifier: CrossChainOrderEvent(intent_id, offered_amount,<br/>offered_chain_id (source), desired_amount,<br/>desired_chain_id (dest), expiry, revocable=false)
+    Hub->>TrustedGMP: CrossChainOrderEvent(intent_id, offered_amount,<br/>offered_chain_id (source), desired_amount,<br/>desired_chain_id (dest), expiry, revocable=false)
 
     Note over Requester,Solver: Phase 2: Escrow Creation on Source Connected Chain
     alt Move Chain
@@ -110,21 +110,21 @@ sequenceDiagram
         Requester->>Source: createEscrow(intentId, token,<br/>amount, reservedSolver)
     end
     Source->>Source: Lock assets
-    Source->>Verifier: OracleLimitOrderEvent/EscrowInitialized(<br/>intent_id, reserved_solver, revocable=false)
+    Source->>TrustedGMP: OracleLimitOrderEvent/EscrowInitialized(<br/>intent_id, reserved_solver, revocable=false)
 
     Note over Requester,Solver: Phase 3: Solver Transfers on Destination Connected Chain
     Solver->>Dest: Transfer tokens to requester_address_dest_chain<br/>(standard token transfer, not escrow)
     Dest->>Dest: Tokens received by requester
 
-    Note over Requester,Solver: Phase 4: Verifier Validation and Approval
-    Solver->>Verifier: POST /validate-cross-chain-fulfillment<br/>(source_escrow_intent_id, dest_tx_hash, chain_types, intent_id)
-    Verifier->>Source: Query escrow by intent_id<br/>(verify escrow exists and matches)
-    Verifier->>Dest: Query transaction by hash<br/>(verify transfer occurred)
-    Verifier->>Verifier: Validate fulfillment<br/>conditions met
-    Verifier->>Solver: Return approval signature
+    Note over Requester,Solver: Phase 4: Trusted-GMP Validation and Approval
+    Solver->>TrustedGMP: POST /validate-cross-chain-fulfillment<br/>(source_escrow_intent_id, dest_tx_hash, chain_types, intent_id)
+    TrustedGMP->>Source: Query escrow by intent_id<br/>(verify escrow exists and matches)
+    TrustedGMP->>Dest: Query transaction by hash<br/>(verify transfer occurred)
+    TrustedGMP->>TrustedGMP: Validate fulfillment<br/>conditions met
+    TrustedGMP->>Solver: Return approval signature
 
     Note over Requester,Solver: Phase 5: Escrow Release on Source Connected Chain
-    Verifier->>Solver: Delivers approval signature<br/>(Ed25519 for Move, ECDSA for EVM)<br/>Signature itself is the approval
+    TrustedGMP->>Solver: Delivers approval signature<br/>(Ed25519 for Move, ECDSA for EVM)<br/>Signature itself is the approval
     alt Move Chain
         Note over Solver: Anyone can call<br/>(funds go to reserved_solver)
         Solver->>Source: complete_escrow_from_fa(<br/>escrow_intent, payment_amount,<br/>verifier_signature_bytes)

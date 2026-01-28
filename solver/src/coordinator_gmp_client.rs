@@ -138,21 +138,21 @@ pub struct Approval {
 }
 
 // ============================================================================
-// VERIFIER CLIENT
+// COORDINATOR GMP CLIENT
 // ============================================================================
 
-/// HTTP client for communicating with the Trusted Verifier service.
+/// HTTP client for communicating with the coordinator (drafts) and trusted-gmp (validation/approval).
 ///
 /// Uses blocking HTTP requests (reqwest blocking client).
 /// All methods return `Result` with appropriate error context.
-pub struct VerifierClient {
+pub struct CoordinatorGmpClient {
     /// Base URL of coordinator (drafts) or trusted-gmp (validation/approval), e.g. "http://127.0.0.1:3333" or "http://127.0.0.1:3334"
     base_url: String,
     /// HTTP client instance
     client: reqwest::blocking::Client,
 }
 
-impl VerifierClient {
+impl CoordinatorGmpClient {
     /// Create a new API client for coordinator or trusted-gmp.
     ///
     /// # Arguments
@@ -161,7 +161,7 @@ impl VerifierClient {
     ///
     /// # Returns
     ///
-    /// * `VerifierClient` - New client instance
+    /// * `CoordinatorGmpClient` - New client instance
     pub fn new(base_url: impl Into<String>) -> Self {
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(30))
@@ -197,7 +197,7 @@ impl VerifierClient {
 
         if !response.success {
             return Err(anyhow::anyhow!(
-                "Verifier API error: {}",
+                "Coordinator/Trusted-GMP API error: {}",
                 response.error.unwrap_or_else(|| "Unknown error".to_string())
             ));
         }
@@ -248,7 +248,7 @@ impl VerifierClient {
             }
 
             return Err(anyhow::anyhow!(
-                "Verifier API error: {}",
+                "Coordinator/Trusted-GMP API error: {}",
                 response.error.unwrap_or_else(|| "Unknown error".to_string())
             ));
         }
@@ -286,7 +286,7 @@ impl VerifierClient {
 
         if !response.success {
             return Err(anyhow::anyhow!(
-                "Verifier API error: {}",
+                "Coordinator/Trusted-GMP API error: {}",
                 response.error.unwrap_or_else(|| "Unknown error".to_string())
             ));
         }
@@ -316,7 +316,7 @@ impl VerifierClient {
 
         if !response.success {
             return Err(anyhow::anyhow!(
-                "Verifier API error: {}",
+                "Coordinator/Trusted-GMP API error: {}",
                 response.error.unwrap_or_else(|| "Unknown error".to_string())
             ));
         }

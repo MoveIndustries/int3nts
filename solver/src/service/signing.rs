@@ -7,7 +7,7 @@ use crate::acceptance::{evaluate_draft_acceptance, AcceptanceConfig, AcceptanceR
 use crate::config::SolverConfig;
 use crate::crypto::{get_intent_hash, get_private_key_from_profile, sign_intent_hash};
 use crate::service::tracker::IntentTracker;
-use crate::verifier_client::{PendingDraft, VerifierClient};
+use crate::coordinator_gmp_client::{PendingDraft, CoordinatorGmpClient};
 use anyhow::{Context, Result};
 use serde_json::Value;
 use std::collections::HashSet;
@@ -92,7 +92,7 @@ impl SigningService {
         // Clone base_url for spawn_blocking
         let base_url = self.config.service.coordinator_url.clone();
         let drafts = tokio::task::spawn_blocking(move || {
-            let client = VerifierClient::new(&base_url);
+            let client = CoordinatorGmpClient::new(&base_url);
             client.poll_pending_drafts()
         })
         .await
@@ -289,17 +289,17 @@ impl SigningService {
         let solver_hub_addr = self.config.solver.address.clone();
 
         // Submit signature to coordinator
-        // Use spawn_blocking since verifier_client uses blocking HTTP (coordinator API)
+        // Use spawn_blocking since coordinator_gmp_client uses blocking HTTP (coordinator API)
         let base_url = self.config.service.coordinator_url.clone();
         let draft_id_for_log = draft.draft_id.clone();
         let draft_id_for_submit = draft.draft_id.clone();
-        let submission = crate::verifier_client::SignatureSubmission {
+        let submission = crate::coordinator_gmp_client::SignatureSubmission {
             solver_hub_addr: solver_hub_addr.clone(),
             signature: signature_hex,
             public_key: public_key_hex,
         };
         let result = tokio::task::spawn_blocking(move || {
-            let client = VerifierClient::new(&base_url);
+            let client = CoordinatorGmpClient::new(&base_url);
             client.submit_signature(&draft_id_for_submit, &submission)
         })
         .await

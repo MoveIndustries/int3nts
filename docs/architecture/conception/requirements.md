@@ -31,7 +31,7 @@ The system must support creating and executing intents with the following capabi
 - **Unreserved Intent Creation**: Create intents executable by any solver
 - **Reserved Intent Creation**: Enable off-chain negotiation and solver signature verification (Ed25519) to authorize specific solvers
 - **Oracle-Guarded Intent Creation**: Create intents with external data validation requirements and oracle signature verification
-- **Escrow Intent Creation**: Create escrow intents for conditional payments with verifier approval requirements
+- **Escrow Intent Creation**: Create escrow intents for conditional payments with trusted-gmp approval requirements
 - **Move On-Chain Intent Execution**: Support two-phase session model (`start_intent_session()`, `finish_intent_session()`) for intents fulfilled entirely on a single chain
 - **Intent Revocation**: Support revoking intents by creator (if `revocable = true`)
 - **Expiry Handling**: Automatically prevent execution of expired intents
@@ -39,11 +39,11 @@ The system must support creating and executing intents with the following capabi
 
 ### 2.2 Cross-Chain Intent Execution
 
-For cross-chain intent flows involving multiple chains and verifiers, see [architecture-diff.md](architecture-diff.md). The system must support:
+For cross-chain intent flows involving multiple chains, see [architecture-diff.md](architecture-diff.md). The system must support:
 
 - Solver fulfillment submission with cross-chain transaction references (`fill_intent(intent_id, tx_hash)`)
 - Cross-chain transaction validation with multi-RPC quorum (≥2 matching receipts)
-- Verifier finalization with collateral management and slashing mechanisms
+- Trusted-gmp finalization with collateral management and slashing mechanisms
 - Instant credit model where solver provides tokens before verification completes
 
 ### 2.3 Coordinator and Trusted-GMP Services
@@ -156,7 +156,7 @@ The system must provide coordinator and trusted-gmp services with the following 
 
 #### 3.3.3 Cryptographic Standards
 
-- Use Ed25519 signature algorithm for solver authorization and verifier approvals
+- Use Ed25519 signature algorithm for solver authorization and trusted-gmp approvals
 - Support standard Ed25519 key formats (base64 encoding for configuration)
 - Compatible with Move's native Ed25519 signature verification
 - Support signature verification for oracle attestations

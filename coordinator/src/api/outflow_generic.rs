@@ -6,8 +6,8 @@
 //! The validation flow:
 //! 1. Solver transfers tokens to requester on connected chain
 //! 2. Solver submits transaction hash to trusted-gmp via API
-//! 3. Verifier validates transaction matches intent requirements
-//! 4. Verifier generates approval signature for hub chain intent fulfillment
+//! 3. Trusted-gmp validates transaction matches intent requirements
+//! 4. Trusted-gmp generates approval signature for hub chain intent fulfillment
 //! 5. Solver uses signature to fulfill hub intent via finish_fa_receiving_session_with_oracle()
 
 use anyhow::Result;

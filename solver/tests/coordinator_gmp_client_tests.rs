@@ -1,9 +1,9 @@
-//! Unit tests for coordinator/trusted-gmp API client (verifier_client module)
+//! Unit tests for coordinator/trusted-gmp API client (coordinator_gmp_client module)
 
 use serde_json::json;
 use solver::{
-    ApiResponse, PendingDraft, SignatureSubmission, SignatureSubmissionResponse,
-    ValidateOutflowFulfillmentRequest, VerifierClient,
+    ApiResponse, CoordinatorGmpClient, PendingDraft, SignatureSubmission, SignatureSubmissionResponse,
+    ValidateOutflowFulfillmentRequest,
 };
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -19,17 +19,17 @@ use test_helpers::{
 // JSON PARSING TESTS
 // ============================================================================
 
-/// What is tested: VerifierClient::new() creates a client with correct base URL
+/// What is tested: CoordinatorGmpClient::new() creates a client with correct base URL
 /// Why: Ensure client initialization works correctly
 #[test]
-fn test_verifier_client_new() {
-    let _client = VerifierClient::new("http://127.0.0.1:3333");
+fn test_coordinator_gmp_client_new() {
+    let _client = CoordinatorGmpClient::new("http://127.0.0.1:3333");
     // Client should be created successfully
     // We can't easily test the internal state without exposing it, but we can test methods
     // Actual HTTP functionality tested in integration tests
 }
 
-/// What is tested: VerifierClient methods handle API response format correctly
+/// What is tested: CoordinatorGmpClient methods handle API response format correctly
 /// Why: Ensure we correctly parse the ApiResponse<T> wrapper from coordinator/trusted-gmp
 #[test]
 fn test_api_response_parsing() {
@@ -195,7 +195,7 @@ fn test_poll_pending_drafts_success() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let drafts = client.poll_pending_drafts().unwrap();
 
     assert_eq!(drafts.len(), 1);
@@ -229,7 +229,7 @@ fn test_poll_pending_drafts_empty() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let drafts = client.poll_pending_drafts().unwrap();
 
     assert_eq!(drafts.len(), 0);
@@ -259,7 +259,7 @@ fn test_poll_pending_drafts_error() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let result = client.poll_pending_drafts();
 
     assert!(result.is_err());
@@ -297,7 +297,7 @@ fn test_submit_signature_success() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let submission = SignatureSubmission {
         solver_hub_addr: DUMMY_SOLVER_ADDR_HUB.to_string(),
         signature: "0x".to_string() + &"a".repeat(128), // 128 hex chars = 64 bytes signature (ECDSA format)
@@ -337,7 +337,7 @@ fn test_submit_signature_conflict() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let submission = SignatureSubmission {
         solver_hub_addr: DUMMY_SOLVER_ADDR_HUB.to_string(),
         signature: "0x".to_string() + &"a".repeat(128), // 128 hex chars = 64 bytes signature (ECDSA format)
@@ -377,7 +377,7 @@ fn test_submit_signature_other_error() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let submission = SignatureSubmission {
         solver_hub_addr: DUMMY_SOLVER_ADDR_HUB.to_string(),
         signature: "0x".to_string() + &"a".repeat(128), // 128 hex chars = 64 bytes signature (ECDSA format)
@@ -388,7 +388,7 @@ fn test_submit_signature_other_error() {
 
     assert!(result.is_err());
     let error_msg = result.unwrap_err().to_string();
-    // The error might be wrapped in "Verifier API error: " prefix
+    // The error might be wrapped in "Coordinator/Trusted-GMP API error: " prefix
     assert!(
         error_msg.contains("Invalid signature format"),
         "Error message should contain 'Invalid signature format', got: {}",
@@ -432,7 +432,7 @@ fn test_validate_outflow_fulfillment_success() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let request = ValidateOutflowFulfillmentRequest {
         transaction_hash: DUMMY_TX_HASH.to_string(),
         chain_type: "evm".to_string(),
@@ -474,7 +474,7 @@ fn test_validate_outflow_fulfillment_failure() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let request = ValidateOutflowFulfillmentRequest {
         transaction_hash: DUMMY_TX_HASH.to_string(),
         chain_type: "evm".to_string(),
@@ -525,7 +525,7 @@ fn test_get_approvals_success() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let approvals = client.get_approvals().unwrap();
 
     assert_eq!(approvals.len(), 1);
@@ -566,7 +566,7 @@ fn test_get_approvals_empty() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let approvals = client.get_approvals().unwrap();
 
     assert_eq!(approvals.len(), 0);
@@ -581,7 +581,7 @@ fn test_get_approvals_empty() {
 #[test]
 fn test_network_error() {
     // Use a port that's definitely not listening (test-specific invalid URL)
-    let client = VerifierClient::new("http://127.0.0.1:99999");
+    let client = CoordinatorGmpClient::new("http://127.0.0.1:99999");
 
     let result = client.poll_pending_drafts();
 
@@ -610,7 +610,7 @@ fn test_invalid_json_response() {
         (mock_server, base_url)
     });
 
-    let client = VerifierClient::new(base_url);
+    let client = CoordinatorGmpClient::new(base_url);
     let result = client.poll_pending_drafts();
 
     assert!(result.is_err());

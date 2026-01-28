@@ -10,7 +10,7 @@
 use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient};
 use crate::config::SolverConfig;
 use crate::service::tracker::{IntentTracker, TrackedIntent};
-use crate::verifier_client::VerifierClient;
+use crate::coordinator_gmp_client::CoordinatorGmpClient;
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::sync::Arc;
@@ -322,7 +322,7 @@ impl InflowService {
             let approvals = tokio::task::spawn_blocking({
                 let trusted_gmp_url = trusted_gmp_url.clone();
                 move || {
-                    let client = VerifierClient::new(&trusted_gmp_url);
+                    let client = CoordinatorGmpClient::new(&trusted_gmp_url);
                     client.get_approvals()
                 }
             })

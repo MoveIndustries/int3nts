@@ -10,7 +10,7 @@
 use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient, HubChainClient};
 use crate::config::SolverConfig;
 use crate::service::tracker::{IntentTracker, TrackedIntent};
-use crate::verifier_client::{ValidateOutflowFulfillmentRequest, VerifierClient};
+use crate::coordinator_gmp_client::{ValidateOutflowFulfillmentRequest, CoordinatorGmpClient};
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::sync::Arc;
@@ -242,7 +242,7 @@ impl OutflowService {
     ///
     /// * `Ok(ApprovalSignature)` - Trusted-gmp approval signature
     /// * `Err(anyhow::Error)` - Failed to get approval
-    pub async fn get_verifier_approval(
+    pub async fn get_trusted_gmp_approval(
         &self,
         transaction_hash: &str,
         chain_type: &str,
@@ -259,7 +259,7 @@ impl OutflowService {
             let base_url = self.config.service.trusted_gmp_url.clone();
             let request = request.clone();
             move || {
-                let client = VerifierClient::new(&base_url);
+                let client = CoordinatorGmpClient::new(&base_url);
                 client.validate_outflow_fulfillment(&request)
             }
         })
@@ -268,7 +268,7 @@ impl OutflowService {
 
         if !response.validation.valid {
             anyhow::bail!(
-                "Verifier validation failed: {}",
+                "Trusted-gmp validation failed: {}",
                 response.validation.message
             );
         }
@@ -290,7 +290,7 @@ impl OutflowService {
     /// # Arguments
     ///
     /// * `intent` - Tracked intent to fulfill
-    /// * `verifier_signature_bytes` - Trusted-gmp's Ed25519 signature as bytes (on-chain "verifier" address)
+    /// * `approval_signature_bytes` - Trusted-gmp's Ed25519 signature as bytes (on-chain approval address)
     ///
     /// # Returns
     ///
@@ -299,7 +299,7 @@ impl OutflowService {
     pub async fn fulfill_outflow_intent(
         &self,
         intent: &TrackedIntent,
-        verifier_signature_bytes: &[u8],
+        approval_signature_bytes: &[u8],
     ) -> Result<String> {
         let intent_addr = intent
             .intent_addr
@@ -309,7 +309,7 @@ impl OutflowService {
         // Execute fulfillment (blocking call)
         tokio::task::spawn_blocking({
             let intent_addr = intent_addr.clone();
-            let signature = verifier_signature_bytes.to_vec();
+            let signature = approval_signature_bytes.to_vec();
             let hub_config = self.config.hub_chain.clone();
             move || {
                 let hub_client = HubChainClient::new(&hub_config)?;
@@ -346,7 +346,7 @@ impl OutflowService {
                             }
                         };
 
-                        match self.get_verifier_approval(&tx_hash, chain_type, &intent.intent_id).await {
+                        match self.get_trusted_gmp_approval(&tx_hash, chain_type, &intent.intent_id).await {
                             Ok(signature_bytes) => {
                                 // Fulfill hub intent
                                 match self.fulfill_outflow_intent(&intent, &signature_bytes).await {

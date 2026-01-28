@@ -48,7 +48,7 @@ fn test_connected_chain_mvm_with_values() {
 }
 
 /// What is tested: AcceptanceConfig parses pairs list without ratios
-/// Why: Verifier should only store pairs and fetch ratios live from solver
+/// Why: Coordinator should only store pairs and fetch ratios live from solver
 #[test]
 fn test_acceptance_pairs_deserialize() {
     let toml = format!(
