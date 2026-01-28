@@ -5,7 +5,7 @@
 # This script runs the mixed-chain E2E flow:
 # - Hub: Intent creation and fulfillment
 # - Chain 3 (EVM): Escrow operations
-# - Verifier: Provides negotiation routing and monitors chains
+# - Coordinator + Trusted-GMP: Negotiation routing and chain monitoring
 
 set -e
 
@@ -65,9 +65,10 @@ log_and_echo "======================================================"
 ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
 
 log_and_echo ""
-log_and_echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
+log_and_echo " Step 4: Starting coordinator and trusted-gmp..."
 log_and_echo "=========================================================================="
-./testing-infra/ci-e2e/e2e-tests-evm/start-verifier.sh
+./testing-infra/ci-e2e/e2e-tests-evm/start-coordinator.sh
+./testing-infra/ci-e2e/e2e-tests-evm/start-trusted-gmp.sh
 
 # Start solver service for automatic signing and fulfillment
 log_and_echo ""
@@ -101,7 +102,7 @@ log_and_echo "==========================================================="
 log_and_echo "   The solver service is running and will:"
 log_and_echo "   1. Detect the escrow on connected EVM chain"
 log_and_echo "   2. Fulfill the intent on hub chain"
-log_and_echo "   3. Verifier will detect fulfillment and generate approval"
+log_and_echo "   3. Trusted-GMP will detect fulfillment and generate approval"
 log_and_echo ""
 
 if ! wait_for_solver_fulfillment "$INTENT_ID" "inflow" 60; then

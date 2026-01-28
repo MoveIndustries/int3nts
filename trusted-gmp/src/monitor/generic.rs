@@ -459,7 +459,7 @@ impl EventMonitor {
     ///
     /// Note: We don't validate here because:
     /// - Fulfillment validity: Move contract only emits fulfillment events when conditions are correct
-    /// - Escrow validity: Verifier validates escrow before solver fulfills (future: provides signature to solver)
+    /// - Escrow validity: Trusted-GMP validates escrow before solver fulfills (future: provides signature to solver)
     /// - By the time we see fulfillment, both were already validated
     ///
     /// # Arguments

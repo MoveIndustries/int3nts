@@ -60,9 +60,10 @@ echo "===================================================================="
 ./testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh
 
 echo ""
-echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
+echo " Step 4: Starting coordinator and trusted-gmp..."
 echo "=========================================================================="
-./testing-infra/ci-e2e/e2e-tests-mvm/start-verifier.sh
+./testing-infra/ci-e2e/e2e-tests-mvm/start-coordinator.sh
+./testing-infra/ci-e2e/e2e-tests-mvm/start-trusted-gmp.sh
 
 # Start solver service for automatic signing and fulfillment
 echo ""
@@ -99,7 +100,7 @@ fi
 echo "   The solver service is running and will:"
 echo "   1. Detect the escrow on connected MVM chain"
 echo "   2. Fulfill the intent on hub chain"
-echo "   3. Verifier will detect fulfillment and generate approval"
+echo "   3. Trusted-GMP will detect fulfillment and generate approval"
 echo ""
 
 if ! wait_for_solver_fulfillment "$INTENT_ID" "inflow" 60; then

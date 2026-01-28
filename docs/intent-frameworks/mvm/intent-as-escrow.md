@@ -29,14 +29,14 @@ let (escrowed_asset, session) = intent_as_escrow::start_escrow_session(solver, e
 
 // 3. Verifier signs the intent_id - signature itself is the approval
 let intent_id = @0x1; // Same intent_id used when creating escrow
-let verifier_signature = ed25519::sign_arbitrary_bytes(&verifier_secret_key, bcs::to_bytes(&intent_id));
+let approver_signature = ed25519::sign_arbitrary_bytes(&approver_secret_key, bcs::to_bytes(&intent_id));
 
 // 4. Complete escrow (solver signer must match reserved solver)
 intent_as_escrow::complete_escrow(
     solver,
     session,
     solver_payment,
-    verifier_signature,
+    approver_signature,
 );
 ```
 
@@ -100,7 +100,7 @@ The escrow system is deployed on a single MVM chain. The trusted-gmp service (or
 ### Simple Token Escrow
 
 ```move
-// Requester locks TokenA and waits for verifier approval
+// Requester locks TokenA and waits for approver approval
 let reservation = intent_reservation::new_reservation(solver_addr);
 let escrow = intent_as_escrow::create_escrow(
     requester_signer,
@@ -117,8 +117,8 @@ let escrow = intent_as_escrow::create_escrow(
 ```move
 // Verifier monitors conditions and signs the intent_id:
 let intent_id = @0x1; // Same intent_id used when creating escrow
-let verifier_signature = ed25519::sign_arbitrary_bytes(&verifier_key, bcs::to_bytes(&intent_id));
+let approver_signature = ed25519::sign_arbitrary_bytes(&approver_key, bcs::to_bytes(&intent_id));
 
 // Escrow releases tokens to solver (signature itself is the approval)
-intent_as_escrow::complete_escrow(solver, session, payment, verifier_signature);
+intent_as_escrow::complete_escrow(solver, session, payment, approver_signature);
 ```

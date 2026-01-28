@@ -57,7 +57,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_registry::init_for_test(mvmt_intent);
         intent_registry::init_for_test(mvmt_intent);
         
-        // Generate key pairs for solver and verifier
+        // Generate key pairs for solver and approver
         let (solver_secret_key, validated_solver_pk) = ed25519::generate_keys();
         let solver_public_key_bytes = ed25519::validated_public_key_to_bytes(&validated_solver_pk);
         let evm_addr = test_utils::create_test_evm_address(0);
@@ -295,8 +295,8 @@ module mvmt_intent::fa_intent_outflow_tests {
         requester_signer = @0xcafe,
         solver_signer = @0xdead
     )]
-    /// What is tested: fulfill_outflow_intent releases locked tokens to solver after verifier signature validation
-    /// Why: Verify solver receives locked tokens after providing valid verifier signature
+    /// What is tested: fulfill_outflow_intent releases locked tokens to solver after approver signature validation
+    /// Why: Verify solver receives locked tokens after providing valid approver signature
     fun test_fulfill_outflow_intent(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -353,7 +353,7 @@ module mvmt_intent::fa_intent_outflow_tests {
     )]
     #[expected_failure(abort_code = 393223, location = aptos_framework::object)] // error::not_found(ERESOURCE_DOES_NOT_EXIST)
     /// What is tested: fulfilling an outflow intent with the inflow function aborts with ERESOURCE_DOES_NOT_EXIST
-    /// Why: Outflow intents require verifier signature; using inflow function would skip that check
+    /// Why: Outflow intents require approver signature; using inflow function would skip that check
     ///
     /// Note: The error ERESOURCE_DOES_NOT_EXIST occurs because object::address_to_object<T> checks
     /// if an object of type T exists at the address. The object exists, but not as the requested type,
@@ -365,7 +365,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_signer: &signer,
     ) {
         // Set up outflow intent using shared helper
-        let (intent_obj, _offered_metadata, _desired_metadata, _verifier_signature_bytes, _intent_id) = setup_outflow_intent(
+        let (intent_obj, _offered_metadata, _desired_metadata, _approver_signature_bytes, _intent_id) = setup_outflow_intent(
             aptos_framework,
             mvmt_intent,
             requester_signer,

@@ -331,7 +331,7 @@ module mvmt_intent::fa_intent_with_oracle {
 
     /// Applies signature and threshold checks against the supplied witness.
     ///
-    /// The verifier signs the intent_id to approve it. The signature itself is the approval.
+    /// The approver signs the intent_id to approve it. The signature itself is the approval.
     /// We verify that the signature is valid for the intent_id.
     ///
     /// # Arguments

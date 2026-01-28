@@ -7,9 +7,9 @@
 //! ## Flow Overview
 //!
 //! 1. Solver creates escrow on connected chain (tokens locked in escrow)
-//! 2. Verifier monitors connected chain for escrow events
-//! 3. Verifier validates escrow matches hub intent requirements
-//! 4. Verifier monitors hub chain for fulfillment events
+//! 2. Trusted-GMP monitors connected chain for escrow events
+//! 3. Trusted-GMP validates escrow matches hub intent requirements
+//! 4. Trusted-GMP monitors hub chain for fulfillment events
 //! 5. When hub fulfillment is observed, trusted-gmp generates approval signature for escrow release
 //! 6. Solver uses signature to release escrow on connected chain
 //!
@@ -435,7 +435,7 @@ pub async fn validate_intent_fulfillment(
 ///
 /// We don't re-validate here because:
 /// - **Fulfillment validity**: Move contract only emits fulfillment events when conditions are correct
-/// - **Escrow validity**: Verifier validates escrow before solver fulfills (when escrow was cached)
+/// - **Escrow validity**: Trusted-GMP validates escrow before solver fulfills (when escrow was cached)
 /// - **By the time we see fulfillment, both were already validated**
 ///
 /// # Arguments

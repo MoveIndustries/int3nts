@@ -61,7 +61,8 @@ echo "===================================================================="
 echo ""
 echo " Step 4: Configuring and starting services..."
 echo "================================================"
-./testing-infra/ci-e2e/e2e-tests-mvm/start-verifier.sh
+./testing-infra/ci-e2e/e2e-tests-mvm/start-coordinator.sh
+./testing-infra/ci-e2e/e2e-tests-mvm/start-trusted-gmp.sh
 
 echo ""
 echo " Step 5: Running Rust integration tests..."

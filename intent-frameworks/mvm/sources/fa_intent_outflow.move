@@ -107,19 +107,19 @@ module mvmt_intent::fa_intent_outflow {
     /// Entry function for solver to fulfill an outflow intent.
     ///
     /// Outflow intents have tokens locked on the hub chain and request tokens on the connected chain.
-    /// The solver must first transfer tokens on the connected chain, then the verifier approves that transaction.
+    /// The solver must first transfer tokens on the connected chain, then the approver approves that transaction.
     /// The solver receives the locked tokens from the hub as reward, and provides 0 tokens as payment
     /// (since desired_amount = 0 on hub for outflow intents).
-    /// Verifier signature is required - it proves the solver transferred tokens on the connected chain.
+    /// Approver signature is required - it proves the solver transferred tokens on the connected chain.
     ///
     /// # Arguments
     /// - `solver`: Signer fulfilling the intent
     /// - `intent`: Object reference to the outflow intent to fulfill (OracleGuardedLimitOrder)
-    /// - `verifier_signature_bytes`: Verifier's Ed25519 signature as bytes (signs the intent_id, proves connected chain transfer)
+    /// - `approver_signature_bytes`: Approver's Ed25519 signature as bytes (signs the intent_id, proves connected chain transfer)
     public entry fun fulfill_outflow_intent(
         solver: &signer,
         intent: Object<Intent<fa_intent_with_oracle::FungibleStoreManager, fa_intent_with_oracle::OracleGuardedLimitOrder>>,
-        verifier_signature_bytes: vector<u8>
+        approver_signature_bytes: vector<u8>
     ) {
         let solver_addr = signer::address_of(solver);
         let intent_addr = aptos_framework::object::object_address(&intent);
@@ -142,19 +142,19 @@ module mvmt_intent::fa_intent_outflow {
         );
 
         // 5. Convert signature bytes to ed25519::Signature
-        let verifier_signature =
-            ed25519::new_signature_from_bytes(verifier_signature_bytes);
+        let approver_signature =
+            ed25519::new_signature_from_bytes(approver_signature_bytes);
 
-        // 6. Create verifier witness - signature itself is the approval
+        // 6. Create approver witness - signature itself is the approval
         // The intent_id is stored in the session argument and will be used automatically
         // by finish_fa_receiving_session_with_oracle for signature verification
         let witness =
             fa_intent_with_oracle::new_oracle_signature_witness(
                 0, // reported_value: signature verification is what matters, this is just metadata
-                verifier_signature
+                approver_signature
             );
 
-        // 7. Complete the intent with verifier signature (proves connected chain transfer happened)
+        // 7. Complete the intent with approver signature (proves connected chain transfer happened)
         // The finish function will verify the signature against the intent_id stored in the argument
         // Payment amount is 0, which matches desired_amount = 0 for outflow intents
         fa_intent_with_oracle::finish_fa_receiving_session_with_oracle(
@@ -286,7 +286,7 @@ module mvmt_intent::fa_intent_outflow {
             signer::address_of(requester_signer),
             requirement,
             false, // CRITICAL: All parts of a cross-chain intent MUST be non-revocable
-            // Ensures consistent safety guarantees for verifiers across chains
+            // Ensures consistent safety guarantees for approvers across chains
             intent_id,
             option::some(requester_addr_connected_chain), // Store where solver should send tokens on connected chain
             reservation_result // Reserved for specific solver

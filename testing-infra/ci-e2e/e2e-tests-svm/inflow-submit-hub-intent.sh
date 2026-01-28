@@ -78,7 +78,7 @@ log_and_echo ""
 
 log ""
 log " Starting coordinator-based negotiation routing..."
-log "   Flow: Requester → Verifier → Solver → Verifier → Requester"
+log "   Flow: Requester → Coordinator/Trusted-GMP → Solver → Coordinator/Trusted-GMP → Requester"
 
 log ""
 log "   Step 1: Requester submits draft intent to coordinator..."

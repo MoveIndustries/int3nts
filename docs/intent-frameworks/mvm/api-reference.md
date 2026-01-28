@@ -197,7 +197,7 @@ public entry fun fulfill_inflow_intent(
 public entry fun fulfill_outflow_intent(
     solver: &signer,
     intent: Object<Intent<FungibleStoreManager, OracleGuardedLimitOrder>>,
-    verifier_signature_bytes: vector<u8>,
+    approver_signature_bytes: vector<u8>,
 )
 ```
 
@@ -205,7 +205,7 @@ public entry fun fulfill_outflow_intent(
 
 - `solver`: Signer fulfilling the intent
 - `intent`: Object reference to the outflow intent to fulfill
-- `verifier_signature_bytes`: Verifier's Ed25519 signature as bytes (signs the intent_id, proves connected chain transfer)
+- `approver_signature_bytes`: Approver's Ed25519 signature as bytes (signs the intent_id, proves connected chain transfer)
 
 **Note**: This function is used to fulfill outflow intents where tokens are locked on the hub chain and desired on the connected chain. The solver must first transfer tokens on the connected chain, then the trusted-gmp service approves that transaction. The solver receives the locked tokens from the hub as reward. Trusted-gmp signature is required - it proves the solver transferred tokens on the connected chain.
 

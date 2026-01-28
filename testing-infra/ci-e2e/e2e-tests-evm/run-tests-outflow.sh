@@ -66,7 +66,8 @@ log_and_echo "======================================================"
 log_and_echo ""
 log_and_echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
 log_and_echo "=========================================================================="
-./testing-infra/ci-e2e/e2e-tests-evm/start-verifier.sh
+./testing-infra/ci-e2e/e2e-tests-evm/start-coordinator.sh
+./testing-infra/ci-e2e/e2e-tests-evm/start-trusted-gmp.sh
 
 # Start solver service for automatic signing and fulfillment
 log_and_echo ""

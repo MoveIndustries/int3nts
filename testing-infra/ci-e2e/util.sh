@@ -722,7 +722,7 @@ verify_trusted_gmp_running() {
     log "   ✅ Trusted-GMP is running and healthy (PID: $TRUSTED_GMP_PID, port: $TRUSTED_GMP_PORT)"
 }
 
-# Generate trusted-gmp keys (same as verifier keys, but for trusted-gmp)
+# Generate trusted-gmp keys for E2E/CI testing
 # Usage: generate_trusted_gmp_keys
 # Generates fresh ephemeral keys for E2E/CI testing and exports them as env vars.
 generate_trusted_gmp_keys() {
@@ -1062,9 +1062,9 @@ get_draft_intent() {
 }
 
 # Submit signature to coordinator (solver submits after signing)
-# Usage: submit_signature_to_verifier <draft_id> <solver_addr> <signature_hex> <public_key_hex> [coordinator_port]
+# Usage: submit_signature_to_coordinator <draft_id> <solver_addr> <signature_hex> <public_key_hex> [coordinator_port]
 # Returns success/failure, exits on error
-submit_signature_to_verifier() {
+submit_signature_to_coordinator() {
     local draft_id="$1"
     local solver_addr="$2"
     local signature_hex="$3"
@@ -1072,7 +1072,7 @@ submit_signature_to_verifier() {
     local coordinator_port="${5:-3333}"
     
     if [ -z "$draft_id" ] || [ -z "$solver_addr" ] || [ -z "$signature_hex" ] || [ -z "$public_key_hex" ]; then
-        log_and_echo "❌ ERROR: submit_signature_to_verifier() requires draft_id, solver_addr, signature_hex, public_key_hex"
+        log_and_echo "❌ ERROR: submit_signature_to_coordinator() requires draft_id, solver_addr, signature_hex, public_key_hex"
         exit 1
     fi
     

@@ -4,14 +4,14 @@
 #
 # Verifies that TRUSTED_GMP_EVM_PUBKEY_HASH in this directory's .env.testnet matches
 # the EVM address derived from TRUSTED_GMP_PRIVATE_KEY (and TRUSTED_GMP_PUBLIC_KEY), and optionally
-# checks that the on-chain IntentEscrow contract has the correct verifier address.
+# checks that the on-chain IntentEscrow contract has the correct approver address.
 #
 # Usage: ./verify-trusted-gmp-evm-address.sh
 #
 # Checks:
 #   1. Computes EVM address from TRUSTED_GMP_PRIVATE_KEY (via get_approver_eth_address)
 #   2. Compares to TRUSTED_GMP_EVM_PUBKEY_HASH in this directory's .env.testnet
-#   3. Queries on-chain IntentEscrow contract's verifier() function (if config available)
+#   3. Queries on-chain IntentEscrow contract's approver() function (if config available)
 #   4. Compares on-chain address to computed address
 #
 # This ensures the config is correct and the deployed contract matches.
@@ -99,22 +99,22 @@ if [ -f "$TRUSTED_GMP_CONFIG" ]; then
         echo "   Contract: $ESCROW_ADDR"
         echo "   RPC: $RPC_URL"
         
-        # Query verifier() function (public variable getter)
-        # Function selector: keccak256("verifier()")[0:4] = 0x2b7ac3f3
-        VERIFIER_SELECTOR="0x2b7ac3f3"
+        # Query approver() function (public variable getter)
+        # Function selector: keccak256("approver()")[0:4] = 0x141a8dd8
+        APPROVER_SELECTOR="0x141a8dd8"
         RPC_RESPONSE=$(curl -s --max-time 10 -X POST "$RPC_URL" \
             -H "Content-Type: application/json" \
-            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_call\",\"params\":[{\"to\":\"$ESCROW_ADDR\",\"data\":\"$VERIFIER_SELECTOR\"},\"latest\"],\"id\":1}" 2>&1)
+            -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_call\",\"params\":[{\"to\":\"$ESCROW_ADDR\",\"data\":\"$APPROVER_SELECTOR\"},\"latest\"],\"id\":1}" 2>&1)
         
-        ONCHAIN_VERIFIER=$(echo "$RPC_RESPONSE" | jq -r '.result // empty' 2>/dev/null)
+        ONCHAIN_APPROVER=$(echo "$RPC_RESPONSE" | jq -r '.result // empty' 2>/dev/null)
         RPC_ERROR=$(echo "$RPC_RESPONSE" | jq -r '.error.message // empty' 2>/dev/null)
         
         if [ -n "$RPC_ERROR" ]; then
             echo "️  RPC error: $RPC_ERROR"
-        elif [ -n "$ONCHAIN_VERIFIER" ] && [ "$ONCHAIN_VERIFIER" != "null" ] && [ "$ONCHAIN_VERIFIER" != "" ] && [ "${#ONCHAIN_VERIFIER}" -ge 42 ]; then
+        elif [ -n "$ONCHAIN_APPROVER" ] && [ "$ONCHAIN_APPROVER" != "null" ] && [ "$ONCHAIN_APPROVER" != "" ] && [ "${#ONCHAIN_APPROVER}" -ge 42 ]; then
             # Extract address from result (last 40 hex chars = 20 bytes = address)
             # Result is 0x + 64 hex chars (32 bytes), we want last 40 chars (20 bytes)
-            ONCHAIN_ADDR="0x${ONCHAIN_VERIFIER: -40}"
+            ONCHAIN_ADDR="0x${ONCHAIN_APPROVER: -40}"
             ONCHAIN_NORM=$(echo "$ONCHAIN_ADDR" | tr '[:upper:]' '[:lower:]')
             
             echo "   On-chain:  $ONCHAIN_ADDR"
@@ -123,17 +123,17 @@ if [ -f "$TRUSTED_GMP_CONFIG" ]; then
                 ONCHAIN_MATCH=true
                 echo "✅ On-chain contract matches computed address"
             else
-                echo "❌ MISMATCH: On-chain contract has wrong verifier address!"
+                echo "❌ MISMATCH: On-chain contract has wrong approver address!"
                 echo ""
                 echo "   On-chain:  $ONCHAIN_ADDR"
                 echo "   Computed:  $COMPUTED_ADDR"
                 echo ""
-                echo "   Action: Redeploy IntentEscrow contract with correct verifier address"
+                echo "   Action: Redeploy IntentEscrow contract with correct approver address"
             fi
         else
             echo "️  Could not query on-chain contract"
-            if [ -n "$ONCHAIN_VERIFIER" ]; then
-                echo "   Response: $ONCHAIN_VERIFIER"
+            if [ -n "$ONCHAIN_APPROVER" ]; then
+                echo "   Response: $ONCHAIN_APPROVER"
             fi
             echo "   (Contract may not be deployed, RPC unavailable, or function selector incorrect)"
         fi

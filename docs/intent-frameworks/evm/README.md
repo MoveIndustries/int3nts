@@ -44,9 +44,9 @@ The contract uses `ecrecover()` to verify the signature matches the authorized t
 // reservedSolver: Required solver address that will receive funds (must not be address(0))
 function createEscrow(uint256 intentId, address token, uint256 amount, address reservedSolver) external
 
-// Claim funds with verifier signature
+// Claim funds with approver signature
 // Funds always go to reservedSolver address (anyone can send transaction, but recipient is fixed)
-// Signature itself is the approval - verifier signs the intent_id
+// Signature itself is the approval - approver signs the intent_id
 function claim(uint256 intentId, bytes memory signature) external
 
 // Cancel escrow and reclaim funds (requester only, after expiry)
@@ -72,21 +72,21 @@ See the [component README](../../intent-frameworks/evm/README.md) for quick star
 ```javascript
 const { ethers } = require("hardhat");
 
-// Deploy escrow with verifier address
+// Deploy escrow with approver address
 const IntentEscrow = await ethers.getContractFactory("IntentEscrow");
-const escrow = await IntentEscrow.deploy(verifierAddress);
+const escrow = await IntentEscrow.deploy(approverAddress);
 
 // Requester creates escrow and deposits tokens atomically (expiry is contract-defined)
 // Must specify solver address that will receive funds:
 await token.connect(requester).approve(escrow.address, amount);
 await escrow.connect(requester).createEscrow(intentId, tokenAddress, amount, solverAddress);
 
-// Verifier signs the intent_id (off-chain) - signature itself is the approval
+// Approver signs the intent_id (off-chain) - signature itself is the approval
 const messageHash = ethers.solidityPackedKeccak256(
   ["uint256"],
   [intentId]
 );
-const signature = await verifier.signMessage(ethers.getBytes(messageHash));
+const signature = await approver.signMessage(ethers.getBytes(messageHash));
 
 // Solver claims with signature (anyone can call, but funds go to reserved solver)
 await escrow.connect(solver).claim(intentId, signature);
@@ -109,4 +109,4 @@ npx hardhat test
 
 Tests cover escrow initialization, deposits, claiming, cancellation, expiry enforcement, and error cases.
 
-Test accounts: Hardhat provides 20 accounts (10000 ETH each). Account 0 is deployer/verifier, Account 1 is requester, Account 2 is solver. Private keys are deterministic from mnemonic: `test test test test test test test test test test test junk`
+Test accounts: Hardhat provides 20 accounts (10000 ETH each). Account 0 is deployer/approver, Account 1 is requester, Account 2 is solver. Private keys are deterministic from mnemonic: `test test test test test test test test test test test junk`

@@ -319,8 +319,8 @@ movement move run \
 
 echo ""
 
-# Initialize trusted-gmp config for outflow intents (on-chain "verifier" public key)
-echo " Step 10: Initializing trusted-gmp (verifier) config..."
+# Initialize trusted-gmp config for outflow intents (on-chain approver public key)
+echo " Step 10: Initializing trusted-gmp (approver) config..."
 
 if [ -z "$TRUSTED_GMP_PUBLIC_KEY" ]; then
     echo "❌ ERROR: TRUSTED_GMP_PUBLIC_KEY not set in .env.testnet"
@@ -335,10 +335,10 @@ movement move run \
   --assume-yes
 
 if [ $? -ne 0 ]; then
-    echo "❌ ERROR: Failed to initialize trusted-gmp (verifier) config"
+    echo "❌ ERROR: Failed to initialize trusted-gmp (approver) config"
     exit 1
 fi
-echo "   ✅ Verifier config initialized"
+echo "   ✅ Trusted-gmp (approver) config initialized"
 
 echo ""
 

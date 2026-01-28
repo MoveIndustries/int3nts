@@ -66,7 +66,8 @@ source "$PROJECT_ROOT/.tmp/chain-info.env"
 echo ""
 echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
 echo "=========================================================================="
-./testing-infra/ci-e2e/e2e-tests-mvm/start-verifier.sh
+./testing-infra/ci-e2e/e2e-tests-mvm/start-coordinator.sh
+./testing-infra/ci-e2e/e2e-tests-mvm/start-trusted-gmp.sh
 
 # Assert solver has USDcon before starting (should have 1 USDcon from deploy)
 assert_usdxyz_balance "solver-chain2" "2" "$USD_MVMCON_MODULE_ADDR" "1000000" "pre-solver-start"

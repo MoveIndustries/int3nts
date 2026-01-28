@@ -18,15 +18,15 @@ module mvmt_intent::intent_as_escrow_tests {
         aptos_framework = @0x1,
         user = @0xcafe,
         solver = @0xdead,
-        _verifier = @0xbeef
+        _approver = @0xbeef
     )]
-    /// What is tested: complete_escrow succeeds when the verifier signature and payment are valid
+    /// What is tested: complete_escrow succeeds when the approver signature and payment are valid
     /// Why: Ensure the happy-path escrow flow correctly settles between requester and solver
-    fun test_escrow_with_verifier_approval(
+    fun test_escrow_with_approver_approval(
         aptos_framework: &signer,
         user: &signer,
         solver: &signer,
-        _verifier: &signer,
+        _approver: &signer,
     ) {
         // Register and mint tokens for requester and solver (same token type for escrow)
         let (offered_token_type, _) = test_utils::register_and_mint_tokens(aptos_framework, user, 100);
@@ -36,8 +36,8 @@ module mvmt_intent::intent_as_escrow_tests {
         let solver_payment_tokens = primary_fungible_store::withdraw(user, offered_token_type, 50);
         primary_fungible_store::deposit(signer::address_of(solver), solver_payment_tokens);
 
-        // Generate verifier key pair
-        let (verifier_secret_key, validated_pk) = ed25519::generate_keys();
+        // Generate approver key pair
+        let (approver_secret_key, validated_pk) = ed25519::generate_keys();
         let approver_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
         // Requester creates escrow (must specify reserved solver)
@@ -60,7 +60,7 @@ module mvmt_intent::intent_as_escrow_tests {
         
         // Verifier signs the intent_id - the signature itself is the approval
         let intent_id = @0x1; // Same intent_id used when creating escrow
-        let verifier_signature = ed25519::sign_arbitrary_bytes(&verifier_secret_key, bcs::to_bytes(&intent_id));
+        let approver_signature = ed25519::sign_arbitrary_bytes(&approver_secret_key, bcs::to_bytes(&intent_id));
 
         // Solver provides payment (source token type)
         let solver_payment = primary_fungible_store::withdraw(solver, offered_token_type, 50);
@@ -68,7 +68,7 @@ module mvmt_intent::intent_as_escrow_tests {
             solver,
             session,
             solver_payment,
-            verifier_signature,
+            approver_signature,
         );
         
         // Requester should have received payment tokens
@@ -82,16 +82,16 @@ module mvmt_intent::intent_as_escrow_tests {
         aptos_framework = @0x1,
         user = @0xcafe,
         solver = @0xdead,
-        _verifier = @0xbeef
+        _approver = @0xbeef
     )]
     #[expected_failure(abort_code = 65539, location = fa_intent_with_oracle)] // error::invalid_argument(EINVALID_SIGNATURE)
-    /// What is tested: escrow completion fails when the verifier signs the wrong intent_id
+    /// What is tested: escrow completion fails when the approver signs the wrong intent_id
     /// Why: Prevent misuse of approvals by binding signatures to a specific escrow intent_id
     fun test_escrow_with_wrong_intent_id_signature(
         aptos_framework: &signer,
         user: &signer,
         solver: &signer,
-        _verifier: &signer,
+        _approver: &signer,
     ) {
         let (offered_token_type, _) = test_utils::register_and_mint_tokens(aptos_framework, user, 100);
         let (_desired_token_type, _) = test_utils::register_and_mint_tokens(aptos_framework, solver, 100);
@@ -100,7 +100,7 @@ module mvmt_intent::intent_as_escrow_tests {
         let solver_payment_tokens = primary_fungible_store::withdraw(user, offered_token_type, 50);
         primary_fungible_store::deposit(signer::address_of(solver), solver_payment_tokens);
 
-        let (verifier_secret_key, validated_pk) = ed25519::generate_keys();
+        let (approver_secret_key, validated_pk) = ed25519::generate_keys();
         let approver_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
         // Create escrow with intent_id = @0x1
@@ -123,7 +123,7 @@ module mvmt_intent::intent_as_escrow_tests {
         // Verifier signs a DIFFERENT intent_id (@0x2) instead of the escrow's intent_id (@0x1)
         // This should cause signature verification to fail
         let wrong_intent_id = @0x2; // Different from escrow's intent_id (@0x1)
-        let verifier_signature = ed25519::sign_arbitrary_bytes(&verifier_secret_key, bcs::to_bytes(&wrong_intent_id));
+        let approver_signature = ed25519::sign_arbitrary_bytes(&approver_secret_key, bcs::to_bytes(&wrong_intent_id));
 
         // This should abort because signature was created for wrong intent_id
         let solver_payment = primary_fungible_store::withdraw(solver, offered_token_type, 50);
@@ -131,7 +131,7 @@ module mvmt_intent::intent_as_escrow_tests {
             solver,
             session,
             solver_payment,
-            verifier_signature,
+            approver_signature,
         );
     }
 
@@ -139,16 +139,16 @@ module mvmt_intent::intent_as_escrow_tests {
         aptos_framework = @0x1,
         user = @0xcafe,
         solver = @0xdead,
-        _verifier = @0xbeef
+        _approver = @0xbeef
     )]
     #[expected_failure(abort_code = 65539, location = fa_intent_with_oracle)] // error::invalid_argument(EINVALID_SIGNATURE)
     /// What is tested: a signature for one escrow intent_id cannot be replayed on another escrow
-    /// Why: Enforce replay protection by binding verifier signatures to a single intent_id
+    /// Why: Enforce replay protection by binding approver signatures to a single intent_id
     fun test_signature_replay_prevention(
         aptos_framework: &signer,
         user: &signer,
         solver: &signer,
-        _verifier: &signer,
+        _approver: &signer,
     ) {
         // Need enough tokens: 30 for escrow A + 30 for escrow B + 30 for solver payment = 90
         // Using smaller amounts to stay within test token supply limits (other tests use 100 max)
@@ -158,7 +158,7 @@ module mvmt_intent::intent_as_escrow_tests {
         let solver_payment_tokens = primary_fungible_store::withdraw(user, offered_token_type, 30);
         primary_fungible_store::deposit(signer::address_of(solver), solver_payment_tokens);
 
-        let (verifier_secret_key, validated_pk) = ed25519::generate_keys();
+        let (approver_secret_key, validated_pk) = ed25519::generate_keys();
         let approver_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
         // Create escrow A with intent_id = @0x1
@@ -195,7 +195,7 @@ module mvmt_intent::intent_as_escrow_tests {
         
         // Verifier creates a VALID signature for intent_id @0x1 (escrow A)
         let intent_id_a = @0x1;
-        let valid_signature_for_a = ed25519::sign_arbitrary_bytes(&verifier_secret_key, bcs::to_bytes(&intent_id_a));
+        let valid_signature_for_a = ed25519::sign_arbitrary_bytes(&approver_secret_key, bcs::to_bytes(&intent_id_a));
 
         // Try to use the signature for intent_id @0x1 on escrow B (which has intent_id @0x2)
         // This should fail because the signature is bound to @0x1, not @0x2
@@ -212,7 +212,7 @@ module mvmt_intent::intent_as_escrow_tests {
         aptos_framework = @0x1,
         user = @0xcafe,
         solver = @0xdead,
-        _verifier = @0xbeef
+        _approver = @0xbeef
     )]
     #[expected_failure(abort_code = 327684, location = mvmt_intent::intent)] // error::permission_denied(ENOT_REVOCABLE)
     /// What is tested: attempting to revoke an escrow intent aborts with ENOT_REVOCABLE
@@ -221,12 +221,12 @@ module mvmt_intent::intent_as_escrow_tests {
         aptos_framework: &signer,
         user: &signer,
         solver: &signer,
-        _verifier: &signer,
+        _approver: &signer,
     ) {
         let (offered_token_type, _) = test_utils::register_and_mint_tokens(aptos_framework, user, 100);
         let (_desired_token_type, _) = test_utils::register_and_mint_tokens(aptos_framework, solver, 100);
 
-        let (_verifier_secret_key, validated_pk) = ed25519::generate_keys();
+        let (_approver_secret_key, validated_pk) = ed25519::generate_keys();
         let approver_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
         let offered_asset = primary_fungible_store::withdraw(user, offered_token_type, 50);
@@ -263,7 +263,7 @@ module mvmt_intent::intent_as_escrow_tests {
         // Create test fungible asset metadata for testing
         let (fa_metadata, _) = test_utils::register_and_mint_tokens(aptos_framework, user, 100);
         
-        // Generate verifier key pair
+        // Generate approver key pair
         let (_, validated_pk) = ed25519::generate_keys();
         let approver_public_key = ed25519::public_key_to_unvalidated(&validated_pk);
         
