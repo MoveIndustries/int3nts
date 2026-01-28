@@ -186,7 +186,7 @@
 
 - [ ] Script to estimate validation program compute units
 - [ ] Script to estimate LayerZero message fees
-- [ ] Document cost comparison vs current verifier system
+- [ ] Document cost comparison vs current Trusted GMP (signer) system
 
 **Test:**
 

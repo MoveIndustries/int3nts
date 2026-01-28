@@ -72,7 +72,7 @@ sequenceDiagram
     TrustedGMP->>Solver: Delivers approval signature<br/>(Ed25519 for MVM/SVM, ECDSA for EVM)<br/>Signature itself is the approval
     alt MVM Chain
         Note over Solver: Anyone can call<br/>(funds go to reserved_solver)
-        Solver->>Connected: complete_escrow_from_fa(<br/>escrow_intent, payment_amount,<br/>verifier_signature_bytes)
+        Solver->>Connected: complete_escrow_from_fa(<br/>escrow_intent, payment_amount,<br/>approver_signature_bytes)
     else EVM Chain
         Note over Solver: Anyone can call<br/>(funds go to reservedSolver)
         Solver->>Connected: claim(intentId, signature)

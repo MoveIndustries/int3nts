@@ -143,7 +143,7 @@
 **Tasks:**
 
 - [ ] Create coordinator API client
-- [ ] Replace verifier API calls with coordinator API calls
+- [ ] Replace legacy signer API calls with coordinator API calls
 - [ ] Add WebSocket connection for real-time updates
 - [ ] Update UI to show GMP message status
 - [ ] Test API client with mocked responses
@@ -169,7 +169,7 @@
 **Tasks:**
 
 - [ ] Create coordinator API client for solver
-- [ ] Replace verifier API calls with coordinator API calls
+- [ ] Replace legacy signer API calls with coordinator API calls
 - [ ] Add intent discovery via coordinator
 - [ ] Add escrow status polling
 - [ ] **Add validation contract discovery** - query coordinator API for validation contract addresses on each connected chain
@@ -245,7 +245,7 @@ At the end of Phase 4, update:
 - [ ] `docs/solver/migration-guide.md` - How solvers migrate to GMP flow
 - [ ] `docker-compose.yml` - Document coordinator + PostgreSQL setup
 - [ ] Review conception documents for accuracy after changes
-- [ ] Check if other files reference old verifier API and update them
+- [ ] Check if other files reference legacy signer API and update them
 
 ---
 

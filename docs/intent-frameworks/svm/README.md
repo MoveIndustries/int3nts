@@ -55,14 +55,14 @@ For SVM outflow transfers, we use a **Memo-based convention** to attach the `int
 ### Instructions
 
 ```rust
-// Initialize program with verifier pubkey
-fn initialize(ctx: Context<Initialize>, verifier: Pubkey) -> Result<()>
+// Initialize program with approver pubkey
+fn initialize(ctx: Context<Initialize>, approver: Pubkey) -> Result<()>
 
 // Create escrow and deposit tokens atomically
 // Expiry is set to current_time + 120 seconds (2 minutes)
 fn create_escrow(ctx: Context<CreateEscrow>, intent_id: [u8; 32], amount: u64) -> Result<()>
 
-// Claim funds with verifier signature
+// Claim funds with approver signature
 // Requires Ed25519 verify instruction at index 0 in transaction
 fn claim(ctx: Context<Claim>, intent_id: [u8; 32], signature: [u8; 64]) -> Result<()>
 
@@ -83,7 +83,7 @@ fn cancel(ctx: Context<Cancel>, intent_id: [u8; 32]) -> Result<()>
 - `NoDeposit` - No funds in escrow
 - `UnauthorizedRequester` - Caller is not the requester
 - `InvalidSignature` - Signature verification failed
-- `UnauthorizedVerifier` - Signer is not the authorized verifier
+- `UnauthorizedApprover` - Signer is not the authorized approver
 - `EscrowExpired` - Cannot claim after expiry
 - `EscrowNotExpiredYet` - Cannot cancel before expiry
 
@@ -129,12 +129,12 @@ const createEscrowIx = buildCreateEscrowInstruction(
 const createTx = new Transaction().add(createEscrowIx);
 await sendAndConfirmTransaction(connection, createTx, [requester]);
 
-// Verifier signs intent_id (off-chain)
-const signature = nacl.sign.detached(intentId, verifier.secretKey);
+// Approver (trusted-gmp) signs intent_id (off-chain)
+const signature = nacl.sign.detached(intentId, approver.secretKey);
 
 // Build claim transaction with Ed25519 instruction
 const ed25519Ix = Ed25519Program.createInstructionWithPrivateKey({
-  privateKey: verifier.secretKey,
+  privateKey: approver.secretKey,
   message: intentId,
 });
 

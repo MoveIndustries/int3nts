@@ -108,8 +108,8 @@ sequenceDiagram
   - _Mitigation: Trusted-gmp only signs approval for the reserved solver._
 - The solver provides the wrong token type on destination connected chain.
   - _Mitigation: Trusted-gmp verifies that the token metadata matches the desired_metadata. If the token type is incorrect, no approval signature is given._
-- The trusted-gmp (verifier) signature verification fails during escrow release on source connected chain.
-  - _Mitigation: The escrow contract verifies the verifier signature. If verification fails, the release transaction aborts and funds remain locked until a valid signature is provided or the escrow expires._
+- The trusted-gmp signature verification fails during escrow release on source connected chain.
+  - _Mitigation: The escrow contract verifies the trusted-gmp (approver) signature. If verification fails, the release transaction aborts and funds remain locked until a valid signature is provided or the escrow expires._
 
 ### The requester is adverse
 
@@ -187,7 +187,7 @@ After successful verification, trusted-gmp signs an approval for escrow release.
 
 ### 8) Escrow release on source connected chain
 
-Trusted-gmp or the solver (with trusted-gmp/verifier signature) releases the escrow on the source connected chain. The offered amount + solver fee is transferred to the solver account.
+Trusted-gmp or the solver (with trusted-gmp signature) releases the escrow on the source connected chain. The offered amount + solver fee is transferred to the solver account.
 
 (Optional) Deducts fixed protocol fee → Treasury.
 

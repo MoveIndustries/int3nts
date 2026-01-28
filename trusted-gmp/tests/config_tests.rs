@@ -49,8 +49,9 @@ fn test_connected_chain_mvm_with_values() {
     );
 }
 
-/// What is tested: AcceptanceConfig parses pairs list without ratios
-/// Why: Verifier should only store pairs and fetch ratios live from solver
+/// What is tested: AcceptanceConfig parses pairs list without ratios.
+/// Why: AcceptanceConfig stores which token pairs are supported; exchange rates are
+/// fetched live from the solver when the acceptance/rate API is called (no ratios in config).
 #[test]
 fn test_acceptance_pairs_deserialize() {
     let toml = format!(

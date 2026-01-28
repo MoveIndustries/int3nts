@@ -27,7 +27,7 @@ let escrow_intent = intent_as_escrow::create_escrow(
 // 2. Solver takes escrow (solver signer must match reserved solver)
 let (escrowed_asset, session) = intent_as_escrow::start_escrow_session(solver, escrow_intent);
 
-// 3. Verifier signs the intent_id - signature itself is the approval
+// 3. Trusted GMP signs the intent_id - signature itself is the approval
 let intent_id = @0x1; // Same intent_id used when creating escrow
 let approver_signature = ed25519::sign_arbitrary_bytes(&approver_secret_key, bcs::to_bytes(&intent_id));
 
@@ -115,7 +115,7 @@ let escrow = intent_as_escrow::create_escrow(
 ### Trusted GMP Approval
 
 ```move
-// Verifier monitors conditions and signs the intent_id:
+// Trusted GMP monitors conditions and signs the intent_id:
 let intent_id = @0x1; // Same intent_id used when creating escrow
 let approver_signature = ed25519::sign_arbitrary_bytes(&approver_key, bcs::to_bytes(&intent_id));
 

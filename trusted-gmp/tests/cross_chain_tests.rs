@@ -33,13 +33,13 @@ use test_helpers::{
 ///    - Solver provides 1000 tokens on hub chain to fulfill the intent
 ///    - Solver fulfills hub intent (provides tokens on hub chain)
 ///
-/// 4. [HUB CHAIN] Verifier validates cross-chain conditions are met
-///    - Verifier matches escrow.intent_id to hub_intent.intent_id
-///    - Verifier validates solver fulfilled the intent on hub chain
+/// 4. [HUB CHAIN] Trusted GMP validates cross-chain conditions are met
+///    - Trusted GMP matches escrow.intent_id to hub_intent.intent_id
+///    - Trusted GMP validates solver fulfilled the intent on hub chain
 ///      (validates deposit amounts, metadata, and expiry)
 ///
-/// 5. [CONNECTED CHAIN] Verifier releases escrow to solver on connected chain
-///    - Verifier generates approval signature
+/// 5. [CONNECTED CHAIN] Trusted GMP releases escrow to solver on connected chain
+///    - Trusted GMP generates approval signature
 ///    - Escrow is released to solver on connected chain
 #[test]
 fn test_cross_chain_intent_matching() {
@@ -53,10 +53,10 @@ fn test_cross_chain_intent_matching() {
     // Step 3: Solver fulfills hub intent (solver provides 1000 tokens on hub chain)
     // [Not yet tested. This will also be tested here, not just in integration tests.]
 
-    // Step 4: Verifier validation
+    // Step 4: Trusted GMP validation
     // [Not yet tested. This will also be tested here, not just in integration tests.]
 
-    // Step 5: Verifier release
+    // Step 5: Trusted GMP release
     // [Not yet tested. This will also be tested here, not just in integration tests.]
 
     // This unit test verifies that data structures support cross-chain matching

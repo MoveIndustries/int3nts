@@ -108,8 +108,8 @@ sequenceDiagram
   - _Mitigation: The contract rejects the fulfillment if the intent is not reserved for the solver._
 - The solver provides the wrong token type on Hub chain.
   - _Mitigation: The contract verifies that the token metadata matches the desired_metadata. The fulfillment transaction aborts if the token type is incorrect._
-- The trusted-gmp (verifier) signature verification fails during escrow release.
-  - _Mitigation: The escrow contract verifies the verifier signature. If verification fails, the release transaction aborts and funds remain locked until a valid signature is provided or the escrow expires._
+- The trusted-gmp signature verification fails during escrow release.
+  - _Mitigation: The escrow contract verifies the trusted-gmp (approver) signature. If verification fails, the release transaction aborts and funds remain locked until a valid signature is provided or the escrow expires._
 
 ### The requeserter is adverse
 
@@ -142,7 +142,7 @@ sequenceDiagram
 
 - **Escrow not created or incorrect**: Connected-chain escrow missing, wrong amount, wrong mint, or wrong reserved solver; trusted-gmp rejects.
 - **Hub fulfillment mismatch**: Solver fulfills intent with incorrect amount or metadata; hub transaction aborts and no fulfillment event is emitted.
-- **Invalid approval signature**: Escrow release fails if trusted-gmp (verifier) signature or intent ID mismatch.
+- **Invalid approval signature**: Escrow release fails if trusted-gmp signature or intent ID mismatch.
 - **Expiry reached**: Escrow cannot be released after expiry; requester can cancel and reclaim.
 - **Monitoring gaps**: Trusted-gmp does not observe escrow or fulfillment events in time; approval is delayed until events are observed.
 
@@ -196,7 +196,7 @@ After successful verification, trusted-gmp signs an approval for escrow release.
 
 ### 9) Escrow release
 
-Trusted-gmp or the solver (with trusted-gmp/verifier signature) releases the escrow. The offered amount + solver fee is transferred to the solver account.
+Trusted-gmp or the solver (with trusted-gmp signature) releases the escrow. The offered amount + solver fee is transferred to the solver account.
 
 Deducts fixed protocol fee → Treasury.
 

@@ -62,7 +62,7 @@ solver/
 │   ├── acceptance.rs      # Token pair acceptance logic
 │   ├── config.rs          # Configuration management
 │   ├── crypto/            # Cryptographic operations (hashing, signing)
-│   └── verifier_client.rs # HTTP client for coordinator (drafts) and trusted-gmp (approvals) APIs
+│   └── coordinator_gmp_client.rs # HTTP client for coordinator (drafts) and trusted-gmp (approvals) APIs
 ├── config/               # Configuration templates
 └── Cargo.toml
 ```

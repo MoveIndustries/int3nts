@@ -263,7 +263,7 @@ graph TB
 
 ### Validation Domain (Coordinator + Trusted GMP)
 
-The old monolithic "verifier" service has been split into two services:
+The former monolithic signer service has been split into two services:
 - **Coordinator** (`coordinator/src/`): Read-only event monitoring, event caching, negotiation routing. No private keys.
 - **Trusted GMP** (`trusted-gmp/src/`): Cross-chain validation, approval signature generation, crypto operations. Has private keys.
 

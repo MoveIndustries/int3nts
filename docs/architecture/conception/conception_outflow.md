@@ -91,8 +91,8 @@ sequenceDiagram
   - _Mitigation: The contract rejects the fulfillment if the intent is not reserved for the solver._
 - The solver provides the wrong token type on connected chain.
   - _Mitigation: Trusted-gmp verifies that the token metadata matches the desired_metadata. If the token type is incorrect, no approval signature is given._
-- The trusted-gmp (verifier) signature verification fails during escrow release on Hub.
-  - _Mitigation: The Hub contract verifies the verifier signature. If verification fails, the release transaction aborts and funds remain locked until a valid signature is provided or the escrow expires._
+- The trusted-gmp signature verification fails during escrow release on Hub.
+  - _Mitigation: The Hub contract verifies the trusted-gmp (approver) signature. If verification fails, the release transaction aborts and funds remain locked until a valid signature is provided or the escrow expires._
 
 ### The requester is adverse
 
@@ -124,7 +124,7 @@ sequenceDiagram
 - **Connected-chain transfer failure**: Solver transfer fails or reverts; trusted-gmp never signs, hub escrow remains locked until expiry.
 - **Transfer mismatch**: Transfer amount, recipient, or token metadata does not match the intent; trusted-gmp rejects the fulfillment proof.
 - **Missing intent linkage**: Connected-chain transfer lacks intent metadata (memo/calldata); trusted-gmp rejects.
-- **Invalid approval signature**: Hub escrow release fails when the trusted-gmp (verifier) signature does not match the intent.
+- **Invalid approval signature**: Hub escrow release fails when the trusted-gmp signature does not match the intent.
 - **Expiry reached**: Hub escrow cannot be released after expiry; requester can cancel instead.
 
 ## Protocol steps details
@@ -160,7 +160,7 @@ After successful verification, trusted-gmp signs an approval for escrow release.
 
 ### 8) Escrow release on Hub
 
-Trusted-gmp or the solver (with trusted-gmp/verifier signature) releases the escrow on Hub chain. The offered amount + solver fee is transferred to the solver account.
+Trusted-gmp or the solver (with trusted-gmp signature) releases the escrow on Hub chain. The offered amount + solver fee is transferred to the solver account.
 
 (Optional) Deducts fixed protocol fee → Treasury.
 

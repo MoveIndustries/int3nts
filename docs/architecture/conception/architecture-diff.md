@@ -29,7 +29,7 @@ See [conception_inflow.md](conception_inflow.md) for the conceptual design.
 | Escrow (Move) | `create_escrow_from_fa(offered_metadata, offered_amount, offered_chain_id, approver_public_key, expiry_time, intent_id, reserved_solver, desired_chain_id)` | Creates escrow on Move connected chain |
 | Escrow (EVM) | `createEscrow(intentId, token, amount, reservedSolver)` | Creates escrow on EVM connected chain |
 | Fulfillment | `fulfill_inflow_request_intent(intent, payment_amount)` | Solver fulfills intent on Hub |
-| Escrow Release (Move) | `complete_escrow_from_fa(escrow_intent, payment_amount, verifier_signature_bytes)` | Releases escrow on Move chain |
+| Escrow Release (Move) | `complete_escrow_from_fa(escrow_intent, payment_amount, approver_signature_bytes)` | Releases escrow on Move chain |
 | Escrow Release (EVM) | `claim(intentId, signature)` | Releases escrow on EVM chain |
 
 **Events:**
@@ -55,7 +55,7 @@ See [conception_outflow.md](conception_outflow.md) for the conceptual design.
 |------|----------|-------------|
 | Request-Intent Creation | `create_outflow_request_intent(offered_metadata, offered_amount, offered_chain_id, desired_metadata, desired_amount, desired_chain_id, expiry_time, intent_id, requester_addr_connected_chain, approver_public_key, solver, solver_signature)` | Creates reserved intent with escrow on Hub |
 | Validation | `POST /validate-outflow-fulfillment(transaction_hash, chain_type, intent_id)` | Trusted-gmp validates solver transfer |
-| Fulfillment | `fulfill_outflow_request_intent(intent, verifier_signature_bytes)` | Solver claims escrow on Hub with trusted-gmp (verifier) signature |
+| Fulfillment | `fulfill_outflow_request_intent(intent, approver_signature_bytes)` | Solver claims escrow on Hub with trusted-gmp signature |
 
 **Events:**
 
@@ -127,7 +127,7 @@ sequenceDiagram
     TrustedGMP->>Solver: Delivers approval signature<br/>(Ed25519 for Move, ECDSA for EVM)<br/>Signature itself is the approval
     alt Move Chain
         Note over Solver: Anyone can call<br/>(funds go to reserved_solver)
-        Solver->>Source: complete_escrow_from_fa(<br/>escrow_intent, payment_amount,<br/>verifier_signature_bytes)
+        Solver->>Source: complete_escrow_from_fa(<br/>escrow_intent, payment_amount,<br/>approver_signature_bytes)
     else EVM Chain
         Note over Solver: Anyone can call<br/>(funds go to reservedSolver)
         Solver->>Source: claim(intentId, signature)

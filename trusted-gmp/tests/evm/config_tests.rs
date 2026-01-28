@@ -115,7 +115,7 @@ fn test_evm_chain_config_with_all_fields() {
     assert!(evm_config.chain_id > 0, "Chain ID should be set");
     assert!(
         !evm_config.approver_evm_pubkey_hash.is_empty(),
-        "Verifier address should be set"
+        "Approver address should be set"
     );
 
     // Verify specific values from build_test_config_with_evm
