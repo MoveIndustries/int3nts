@@ -8,7 +8,8 @@ For detailed field-by-field documentation, see:
 - [Move event structures](../../intent-frameworks/mvm/sources/fa_intent.move) - LimitOrderEvent, LimitOrderFulfillmentEvent
 - [EVM Escrow documentation](../../docs/intent-frameworks/evm/README.md)
 - [SVM Escrow documentation](../../docs/intent-frameworks/svm/README.md)
-- [Rust coordinator structures](../../coordinator/src/monitor/mod.rs) - RequestIntentEvent, EscrowEvent, FulfillmentEvent, EscrowApproval
+- [Rust coordinator structures](../../coordinator/src/monitor/mod.rs) - IntentEvent, EscrowEvent, FulfillmentEvent
+- [Rust trusted-gmp structures](../../trusted-gmp/src/monitor/mod.rs) - EscrowApproval
 
 ## Overview
 
@@ -34,7 +35,7 @@ The coordinator and trusted-gmp services normalize blockchain events from differ
 - **RequestIntentEvent** (`coordinator/src/monitor/mod.rs`) - Normalizes `LimitOrderEvent` from Move hub chain
 - **EscrowEvent** (`coordinator/src/monitor/mod.rs`) - Normalizes `OracleLimitOrderEvent` (Move) and `EscrowInitialized` (EVM) from connected chains
 - **FulfillmentEvent** (`coordinator/src/monitor/mod.rs`) - Normalizes `LimitOrderFulfillmentEvent` from hub chain
-- **EscrowApproval** (`coordinator/src/monitor/mod.rs`) - Cryptographic approval structure for escrow release
+- **EscrowApproval** (`trusted-gmp/src/monitor/mod.rs`) - Cryptographic approval structure for escrow release (trusted-gmp only)
 - **ChainType** (`coordinator/src/monitor/mod.rs`) - Enum representing blockchain type (Mvm, Evm, Svm) for escrow events
 
 **Normalization Purpose**: These structures abstract away chain-specific differences (Move address types vs EVM address types, BCS vs ABI encoding) to enable unified cross-chain validation logic. See [`coordinator/src/monitor/mod.rs`](../../coordinator/src/monitor/mod.rs) for complete field definitions.

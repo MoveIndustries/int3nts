@@ -58,129 +58,23 @@ pub async fn get_events_handler(
     let intent_events = monitor.get_cached_events().await;
     let escrow_events = monitor.get_cached_escrow_events().await;
     let fulfillment_events = monitor.get_cached_fulfillment_events().await;
-    let approvals = monitor.get_cached_approvals().await;
 
-    // Return intent, escrow, fulfillment events, and approvals in a combined structure
     #[derive(Debug, Serialize)]
     struct CombinedEvents {
         intent_events: Vec<crate::monitor::IntentEvent>,
         escrow_events: Vec<crate::monitor::EscrowEvent>,
         fulfillment_events: Vec<crate::monitor::FulfillmentEvent>,
-        approvals: Vec<crate::monitor::EscrowApproval>,
     }
 
     let combined = CombinedEvents {
         intent_events,
         escrow_events,
         fulfillment_events,
-        approvals,
     };
 
     Ok(warp::reply::json(&ApiResponse {
         success: true,
         data: Some(combined),
-        error: None,
-    }))
-}
-
-/// Handler for the approvals endpoint.
-///
-/// This function retrieves all cached approval signatures from the event monitor
-/// and returns them as a JSON response. (Read-only - approvals generated externally)
-///
-/// # Arguments
-///
-/// * `monitor` - The event monitor instance
-///
-/// # Returns
-///
-/// * `Ok(warp::Reply)` - JSON response with cached approvals
-/// * `Err(warp::Rejection)` - Failed to retrieve approvals
-pub async fn get_approvals_handler(
-    monitor: Arc<RwLock<EventMonitor>>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    let monitor = monitor.read().await;
-    let approvals = monitor.get_cached_approvals().await;
-
-    Ok(warp::reply::json(&ApiResponse {
-        success: true,
-        data: Some(approvals),
-        error: None,
-    }))
-}
-
-/// Handler for getting approval by escrow ID.
-///
-/// This function retrieves the approval signature for a specific escrow
-/// and returns it as a JSON response.
-///
-/// # Arguments
-///
-/// * `escrow_id` - The escrow ID to look up
-/// * `monitor` - The event monitor instance
-///
-/// # Returns
-///
-/// * `Ok(warp::Reply)` - JSON response with approval signature
-/// * `Err(warp::Rejection)` - Failed to retrieve approval
-pub async fn get_approval_by_escrow_handler(
-    escrow_id: String,
-    monitor: Arc<RwLock<EventMonitor>>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    let monitor = monitor.read().await;
-    match monitor.get_approval_for_escrow(&escrow_id).await {
-        Some(approval) => Ok(warp::reply::json(&ApiResponse {
-            success: true,
-            data: Some(approval),
-            error: None,
-        })),
-        None => Ok(warp::reply::json(&ApiResponse::<
-            crate::monitor::EscrowApproval,
-        > {
-            success: false,
-            data: None,
-            error: Some(format!("No approval found for escrow: {}", escrow_id)),
-        })),
-    }
-}
-
-/// Handler for checking if an intent has been approved.
-///
-/// This is a simple endpoint for the frontend to check if an outflow intent
-/// has received approval.
-///
-/// # Arguments
-///
-/// * `intent_id` - The intent ID to check
-/// * `monitor` - The event monitor instance
-///
-/// # Returns
-///
-/// * `Ok(warp::Reply)` - JSON response with `{ approved: true/false }`
-pub async fn is_intent_approved_handler(
-    intent_id: String,
-    monitor: Arc<RwLock<EventMonitor>>,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    let monitor = monitor.read().await;
-    let normalized = crate::monitor::normalize_intent_id(&intent_id);
-    let approved = monitor.is_intent_approved(&intent_id).await;
-
-    tracing::info!(
-        "Checking approval status: intent_id={}, normalized={}, approved={}",
-        intent_id,
-        normalized,
-        approved
-    );
-
-    #[derive(serde::Serialize)]
-    struct ApprovalStatus {
-        intent_id: String,
-        approved: bool,
-    }
-
-    Ok(warp::reply::json(&ApiResponse {
-        success: true,
-        data: Some(ApprovalStatus { intent_id, approved }),
         error: None,
     }))
 }
@@ -507,28 +401,6 @@ impl ApiServer {
             .and(with_monitor(monitor.clone()))
             .and_then(get_events_handler);
 
-        // Get approvals endpoint - returns all cached approval signatures (read-only)
-        let approvals = warp::path("approvals")
-            .and(warp::get())
-            .and(with_monitor(monitor.clone()))
-            .and_then(get_approvals_handler);
-
-        // Get approval for specific escrow endpoint (read-only)
-        let approval_by_escrow_monitor = monitor.clone();
-        let approval_by_escrow = warp::path("approvals")
-            .and(warp::path::param())
-            .and(warp::get())
-            .and(with_monitor(approval_by_escrow_monitor))
-            .and_then(get_approval_by_escrow_handler);
-
-        // Check if intent is approved endpoint - simple true/false for frontend polling (read-only)
-        let is_approved_monitor = monitor.clone();
-        let is_approved = warp::path("approved")
-            .and(warp::path::param())
-            .and(warp::get())
-            .and(with_monitor(is_approved_monitor))
-            .and_then(is_intent_approved_handler);
-
         // Get exchange rate endpoint - returns desired token and exchange rate for offered token
         let exchange_rate_config = self.config.clone();
         let exchange_rate = warp::path("acceptance")
@@ -628,9 +500,6 @@ impl ApiServer {
         // Combine all routes and apply rejection handler
         health
             .or(events)
-            .or(approvals)
-            .or(approval_by_escrow)
-            .or(is_approved)
             .or(create_draft)
             .or(get_draft)
             .or(get_pending)

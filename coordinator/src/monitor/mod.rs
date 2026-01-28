@@ -24,7 +24,7 @@ mod inflow_svm;
 // Re-export public types and functions
 #[allow(unused_imports)] // ChainType is used by external consumers (tests, lib re-export)
 pub use generic::{
-    ChainType, EscrowApproval, EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent,
+    ChainType, EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent,
 };
 
 // Re-export utility functions (used in tests and API handlers)

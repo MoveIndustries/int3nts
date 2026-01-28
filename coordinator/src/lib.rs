@@ -16,4 +16,4 @@ pub use storage::draftintents::{DraftintentStatus, DraftintentStore};
 
 // Re-export commonly used types
 pub use config::{ApiConfig, ChainConfig, Config, CoordinatorConfig, EvmChainConfig, SvmChainConfig};
-pub use monitor::{ChainType, EscrowApproval, EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent};
+pub use monitor::{ChainType, EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent};

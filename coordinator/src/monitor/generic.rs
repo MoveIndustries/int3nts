@@ -161,19 +161,6 @@ pub struct FulfillmentEvent {
     pub timestamp: u64,
 }
 
-/// Approval signature for escrow release
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EscrowApproval {
-    /// Escrow ID for which this approval was generated
-    pub escrow_id: String,
-    /// Intent ID that links hub and connected chain
-    pub intent_id: String,
-    /// Signature bytes (base64 encoded) - signature itself is the approval
-    pub signature: String,
-    /// Timestamp when approval was generated
-    pub timestamp: u64,
-}
-
 // ============================================================================
 // EVENT MONITOR STRUCTURE
 // ============================================================================
@@ -211,10 +198,6 @@ pub struct EventMonitor {
     /// It should not be accessed directly in production code.
     #[doc(hidden)]
     pub fulfillment_cache: Arc<RwLock<Vec<FulfillmentEvent>>>,
-    /// In-memory cache of approval signatures for escrow release (read from external source)
-    pub approval_cache: Arc<RwLock<Vec<EscrowApproval>>>,
-    /// Set of intent IDs that have been approved (for quick lookup by frontend)
-    pub approved_intent_ids: Arc<RwLock<std::collections::HashSet<String>>>,
 }
 
 impl EventMonitor {
@@ -255,8 +238,6 @@ impl EventMonitor {
             event_cache: Arc::new(RwLock::new(Vec::new())),
             escrow_cache: Arc::new(RwLock::new(Vec::new())),
             fulfillment_cache: Arc::new(RwLock::new(Vec::new())),
-            approval_cache: Arc::new(RwLock::new(Vec::new())),
-            approved_intent_ids: Arc::new(RwLock::new(std::collections::HashSet::new())),
         })
     }
 
@@ -409,69 +390,5 @@ impl EventMonitor {
     pub async fn get_cached_fulfillment_events(&self) -> Vec<FulfillmentEvent> {
         use super::outflow_generic;
         outflow_generic::get_cached_fulfillment_events(self).await
-    }
-
-    /// Returns a copy of all cached approval signatures.
-    ///
-    /// This function provides access to the approval cache for API endpoints
-    /// and escrow release operations.
-    ///
-    /// # Returns
-    ///
-    /// A vector containing all cached approval signatures
-    pub async fn get_cached_approvals(&self) -> Vec<EscrowApproval> {
-        use super::inflow_generic;
-        inflow_generic::get_cached_approvals(self).await
-    }
-
-    /// Gets approval signature for a specific escrow.
-    ///
-    /// # Arguments
-    ///
-    /// * `escrow_id` - The escrow ID to look up
-    ///
-    /// # Returns
-    ///
-    /// * `Some(EscrowApproval)` - Approval signature if found
-    /// * `None` - No approval found for this escrow
-    pub async fn get_approval_for_escrow(&self, escrow_id: &str) -> Option<EscrowApproval> {
-        use super::inflow_generic;
-        inflow_generic::get_approval_for_escrow(self, escrow_id).await
-    }
-
-    /// Marks an intent as approved.
-    ///
-    /// This is called when an approval signature is generated for an intent.
-    /// The frontend can then check if an intent has been approved.
-    #[allow(dead_code)] // Called from api::outflow_generic; lint false positive
-    pub async fn mark_intent_approved(&self, intent_id: &str) {
-        let normalized = normalize_intent_id(intent_id);
-        let mut approved = self.approved_intent_ids.write().await;
-        approved.insert(normalized);
-    }
-
-    /// Checks if an intent has been approved.
-    ///
-    /// # Arguments
-    ///
-    /// * `intent_id` - The intent ID to check
-    ///
-    /// # Returns
-    ///
-    /// * `true` if the intent has been approved
-    /// * `false` if not approved yet
-    pub async fn is_intent_approved(&self, intent_id: &str) -> bool {
-        let normalized = normalize_intent_id(intent_id);
-        let approved = self.approved_intent_ids.read().await;
-        approved.contains(&normalized)
-    }
-
-    /// Returns all approved intent IDs.
-    ///
-    /// Note: Currently unused but kept for potential future API endpoints or debugging
-    #[allow(dead_code)]
-    pub async fn get_approved_intent_ids(&self) -> Vec<String> {
-        let approved = self.approved_intent_ids.read().await;
-        approved.iter().cloned().collect()
     }
 }

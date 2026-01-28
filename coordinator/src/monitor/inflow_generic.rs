@@ -11,7 +11,7 @@
 use anyhow::Result;
 use tracing::{error, info, warn};
 
-use super::generic::{EscrowApproval, EscrowEvent, EventMonitor};
+use super::generic::{EscrowEvent, EventMonitor};
 use super::inflow_mvm;
 
 // ============================================================================
@@ -229,47 +229,4 @@ pub async fn poll_connected_events(monitor: &EventMonitor) -> Result<Vec<EscrowE
 /// A vector containing all cached escrow events from all connected chains
 pub async fn get_cached_escrow_events(monitor: &EventMonitor) -> Vec<EscrowEvent> {
     monitor.escrow_cache.read().await.clone()
-}
-
-/// Returns a copy of all cached approval signatures.
-///
-/// This function provides access to the approval cache for API endpoints
-/// and escrow release operations. The cache contains approval signatures that
-/// have been generated after hub fulfillment events were observed.
-///
-/// # Arguments
-///
-/// * `monitor` - The event monitor instance
-///
-/// # Returns
-///
-/// A vector containing all cached approval signatures
-pub async fn get_cached_approvals(monitor: &EventMonitor) -> Vec<EscrowApproval> {
-    monitor.approval_cache.read().await.clone()
-}
-
-/// Gets approval signature for a specific escrow.
-///
-/// This function looks up an approval signature by escrow ID. Approval signatures
-/// are generated automatically when hub fulfillment events are observed for
-/// matching escrows.
-///
-/// # Arguments
-///
-/// * `monitor` - The event monitor instance
-/// * `escrow_id` - The escrow ID to look up
-///
-/// # Returns
-///
-/// * `Some(EscrowApproval)` - Approval signature if found
-/// * `None` - No approval found for this escrow (fulfillment not yet observed or escrow doesn't exist)
-pub async fn get_approval_for_escrow(
-    monitor: &EventMonitor,
-    escrow_id: &str,
-) -> Option<EscrowApproval> {
-    let approvals = monitor.approval_cache.read().await;
-    approvals
-        .iter()
-        .find(|approval| approval.escrow_id == escrow_id)
-        .cloned()
 }
