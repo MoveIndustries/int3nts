@@ -114,13 +114,13 @@
 
 **Tasks:**
 
-- [ ] Create `gmp-common` library crate
-- [ ] Implement `IntentRequirements` encode/decode per wire format spec
-- [ ] Implement `EscrowConfirmation` encode/decode per wire format spec
-- [ ] Implement `FulfillmentProof` encode/decode per wire format spec
-- [ ] Define GMP endpoint addresses (LZ devnet, LZ mainnet, local)
-- [ ] Test encoding matches documented wire format exactly
-- [ ] Test decoding of known byte sequences
+- [x] Create `gmp-common` library crate
+- [x] Implement `IntentRequirements` encode/decode per wire format spec
+- [x] Implement `EscrowConfirmation` encode/decode per wire format spec
+- [x] Implement `FulfillmentProof` encode/decode per wire format spec
+- [x] Define GMP endpoint addresses (LZ devnet, LZ mainnet, local)
+- [x] Test encoding matches documented wire format exactly
+- [x] Test decoding of known byte sequences
 
 **Test:**
 

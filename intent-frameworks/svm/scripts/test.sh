@@ -23,3 +23,6 @@ cd "$PROJECT_DIR"
 # and solana_runtime to warn (suppresses DEBUG messages)
 echo "[test.sh] Running Rust tests..."
 RUST_LOG=tarpc=error,solana_runtime=warn cargo test -p intent_escrow --tests -- --nocapture "$@"
+
+echo "[test.sh] Running gmp-common tests..."
+RUST_LOG=tarpc=error,solana_runtime=warn cargo test -p gmp-common --tests -- --nocapture "$@"

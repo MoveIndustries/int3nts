@@ -104,3 +104,95 @@ Each test file uses independent numbering starting from 1. At the end of the imp
 | 2 | Should handle multiple different token types | ✅ | ✅ |
 | 3 | Should emit all events/logs with correct parameters | ✅ | N/A |
 | 4 | Should complete full cancellation workflow | ✅ | ✅ |
+
+---
+
+GMP message encoding/decoding test alignment:
+
+- `intent-frameworks/svm/programs/gmp-common/tests/message_tests.rs`
+- `intent-frameworks/mvm/tests/gmp_common_tests.move` (Commit 5)
+- `intent-frameworks/evm/test/gmp-common/` (Commit TBD)
+
+### Per-message-type test symmetry
+
+Each message type has a symmetric set of tests. The table below shows how test concepts map across types.
+
+| Concept | IntentRequirements (0x01) | EscrowConfirmation (0x02) | FulfillmentProof (0x03) |
+| --- | --- | --- | --- |
+| Encoded size | 1 | 8 | 13 |
+| Discriminator byte | 2 | 9 | 14 |
+| Encode/decode roundtrip | 3 | 10 | 15 |
+| Big-endian amount | 4 | 11 | 16 |
+| Big-endian second u64 | 5 (expiry) | N/A | 16 (timestamp) |
+| Field offsets | 6 | 12 | 17 |
+| EVM address encoding | 7 | N/A | N/A |
+
+## message_tests.rs — IntentRequirements (0x01)
+
+| # | Test | SVM | MVM | EVM |
+| --- | --- | --- | --- | --- |
+| 1 | test_intent_requirements_encode_size | ✅ | ⚠️ | ⚠️ |
+| 2 | test_intent_requirements_discriminator | ✅ | ⚠️ | ⚠️ |
+| 3 | test_intent_requirements_roundtrip | ✅ | ⚠️ | ⚠️ |
+| 4 | test_intent_requirements_big_endian_amount | ✅ | ⚠️ | ⚠️ |
+| 5 | test_intent_requirements_big_endian_expiry | ✅ | ⚠️ | ⚠️ |
+| 6 | test_intent_requirements_field_offsets | ✅ | ⚠️ | ⚠️ |
+| 7 | test_intent_requirements_evm_address | ✅ | ⚠️ | ⚠️ |
+
+## message_tests.rs — EscrowConfirmation (0x02)
+
+| # | Test | SVM | MVM | EVM |
+| --- | --- | --- | --- | --- |
+| 8 | test_escrow_confirmation_encode_size | ✅ | ⚠️ | ⚠️ |
+| 9 | test_escrow_confirmation_discriminator | ✅ | ⚠️ | ⚠️ |
+| 10 | test_escrow_confirmation_roundtrip | ✅ | ⚠️ | ⚠️ |
+| 11 | test_escrow_confirmation_big_endian_amount | ✅ | ⚠️ | ⚠️ |
+| 12 | test_escrow_confirmation_field_offsets | ✅ | ⚠️ | ⚠️ |
+
+## message_tests.rs — FulfillmentProof (0x03)
+
+| # | Test | SVM | MVM | EVM |
+| --- | --- | --- | --- | --- |
+| 13 | test_fulfillment_proof_encode_size | ✅ | ⚠️ | ⚠️ |
+| 14 | test_fulfillment_proof_discriminator | ✅ | ⚠️ | ⚠️ |
+| 15 | test_fulfillment_proof_roundtrip | ✅ | ⚠️ | ⚠️ |
+| 16 | test_fulfillment_proof_big_endian_fields | ✅ | ⚠️ | ⚠️ |
+| 17 | test_fulfillment_proof_field_offsets | ✅ | ⚠️ | ⚠️ |
+
+## message_tests.rs — Peek Message Type
+
+| # | Test | SVM | MVM | EVM |
+| --- | --- | --- | --- | --- |
+| 18 | test_peek_intent_requirements | ✅ | ⚠️ | ⚠️ |
+| 19 | test_peek_escrow_confirmation | ✅ | ⚠️ | ⚠️ |
+| 20 | test_peek_fulfillment_proof | ✅ | ⚠️ | ⚠️ |
+
+## message_tests.rs — Error Conditions
+
+| # | Test | SVM | MVM | EVM |
+| --- | --- | --- | --- | --- |
+| 21 | test_reject_wrong_discriminator | ✅ | ⚠️ | ⚠️ |
+| 22 | test_reject_wrong_length | ✅ | ⚠️ | ⚠️ |
+| 23 | test_reject_empty_buffer | ✅ | ⚠️ | ⚠️ |
+| 24 | test_peek_reject_empty_buffer | ✅ | ⚠️ | ⚠️ |
+| 25 | test_peek_reject_unknown_type | ✅ | ⚠️ | ⚠️ |
+| 26 | test_reject_wrong_discriminator_escrow_confirmation | ✅ | ⚠️ | ⚠️ |
+| 27 | test_reject_wrong_discriminator_fulfillment_proof | ✅ | ⚠️ | ⚠️ |
+| 28 | test_reject_wrong_length_escrow_confirmation | ✅ | ⚠️ | ⚠️ |
+| 29 | test_reject_wrong_length_fulfillment_proof | ✅ | ⚠️ | ⚠️ |
+| 30 | test_reject_off_by_one_length | ✅ | ⚠️ | ⚠️ |
+
+## message_tests.rs — Known Byte Sequences
+
+| # | Test | SVM | MVM | EVM |
+| --- | --- | --- | --- | --- |
+| 31 | test_decode_known_intent_requirements_bytes | ✅ | ⚠️ | ⚠️ |
+| 32 | test_decode_known_escrow_confirmation_bytes | ✅ | ⚠️ | ⚠️ |
+| 33 | test_decode_known_fulfillment_proof_bytes | ✅ | ⚠️ | ⚠️ |
+
+## message_tests.rs — Boundary Conditions
+
+| # | Test | SVM | MVM | EVM |
+| --- | --- | --- | --- | --- |
+| 34 | test_max_u64_amount_roundtrip | ✅ | ⚠️ | ⚠️ |
+| 35 | test_zero_solver_addr_means_any | ✅ | ⚠️ | ⚠️ |
