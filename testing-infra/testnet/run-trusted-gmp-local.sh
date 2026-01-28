@@ -1,21 +1,21 @@
 #!/bin/bash
 
-# Run Verifier Locally (Against Testnets)
+# Run Trusted GMP Locally (Against Testnets)
 #
-# This script runs the verifier service locally, connecting to:
+# This script runs the trusted-gmp service locally, connecting to:
 #   - Movement Bardock Testnet (hub chain)
 #   - Base Sepolia (connected chain)
 #
 # Use this to test before deploying to EC2.
 #
 # Prerequisites:
-#   - verifier/config/verifier_testnet.toml configured with actual deployed addresses
+#   - trusted-gmp/config/verifier_testnet.toml configured with actual deployed addresses
 #   - .env.testnet with VERIFIER_PRIVATE_KEY and VERIFIER_PUBLIC_KEY
 #   - Rust toolchain installed
 #
 # Usage:
-#   ./run-verifier-local.sh
-#   ./run-verifier-local.sh --release  # Run release build (faster)
+#   ./run-trusted-gmp-local.sh
+#   ./run-trusted-gmp-local.sh --release  # Run release build (faster)
 
 set -e
 
@@ -23,18 +23,18 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
 
-echo " Running Verifier Locally (Testnet Mode)"
-echo "==========================================="
+echo " Running Trusted GMP Locally (Testnet Mode)"
+echo "================================================"
 echo ""
 
 # Check config exists
-VERIFIER_CONFIG="$PROJECT_ROOT/verifier/config/verifier_testnet.toml"
+VERIFIER_CONFIG="$PROJECT_ROOT/trusted-gmp/config/verifier_testnet.toml"
 
 if [ ! -f "$VERIFIER_CONFIG" ]; then
     echo "❌ ERROR: verifier_testnet.toml not found at $VERIFIER_CONFIG"
     echo ""
     echo "   Create it from the template:"
-    echo "   cp verifier/config/verifier.template.toml verifier/config/verifier_testnet.toml"
+    echo "   cp trusted-gmp/config/verifier.template.toml trusted-gmp/config/verifier_testnet.toml"
     echo ""
     echo "   Then populate with actual deployed contract addresses:"
     echo "   - intent_module_addr (hub_chain section)"
@@ -78,7 +78,7 @@ if [ ${#MISSING_VARS[@]} -ne 0 ]; then
         echo "   - $var"
     done
     echo ""
-    echo "   These keys are required for the verifier to sign approvals."
+    echo "   These keys are required for the trusted-gmp service to sign approvals."
     exit 1
 fi
 
@@ -106,7 +106,7 @@ ESCROW_CONTRACT=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "
 # Check for API key placeholders in RPC URLs
 if [[ "$HUB_RPC" == *"ALCHEMY_API_KEY"* ]] || [[ "$EVM_RPC" == *"ALCHEMY_API_KEY"* ]]; then
     echo "️  WARNING: RPC URLs contain API key placeholders (ALCHEMY_API_KEY)"
-    echo "   The verifier service does not substitute placeholders - use full URLs in config"
+    echo "   The trusted-gmp service does not substitute placeholders - use full URLs in config"
     echo "   Or use the public RPC URLs from testnet-assets.toml"
     echo ""
 fi
@@ -124,10 +124,10 @@ echo "     RPC:              $EVM_RPC"
 echo "     Escrow Contract:  $ESCROW_CONTRACT"
 echo ""
 echo "   API Server:"
-echo "     Port:             ${API_PORT:-3333}"
+echo "     Port:             ${API_PORT:-3334}"
 echo ""
 
-cd "$PROJECT_ROOT/verifier"
+cd "$PROJECT_ROOT/trusted-gmp"
 
 # Export environment variables for verifier keys
 export VERIFIER_PRIVATE_KEY
@@ -136,17 +136,16 @@ export VERIFIER_PUBLIC_KEY
 # Check if --release flag is passed
 if [ "$1" = "--release" ]; then
     echo " Building release binary..."
-    nix develop "$PROJECT_ROOT/nix" --command bash -c "cd '$PROJECT_ROOT/verifier' && cargo build --release"
+    nix develop "$PROJECT_ROOT/nix" --command bash -c "cd '$PROJECT_ROOT/trusted-gmp' && cargo build --release"
     echo ""
-    echo " Starting verifier (release mode)..."
+    echo " Starting trusted-gmp (release mode)..."
     echo "   Press Ctrl+C to stop"
     echo ""
-    RUST_LOG=info ./target/release/verifier --testnet
+    RUST_LOG=info ./target/release/trusted-gmp --testnet
 else
-    echo " Starting verifier (debug mode)..."
+    echo " Starting trusted-gmp (debug mode)..."
     echo "   Press Ctrl+C to stop"
     echo "   (Use --release for faster performance)"
     echo ""
-    nix develop "$PROJECT_ROOT/nix" --command bash -c "cd '$PROJECT_ROOT/verifier' && RUST_LOG=info cargo run --bin verifier -- --testnet"
+    nix develop "$PROJECT_ROOT/nix" --command bash -c "cd '$PROJECT_ROOT/trusted-gmp' && RUST_LOG=info cargo run --bin trusted-gmp -- --testnet"
 fi
-

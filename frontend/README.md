@@ -34,7 +34,8 @@ npm start
 Create a `.env.local` file:
 
 ```
-NEXT_PUBLIC_VERIFIER_URL=http://localhost:3333
+NEXT_PUBLIC_COORDINATOR_URL=http://localhost:3333
+NEXT_PUBLIC_TRUSTED_GMP_URL=http://localhost:3334
 NEXT_PUBLIC_HUB_RPC=https://testnet.movementnetwork.xyz
 NEXT_PUBLIC_EVM_RPC=https://...
 NEXT_PUBLIC_SVM_RPC_URL=https://api.devnet.solana.com

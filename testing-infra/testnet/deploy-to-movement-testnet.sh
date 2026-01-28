@@ -6,7 +6,7 @@
 # backward-incompatible module update errors. Funds are transferred from
 # the deployer account in .env.testnet to the new module address.
 #
-# The new module address must be updated in verifier and solver config
+# The new module address must be updated in coordinator and solver config
 # files after deployment.
 #
 # REQUIRES: Movement CLI (not aptos CLI)
@@ -354,7 +354,7 @@ echo " NEW Module Address: $DEPLOY_ADDR_FULL"
 echo ""
 echo "️  IMPORTANT: Update these files with the new module address:"
 echo ""
-echo "   1. verifier/config/verifier_testnet.toml:"
+echo "   1. coordinator/config/verifier_testnet.toml:"
 echo "      intent_module_addr = \"$DEPLOY_ADDR_FULL\""
 echo ""
 echo "   2. solver/config/solver_testnet.toml:"

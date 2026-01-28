@@ -1,4 +1,4 @@
-{ stdenv, fetchurl, lib, gnutar, gzip }:
+{ stdenv, fetchurl, lib, gnutar, gzip, autoPatchelfHook, openssl, systemd }:
 
 let
   # Movement CLI for testnet (Move 2 support)
@@ -33,7 +33,13 @@ in stdenv.mkDerivation rec {
     sha256 = hashes.${platform};
   };
 
-  nativeBuildInputs = [ gnutar gzip ];
+  nativeBuildInputs = [ gnutar gzip autoPatchelfHook ];
+  buildInputs = [
+    stdenv.cc.cc.lib  # libstdc++
+    openssl           # libssl.so.3, libcrypto.so.3
+  ] ++ lib.optionals stdenv.isLinux [
+    systemd           # libudev.so.1
+  ];
 
   unpackPhase = ''
     tar -xzf $src

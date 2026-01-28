@@ -3,7 +3,7 @@
 # Run Solver Locally (Against Testnets)
 #
 # This script runs the solver service locally, connecting to:
-#   - Local or remote verifier (default: localhost:3333)
+#   - Local or remote coordinator (default: localhost:3333) and trusted-gmp (default: localhost:3334)
 #   - Movement Bardock Testnet (hub chain)
 #   - Base Sepolia (connected chain)
 #
@@ -13,7 +13,7 @@
 #   - solver/config/solver_testnet.toml configured with actual deployed addresses
 #   - .env.testnet with BASE_SOLVER_PRIVATE_KEY
 #   - Movement CLI profile configured for solver (uses MOVEMENT_SOLVER_PRIVATE_KEY from .env.testnet)
-#   - Verifier running (locally or remotely)
+#   - Coordinator and trusted-gmp running (locally or remotely)
 #   - Rust toolchain installed
 #
 # Usage:

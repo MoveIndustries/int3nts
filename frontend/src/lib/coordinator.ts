@@ -1,5 +1,5 @@
 // ============================================================================
-// Verifier API Client
+// Coordinator & Trusted GMP API Client
 // ============================================================================
 
 import type {
@@ -16,28 +16,39 @@ import type {
 // Configuration
 // ============================================================================
 
-const VERIFIER_URL = process.env.NEXT_PUBLIC_VERIFIER_URL;
-if (!VERIFIER_URL) {
-  throw new Error('NEXT_PUBLIC_VERIFIER_URL environment variable is not set');
+const COORDINATOR_URL = process.env.NEXT_PUBLIC_COORDINATOR_URL as string;
+if (!COORDINATOR_URL) {
+  throw new Error('NEXT_PUBLIC_COORDINATOR_URL environment variable is not set');
+}
+
+const TRUSTED_GMP_URL = process.env.NEXT_PUBLIC_TRUSTED_GMP_URL as string;
+if (!TRUSTED_GMP_URL) {
+  throw new Error('NEXT_PUBLIC_TRUSTED_GMP_URL environment variable is not set');
 }
 
 // ============================================================================
 // Client Implementation
 // ============================================================================
 
-class VerifierClient {
-  private baseUrl: string;
+class CoordinatorClient {
+  private coordinatorUrl: string;
+  private trustedGmpUrl: string;
 
-  constructor(baseUrl: string = VERIFIER_URL) {
-    this.baseUrl = baseUrl;
+  constructor(
+    coordinatorUrl: string = COORDINATOR_URL,
+    trustedGmpUrl: string = TRUSTED_GMP_URL
+  ) {
+    this.coordinatorUrl = coordinatorUrl;
+    this.trustedGmpUrl = trustedGmpUrl;
   }
 
-  private async fetch<T>(
+  private async fetchFrom<T>(
+    baseUrl: string,
     endpoint: string,
     options?: RequestInit
   ): Promise<ApiResponse<T>> {
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const response = await fetch(`${baseUrl}${endpoint}`, {
         ...options,
         headers: {
           'Content-Type': 'application/json',
@@ -46,10 +57,10 @@ class VerifierClient {
       });
 
       // Parse JSON response regardless of status code
-      // The verifier returns 200 OK for signed, 202 Accepted for pending
+      // The coordinator returns 200 OK for signed, 202 Accepted for pending
       // Both are valid responses and should be parsed
       const data = await response.json();
-      
+
       // If status is not ok (outside 200-299), treat as error
       if (!response.ok) {
         return {
@@ -58,7 +69,7 @@ class VerifierClient {
           error: data.error || `HTTP ${response.status}: ${response.statusText}`,
         };
       }
-      
+
       return data as ApiResponse<T>;
     } catch (error) {
       if (!(error instanceof Error)) {
@@ -66,9 +77,9 @@ class VerifierClient {
       }
       const errorMessage = error.message;
       const detailedError = error instanceof TypeError && errorMessage.includes('fetch')
-        ? `Failed to connect to verifier at ${this.baseUrl}. Is it running?`
+        ? `Failed to connect to service at ${baseUrl}. Is it running?`
         : errorMessage;
-      
+
       return {
         success: false,
         data: null,
@@ -78,29 +89,19 @@ class VerifierClient {
   }
 
   // --------------------------------------------------------------------------
-  // Health
+  // Coordinator endpoints (negotiation, events, exchange rates)
   // --------------------------------------------------------------------------
 
   // Health check
   async health(): Promise<ApiResponse<string>> {
-    return this.fetch<string>('/health');
-  }
-
-  // --------------------------------------------------------------------------
-  // Public Key
-  // --------------------------------------------------------------------------
-
-  // Get public key
-  // Note: API returns the public key directly as the data field (base64 string)
-  async getPublicKey(): Promise<ApiResponse<string>> {
-    return this.fetch<string>('/public-key');
+    return this.fetchFrom<string>(this.coordinatorUrl, '/health');
   }
 
   // Draft intent endpoints
   async createDraftIntent(
     request: DraftIntentRequest
   ): Promise<ApiResponse<DraftIntentResponse>> {
-    return this.fetch<DraftIntentResponse>('/draftintent', {
+    return this.fetchFrom<DraftIntentResponse>(this.coordinatorUrl, '/draftintent', {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -109,11 +110,11 @@ class VerifierClient {
   async getDraftIntentStatus(
     draftId: string
   ): Promise<ApiResponse<DraftIntentStatus>> {
-    return this.fetch<DraftIntentStatus>(`/draftintent/${draftId}`);
+    return this.fetchFrom<DraftIntentStatus>(this.coordinatorUrl, `/draftintent/${draftId}`);
   }
 
   async getPendingDrafts(): Promise<ApiResponse<DraftIntentStatus[]>> {
-    return this.fetch<DraftIntentStatus[]>('/draftintents/pending');
+    return this.fetchFrom<DraftIntentStatus[]>(this.coordinatorUrl, '/draftintents/pending');
   }
 
   async submitDraftSignature(
@@ -122,7 +123,7 @@ class VerifierClient {
     signature: string,
     publicKey: string
   ): Promise<ApiResponse<DraftIntentResponse>> {
-    return this.fetch<DraftIntentResponse>(`/draftintent/${draftId}/signature`, {
+    return this.fetchFrom<DraftIntentResponse>(this.coordinatorUrl, `/draftintent/${draftId}/signature`, {
       method: 'POST',
       body: JSON.stringify({
         solver_hub_addr: solverAddr,
@@ -136,22 +137,56 @@ class VerifierClient {
   async pollDraftSignature(
     draftId: string
   ): Promise<ApiResponse<DraftIntentSignature>> {
-    return this.fetch<DraftIntentSignature>(
+    return this.fetchFrom<DraftIntentSignature>(
+      this.coordinatorUrl,
       `/draftintent/${draftId}/signature`
     );
   }
 
-  // Events and approvals
+  // Events
   async getEvents(): Promise<ApiResponse<EventsResponse>> {
-    return this.fetch<EventsResponse>('/events');
+    return this.fetchFrom<EventsResponse>(this.coordinatorUrl, '/events');
   }
 
+  // Get exchange rate for token pair
+  async getExchangeRate(
+    offeredChainId: number,
+    offeredToken: string,
+    desiredChainId?: number,
+    desiredToken?: string
+  ): Promise<ApiResponse<{
+    desired_token: string;
+    desired_chain_id: number;
+    exchange_rate: number;
+  }>> {
+    const params = new URLSearchParams({
+      offered_chain_id: offeredChainId.toString(),
+      offered_token: offeredToken,
+    });
+    if (desiredChainId !== undefined && desiredToken !== undefined) {
+      params.append('desired_chain_id', desiredChainId.toString());
+      params.append('desired_token', desiredToken);
+    }
+    return this.fetchFrom(this.coordinatorUrl, `/acceptance?${params.toString()}`);
+  }
+
+  // --------------------------------------------------------------------------
+  // Trusted GMP endpoints (approvals, validation, public key)
+  // --------------------------------------------------------------------------
+
+  // Get public key
+  // Note: API returns the public key directly as the data field (base64 string)
+  async getPublicKey(): Promise<ApiResponse<string>> {
+    return this.fetchFrom<string>(this.trustedGmpUrl, '/public-key');
+  }
+
+  // Approvals
   async getApprovals(): Promise<ApiResponse<Approval[]>> {
-    return this.fetch<Approval[]>('/approvals');
+    return this.fetchFrom<Approval[]>(this.trustedGmpUrl, '/approvals');
   }
 
   async getApprovalByEscrow(escrowId: string): Promise<ApiResponse<Approval>> {
-    return this.fetch<Approval>(`/approvals/${escrowId}`);
+    return this.fetchFrom<Approval>(this.trustedGmpUrl, `/approvals/${escrowId}`);
   }
 
   // Validation endpoints
@@ -172,7 +207,7 @@ class VerifierClient {
       };
     }>
   > {
-    return this.fetch(`/validate-outflow-fulfillment`, {
+    return this.fetchFrom(this.trustedGmpUrl, `/validate-outflow-fulfillment`, {
       method: 'POST',
       body: JSON.stringify({
         transaction_hash: transactionHash,
@@ -182,7 +217,10 @@ class VerifierClient {
     });
   }
 
+  // --------------------------------------------------------------------------
   // Polling utilities
+  // --------------------------------------------------------------------------
+
   async pollUntilSigned(
     draftId: string,
     options: {
@@ -260,29 +298,6 @@ class VerifierClient {
       error: 'Polling timeout',
     };
   }
-
-  // Get exchange rate for token pair
-  async getExchangeRate(
-    offeredChainId: number,
-    offeredToken: string,
-    desiredChainId?: number,
-    desiredToken?: string
-  ): Promise<ApiResponse<{
-    desired_token: string;
-    desired_chain_id: number;
-    exchange_rate: number;
-  }>> {
-    const params = new URLSearchParams({
-      offered_chain_id: offeredChainId.toString(),
-      offered_token: offeredToken,
-    });
-    if (desiredChainId !== undefined && desiredToken !== undefined) {
-      params.append('desired_chain_id', desiredChainId.toString());
-      params.append('desired_token', desiredToken);
-    }
-    return this.fetch(`/acceptance?${params.toString()}`);
-  }
 }
 
-export const verifierClient = new VerifierClient();
-
+export const coordinatorClient = new CoordinatorClient();

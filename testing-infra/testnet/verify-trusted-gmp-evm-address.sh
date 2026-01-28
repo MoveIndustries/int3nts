@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Verify Verifier EVM Address Script (Testnet)
-# 
+# Verify Trusted GMP EVM Address Script (Testnet)
+#
 # Verifies that VERIFIER_EVM_PUBKEY_HASH in this directory's .env.testnet matches
 # the EVM address derived from VERIFIER_PRIVATE_KEY, and optionally checks
 # that the on-chain IntentEscrow contract has the correct verifier address.
 #
-# Usage: ./verify-verifier-evm-address.sh
+# Usage: ./verify-trusted-gmp-evm-address.sh
 #
 # Checks:
 #   1. Computes EVM address from VERIFIER_PRIVATE_KEY
@@ -44,8 +44,8 @@ if [ -z "$VERIFIER_PRIVATE_KEY" ]; then
     exit 1
 fi
 
-echo " Verifying Verifier EVM Address"
-echo "=================================="
+echo " Verifying Trusted GMP EVM Address"
+echo "======================================="
 echo ""
 echo "   Config file: $ENV_FILE"
 echo "   Expected:    $VERIFIER_EVM_PUBKEY_HASH"
@@ -53,7 +53,7 @@ echo ""
 
 # Compute EVM address from private key
 echo "   Computing EVM address from VERIFIER_PRIVATE_KEY..."
-COMPUTED_ADDR=$(cd "$PROJECT_ROOT/verifier" && \
+COMPUTED_ADDR=$(cd "$PROJECT_ROOT/trusted-gmp" && \
     VERIFIER_CONFIG_PATH=config/verifier_testnet.toml \
     nix develop "$PROJECT_ROOT/nix" -c bash -c "cargo run --bin get_verifier_eth_address --quiet 2>&1" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1)
 
@@ -87,7 +87,7 @@ fi
 
 # Check on-chain contract (if config is available)
 ONCHAIN_MATCH=false
-VERIFIER_CONFIG="$PROJECT_ROOT/verifier/config/verifier_testnet.toml"
+VERIFIER_CONFIG="$PROJECT_ROOT/trusted-gmp/config/verifier_testnet.toml"
 if [ -f "$VERIFIER_CONFIG" ]; then
     # Extract escrow contract address and RPC URL from config
     ESCROW_ADDR=$(grep -A5 "\[connected_chain_evm\]" "$VERIFIER_CONFIG" | grep "escrow_contract_addr" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' | head -1)

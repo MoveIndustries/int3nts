@@ -3,18 +3,18 @@
 # Create Intent on Movement Testnet (Requester Script)
 #
 # This script allows a requester to create an intent on Movement Bardock Testnet.
-# It uses verifier-based negotiation routing:
-#   1. Submit draft intent to verifier
+# It uses coordinator-based negotiation routing:
+#   1. Submit draft intent to coordinator
 #   2. Wait for solver to sign (solver service polls automatically)
-#   3. Retrieve signature from verifier
+#   3. Retrieve signature from coordinator
 #   4. Create intent on-chain with solver signature
 #
 # Prerequisites:
-#   - Verifier running locally (or remotely)
+#   - Coordinator running locally (or remotely)
 #   - Solver service running (to sign drafts)
 #   - Movement CLI installed
 #   - .env.testnet with MOVEMENT_REQUESTER_PRIVATE_KEY
-#   - verifier/config/verifier_testnet.toml configured
+#   - coordinator/config/verifier_testnet.toml configured
 #
 # Usage:
 #   ./create-intent.sh inflow <amount>   # Create inflow intent (USDC Base → USDC Movement)
@@ -160,8 +160,8 @@ if [ ! -f "$ASSETS_CONFIG_FILE" ]; then
     exit 1
 fi
 
-# Load verifier config
-VERIFIER_CONFIG="$PROJECT_ROOT/verifier/config/verifier_testnet.toml"
+# Load coordinator config (chain config)
+VERIFIER_CONFIG="$PROJECT_ROOT/coordinator/config/verifier_testnet.toml"
 
 if [ ! -f "$VERIFIER_CONFIG" ]; then
     echo "❌ ERROR: verifier_testnet.toml not found at $VERIFIER_CONFIG"
@@ -170,21 +170,21 @@ fi
 
 # Extract config values
 INTENT_MODULE_ADDR=$(grep -A5 "\[hub_chain\]" "$VERIFIER_CONFIG" | grep "intent_module_addr" | head -1 | sed 's/.*= *"\(.*\)".*/\1/')
-VERIFIER_URL="http://localhost:3333"  # Default to local verifier
+COORDINATOR_URL="http://localhost:3333"  # Default to local coordinator
 
-# Check if verifier is reachable
-echo "   Checking verifier health..."
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$VERIFIER_URL/health" 2>/dev/null || echo "000")
+# Check if coordinator is reachable
+echo "   Checking coordinator health..."
+HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$COORDINATOR_URL/health" 2>/dev/null || echo "000")
 
 if [ "$HTTP_CODE" != "200" ]; then
-    echo "❌ ERROR: Verifier not responding at $VERIFIER_URL (HTTP $HTTP_CODE)"
+    echo "❌ ERROR: Coordinator not responding at $COORDINATOR_URL (HTTP $HTTP_CODE)"
     echo ""
-    echo "   Make sure verifier is running:"
-    echo "   ./testing-infra/testnet/run-verifier-local.sh"
+    echo "   Make sure coordinator is running:"
+    echo "   ./testing-infra/testnet/run-coordinator-local.sh"
     exit 1
 fi
 
-echo "   ✅ Verifier is healthy"
+echo "   ✅ Coordinator is healthy"
 echo ""
 
 # Get verifier public key (needed for outflow intents)
@@ -321,8 +321,8 @@ if [ -n "$BASE_SEPOLIA_RPC_URL" ] && [ -n "$BASE_REQUESTER_ADDR" ]; then
 fi
 echo ""
 
-# Step 1: Submit draft intent to verifier
-echo " Step 1: Submitting draft intent to verifier..."
+# Step 1: Submit draft intent to coordinator
+echo " Step 1: Submitting draft intent to coordinator..."
 
 # Build draft data JSON
 DRAFT_DATA=$(jq -n \
@@ -352,7 +352,7 @@ DRAFT_DATA=$(jq -n \
     }')
 
 # Submit draft
-DRAFT_RESPONSE=$(curl -s -X POST "$VERIFIER_URL/draftintent" \
+DRAFT_RESPONSE=$(curl -s -X POST "$COORDINATOR_URL/draftintent" \
     -H "Content-Type: application/json" \
     -d "{
         \"requester_addr\": \"$MOVEMENT_REQUESTER_ADDR\",
@@ -373,7 +373,7 @@ echo ""
 
 # Step 2: Wait for solver to sign
 echo " Step 2: Waiting for solver to sign draft..."
-echo "   (Solver service polls verifier automatically)"
+echo "   (Solver service polls coordinator automatically)"
 echo "   This may take a few seconds..."
 
 MAX_ATTEMPTS=30
@@ -384,7 +384,7 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
     sleep 2
     ATTEMPT=$((ATTEMPT + 1))
     
-    RESPONSE=$(curl -s "$VERIFIER_URL/draftintent/$DRAFT_ID/signature" 2>/dev/null || echo "")
+    RESPONSE=$(curl -s "$COORDINATOR_URL/draftintent/$DRAFT_ID/signature" 2>/dev/null || echo "")
     
     if [ -n "$RESPONSE" ]; then
         SIGNATURE=$(echo "$RESPONSE" | jq -r '.data.signature // empty')

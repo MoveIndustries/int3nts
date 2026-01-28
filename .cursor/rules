@@ -18,7 +18,7 @@ git commit -m "<type of change>: <description>
 - <more detailed points if needed (optional)>
 - <more detailed points if needed (optional)>
 
-Tests pass: Coordinator <number>, Trusted-GMP <number>, Verifier <number>, Solver <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>"
+Tests pass: Coordinator <number>, Trusted-GMP <number>, Verifier <number>, Solver <number>, MVM <amount>, EVM <amount>, SVM <number>, Frontend <number>"
 ```
 
 **If tests were NOT run (e.g., project setup, docs only, no test-affecting changes):**
@@ -36,9 +36,9 @@ git commit -m "<type of change>: <description>
 - **Run tests before committing** ONLY if changes affect existing test code (e.g., adding new tests, modifying code that has tests)
 - **Do NOT run tests for:** project setup, documentation-only changes, configuration files, or other non-code changes
 - **If sandbox prevents test execution**, ask user for help or skip tests (don't include "Tests pass:" line)
-- **Only include test results** in commit message if tests were actually run, in the format: `Tests pass: Coordinator <number>, Trusted-GMP <number>, Verifier <number>, Solver <number>, Move <amount>, EVM <amount>, SVM <number>, Frontend <number>`
+- **Only include test results** in commit message if tests were actually run, in the format: `Tests pass: Coordinator <number>, Trusted-GMP <number>, Verifier <number>, Solver <number>, MVM <amount>, EVM <amount>, SVM <number>, Frontend <number>`
 - **If tests were NOT run**, omit the "Tests pass:" line entirely from the commit message
-- **Display test summary table** after running tests using the commands in the next subsection, showing passed/total for each category (Coordinator, Trusted-GMP, Verifier, Solver, Move, EVM, SVM, Frontend)
+- **Display test summary table** after running tests using the commands in the next subsection, showing passed/total for each category (Coordinator, Trusted-GMP, Verifier, Solver, MVM, EVM, SVM, Frontend)
 - Follow conventional commit format (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`)
 - Keep commit messages brief and professional
 - Do NOT mention subtask or task IDs in commit messages
@@ -73,10 +73,10 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet" 2>&1 | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum}'
 
 # EVM tests
-nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm test" 2>&1 | grep -oE "[0-9]+ passing" | awk '{print $1}'
+nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm install && npm test" 2>&1 | grep -oE "[0-9]+ passing" | awk '{print $1}'
 
 # Frontend tests
-nix develop ./nix -c bash -c "cd frontend && npm test" 2>&1 | grep -oE "Tests[[:space:]]+[0-9]+ passed" | grep -oE "[0-9]+"
+nix develop ./nix -c bash -c "cd frontend && npm install --legacy-peer-deps && npm test" 2>&1 | grep -oE "Tests[[:space:]]+[0-9]+ passed" | grep -oE "[0-9]+"
 
 # SVM tests
 nix develop ./nix -c bash -c "cd intent-frameworks/svm && ./scripts/test.sh" 2>&1 | grep -oE "[0-9]+ test" | awk '{print $1}'

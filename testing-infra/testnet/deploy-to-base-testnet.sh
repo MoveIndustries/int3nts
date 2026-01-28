@@ -37,7 +37,7 @@ fi
 
 if [ -z "$VERIFIER_EVM_PUBKEY_HASH" ]; then
     echo "❌ ERROR: VERIFIER_EVM_PUBKEY_HASH not set in .env.testnet"
-    echo "   Run: nix develop ./nix -c bash -c 'cd verifier && VERIFIER_CONFIG_PATH=config/verifier_testnet.toml cargo run --bin get_verifier_eth_address'"
+    echo "   Run: nix develop ./nix -c bash -c 'cd trusted-gmp && VERIFIER_CONFIG_PATH=config/verifier_testnet.toml cargo run --bin get_verifier_eth_address'"
     exit 1
 fi
 
@@ -120,7 +120,7 @@ if [ -n "$CONTRACT_ADDR" ]; then
     echo "      Line ~26: escrowContractAddress: '$CONTRACT_ADDR'"
     echo "      (in the 'base-sepolia' section)"
     echo ""
-    echo "   2. verifier/config/verifier_testnet.toml"
+    echo "   2. coordinator/config/verifier_testnet.toml"
     echo "      Line ~24: escrow_contract_addr = \"$CONTRACT_ADDR\""
     echo "      (in the [connected_chain_evm] section)"
     echo ""
@@ -135,7 +135,7 @@ else
     echo ""
     echo " Update the following files:"
     echo "   - frontend/src/config/chains.ts (escrowContractAddress in 'base-sepolia' section)"
-    echo "   - verifier/config/verifier_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
+    echo "   - coordinator/config/verifier_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
     echo "   - solver/config/solver_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
 fi
 echo ""

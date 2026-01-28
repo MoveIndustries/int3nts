@@ -15,7 +15,8 @@ This directory contains scripts and configuration for deploying the Intent Frame
 
 ### Local Testing Scripts
 
-- **`run-verifier-local.sh`** - Run verifier service locally against testnets
+- **`run-coordinator-local.sh`** - Run coordinator service locally against testnets
+- **`run-trusted-gmp-local.sh`** - Run trusted-gmp service locally against testnets
 - **`run-solver-local.sh`** - Run solver service locally against testnets
 - **`create-intent.sh`** - Create an intent on Movement testnet (requester script)
 
@@ -47,17 +48,27 @@ This directory contains scripts and configuration for deploying the Intent Frame
 
 Test the verifier and solver services locally before deploying to EC2:
 
-#### Terminal 1: Start Verifier
+#### Terminal 1: Start Coordinator
 
 ```bash
-./testing-infra/testnet/run-verifier-local.sh
+./testing-infra/testnet/run-coordinator-local.sh
 # Or with release build (faster):
-./testing-infra/testnet/run-verifier-local.sh --release
+./testing-infra/testnet/run-coordinator-local.sh --release
 ```
 
-#### Terminal 2: Start Solver
+#### Terminal 2: Start Trusted GMP
 
-(after verifier is running)
+(after coordinator is running)
+
+```bash
+./testing-infra/testnet/run-trusted-gmp-local.sh
+# Or with release build (faster):
+./testing-infra/testnet/run-trusted-gmp-local.sh --release
+```
+
+#### Terminal 3: Start Solver
+
+(after coordinator is running)
 
 ```bash
 ./testing-infra/testnet/run-solver-local.sh
@@ -65,9 +76,9 @@ Test the verifier and solver services locally before deploying to EC2:
 ./testing-infra/testnet/run-solver-local.sh --release
 ```
 
-#### Terminal 3: Create Intent
+#### Terminal 4: Create Intent
 
-(after both services are running)
+(after all services are running)
 
 ```bash
 # Create outflow intent (USDC.e Movement → USDC Base)
@@ -82,7 +93,7 @@ Test the verifier and solver services locally before deploying to EC2:
 The script will:
 
 1. Show initial balances on both chains
-2. Submit draft intent to verifier → solver signs it
+2. Submit draft intent to coordinator → solver signs it
 3. Create intent on Movement hub chain
 4. For inflow: create escrow on Base Sepolia
 5. Wait for solver fulfillment and show final balance changes
@@ -100,35 +111,41 @@ npm run dev
 Create `frontend/.env.local` with testnet values:
 
 ```
-NEXT_PUBLIC_VERIFIER_URL=http://localhost:3333
+NEXT_PUBLIC_COORDINATOR_URL=http://localhost:3333
+NEXT_PUBLIC_TRUSTED_GMP_URL=http://localhost:3334
 ```
 
-This single variable is sufficient to run and test the frontend flows.
+These variables are sufficient to run and test the frontend flows.
 
 Note: chain-specific addresses and optional RPC/program overrides are configured in `frontend/src/config/chains.ts`.
 
 #### Quick Health Check
 
 ```bash
-# Check if verifier is running
+# Check if coordinator is running
 curl -s http://localhost:3333/health | jq
+
+# Check if trusted-gmp is running
+curl -s http://localhost:3334/health | jq
 ```
 
 #### Prerequisites for Local Testing
 
-- Verifier and solver config files populated with deployed addresses:
-  - `verifier/config/verifier_testnet.toml`
+- Coordinator and solver config files populated with deployed addresses:
+  - `coordinator/config/verifier_testnet.toml`
+  - `trusted-gmp/config/verifier_testnet.toml`
   - `solver/config/solver_testnet.toml`
 - `.env.testnet` in this directory with all required keys
 - Movement CLI profile configured (solver only)
-- Verifier running and healthy (for solver and create-intent scripts)
+- Coordinator running and healthy (for solver and create-intent scripts)
 
 ## Configuration
 
 All scripts read from:
 
 - `.env.testnet` - Private keys and addresses in this directory (gitignored)
-- `verifier/config/verifier_testnet.toml` - Verifier service config (gitignored)
+- `coordinator/config/verifier_testnet.toml` - Coordinator service config (gitignored)
+- `trusted-gmp/config/verifier_testnet.toml` - Trusted GMP service config (gitignored)
 - `solver/config/solver_testnet.toml` - Solver service config (gitignored)
 - `config/testnet-assets.toml` - Public asset addresses and decimals
 

@@ -47,7 +47,7 @@ MOVE_PASSED=${MOVE_PASSED:-0}
 MOVE_FAILED=${MOVE_FAILED:-0}
 
 echo "Running EVM tests..."
-EVM_TEST_OUTPUT=$(nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm test" 2>&1) || {
+EVM_TEST_OUTPUT=$(nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm install && npm test" 2>&1) || {
     echo "EVM tests failed:"
     echo "$EVM_TEST_OUTPUT"
 }
@@ -67,7 +67,7 @@ SVM_PASSED=$(echo "$SVM_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $
 SVM_FAILED=$(echo "$SVM_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
 
 echo "Running Frontend tests..."
-FRONTEND_TEST_OUTPUT=$(nix develop ./nix -c bash -c "cd frontend && npm test" 2>&1) || {
+FRONTEND_TEST_OUTPUT=$(nix develop ./nix -c bash -c "cd frontend && npm install --legacy-peer-deps && npm test" 2>&1) || {
     echo "Frontend tests failed:"
     echo "$FRONTEND_TEST_OUTPUT"
 }
@@ -84,7 +84,7 @@ echo "| Coordinator | $COORDINATOR_PASSED | $COORDINATOR_FAILED |"
 echo "| Trusted-GMP | $TRUSTED_GMP_PASSED | $TRUSTED_GMP_FAILED |"
 echo "| Verifier | $VERIFIER_PASSED | $VERIFIER_FAILED |"
 echo "| Solver | $SOLVER_PASSED | $SOLVER_FAILED |"
-echo "| Move | $MOVE_PASSED | $MOVE_FAILED |"
+echo "| MVM | $MOVE_PASSED | $MOVE_FAILED |"
 echo "| EVM | $EVM_PASSED | $EVM_FAILED |"
 echo "| SVM | $SVM_PASSED | $SVM_FAILED |"
 echo "| Frontend | $FRONTEND_PASSED | $FRONTEND_FAILED |"
