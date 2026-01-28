@@ -18,7 +18,6 @@ This directory contains scripts and configuration for deploying the Intent Frame
 - **`run-coordinator-local.sh`** - Run coordinator service locally against testnets
 - **`run-trusted-gmp-local.sh`** - Run trusted-gmp service locally against testnets
 - **`run-solver-local.sh`** - Run solver service locally against testnets
-- **`create-intent.sh`** - Create an intent on Movement testnet (requester script)
 
 ### Configuration Files
 
@@ -46,7 +45,7 @@ This directory contains scripts and configuration for deploying the Intent Frame
 
 ### Local Testing (Before EC2 Deployment)
 
-Test the verifier and solver services locally before deploying to EC2:
+Test the services locally before deploying to EC2:
 
 #### Terminal 1: Start Coordinator
 
@@ -76,31 +75,7 @@ Test the verifier and solver services locally before deploying to EC2:
 ./testing-infra/testnet/run-solver-local.sh --release
 ```
 
-#### Terminal 4: Create Intent
-
-(after all services are running)
-
-```bash
-# Create outflow intent (USDC.e Movement → USDC Base)
-# Amount is in base units (10^-6 USDC), so 1000000 = 1 USDC
-./testing-infra/testnet/create-intent.sh outflow 1000000
-
-# Create inflow intent (USDC Base → USDC.e Movement)
-# Also creates escrow on Base Sepolia automatically
-./testing-infra/testnet/create-intent.sh inflow 1000000
-```
-
-The script will:
-
-1. Show initial balances on both chains
-2. Submit draft intent to coordinator → solver signs it
-3. Create intent on Movement hub chain
-4. For inflow: create escrow on Base Sepolia
-5. Wait for solver fulfillment and show final balance changes
-
-#### Optional: Frontend UI (Testnet)
-
-Use the frontend to test wallet connections and the UI flow against the same local verifier/solver:
+#### Terminal 4: Start Frontend
 
 ```bash
 cd frontend
@@ -115,7 +90,7 @@ NEXT_PUBLIC_COORDINATOR_URL=http://localhost:3333
 NEXT_PUBLIC_TRUSTED_GMP_URL=http://localhost:3334
 ```
 
-These variables are sufficient to run and test the frontend flows.
+Use the frontend UI to create and test intents (inflow and outflow) against the local services.
 
 Note: chain-specific addresses and optional RPC/program overrides are configured in `frontend/src/config/chains.ts`.
 
@@ -137,7 +112,7 @@ curl -s http://localhost:3334/health | jq
   - `solver/config/solver_testnet.toml`
 - `.env.testnet` in this directory with all required keys
 - Movement CLI profile configured (solver only)
-- Coordinator running and healthy (for solver and create-intent scripts)
+- Coordinator running and healthy (for solver and frontend)
 
 ## Configuration
 
