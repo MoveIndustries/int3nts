@@ -18,10 +18,12 @@ use solana_program::{
 };
 use spl_token::state::Account as TokenAccount;
 
+use gmp_common::messages::{FulfillmentProof, IntentRequirements};
+
 use crate::{
     error::EscrowError,
     instruction::EscrowInstruction,
-    state::{seeds, Escrow, EscrowState},
+    state::{seeds, Escrow, EscrowState, StoredIntentRequirements},
     DEFAULT_EXPIRY_DURATION,
 };
 
@@ -49,13 +51,41 @@ impl Processor {
                 msg!("Instruction: CreateEscrow");
                 Self::process_create_escrow(program_id, accounts, intent_id, amount, expiry_duration)
             }
-            EscrowInstruction::Claim { intent_id, signature } => {
+            EscrowInstruction::Claim { intent_id } => {
                 msg!("Instruction: Claim - intent_id={:?}", &intent_id[..8]);
-                Self::process_claim(program_id, accounts, intent_id, signature)
+                Self::process_claim(program_id, accounts, intent_id)
             }
             EscrowInstruction::Cancel { intent_id } => {
                 msg!("Instruction: Cancel");
                 Self::process_cancel(program_id, accounts, intent_id)
+            }
+            EscrowInstruction::LzReceiveRequirements {
+                src_chain_id,
+                src_addr,
+                payload,
+            } => {
+                msg!("Instruction: LzReceiveRequirements");
+                Self::process_lz_receive_requirements(
+                    program_id,
+                    accounts,
+                    src_chain_id,
+                    src_addr,
+                    payload,
+                )
+            }
+            EscrowInstruction::LzReceiveFulfillmentProof {
+                src_chain_id,
+                src_addr,
+                payload,
+            } => {
+                msg!("Instruction: LzReceiveFulfillmentProof");
+                Self::process_lz_receive_fulfillment_proof(
+                    program_id,
+                    accounts,
+                    src_chain_id,
+                    src_addr,
+                    payload,
+                )
             }
         }
     }
@@ -119,6 +149,8 @@ impl Processor {
         let token_program = next_account_info(account_info_iter)?;
         let system_program = next_account_info(account_info_iter)?;
         let _rent_sysvar = next_account_info(account_info_iter)?;
+        // Optional: requirements account for GMP validation
+        let requirements_account = next_account_info(account_info_iter).ok();
 
         // Validate inputs
         if amount == 0 {
@@ -129,6 +161,35 @@ impl Processor {
         }
         if !requester.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // If requirements account is provided, validate against stored GMP requirements
+        let mut stored_requirements: Option<StoredIntentRequirements> = None;
+        if let Some(req_account) = requirements_account {
+            // Verify it's the correct PDA
+            let (req_pda, _) = Pubkey::find_program_address(
+                &[seeds::REQUIREMENTS_SEED, &intent_id],
+                program_id,
+            );
+            if req_pda == *req_account.key && req_account.data_len() > 0 {
+                let requirements = StoredIntentRequirements::try_from_slice(&req_account.data.borrow())
+                    .map_err(|_| EscrowError::RequirementsNotFound)?;
+
+                // Validate escrow matches requirements
+                if requirements.escrow_created {
+                    return Err(EscrowError::EscrowAlreadyCreated.into());
+                }
+                if amount < requirements.amount_required {
+                    return Err(EscrowError::AmountMismatch.into());
+                }
+                // Validate token - convert Pubkey to 32-byte array for comparison
+                let token_bytes = token_mint.key.to_bytes();
+                if token_bytes != requirements.token_addr {
+                    return Err(EscrowError::TokenMismatch.into());
+                }
+
+                stored_requirements = Some(requirements);
+            }
         }
 
         // Derive escrow PDA
@@ -237,6 +298,12 @@ impl Processor {
         );
         escrow.serialize(&mut &mut escrow_account.data.borrow_mut()[..])?;
 
+        // If requirements exist, mark escrow as created
+        if let (Some(mut requirements), Some(req_account)) = (stored_requirements, requirements_account) {
+            requirements.escrow_created = true;
+            requirements.serialize(&mut &mut req_account.data.borrow_mut()[..])?;
+        }
+
         msg!(
             "Escrow created: intent_id={:?}, amount={}, expiry={}",
             &intent_id[..8],
@@ -246,23 +313,41 @@ impl Processor {
         Ok(())
     }
 
+    /// Process Claim instruction (GMP mode - no signature required).
+    /// Requires that the fulfillment proof has been received via GMP.
     fn process_claim(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         intent_id: [u8; 32],
-        signature: [u8; 64],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let escrow_account = next_account_info(account_info_iter)?;
-        let state_account = next_account_info(account_info_iter)?;
+        let requirements_account = next_account_info(account_info_iter)?;
         let escrow_vault = next_account_info(account_info_iter)?;
         let solver_token_account = next_account_info(account_info_iter)?;
-        let instruction_sysvar = next_account_info(account_info_iter)?;
         let token_program = next_account_info(account_info_iter)?;
 
-        // Deserialize accounts
+        // Validate requirements PDA
+        let (req_pda, _) = Pubkey::find_program_address(
+            &[seeds::REQUIREMENTS_SEED, &intent_id],
+            program_id,
+        );
+        if req_pda != *requirements_account.key {
+            return Err(EscrowError::InvalidPDA.into());
+        }
+
+        // Load and validate requirements
+        let requirements =
+            StoredIntentRequirements::try_from_slice(&requirements_account.data.borrow())
+                .map_err(|_| EscrowError::RequirementsNotFound)?;
+
+        // GMP mode: require fulfillment proof to have been received
+        if !requirements.fulfilled {
+            return Err(EscrowError::AlreadyFulfilled.into()); // Not fulfilled yet
+        }
+
+        // Deserialize escrow
         let mut escrow = Escrow::try_from_slice(&escrow_account.data.borrow())?;
-        let state = EscrowState::try_from_slice(&state_account.data.borrow())?;
 
         // Validate escrow
         if escrow.intent_id != intent_id {
@@ -279,14 +364,6 @@ impl Processor {
         if clock.unix_timestamp > escrow.expiry {
             return Err(EscrowError::EscrowExpired.into());
         }
-
-        // Verify Ed25519 signature via instruction introspection
-        Self::verify_ed25519_signature(
-            instruction_sysvar,
-            &state.approver,
-            &intent_id,
-            &signature,
-        )?;
 
         // Transfer tokens from vault to solver
         let amount = escrow.amount;
@@ -387,63 +464,176 @@ impl Processor {
         Ok(())
     }
 
-    fn verify_ed25519_signature(
-        instruction_sysvar: &AccountInfo,
-        expected_pubkey: &Pubkey,
-        expected_message: &[u8; 32],
-        expected_signature: &[u8; 64],
+    /// Process LzReceiveRequirements instruction.
+    /// Stores intent requirements received via GMP from the hub.
+    fn process_lz_receive_requirements(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        _src_chain_id: u32,
+        _src_addr: [u8; 32],
+        payload: Vec<u8>,
     ) -> ProgramResult {
-        // Load the Ed25519 instruction (should be at index 0)
-        let ed25519_ix = solana_program::sysvar::instructions::load_instruction_at_checked(
-            0,
-            instruction_sysvar,
+        let account_info_iter = &mut accounts.iter();
+        let requirements_account = next_account_info(account_info_iter)?;
+        let gmp_caller = next_account_info(account_info_iter)?;
+        let payer = next_account_info(account_info_iter)?;
+        let system_program = next_account_info(account_info_iter)?;
+
+        // GMP caller must be a signer (trusted relay or endpoint)
+        if !gmp_caller.is_signer {
+            return Err(EscrowError::UnauthorizedGmpSource.into());
+        }
+
+        // Decode the GMP message
+        let requirements = IntentRequirements::decode(&payload)
+            .map_err(|_| EscrowError::InvalidGmpMessage)?;
+
+        // Derive requirements PDA
+        let (req_pda, req_bump) = Pubkey::find_program_address(
+            &[seeds::REQUIREMENTS_SEED, &requirements.intent_id],
+            program_id,
+        );
+        if req_pda != *requirements_account.key {
+            return Err(EscrowError::InvalidPDA.into());
+        }
+
+        // Check if requirements already exist
+        if requirements_account.data_len() > 0 {
+            return Err(EscrowError::RequirementsAlreadyExist.into());
+        }
+
+        // Create requirements account
+        let rent = Rent::get()?;
+        let space = StoredIntentRequirements::LEN;
+        let lamports = rent.minimum_balance(space);
+
+        invoke_signed(
+            &system_instruction::create_account(
+                payer.key,
+                requirements_account.key,
+                lamports,
+                space as u64,
+                program_id,
+            ),
+            &[
+                payer.clone(),
+                requirements_account.clone(),
+                system_program.clone(),
+            ],
+            &[&[seeds::REQUIREMENTS_SEED, &requirements.intent_id, &[req_bump]]],
         )?;
 
-        // Verify it's an Ed25519 instruction
-        if ed25519_ix.program_id != solana_program::ed25519_program::ID {
-            return Err(EscrowError::InvalidSignature.into());
+        // Store requirements
+        let stored = StoredIntentRequirements::new(
+            requirements.intent_id,
+            requirements.requester_addr,
+            requirements.amount_required,
+            requirements.token_addr,
+            requirements.solver_addr,
+            requirements.expiry,
+            req_bump,
+        );
+        stored.serialize(&mut &mut requirements_account.data.borrow_mut()[..])?;
+
+        msg!(
+            "Intent requirements stored: intent_id={:?}, amount={}",
+            &requirements.intent_id[..8],
+            requirements.amount_required
+        );
+        Ok(())
+    }
+
+    /// Process LzReceiveFulfillmentProof instruction.
+    /// Auto-releases escrow when fulfillment proof is received from hub.
+    fn process_lz_receive_fulfillment_proof(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        _src_chain_id: u32,
+        _src_addr: [u8; 32],
+        payload: Vec<u8>,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let requirements_account = next_account_info(account_info_iter)?;
+        let escrow_account = next_account_info(account_info_iter)?;
+        let escrow_vault = next_account_info(account_info_iter)?;
+        let solver_token_account = next_account_info(account_info_iter)?;
+        let gmp_caller = next_account_info(account_info_iter)?;
+        let token_program = next_account_info(account_info_iter)?;
+
+        // GMP caller must be a signer (trusted relay or endpoint)
+        if !gmp_caller.is_signer {
+            return Err(EscrowError::UnauthorizedGmpSource.into());
         }
 
-        // Parse Ed25519 instruction data
-        let data = &ed25519_ix.data;
-        if data.len() < 16 {
-            return Err(EscrowError::InvalidSignature.into());
+        // Decode the GMP message
+        let proof = FulfillmentProof::decode(&payload)
+            .map_err(|_| EscrowError::InvalidGmpMessage)?;
+
+        // Validate requirements account
+        let (req_pda, _) = Pubkey::find_program_address(
+            &[seeds::REQUIREMENTS_SEED, &proof.intent_id],
+            program_id,
+        );
+        if req_pda != *requirements_account.key {
+            return Err(EscrowError::InvalidPDA.into());
         }
 
-        let num_signatures = data[0];
-        if num_signatures < 1 {
-            return Err(EscrowError::InvalidSignature.into());
+        let mut requirements =
+            StoredIntentRequirements::try_from_slice(&requirements_account.data.borrow())
+                .map_err(|_| EscrowError::RequirementsNotFound)?;
+
+        if requirements.fulfilled {
+            return Err(EscrowError::AlreadyFulfilled.into());
         }
 
-        // Read offsets for first signature
-        let sig_offset = u16::from_le_bytes([data[2], data[3]]) as usize;
-        let pubkey_offset = u16::from_le_bytes([data[6], data[7]]) as usize;
-        let msg_offset = u16::from_le_bytes([data[10], data[11]]) as usize;
-        let msg_size = u16::from_le_bytes([data[12], data[13]]) as usize;
+        // Load escrow
+        let mut escrow = Escrow::try_from_slice(&escrow_account.data.borrow())?;
 
-        // Validate offsets
-        if data.len() < sig_offset + 64
-            || data.len() < pubkey_offset + 32
-            || data.len() < msg_offset + msg_size
-        {
-            return Err(EscrowError::InvalidSignature.into());
+        if escrow.intent_id != proof.intent_id {
+            return Err(EscrowError::EscrowDoesNotExist.into());
+        }
+        if escrow.is_claimed {
+            return Err(EscrowError::EscrowAlreadyClaimed.into());
+        }
+        if escrow.amount == 0 {
+            return Err(EscrowError::NoDeposit.into());
         }
 
-        // Extract and verify
-        let instruction_signature = &data[sig_offset..sig_offset + 64];
-        let instruction_pubkey = &data[pubkey_offset..pubkey_offset + 32];
-        let instruction_message = &data[msg_offset..msg_offset + msg_size];
+        // Transfer tokens from vault to solver
+        let amount = escrow.amount;
+        let escrow_seeds = &[seeds::ESCROW_SEED, &proof.intent_id[..], &[escrow.bump]];
 
-        if instruction_pubkey != expected_pubkey.to_bytes().as_slice() {
-            return Err(EscrowError::UnauthorizedApprover.into());
-        }
-        if instruction_signature != expected_signature.as_slice() {
-            return Err(EscrowError::InvalidSignature.into());
-        }
-        if instruction_message != expected_message.as_slice() {
-            return Err(EscrowError::InvalidSignature.into());
-        }
+        invoke_signed(
+            &spl_token::instruction::transfer(
+                &spl_token::id(),
+                escrow_vault.key,
+                solver_token_account.key,
+                escrow_account.key,
+                &[],
+                amount,
+            )?,
+            &[
+                escrow_vault.clone(),
+                solver_token_account.clone(),
+                escrow_account.clone(),
+                token_program.clone(),
+            ],
+            &[escrow_seeds],
+        )?;
 
+        // Update states
+        escrow.is_claimed = true;
+        escrow.amount = 0;
+        escrow.serialize(&mut &mut escrow_account.data.borrow_mut()[..])?;
+
+        requirements.fulfilled = true;
+        requirements.serialize(&mut &mut requirements_account.data.borrow_mut()[..])?;
+
+        msg!(
+            "Escrow auto-released via fulfillment proof: intent_id={:?}, amount={}",
+            &proof.intent_id[..8],
+            amount
+        );
         Ok(())
     }
 }

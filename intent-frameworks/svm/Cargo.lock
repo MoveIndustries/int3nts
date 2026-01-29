@@ -2061,6 +2061,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "borsh 0.10.4",
+ "gmp-common",
  "hex",
  "rand 0.8.5",
  "solana-program",

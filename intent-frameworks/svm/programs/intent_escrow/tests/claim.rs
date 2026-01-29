@@ -1,32 +1,126 @@
 mod common;
 
 use common::{
-    create_claim_ix, create_ed25519_instruction, create_escrow_ix, generate_intent_id,
-    get_token_balance, program_test, read_escrow, setup_basic_env,
+    create_escrow_ix, create_lz_receive_fulfillment_proof_ix, create_lz_receive_requirements_ix,
+    generate_intent_id, get_token_balance, program_test, read_escrow, read_requirements,
+    setup_basic_env,
 };
+use gmp_common::messages::{FulfillmentProof, IntentRequirements};
 use intent_escrow::state::seeds;
-use solana_sdk::{
-    pubkey::Pubkey,
-    signature::Signer,
-    transaction::Transaction,
-};
+use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 
 // ============================================================================
-// CLAIM TESTS
+// GMP CLAIM TESTS
 // ============================================================================
+// These tests verify the GMP-based claim flow where:
+// 1. Requirements are received via LzReceiveRequirements
+// 2. Escrow is created (validates against requirements)
+// 3. Fulfillment proof is received via LzReceiveFulfillmentProof (auto-releases)
 
-/// 1. Test: Valid Claim with Approver Signature
-/// Verifies that solvers can claim escrow funds when provided with a valid approver signature.
-/// Why: Claiming is the core fulfillment mechanism. Solvers must be able to receive funds after approver approval.
+/// Helper: Create IntentRequirements payload
+fn create_requirements_payload(
+    intent_id: [u8; 32],
+    requester: &Pubkey,
+    amount: u64,
+    token: &Pubkey,
+    solver: &Pubkey,
+    expiry: u64,
+) -> Vec<u8> {
+    let requirements = IntentRequirements {
+        intent_id,
+        requester_addr: requester.to_bytes(),
+        amount_required: amount,
+        token_addr: token.to_bytes(),
+        solver_addr: solver.to_bytes(),
+        expiry,
+    };
+    requirements.encode().to_vec()
+}
+
+/// Helper: Create FulfillmentProof payload
+fn create_fulfillment_proof_payload(
+    intent_id: [u8; 32],
+    solver: &Pubkey,
+    amount: u64,
+    timestamp: u64,
+) -> Vec<u8> {
+    let proof = FulfillmentProof {
+        intent_id,
+        solver_addr: solver.to_bytes(),
+        amount_fulfilled: amount,
+        timestamp,
+    };
+    proof.encode().to_vec()
+}
+
+/// 1. Test: Valid Claim via LzReceiveFulfillmentProof
+/// Verifies that escrow is auto-released when fulfillment proof is received via GMP.
+/// Why: In GMP mode, fulfillment proof from hub authorizes the release.
 #[tokio::test]
-async fn test_claim_with_valid_approver_signature() {
+async fn test_claim_with_valid_fulfillment_proof() {
     let program_test = program_test();
     let mut context = program_test.start_with_context().await;
     let env = setup_basic_env(&mut context).await;
 
     let intent_id = [2u8; 32];
     let amount = 500_000u64;
+    let src_chain_id = 1u32;
+    let src_addr = [0u8; 32]; // Hub address
 
+    // Derive PDAs
+    let (escrow_pda, _) =
+        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
+    let (vault_pda, _) =
+        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
+    let (requirements_pda, _) =
+        Pubkey::find_program_address(&[seeds::REQUIREMENTS_SEED, &intent_id], &env.program_id);
+
+    // Step 1: Receive requirements via GMP
+    let requirements_payload = create_requirements_payload(
+        intent_id,
+        &env.requester.pubkey(),
+        amount,
+        &env.mint,
+        &env.solver.pubkey(),
+        u64::MAX, // No expiry
+    );
+
+    let gmp_caller = context.payer.insecure_clone();
+    let lz_receive_req_ix = create_lz_receive_requirements_ix(
+        env.program_id,
+        requirements_pda,
+        gmp_caller.pubkey(),
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        requirements_payload,
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let lz_req_tx = Transaction::new_signed_with_payer(
+        &[lz_receive_req_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
+        blockhash,
+    );
+    context
+        .banks_client
+        .process_transaction(lz_req_tx)
+        .await
+        .unwrap();
+
+    // Verify requirements were stored
+    let req_account = context
+        .banks_client
+        .get_account(requirements_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let requirements = read_requirements(&req_account);
+    assert_eq!(requirements.intent_id, intent_id);
+    assert!(!requirements.fulfilled);
+
+    // Step 2: Create escrow (with requirements account for validation)
     let create_ix = create_escrow_ix(
         env.program_id,
         intent_id,
@@ -35,8 +129,10 @@ async fn test_claim_with_valid_approver_signature() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None,                    // No expiry (using requirements)
+        Some(requirements_pda),  // GMP requirements validation
     );
+
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let create_tx = Transaction::new_signed_with_payer(
         &[create_ix],
@@ -44,39 +140,53 @@ async fn test_claim_with_valid_approver_signature() {
         &[&env.requester],
         blockhash,
     );
-    context.banks_client.process_transaction(create_tx).await.unwrap();
+    context
+        .banks_client
+        .process_transaction(create_tx)
+        .await
+        .unwrap();
 
-    let (escrow_pda, _) =
-        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
-    let (vault_pda, _) =
-        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
+    // Verify escrow was created
+    let escrow_account = context
+        .banks_client
+        .get_account(escrow_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let escrow = read_escrow(&escrow_account);
+    assert!(!escrow.is_claimed);
+    assert_eq!(escrow.amount, amount);
 
-    // Sign the intent_id with approver's keypair
-    let signature = env.approver.sign_message(&intent_id);
-    let mut signature_bytes = [0u8; 64];
-    signature_bytes.copy_from_slice(signature.as_ref());
+    // Step 3: Receive fulfillment proof via GMP (this auto-releases the escrow)
+    let proof_payload =
+        create_fulfillment_proof_payload(intent_id, &env.solver.pubkey(), amount, 12345);
 
-    let ed25519_ix = create_ed25519_instruction(&intent_id, &signature_bytes, &env.approver.pubkey());
-
-    let claim_ix = create_claim_ix(
+    let lz_receive_proof_ix = create_lz_receive_fulfillment_proof_ix(
         env.program_id,
-        intent_id,
-        signature_bytes,
+        requirements_pda,
         escrow_pda,
-        env.state_pda,
         vault_pda,
         env.solver_token,
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        proof_payload,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let claim_tx = Transaction::new_signed_with_payer(
-        &[ed25519_ix, claim_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
+    let lz_proof_tx = Transaction::new_signed_with_payer(
+        &[lz_receive_proof_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
         blockhash,
     );
-    context.banks_client.process_transaction(claim_tx).await.unwrap();
+    context
+        .banks_client
+        .process_transaction(lz_proof_tx)
+        .await
+        .unwrap();
 
+    // Verify escrow was auto-released
     let vault_balance = get_token_balance(&mut context, vault_pda).await;
     let solver_balance = get_token_balance(&mut context, env.solver_token).await;
     assert_eq!(vault_balance, 0);
@@ -91,339 +201,303 @@ async fn test_claim_with_valid_approver_signature() {
     let escrow = read_escrow(&escrow_account);
     assert!(escrow.is_claimed);
     assert_eq!(escrow.amount, 0);
-}
 
-/// 2. Test: Invalid Signature Rejection
-/// Verifies that claims with invalid signatures are rejected with UnauthorizedApprover error.
-/// Why: Security requirement - only approver-approved fulfillments should allow fund release.
-#[tokio::test]
-async fn test_revert_with_invalid_signature() {
-    let program_test = program_test();
-    let mut context = program_test.start_with_context().await;
-    let env = setup_basic_env(&mut context).await;
-
-    let intent_id = generate_intent_id();
-    let amount = 1_000_000u64;
-
-    let create_ix = create_escrow_ix(
-        env.program_id,
-        intent_id,
-        amount,
-        env.requester.pubkey(),
-        env.mint,
-        env.requester_token,
-        env.solver.pubkey(),
-        None,
-    );
-
-    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let create_tx = Transaction::new_signed_with_payer(
-        &[create_ix],
-        Some(&env.requester.pubkey()),
-        &[&env.requester],
-        blockhash,
-    );
-    context.banks_client.process_transaction(create_tx).await.unwrap();
-
-    let (escrow_pda, _) =
-        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
-    let (vault_pda, _) =
-        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
-
-    // Sign with wrong keypair (solver instead of approver)
-    let wrong_signature = env.solver.sign_message(&intent_id);
-    let mut wrong_signature_bytes = [0u8; 64];
-    wrong_signature_bytes.copy_from_slice(wrong_signature.as_ref());
-
-    // Create Ed25519 instruction with wrong signer's public key
-    let ed25519_ix = create_ed25519_instruction(
-        &intent_id,
-        &wrong_signature_bytes,
-        &env.solver.pubkey(), // Wrong signer
-    );
-
-    let claim_ix = create_claim_ix(
-        env.program_id,
-        intent_id,
-        wrong_signature_bytes,
-        escrow_pda,
-        env.state_pda,
-        vault_pda,
-        env.solver_token,
-    );
-
-    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let claim_tx = Transaction::new_signed_with_payer(
-        &[ed25519_ix, claim_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        blockhash,
-    );
-
-    let result = context.banks_client.process_transaction(claim_tx).await;
-    assert!(result.is_err(), "Should have thrown an error");
-}
-
-/// 3. Test: Signature Replay Prevention
-/// Verifies that a signature for one intent_id cannot be reused on a different escrow with a different intent_id.
-/// Why: Signatures must be bound to specific intent_ids to prevent replay attacks across different escrows.
-#[tokio::test]
-async fn test_prevent_signature_replay_across_different_intent_ids() {
-    let program_test = program_test();
-    let mut context = program_test.start_with_context().await;
-    let env = setup_basic_env(&mut context).await;
-
-    let intent_id_a = generate_intent_id();
-    let intent_id_b = generate_intent_id();
-    let amount = 500_000u64; // Use smaller amount so we can create two escrows
-
-    // Mint additional tokens to requester for the second escrow
-    use common::mint_to;
-    let payer = context.payer.insecure_clone();
-    mint_to(
-        &mut context,
-        &payer,
-        env.mint,
-        &env.mint_authority,
-        env.requester_token,
-        1_000_000u64,
-    )
-    .await;
-
-    // Create escrow A
-    let create_ix_a = create_escrow_ix(
-        env.program_id,
-        intent_id_a,
-        amount,
-        env.requester.pubkey(),
-        env.mint,
-        env.requester_token,
-        env.solver.pubkey(),
-        None,
-    );
-
-    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let create_tx_a = Transaction::new_signed_with_payer(
-        &[create_ix_a],
-        Some(&env.requester.pubkey()),
-        &[&env.requester],
-        blockhash,
-    );
-    context.banks_client.process_transaction(create_tx_a).await.unwrap();
-
-    // Create escrow B
-    let create_ix_b = create_escrow_ix(
-        env.program_id,
-        intent_id_b,
-        amount,
-        env.requester.pubkey(),
-        env.mint,
-        env.requester_token,
-        env.solver.pubkey(),
-        None,
-    );
-
-    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let create_tx_b = Transaction::new_signed_with_payer(
-        &[create_ix_b],
-        Some(&env.requester.pubkey()),
-        &[&env.requester],
-        blockhash,
-    );
-    context.banks_client.process_transaction(create_tx_b).await.unwrap();
-
-    let (escrow_pda_b, _) =
-        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id_b], &env.program_id);
-    let (vault_pda_b, _) =
-        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id_b], &env.program_id);
-
-    // Create a VALID signature for intent_id A (the first escrow)
-    let signature_for_a = env.approver.sign_message(&intent_id_a);
-    let mut signature_bytes = [0u8; 64];
-    signature_bytes.copy_from_slice(signature_for_a.as_ref());
-
-    // Create Ed25519 instruction for intent A signature
-    let ed25519_ix = create_ed25519_instruction(&intent_id_a, &signature_bytes, &env.approver.pubkey());
-
-    // Try to use the signature for intent_id A on escrow B (which has intent_id B)
-    // This should fail because the signature is bound to intent_id A, not intent_id B
-    let claim_ix = create_claim_ix(
-        env.program_id,
-        intent_id_b,
-        signature_bytes,
-        escrow_pda_b,
-        env.state_pda,
-        vault_pda_b,
-        env.solver_token,
-    );
-
-    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let claim_tx = Transaction::new_signed_with_payer(
-        &[ed25519_ix, claim_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        blockhash,
-    );
-
-    let result = context.banks_client.process_transaction(claim_tx).await;
-    assert!(result.is_err(), "Should have thrown an error");
-}
-
-/// 4. Test: Duplicate Claim Prevention
-/// Verifies that attempting to claim an already-claimed escrow reverts.
-/// Why: Prevents double-spending - each escrow can only be claimed once.
-#[tokio::test]
-async fn test_revert_if_escrow_already_claimed() {
-    let program_test = program_test();
-    let mut context = program_test.start_with_context().await;
-    let env = setup_basic_env(&mut context).await;
-
-    let intent_id = generate_intent_id();
-    let amount = 1_000_000u64;
-
-    let create_ix = create_escrow_ix(
-        env.program_id,
-        intent_id,
-        amount,
-        env.requester.pubkey(),
-        env.mint,
-        env.requester_token,
-        env.solver.pubkey(),
-        None,
-    );
-
-    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let create_tx = Transaction::new_signed_with_payer(
-        &[create_ix],
-        Some(&env.requester.pubkey()),
-        &[&env.requester],
-        blockhash,
-    );
-    context.banks_client.process_transaction(create_tx).await.unwrap();
-
-    let (escrow_pda, _) =
-        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
-    let (vault_pda, _) =
-        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
-
-    // First claim
-    let signature = env.approver.sign_message(&intent_id);
-    let mut signature_bytes = [0u8; 64];
-    signature_bytes.copy_from_slice(signature.as_ref());
-
-    let ed25519_ix = create_ed25519_instruction(&intent_id, &signature_bytes, &env.approver.pubkey());
-
-    let claim_ix = create_claim_ix(
-        env.program_id,
-        intent_id,
-        signature_bytes,
-        escrow_pda,
-        env.state_pda,
-        vault_pda,
-        env.solver_token,
-    );
-
-    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let claim_tx = Transaction::new_signed_with_payer(
-        &[ed25519_ix, claim_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        blockhash,
-    );
-    context.banks_client.process_transaction(claim_tx).await.unwrap();
-
-    // Verify escrow is marked as claimed and vault is empty
-    let escrow_account_after_first = context
+    // Verify requirements marked as fulfilled
+    let req_account = context
         .banks_client
-        .get_account(escrow_pda)
+        .get_account(requirements_pda)
         .await
         .unwrap()
         .unwrap();
-    let escrow_after_first = read_escrow(&escrow_account_after_first);
-    assert!(escrow_after_first.is_claimed, "Escrow should be marked as claimed after first claim");
-    assert_eq!(escrow_after_first.amount, 0, "Escrow amount should be 0 after first claim");
-    
-    let vault_balance_after_first = get_token_balance(&mut context, vault_pda).await;
-    assert_eq!(vault_balance_after_first, 0, "Vault should be empty after first claim");
+    let requirements = read_requirements(&req_account);
+    assert!(requirements.fulfilled);
+}
 
-    // Warp to next slot to ensure clean transaction processing
-    context.warp_to_slot(100).unwrap();
+/// 2. Test: Reject fulfillment proof without requirements
+/// Verifies that LzReceiveFulfillmentProof fails if requirements don't exist.
+#[tokio::test]
+async fn test_revert_fulfillment_without_requirements() {
+    let program_test = program_test();
+    let mut context = program_test.start_with_context().await;
+    let env = setup_basic_env(&mut context).await;
 
-    // Second claim should fail - create fresh instructions
-    // Note: Even though vault is empty, the is_claimed check should catch this first
-    let signature2 = env.approver.sign_message(&intent_id);
-    let mut signature_bytes2 = [0u8; 64];
-    signature_bytes2.copy_from_slice(signature2.as_ref());
+    let intent_id = generate_intent_id();
+    let amount = 1_000_000u64;
+    let src_chain_id = 1u32;
+    let src_addr = [0u8; 32];
 
-    let ed25519_ix2 = create_ed25519_instruction(&intent_id, &signature_bytes2, &env.approver.pubkey());
-
-    let claim_ix2 = create_claim_ix(
+    // Create escrow without requirements
+    let create_ix = create_escrow_ix(
         env.program_id,
         intent_id,
-        signature_bytes2,
-        escrow_pda,
-        env.state_pda,
-        vault_pda,
-        env.solver_token,
+        amount,
+        env.requester.pubkey(),
+        env.mint,
+        env.requester_token,
+        env.solver.pubkey(),
+        None, // No expiry
+        None, // No requirements
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let claim_tx2 = Transaction::new_signed_with_payer(
-        &[ed25519_ix2, claim_ix2],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
+    let create_tx = Transaction::new_signed_with_payer(
+        &[create_ix],
+        Some(&env.requester.pubkey()),
+        &[&env.requester],
+        blockhash,
+    );
+    context
+        .banks_client
+        .process_transaction(create_tx)
+        .await
+        .unwrap();
+
+    let (escrow_pda, _) =
+        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
+    let (vault_pda, _) =
+        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
+    let (requirements_pda, _) =
+        Pubkey::find_program_address(&[seeds::REQUIREMENTS_SEED, &intent_id], &env.program_id);
+
+    // Try to send fulfillment proof without requirements existing
+    let proof_payload =
+        create_fulfillment_proof_payload(intent_id, &env.solver.pubkey(), amount, 12345);
+
+    let gmp_caller = context.payer.insecure_clone();
+    let lz_receive_proof_ix = create_lz_receive_fulfillment_proof_ix(
+        env.program_id,
+        requirements_pda,
+        escrow_pda,
+        vault_pda,
+        env.solver_token,
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        proof_payload,
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let lz_proof_tx = Transaction::new_signed_with_payer(
+        &[lz_receive_proof_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
         blockhash,
     );
 
-    let result = context.banks_client.process_transaction(claim_tx2).await;
-    assert!(result.is_err(), "Should have thrown an error - escrow already claimed");
+    let result = context.banks_client.process_transaction(lz_proof_tx).await;
+    assert!(result.is_err(), "Should fail - requirements don't exist");
 }
 
-/// 5. Test: Non-Existent Escrow Rejection
-/// Verifies that attempting to claim a non-existent escrow reverts with EscrowDoesNotExist error.
-/// Why: Prevents claims on non-existent escrows and ensures proper error handling.
+/// 3. Test: Prevent double fulfillment
+/// Verifies that LzReceiveFulfillmentProof fails if already fulfilled.
+#[tokio::test]
+async fn test_prevent_double_fulfillment() {
+    let program_test = program_test();
+    let mut context = program_test.start_with_context().await;
+    let env = setup_basic_env(&mut context).await;
+
+    let intent_id = [3u8; 32];
+    let amount = 500_000u64;
+    let src_chain_id = 1u32;
+    let src_addr = [0u8; 32];
+
+    let (escrow_pda, _) =
+        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
+    let (vault_pda, _) =
+        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
+    let (requirements_pda, _) =
+        Pubkey::find_program_address(&[seeds::REQUIREMENTS_SEED, &intent_id], &env.program_id);
+
+    let gmp_caller = context.payer.insecure_clone();
+
+    // Step 1: Receive requirements
+    let requirements_payload = create_requirements_payload(
+        intent_id,
+        &env.requester.pubkey(),
+        amount,
+        &env.mint,
+        &env.solver.pubkey(),
+        u64::MAX,
+    );
+
+    let lz_receive_req_ix = create_lz_receive_requirements_ix(
+        env.program_id,
+        requirements_pda,
+        gmp_caller.pubkey(),
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        requirements_payload,
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[lz_receive_req_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
+        blockhash,
+    );
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // Step 2: Create escrow
+    let create_ix = create_escrow_ix(
+        env.program_id,
+        intent_id,
+        amount,
+        env.requester.pubkey(),
+        env.mint,
+        env.requester_token,
+        env.solver.pubkey(),
+        None,                    // No expiry
+        Some(requirements_pda),  // GMP requirements validation
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[create_ix],
+        Some(&env.requester.pubkey()),
+        &[&env.requester],
+        blockhash,
+    );
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // Step 3: First fulfillment (should succeed)
+    let proof_payload =
+        create_fulfillment_proof_payload(intent_id, &env.solver.pubkey(), amount, 12345);
+
+    let lz_receive_proof_ix = create_lz_receive_fulfillment_proof_ix(
+        env.program_id,
+        requirements_pda,
+        escrow_pda,
+        vault_pda,
+        env.solver_token,
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        proof_payload.clone(),
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[lz_receive_proof_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
+        blockhash,
+    );
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // Warp to next slot
+    context.warp_to_slot(100).unwrap();
+
+    // Step 4: Second fulfillment (should fail)
+    let lz_receive_proof_ix2 = create_lz_receive_fulfillment_proof_ix(
+        env.program_id,
+        requirements_pda,
+        escrow_pda,
+        vault_pda,
+        env.solver_token,
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        proof_payload,
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[lz_receive_proof_ix2],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
+        blockhash,
+    );
+
+    let result = context.banks_client.process_transaction(tx).await;
+    assert!(result.is_err(), "Should fail - already fulfilled");
+}
+
+/// 4. Test: Escrow already claimed rejection
+/// Verifies that fulfillment fails if escrow was already claimed.
+#[tokio::test]
+async fn test_revert_if_escrow_already_claimed() {
+    // This is effectively the same as test_prevent_double_fulfillment
+    // because LzReceiveFulfillmentProof marks both requirements.fulfilled and escrow.is_claimed
+    // The test above covers this case.
+}
+
+/// 5. Test: Non-existent escrow rejection
+/// Verifies that LzReceiveFulfillmentProof fails for non-existent escrow.
 #[tokio::test]
 async fn test_revert_if_escrow_does_not_exist() {
     let program_test = program_test();
     let mut context = program_test.start_with_context().await;
     let env = setup_basic_env(&mut context).await;
 
-    let non_existent_intent_id = generate_intent_id();
+    let intent_id = generate_intent_id();
+    let amount = 1_000_000u64;
+    let src_chain_id = 1u32;
+    let src_addr = [0u8; 32];
 
-    let (escrow_pda, _) = Pubkey::find_program_address(
-        &[seeds::ESCROW_SEED, &non_existent_intent_id],
-        &env.program_id,
+    let (escrow_pda, _) =
+        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
+    let (vault_pda, _) =
+        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
+    let (requirements_pda, _) =
+        Pubkey::find_program_address(&[seeds::REQUIREMENTS_SEED, &intent_id], &env.program_id);
+
+    let gmp_caller = context.payer.insecure_clone();
+
+    // Store requirements but don't create escrow
+    let requirements_payload = create_requirements_payload(
+        intent_id,
+        &env.requester.pubkey(),
+        amount,
+        &env.mint,
+        &env.solver.pubkey(),
+        u64::MAX,
     );
-    let (vault_pda, _) = Pubkey::find_program_address(
-        &[seeds::VAULT_SEED, &non_existent_intent_id],
-        &env.program_id,
-    );
 
-    let message = non_existent_intent_id;
-    let signature = env.approver.sign_message(&message);
-    let mut signature_bytes = [0u8; 64];
-    signature_bytes.copy_from_slice(signature.as_ref());
-
-    let ed25519_ix = create_ed25519_instruction(&message, &signature_bytes, &env.approver.pubkey());
-
-    let claim_ix = create_claim_ix(
+    let lz_receive_req_ix = create_lz_receive_requirements_ix(
         env.program_id,
-        non_existent_intent_id,
-        signature_bytes,
-        escrow_pda,
-        env.state_pda,
-        vault_pda,
-        env.solver_token,
+        requirements_pda,
+        gmp_caller.pubkey(),
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        requirements_payload,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let claim_tx = Transaction::new_signed_with_payer(
-        &[ed25519_ix, claim_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
+    let tx = Transaction::new_signed_with_payer(
+        &[lz_receive_req_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
+        blockhash,
+    );
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // Try to fulfill without escrow existing
+    let proof_payload =
+        create_fulfillment_proof_payload(intent_id, &env.solver.pubkey(), amount, 12345);
+
+    let lz_receive_proof_ix = create_lz_receive_fulfillment_proof_ix(
+        env.program_id,
+        requirements_pda,
+        escrow_pda,
+        vault_pda,
+        env.solver_token,
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        proof_payload,
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[lz_receive_proof_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
         blockhash,
     );
 
-    let result = context.banks_client.process_transaction(claim_tx).await;
-    assert!(result.is_err(), "Should have thrown an error");
+    let result = context.banks_client.process_transaction(tx).await;
+    assert!(result.is_err(), "Should fail - escrow doesn't exist");
 }

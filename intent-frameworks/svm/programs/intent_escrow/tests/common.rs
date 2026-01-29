@@ -16,7 +16,7 @@ use solana_sdk::{
 
 use intent_escrow::{
     instruction::EscrowInstruction,
-    state::{seeds, Escrow, EscrowState},
+    state::{seeds, Escrow, EscrowState, StoredIntentRequirements},
 };
 
 // ============================================================================
@@ -208,6 +208,8 @@ pub async fn initialize_program(
 }
 
 /// Helper: Build a CreateEscrow instruction
+/// - expiry_duration: Optional duration in seconds for escrow expiry
+/// - requirements_pda: Optional requirements account for GMP validation (added as account 9)
 pub fn create_escrow_ix(
     program_id: Pubkey,
     intent_id: [u8; 32],
@@ -217,25 +219,33 @@ pub fn create_escrow_ix(
     requester_token: Pubkey,
     reserved_solver: Pubkey,
     expiry_duration: Option<i64>,
+    requirements_pda: Option<Pubkey>,
 ) -> Instruction {
     let (escrow_pda, _escrow_bump) =
         Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &program_id);
     let (vault_pda, _vault_bump) =
         Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &program_id);
 
+    let mut accounts = vec![
+        AccountMeta::new(escrow_pda, false),
+        AccountMeta::new(requester, true),
+        AccountMeta::new_readonly(token_mint, false),
+        AccountMeta::new(requester_token, false),
+        AccountMeta::new(vault_pda, false),
+        AccountMeta::new_readonly(reserved_solver, false),
+        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
+    ];
+
+    // Add optional requirements account for GMP validation
+    if let Some(req_pda) = requirements_pda {
+        accounts.push(AccountMeta::new(req_pda, false));
+    }
+
     Instruction {
         program_id,
-        accounts: vec![
-            AccountMeta::new(escrow_pda, false),
-            AccountMeta::new(requester, true),
-            AccountMeta::new_readonly(token_mint, false),
-            AccountMeta::new(requester_token, false),
-            AccountMeta::new(vault_pda, false),
-            AccountMeta::new_readonly(reserved_solver, false),
-            AccountMeta::new_readonly(spl_token::id(), false),
-            AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
-            AccountMeta::new_readonly(sysvar::rent::id(), false),
-        ],
+        accounts,
         data: EscrowInstruction::CreateEscrow {
             intent_id,
             amount,
@@ -246,13 +256,12 @@ pub fn create_escrow_ix(
     }
 }
 
-/// Helper: Build a Claim instruction
+/// Helper: Build a Claim instruction (GMP mode - no signature)
 pub fn create_claim_ix(
     program_id: Pubkey,
     intent_id: [u8; 32],
-    signature: [u8; 64],
     escrow_pda: Pubkey,
-    state_pda: Pubkey,
+    requirements_pda: Pubkey,
     vault_pda: Pubkey,
     solver_token: Pubkey,
 ) -> Instruction {
@@ -260,18 +269,12 @@ pub fn create_claim_ix(
         program_id,
         accounts: vec![
             AccountMeta::new(escrow_pda, false),
-            AccountMeta::new_readonly(state_pda, false),
+            AccountMeta::new_readonly(requirements_pda, false),
             AccountMeta::new(vault_pda, false),
             AccountMeta::new(solver_token, false),
-            AccountMeta::new_readonly(sysvar::instructions::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
-        data: EscrowInstruction::Claim {
-            intent_id,
-            signature,
-        }
-        .try_to_vec()
-        .unwrap(),
+        data: EscrowInstruction::Claim { intent_id }.try_to_vec().unwrap(),
     }
 }
 
@@ -299,6 +302,66 @@ pub fn create_cancel_ix(
     }
 }
 
+/// Helper: Build an LzReceiveRequirements instruction
+pub fn create_lz_receive_requirements_ix(
+    program_id: Pubkey,
+    requirements_pda: Pubkey,
+    gmp_caller: Pubkey,
+    payer: Pubkey,
+    src_chain_id: u32,
+    src_addr: [u8; 32],
+    payload: Vec<u8>,
+) -> Instruction {
+    Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(requirements_pda, false),
+            AccountMeta::new_readonly(gmp_caller, true),
+            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        ],
+        data: EscrowInstruction::LzReceiveRequirements {
+            src_chain_id,
+            src_addr,
+            payload,
+        }
+        .try_to_vec()
+        .unwrap(),
+    }
+}
+
+/// Helper: Build an LzReceiveFulfillmentProof instruction
+pub fn create_lz_receive_fulfillment_proof_ix(
+    program_id: Pubkey,
+    requirements_pda: Pubkey,
+    escrow_pda: Pubkey,
+    vault_pda: Pubkey,
+    solver_token: Pubkey,
+    gmp_caller: Pubkey,
+    src_chain_id: u32,
+    src_addr: [u8; 32],
+    payload: Vec<u8>,
+) -> Instruction {
+    Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(requirements_pda, false),
+            AccountMeta::new(escrow_pda, false),
+            AccountMeta::new(vault_pda, false),
+            AccountMeta::new(solver_token, false),
+            AccountMeta::new_readonly(gmp_caller, true),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data: EscrowInstruction::LzReceiveFulfillmentProof {
+            src_chain_id,
+            src_addr,
+            payload,
+        }
+        .try_to_vec()
+        .unwrap(),
+    }
+}
+
 /// Helper: Read escrow state from account data
 pub fn read_escrow(account: &solana_sdk::account::Account) -> Escrow {
     Escrow::try_from_slice(&account.data).unwrap()
@@ -307,6 +370,11 @@ pub fn read_escrow(account: &solana_sdk::account::Account) -> Escrow {
 /// Helper: Read global state from account data
 pub fn read_state(account: &solana_sdk::account::Account) -> EscrowState {
     EscrowState::try_from_slice(&account.data).unwrap()
+}
+
+/// Helper: Read stored intent requirements from account data
+pub fn read_requirements(account: &solana_sdk::account::Account) -> StoredIntentRequirements {
+    StoredIntentRequirements::try_from_slice(&account.data).unwrap()
 }
 
 // ============================================================================

@@ -49,6 +49,31 @@ pub enum EscrowError {
 
     #[error("Escrow already exists")]
     EscrowAlreadyExists,
+
+    // GMP-related errors
+    #[error("Invalid GMP message")]
+    InvalidGmpMessage,
+
+    #[error("Intent requirements not found")]
+    RequirementsNotFound,
+
+    #[error("Intent requirements already exist")]
+    RequirementsAlreadyExist,
+
+    #[error("Amount mismatch with requirements")]
+    AmountMismatch,
+
+    #[error("Token mismatch with requirements")]
+    TokenMismatch,
+
+    #[error("Escrow already created for this intent")]
+    EscrowAlreadyCreated,
+
+    #[error("Already fulfilled")]
+    AlreadyFulfilled,
+
+    #[error("Unauthorized GMP source")]
+    UnauthorizedGmpSource,
 }
 
 impl From<EscrowError> for ProgramError {

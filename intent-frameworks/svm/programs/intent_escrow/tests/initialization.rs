@@ -68,7 +68,8 @@ async fn test_allow_requester_to_create_escrow() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -117,7 +118,8 @@ async fn test_revert_if_escrow_already_exists() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -141,7 +143,8 @@ async fn test_revert_if_escrow_already_exists() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -176,7 +179,8 @@ async fn test_revert_if_amount_is_zero() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();

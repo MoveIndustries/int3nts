@@ -25,25 +25,26 @@ pub enum EscrowInstruction {
     /// 6. `[]` Token program
     /// 7. `[]` System program
     /// 8. `[]` Rent sysvar
+    /// 9. `[writable, optional]` Requirements account (PDA) - if present, validates against GMP requirements
     CreateEscrow {
         intent_id: [u8; 32],
         amount: u64,
         expiry_duration: Option<i64>,
     },
 
-    /// Claim escrow funds with approver signature
+    /// Claim escrow funds (GMP mode - no signature required)
+    ///
+    /// In GMP mode, the fulfillment proof from the hub authorizes the release.
+    /// This instruction is called after LzReceiveFulfillmentProof marks the
+    /// requirements as fulfilled.
     ///
     /// Accounts expected:
     /// 0. `[writable]` Escrow account (PDA)
-    /// 1. `[]` State account (PDA)
+    /// 1. `[]` Requirements account (PDA)
     /// 2. `[writable]` Escrow vault (PDA)
     /// 3. `[writable]` Solver token account
-    /// 4. `[]` Instructions sysvar
-    /// 5. `[]` Token program
-    Claim {
-        intent_id: [u8; 32],
-        signature: [u8; 64],
-    },
+    /// 4. `[]` Token program
+    Claim { intent_id: [u8; 32] },
 
     /// Cancel escrow and return funds to requester (only after expiry)
     ///
@@ -54,4 +55,38 @@ pub enum EscrowInstruction {
     /// 3. `[writable]` Requester token account
     /// 4. `[]` Token program
     Cancel { intent_id: [u8; 32] },
+
+    /// Receive intent requirements from hub via GMP
+    ///
+    /// Accounts expected:
+    /// 0. `[writable]` Requirements account (PDA)
+    /// 1. `[signer]` GMP endpoint or relay (trusted caller)
+    /// 2. `[signer]` Payer
+    /// 3. `[]` System program
+    LzReceiveRequirements {
+        /// Source chain ID
+        src_chain_id: u32,
+        /// Source address (trusted hub address)
+        src_addr: [u8; 32],
+        /// GMP payload (IntentRequirements message)
+        payload: Vec<u8>,
+    },
+
+    /// Receive fulfillment proof from hub via GMP (auto-releases escrow)
+    ///
+    /// Accounts expected:
+    /// 0. `[writable]` Requirements account (PDA)
+    /// 1. `[writable]` Escrow account (PDA)
+    /// 2. `[writable]` Escrow vault (PDA)
+    /// 3. `[writable]` Solver token account
+    /// 4. `[signer]` GMP endpoint or relay (trusted caller)
+    /// 5. `[]` Token program
+    LzReceiveFulfillmentProof {
+        /// Source chain ID
+        src_chain_id: u32,
+        /// Source address (trusted hub address)
+        src_addr: [u8; 32],
+        /// GMP payload (FulfillmentProof message)
+        payload: Vec<u8>,
+    },
 }

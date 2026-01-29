@@ -39,7 +39,8 @@ async fn test_handle_hex_intent_id_conversion() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -102,7 +103,8 @@ async fn test_handle_intent_id_boundary_values() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -139,7 +141,8 @@ async fn test_handle_intent_id_boundary_values() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -179,7 +182,8 @@ async fn test_handle_intent_id_boundary_values() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -240,7 +244,8 @@ async fn test_handle_intent_id_zero_padding_correctly() {
             env.mint,
             env.requester_token,
             env.solver.pubkey(),
-            None,
+            None, // Default expiry
+            None, // No requirements PDA
         );
 
         let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -303,7 +308,8 @@ async fn test_handle_multiple_intent_ids_from_different_formats() {
             env.mint,
             env.requester_token,
             env.solver.pubkey(),
-            None,
+            None, // Default expiry
+            None, // No requirements PDA
         );
 
         let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();

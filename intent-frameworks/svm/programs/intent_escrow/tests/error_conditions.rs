@@ -27,7 +27,8 @@ async fn test_reject_zero_amount() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -106,7 +107,8 @@ async fn test_handle_maximum_u64_value_in_create_escrow() {
         mint,
         requester_token,
         solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -218,7 +220,8 @@ async fn test_reject_zero_solver_address() {
         env.mint,
         env.requester_token,
         Pubkey::default(), // Zero address
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -254,7 +257,8 @@ async fn test_reject_duplicate_intent_id() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -278,7 +282,8 @@ async fn test_reject_duplicate_intent_id() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -313,7 +318,8 @@ async fn test_reject_if_requester_has_insufficient_balance() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();

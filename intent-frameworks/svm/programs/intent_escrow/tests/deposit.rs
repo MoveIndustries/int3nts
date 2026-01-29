@@ -34,7 +34,8 @@ async fn test_create_escrow_with_tokens() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -92,7 +93,8 @@ async fn test_revert_if_escrow_already_claimed() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -116,7 +118,8 @@ async fn test_revert_if_escrow_already_claimed() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -159,7 +162,8 @@ async fn test_support_multiple_escrows_with_different_intent_ids() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -180,7 +184,8 @@ async fn test_support_multiple_escrows_with_different_intent_ids() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -232,7 +237,8 @@ async fn test_set_correct_expiry_timestamp() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();

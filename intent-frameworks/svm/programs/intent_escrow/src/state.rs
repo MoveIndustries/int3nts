@@ -74,9 +74,63 @@ impl Escrow {
     }
 }
 
+/// Stored intent requirements received via GMP from the hub
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+pub struct StoredIntentRequirements {
+    /// Discriminator for account type
+    pub discriminator: [u8; 8],
+    /// Unique intent identifier
+    pub intent_id: [u8; 32],
+    /// Requester address (32-byte canonical form)
+    pub requester_addr: [u8; 32],
+    /// Required escrow amount
+    pub amount_required: u64,
+    /// Token address (32-byte canonical form)
+    pub token_addr: [u8; 32],
+    /// Authorized solver address (32-byte canonical form, zeros = any)
+    pub solver_addr: [u8; 32],
+    /// Expiry timestamp
+    pub expiry: u64,
+    /// Whether an escrow has been created for these requirements
+    pub escrow_created: bool,
+    /// Whether fulfillment proof has been received
+    pub fulfilled: bool,
+    /// PDA bump seed
+    pub bump: u8,
+}
+
+impl StoredIntentRequirements {
+    pub const DISCRIMINATOR: [u8; 8] = [0x49, 0x4e, 0x54, 0x52, 0x45, 0x51, 0x53, 0x54]; // "INTREQST"
+    pub const LEN: usize = 8 + 32 + 32 + 8 + 32 + 32 + 8 + 1 + 1 + 1; // 155 bytes
+
+    pub fn new(
+        intent_id: [u8; 32],
+        requester_addr: [u8; 32],
+        amount_required: u64,
+        token_addr: [u8; 32],
+        solver_addr: [u8; 32],
+        expiry: u64,
+        bump: u8,
+    ) -> Self {
+        Self {
+            discriminator: Self::DISCRIMINATOR,
+            intent_id,
+            requester_addr,
+            amount_required,
+            token_addr,
+            solver_addr,
+            expiry,
+            escrow_created: false,
+            fulfilled: false,
+            bump,
+        }
+    }
+}
+
 /// Seeds for PDA derivation
 pub mod seeds {
     pub const STATE_SEED: &[u8] = b"state";
     pub const ESCROW_SEED: &[u8] = b"escrow";
     pub const VAULT_SEED: &[u8] = b"vault";
+    pub const REQUIREMENTS_SEED: &[u8] = b"requirements";
 }

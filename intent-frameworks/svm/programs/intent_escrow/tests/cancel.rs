@@ -1,9 +1,11 @@
 mod common;
 
 use common::{
-    create_cancel_ix, create_claim_ix, create_ed25519_instruction, create_escrow_ix,
-    generate_intent_id, get_token_balance, program_test, read_escrow, setup_basic_env,
+    create_cancel_ix, create_escrow_ix, create_lz_receive_fulfillment_proof_ix,
+    create_lz_receive_requirements_ix, generate_intent_id, get_token_balance, program_test,
+    read_escrow, setup_basic_env,
 };
+use gmp_common::messages::{FulfillmentProof, IntentRequirements};
 use intent_escrow::state::seeds;
 use solana_sdk::{
     clock::Clock,
@@ -39,6 +41,7 @@ async fn test_revert_if_escrow_has_not_expired_yet() {
         env.requester_token,
         env.solver.pubkey(),
         None, // Default expiry (120 seconds)
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -99,6 +102,7 @@ async fn test_cancel_after_expiry() {
         env.requester_token,
         env.solver.pubkey(),
         Some(1), // 1 second expiry
+        None,    // No requirements PDA
     );
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let create_tx = Transaction::new_signed_with_payer(
@@ -189,7 +193,8 @@ async fn test_revert_if_not_requester() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -228,7 +233,7 @@ async fn test_revert_if_not_requester() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// 4. Test: Cancellation After Claim Prevention
+/// 4. Test: Cancellation After Claim Prevention (GMP Mode)
 /// Verifies that attempting to cancel an already-claimed escrow reverts.
 /// Why: Once funds are claimed, they cannot be cancelled.
 #[tokio::test]
@@ -237,9 +242,50 @@ async fn test_revert_if_already_claimed() {
     let mut context = program_test.start_with_context().await;
     let env = setup_basic_env(&mut context).await;
 
-    let intent_id = generate_intent_id();
+    let intent_id = [5u8; 32];
     let amount = 1_000_000u64;
+    let src_chain_id = 1u32;
+    let src_addr = [0u8; 32]; // Hub address
 
+    let (escrow_pda, _) =
+        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
+    let (vault_pda, _) =
+        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
+    let (requirements_pda, _) =
+        Pubkey::find_program_address(&[seeds::REQUIREMENTS_SEED, &intent_id], &env.program_id);
+
+    // Step 1: Receive requirements via GMP
+    let requirements = IntentRequirements {
+        intent_id,
+        requester_addr: env.requester.pubkey().to_bytes(),
+        amount_required: amount,
+        token_addr: env.mint.to_bytes(),
+        solver_addr: env.solver.pubkey().to_bytes(),
+        expiry: u64::MAX,
+    };
+    let requirements_payload = requirements.encode().to_vec();
+
+    let gmp_caller = context.payer.insecure_clone();
+    let lz_receive_req_ix = create_lz_receive_requirements_ix(
+        env.program_id,
+        requirements_pda,
+        gmp_caller.pubkey(),
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        requirements_payload,
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[lz_receive_req_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
+        blockhash,
+    );
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // Step 2: Create escrow
     let create_ix = create_escrow_ix(
         env.program_id,
         intent_id,
@@ -248,7 +294,8 @@ async fn test_revert_if_already_claimed() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        Some(requirements_pda),
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -260,38 +307,37 @@ async fn test_revert_if_already_claimed() {
     );
     context.banks_client.process_transaction(create_tx).await.unwrap();
 
-    let (escrow_pda, _) =
-        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
-    let (vault_pda, _) =
-        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
-
-    // Claim the escrow first
-    let signature = env.approver.sign_message(&intent_id);
-    let mut signature_bytes = [0u8; 64];
-    signature_bytes.copy_from_slice(signature.as_ref());
-
-    let ed25519_ix = create_ed25519_instruction(&intent_id, &signature_bytes, &env.approver.pubkey());
-
-    let claim_ix = create_claim_ix(
-        env.program_id,
+    // Step 3: Claim the escrow via GMP fulfillment proof
+    let proof = FulfillmentProof {
         intent_id,
-        signature_bytes,
+        solver_addr: env.solver.pubkey().to_bytes(),
+        amount_fulfilled: amount,
+        timestamp: 12345,
+    };
+    let proof_payload = proof.encode().to_vec();
+
+    let lz_receive_proof_ix = create_lz_receive_fulfillment_proof_ix(
+        env.program_id,
+        requirements_pda,
         escrow_pda,
-        env.state_pda,
         vault_pda,
         env.solver_token,
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        proof_payload,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let claim_tx = Transaction::new_signed_with_payer(
-        &[ed25519_ix, claim_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
+        &[lz_receive_proof_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
         blockhash,
     );
     context.banks_client.process_transaction(claim_tx).await.unwrap();
 
-    // Now try to cancel - should fail
+    // Step 4: Now try to cancel - should fail because already claimed
     let cancel_ix = create_cancel_ix(
         env.program_id,
         intent_id,
@@ -310,7 +356,7 @@ async fn test_revert_if_already_claimed() {
     );
 
     let result = context.banks_client.process_transaction(cancel_tx).await;
-    assert!(result.is_err(), "Should have thrown an error");
+    assert!(result.is_err(), "Should fail - escrow already claimed");
 }
 
 // ============================================================================

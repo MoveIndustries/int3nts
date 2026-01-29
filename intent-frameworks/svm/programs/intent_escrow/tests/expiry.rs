@@ -1,9 +1,11 @@
 mod common;
 
 use common::{
-    create_cancel_ix, create_claim_ix, create_ed25519_instruction, create_escrow_ix,
-    generate_intent_id, get_token_balance, program_test, read_escrow, setup_basic_env,
+    create_cancel_ix, create_escrow_ix, create_lz_receive_fulfillment_proof_ix,
+    create_lz_receive_requirements_ix, generate_intent_id, get_token_balance, program_test,
+    read_escrow, setup_basic_env,
 };
+use gmp_common::messages::{FulfillmentProof, IntentRequirements};
 use intent_escrow::state::seeds;
 use solana_sdk::{
     clock::Clock,
@@ -45,6 +47,7 @@ async fn test_allow_requester_to_cancel_expired_escrow() {
         env.requester_token,
         env.solver.pubkey(),
         Some(2), // 2 second expiry
+        None,    // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -172,6 +175,7 @@ async fn test_verify_expiry_timestamp_is_stored_correctly() {
         env.requester_token,
         env.solver.pubkey(),
         None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -213,24 +217,61 @@ async fn test_verify_expiry_timestamp_is_stored_correctly() {
     );
 }
 
-/// 3. Test: Expired Escrow Claim Prevention
-/// Verifies that expired escrows cannot be claimed, even with valid approver signatures.
-/// Why: Expired escrows should only be cancellable by the requester, not claimable by solvers.
+/// 3. Test: Expired Escrow Can Be Fulfilled via GMP
+/// Verifies that expired escrows CAN still be fulfilled via GMP fulfillment proof.
+/// Why: In GMP mode, the hub is the source of truth. If the hub sends a fulfillment proof,
+/// it means the solver fulfilled the intent on the other chain, so funds should be released.
+/// Local expiry is only relevant for the Cancel operation (requester reclaiming funds).
 #[tokio::test]
-async fn test_prevent_claim_on_expired_escrow() {
+async fn test_expired_escrow_can_be_fulfilled_via_gmp() {
     let program_test = program_test();
     let mut context = program_test.start_with_context().await;
     let env = setup_basic_env(&mut context).await;
 
-    let intent_id = generate_intent_id();
+    let intent_id = [4u8; 32];
     let amount = 1_000_000u64;
+    let src_chain_id = 1u32;
+    let src_addr = [0u8; 32]; // Hub address
 
     let (escrow_pda, _) =
         Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
     let (vault_pda, _) =
         Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
+    let (requirements_pda, _) =
+        Pubkey::find_program_address(&[seeds::REQUIREMENTS_SEED, &intent_id], &env.program_id);
 
-    // Create escrow with short expiry (2 seconds)
+    // Step 1: Receive requirements via GMP
+    let requirements = IntentRequirements {
+        intent_id,
+        requester_addr: env.requester.pubkey().to_bytes(),
+        amount_required: amount,
+        token_addr: env.mint.to_bytes(),
+        solver_addr: env.solver.pubkey().to_bytes(),
+        expiry: u64::MAX,
+    };
+    let requirements_payload = requirements.encode().to_vec();
+
+    let gmp_caller = context.payer.insecure_clone();
+    let lz_receive_req_ix = create_lz_receive_requirements_ix(
+        env.program_id,
+        requirements_pda,
+        gmp_caller.pubkey(),
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        requirements_payload,
+    );
+
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[lz_receive_req_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
+        blockhash,
+    );
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // Step 2: Create escrow with short expiry (2 seconds)
     let create_ix = create_escrow_ix(
         env.program_id,
         intent_id,
@@ -240,6 +281,7 @@ async fn test_prevent_claim_on_expired_escrow() {
         env.requester_token,
         env.solver.pubkey(),
         Some(2), // 2 second expiry
+        Some(requirements_pda),
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -251,7 +293,7 @@ async fn test_prevent_claim_on_expired_escrow() {
     );
     context.banks_client.process_transaction(create_tx).await.unwrap();
 
-    // Advance time past expiry
+    // Step 3: Advance time past expiry
     let escrow_account = context
         .banks_client
         .get_account(escrow_pda)
@@ -269,43 +311,46 @@ async fn test_prevent_claim_on_expired_escrow() {
     clock.unix_timestamp = escrow.expiry + 1;
     context.set_sysvar(&clock);
 
-    // Claims blocked after expiry
-    let signature = env.approver.sign_message(&intent_id);
-    let mut signature_bytes = [0u8; 64];
-    signature_bytes.copy_from_slice(signature.as_ref());
-
-    let ed25519_ix = create_ed25519_instruction(&intent_id, &signature_bytes, &env.approver.pubkey());
-
-    let claim_ix = create_claim_ix(
-        env.program_id,
+    // Step 4: Fulfill via GMP - should succeed even though expired (hub is source of truth)
+    let proof = FulfillmentProof {
         intent_id,
-        signature_bytes,
+        solver_addr: env.solver.pubkey().to_bytes(),
+        amount_fulfilled: amount,
+        timestamp: 12345,
+    };
+    let proof_payload = proof.encode().to_vec();
+
+    let lz_receive_proof_ix = create_lz_receive_fulfillment_proof_ix(
+        env.program_id,
+        requirements_pda,
         escrow_pda,
-        env.state_pda,
         vault_pda,
         env.solver_token,
+        gmp_caller.pubkey(),
+        src_chain_id,
+        src_addr,
+        proof_payload,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let claim_tx = Transaction::new_signed_with_payer(
-        &[ed25519_ix, claim_ix],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
+        &[lz_receive_proof_ix],
+        Some(&gmp_caller.pubkey()),
+        &[&gmp_caller],
         blockhash,
     );
 
-    let result = context.banks_client.process_transaction(claim_tx).await;
-    assert!(result.is_err(), "Should have thrown an error");
+    // Hub fulfillment proof is honored regardless of local expiry
+    context.banks_client.process_transaction(claim_tx).await.unwrap();
 
-    // Verify vault still has funds
+    // Verify funds were released to solver
     let vault_balance = get_token_balance(&mut context, vault_pda).await;
-    assert_eq!(vault_balance, amount);
+    assert_eq!(vault_balance, 0);
 
-    // Verify solver didn't receive funds
     let solver_balance = get_token_balance(&mut context, env.solver_token).await;
-    assert_eq!(solver_balance, 0);
+    assert_eq!(solver_balance, amount);
 
-    // Verify escrow state unchanged
+    // Verify escrow marked as claimed
     let escrow_account = context
         .banks_client
         .get_account(escrow_pda)
@@ -313,6 +358,6 @@ async fn test_prevent_claim_on_expired_escrow() {
         .unwrap()
         .unwrap();
     let escrow = read_escrow(&escrow_account);
-    assert!(!escrow.is_claimed);
-    assert_eq!(escrow.amount, amount);
+    assert!(escrow.is_claimed);
+    assert_eq!(escrow.amount, 0);
 }

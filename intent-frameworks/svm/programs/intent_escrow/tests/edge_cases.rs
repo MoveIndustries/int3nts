@@ -36,7 +36,8 @@ async fn test_handle_maximum_values_for_amounts_and_intent_ids() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -85,7 +86,8 @@ async fn test_handle_minimum_deposit_amount() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None,
+        None, // Default expiry
+        None, // No requirements PDA
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -142,7 +144,8 @@ async fn test_allow_requester_to_create_multiple_escrows() {
             env.mint,
             env.requester_token,
             env.solver.pubkey(),
-            None,
+            None, // Default expiry
+            None, // No requirements PDA
         );
 
         let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -202,7 +205,8 @@ async fn test_handle_gas_consumption_for_large_operations() {
             env.mint,
             env.requester_token,
             env.solver.pubkey(),
-            None,
+            None, // Default expiry
+            None, // No requirements PDA
         );
 
         let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -256,7 +260,8 @@ async fn test_handle_concurrent_escrow_operations() {
             env.mint,
             env.requester_token,
             env.solver.pubkey(),
-            None,
+            None, // Default expiry
+            None, // No requirements PDA
         );
 
         let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
