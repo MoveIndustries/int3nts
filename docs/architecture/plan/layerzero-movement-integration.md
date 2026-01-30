@@ -944,7 +944,7 @@ struct MessageSent has store, drop {
 }
 ```
 
-**Impact on int3nts:** The local GMP endpoint will emit events that the Trusted GMP relay watches. This aligns well with the Aptos event model.
+**Impact on int3nts:** The native GMP endpoint will emit events that the Trusted GMP relay watches. This aligns well with the Aptos event model.
 
 ### 8.8 BCS Serialization
 
@@ -1031,11 +1031,11 @@ Movement has its own RPC endpoints (different from Aptos):
 
 - **Status: Uncertain**
 - LZ may not have testnet support for Movement
-- **Recommendation:** Use local GMP endpoints + Trusted-GMP relay for testnet
+- **Recommendation:** Use native GMP endpoints + Trusted-GMP relay for testnet
 
 **Development:**
 
-- Use local Movement node + local GMP endpoints + Trusted-GMP relay
+- Use local Movement node + native GMP endpoints + Trusted-GMP relay
 - This is the same pattern described in `gmp-architecture-integration.md`
 
 **Known concern:** LZ engineers flagged potential "stuck in transit" scenarios with dual-adapter designs (L1 adapter + L2 adapter). Rate limit parameters must be precisely aligned between both sides.
@@ -1113,7 +1113,7 @@ intent-frameworks/mvm/sources/
 ├── gmp/
 │   ├── gmp_messages.move        # Message encoding/decoding (wire format)
 │   ├── gmp_endpoint.move        # LZ endpoint interaction (send/quote)
-│   ├── local_gmp_endpoint.move  # Mock endpoint for local/CI
+│   ├── native_gmp_endpoint.move  # Mock endpoint for local/CI
 │   └── oapp_config.move         # Peer management, endpoint config
 ├── fa_intent.move               # Existing (no changes)
 ├── fa_intent_outflow.move       # Modified: add lz_send on create, lz_receive for proof

@@ -56,7 +56,7 @@ After:  Source contract sends GMP message → Destination contract receives and 
 | Coordinator event monitoring (hub only) | UX only, not security-critical. Hub has full state via GMP messages. |
 | Coordinator negotiation API | Application logic, not security-critical |
 | Coordinator event caching | Convenience, not security-critical |
-| Trusted-GMP (local/CI only) | Relays GMP messages via local GMP endpoints |
+| Trusted-GMP (local/CI only) | Relays GMP messages via native GMP endpoints |
 
 ---
 
@@ -208,7 +208,7 @@ These apply to all `lzReceive()` handlers in both flows:
 - `lz_receive()`: Entry point called by LZ endpoint, dispatches to handlers
 - Trusted remote verification
 
-**New: `gmp/local_gmp_endpoint.move`** - Local GMP endpoint:
+**New: `gmp/native_gmp_endpoint.move`** - Native GMP endpoint:
 
 - `send()`: Emits event (no real cross-chain)
 - `deliver_message()`: Trusted-GMP calls this to relay messages
@@ -226,7 +226,7 @@ These apply to all `lzReceive()` handlers in both flows:
 - `lz_receive`: Stores intent requirements from hub
 - `fulfill_intent`: Solver calls this; validates, transfers, sends GMP proof
 
-**New: `local-gmp-endpoint` program** - Local GMP endpoint:
+**New: `native-gmp-endpoint` program** - Native GMP endpoint:
 
 - `send`: Emits `MessageSent` event
 - `deliver_message`: Trusted-GMP relays messages
@@ -236,7 +236,7 @@ These apply to all `lzReceive()` handlers in both flows:
 **`IntentEscrow.sol`** - Modify to use GMP (same approach as SVM)
 
 **New: `OutflowValidator.sol`** - For outflow validation
-**New: `LocalGmpEndpoint.sol`** - Local GMP endpoint
+**New: `NativeGmpEndpoint.sol`** - Native GMP endpoint
 
 ### Decision: New Contracts vs Modify Existing
 
@@ -247,13 +247,13 @@ Rationale:
 - Single code path — no mode flags or conditional logic
 - Existing signature verification code gets removed, not preserved
 - All environments (local/CI, testnet, mainnet) use the same GMP contract interface
-- Local/CI uses local GMP endpoints with trusted-GMP for message relay
+- Local/CI uses native GMP endpoints with trusted-GMP for message relay
 
 ---
 
 ## Trusted-GMP Relay Design
 
-In production, LZ handles message delivery. In local/CI, trusted-GMP relays messages between local GMP endpoints.
+In production, LZ handles message delivery. In local/CI, trusted-GMP relays messages between native GMP endpoints.
 
 ### How It Works
 
@@ -268,16 +268,16 @@ In production, LZ handles message delivery. In local/CI, trusted-GMP relays mess
                  └──────────────────────┘
 ```
 
-1. Contracts call `lzSend()` on local GMP endpoint
-2. Local GMP endpoint emits `MessageSent` event (no real cross-chain)
+1. Contracts call `lzSend()` on native GMP endpoint
+2. Native GMP endpoint emits `MessageSent` event (no real cross-chain)
 3. Trusted-GMP polls for `MessageSent` events on all chains
-4. Trusted-GMP calls `deliver_message()` on destination chain's local GMP endpoint
-5. Local GMP endpoint calls `lzReceive()` on destination contract
+4. Trusted-GMP calls `deliver_message()` on destination chain's native GMP endpoint
+5. Native GMP endpoint calls `lzReceive()` on destination contract
 6. Destination contract processes message normally
 
 ### Trusted-GMP Relay Requirements
 
-- **Watches**: `MessageSent` events on local GMP endpoints (MVM, SVM, EVM)
+- **Watches**: `MessageSent` events on native GMP endpoints (MVM, SVM, EVM)
 - **Delivers**: Calls `deliver_message()` / `lzReceive()` on destination
 - **Needs**: Funded operator wallet per chain (pays gas for delivery)
 - **Config**: Chain RPCs, GMP endpoint addresses, operator keys
@@ -289,7 +289,7 @@ In production, LZ handles message delivery. In local/CI, trusted-GMP relays mess
 
 | Aspect | Current Trusted-GMP | Relay Mode |
 |--------|--------------------|----|
-| **Watches** | Intent/escrow events | `MessageSent` events on local GMP endpoints |
+| **Watches** | Intent/escrow events | `MessageSent` events on native GMP endpoints |
 | **Validates** | 15+ off-chain checks | None (contracts validate on-chain) |
 | **Action** | Signs intent_id | Calls `deliver_message()` |
 | **Keys needed** | Approver private key | Operator wallet (gas payment only) |
@@ -300,7 +300,7 @@ In production, LZ handles message delivery. In local/CI, trusted-GMP relays mess
 Contracts use the same GMP interface in all environments. Only the endpoint differs:
 
 - **Production**: LZ GMP endpoint → DVNs verify and deliver
-- **Local/CI**: Local GMP endpoint → Trusted-GMP watches and relays
+- **Local/CI**: Native GMP endpoint → Trusted-GMP watches and relays
 
 ```text
 // Same contract code in all environments:
@@ -308,7 +308,7 @@ lz_send(endpoint, dst_chain_id, destination, payload);
 
 // GMP endpoint is configured at deployment:
 // Production: 0x1a44076050125825900e736c501f859c50fE728c (LZ)
-// Local/CI:   <local_gmp_endpoint_address>
+// Local/CI:   <native_gmp_endpoint_address>
 ```
 
 ---
@@ -317,7 +317,7 @@ lz_send(endpoint, dst_chain_id, destination, payload);
 
 | Environment | MVM Hub | SVM Connected | EVM Connected | GMP Delivery |
 |-------------|---------|---------------|---------------|--------------|
-| **Local/CI** | Local GMP endpoint | Local GMP endpoint | Local GMP endpoint | Trusted-GMP relay |
+| **Local/CI** | Native GMP endpoint | Native GMP endpoint | Native GMP endpoint | Trusted-GMP relay |
 | **Testnet** | LZ GMP endpoint | LZ GMP endpoint (Solana devnet) | LZ GMP endpoint (Base Sepolia) | LZ DVNs + Executors |
 | **Mainnet** | LZ GMP endpoint | LZ GMP endpoint | LZ GMP endpoint | LZ DVNs + Executors |
 

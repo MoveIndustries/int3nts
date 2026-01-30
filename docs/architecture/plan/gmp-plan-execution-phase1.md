@@ -1,6 +1,6 @@
 # Phase 1: Research & Design (2-3 days)
 
-**Status:** In Progress (Commits 1-7 complete)
+**Status:** In Progress (Commits 1-10 complete)
 **Depends On:** None
 **Blocks:** Phase 2
 
@@ -28,11 +28,11 @@
   - SVM: `intent_escrow` program (modify existing to add GMP support)
   - What triggers `lzSend()`? (contract logic on state change, not external caller)
 - [x] **Trusted-GMP relay design** - How it works in local/CI:
-  - Watches `MessageSent` events on local GMP endpoints
+  - Watches `MessageSent` events on native GMP endpoints
   - Calls `deliver_message()` / `lzReceive()` on destination chain
   - Needs funded operator wallet per chain
 - [x] **Environment matrix** - What uses local vs LZ GMP endpoints:
-  - Local/CI: Local GMP endpoints + Trusted-GMP relay
+  - Local/CI: Native GMP endpoints + Trusted-GMP relay
   - Testnet: LZ GMP endpoints everywhere
   - Mainnet: LZ GMP endpoints everywhere
 
@@ -221,15 +221,15 @@
 
 **Files:**
 
-- `intent-frameworks/svm/programs/intent-escrow/src/lib.rs` (modify existing)
+- `intent-frameworks/svm/programs/intent_escrow/src/lib.rs` (modify existing)
 
 **Tasks:**
 
-- [ ] Add `lz_receive` instruction for receiving intent requirements
-- [ ] Add on-chain validation in `create_escrow` against stored requirements
-- [ ] Add `lz_receive` instruction for receiving fulfillment proof (auto-release)
-- [ ] Remove signature verification in `claim`
-- [ ] Add dependency on `gmp-common`
+- [x] Add `lz_receive` instruction for receiving intent requirements
+- [x] Add on-chain validation in `create_escrow` against stored requirements
+- [x] Add `lz_receive` instruction for receiving fulfillment proof (auto-release)
+- [x] Remove signature verification in `claim`
+- [x] Add dependency on `gmp-common`
 
 **Test:**
 
@@ -275,22 +275,22 @@ Connected chain functions (MVM as connected chain):
 
 ---
 
-### Commit 10: Add local GMP endpoint interfaces (SVM + MVM)
+### Commit 10: Add native GMP endpoint interfaces (SVM + MVM)
 
 **Files:**
 
-- `intent-frameworks/svm/programs/local-gmp-endpoint/Cargo.toml`
-- `intent-frameworks/svm/programs/local-gmp-endpoint/src/lib.rs` (interface only)
-- `intent-frameworks/mvm/sources/gmp/local_gmp_endpoint.move` (interface only)
+- `intent-frameworks/svm/programs/native-gmp-endpoint/Cargo.toml`
+- `intent-frameworks/svm/programs/native-gmp-endpoint/src/lib.rs` (interface only)
+- `intent-frameworks/mvm/sources/gmp/native_gmp_endpoint.move` (interface only)
 
 **Tasks:**
 
-- [ ] SVM: Define `send` instruction signature (emits event)
-- [ ] SVM: Define `deliver_message` instruction for trusted-GMP relay
-- [ ] SVM: Add stub implementations
-- [ ] MVM: Define `lz_send()` function signature
-- [ ] MVM: Define `deliver_message()` entry function for trusted-GMP relay
-- [ ] MVM: Add stub implementations
+- [x] SVM: Define `send` instruction signature (emits event)
+- [x] SVM: Define `deliver_message` instruction for trusted-GMP relay
+- [x] SVM: Add stub implementations
+- [x] MVM: Define `lz_send()` function signature
+- [x] MVM: Define `deliver_message()` entry function for trusted-GMP relay
+- [x] MVM: Add stub implementations
 
 **Test:**
 
@@ -312,7 +312,7 @@ Connected chain functions (MVM as connected chain):
 **Tasks:**
 
 - [ ] Document all GMP endpoint addresses (LZ for Solana and Movement, local for testing)
-- [ ] Document environment configuration (local/CI uses local GMP endpoints, testnet and mainnet use LZ GMP endpoints)
+- [ ] Document environment configuration (local/CI uses native GMP endpoints, testnet and mainnet use LZ GMP endpoints)
 - [ ] Estimate LZ message fees for each route
 - [ ] Estimate on-chain validation gas costs
 - [ ] Compare costs to current Trusted GMP system
@@ -344,6 +344,6 @@ Connected chain functions (MVM as connected chain):
 - [x] MVM message encoding matches spec (tested)
 - [x] Cross-chain encoding test passes (both produce identical bytes)
 - [ ] All interfaces defined for SVM and MVM
-- [ ] Local GMP endpoint interfaces defined for both chains
+- [x] Native GMP endpoint interfaces defined for both chains
 - [x] LZ research documented for both Solana and Movement
 - [ ] Fee analysis complete

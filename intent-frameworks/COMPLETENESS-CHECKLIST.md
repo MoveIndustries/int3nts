@@ -6,20 +6,15 @@ This document tracks test alignment status for VM intent framework contracts (EV
 
 All tests listed here are VM-specific; generic tests are intentionally excluded because they are not relevant when integrating a new VM.
 
-Escrow test alignment for VM intent framework contracts:
-
-- `intent-frameworks/evm/test/`
-- `intent-frameworks/svm/programs/intent_escrow/tests/`
-
 Each test file uses independent numbering starting from 1. At the end of the implementation, check that all tests are numbered correctly and match the list below.
 
 **Legend:** ✅ = Implemented | N/A = Not applicable to platform | ⚠️ = Not yet implemented
 
 ## initialization
 
-MVM: `initialization_tests.move` ⚠️
-EVM: `initialization.test.js`
-SVM: `initialization.rs`
+MVM: `intent-frameworks/mvm/tests/initialization_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/initialization.test.js`
+SVM: `intent-frameworks/svm/programs/intent_escrow/tests/initialization.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -30,9 +25,9 @@ SVM: `initialization.rs`
 
 ## deposit
 
-MVM: `deposit_tests.move` ⚠️
-EVM: `deposit.test.js`
-SVM: `deposit.rs`
+MVM: `intent-frameworks/mvm/tests/deposit_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/deposit.test.js`
+SVM: `intent-frameworks/svm/programs/intent_escrow/tests/deposit.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -43,9 +38,9 @@ SVM: `deposit.rs`
 
 ## claim
 
-MVM: `claim_tests.move` ⚠️
-EVM: `claim.test.js`
-SVM: `claim.rs`
+MVM: `intent-frameworks/mvm/tests/claim_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/claim.test.js`
+SVM: `intent-frameworks/svm/programs/intent_escrow/tests/claim.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -59,9 +54,9 @@ SVM: `claim.rs`
 
 ## cancel
 
-MVM: `cancel_tests.move` ⚠️
-EVM: `cancel.test.js`
-SVM: `cancel.rs`
+MVM: `intent-frameworks/mvm/tests/cancel_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/cancel.test.js`
+SVM: `intent-frameworks/svm/programs/intent_escrow/tests/cancel.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -73,9 +68,9 @@ SVM: `cancel.rs`
 
 ## expiry
 
-MVM: `expiry_tests.move` ⚠️
-EVM: `expiry.test.js`
-SVM: `expiry.rs`
+MVM: `intent-frameworks/mvm/tests/expiry_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/expiry.test.js`
+SVM: `intent-frameworks/svm/programs/intent_escrow/tests/expiry.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -87,9 +82,9 @@ SVM: `expiry.rs`
 
 ## cross-chain
 
-MVM: `cross_chain_tests.move` ⚠️
-EVM: `cross-chain.test.js`
-SVM: `cross_chain.rs`
+MVM: `intent-frameworks/mvm/tests/cross_chain_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/cross-chain.test.js`
+SVM: `intent-frameworks/svm/programs/intent_escrow/tests/cross_chain.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -100,9 +95,9 @@ SVM: `cross_chain.rs`
 
 ## edge-cases
 
-MVM: `edge_cases_tests.move` ⚠️
-EVM: `edge-cases.test.js`
-SVM: `edge_cases.rs`
+MVM: `intent-frameworks/mvm/tests/edge_cases_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/edge-cases.test.js`
+SVM: `intent-frameworks/svm/programs/intent_escrow/tests/edge_cases.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -114,9 +109,9 @@ SVM: `edge_cases.rs`
 
 ## error-conditions
 
-MVM: `error_conditions_tests.move` ⚠️
-EVM: `error-conditions.test.js`
-SVM: `error_conditions.rs`
+MVM: `intent-frameworks/mvm/tests/error_conditions_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/error-conditions.test.js`
+SVM: `intent-frameworks/svm/programs/intent_escrow/tests/error_conditions.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -134,9 +129,9 @@ SVM: `error_conditions.rs`
 
 ## integration
 
-MVM: `integration_tests.move` ⚠️
-EVM: `integration.test.js`
-SVM: `integration.rs`
+MVM: `intent-frameworks/mvm/tests/integration_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/integration.test.js`
+SVM: `intent-frameworks/svm/programs/intent_escrow/tests/integration.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -149,11 +144,11 @@ SVM: `integration.rs`
 
 ## GMP message encoding/decoding test alignment
 
-MVM: `gmp_common_tests.move`
-EVM: `gmp-common/` ⚠️
-SVM: `gmp_common_tests.rs`
+MVM: `intent-frameworks/mvm/tests/gmp_common_tests.move`
+EVM: `intent-frameworks/evm/test/gmp-common/` ⚠️
+SVM: `intent-frameworks/svm/programs/gmp-common/tests/gmp_common_tests.rs`
 
-### Per-message-type test symmetry
+**Per-message-type test symmetry**
 
 Each message type has a symmetric set of tests. The table below shows how test concepts map across types.
 
@@ -167,11 +162,7 @@ Each message type has a symmetric set of tests. The table below shows how test c
 | Field offsets | 6 | 12 | 17 |
 | EVM address encoding | 7 | N/A | N/A |
 
-### IntentRequirements (0x01)
-
-MVM: `gmp_common_tests.move`
-EVM: `gmp-common/` ⚠️
-SVM: `gmp_common_tests.rs`
+**IntentRequirements (0x01)**
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |
@@ -183,11 +174,7 @@ SVM: `gmp_common_tests.rs`
 | 6 | test_intent_requirements_field_offsets | ✅ | ⚠️ | ✅ |
 | 7 | test_intent_requirements_evm_address | ✅ | ⚠️ | ✅ |
 
-### EscrowConfirmation (0x02)
-
-MVM: `gmp_common_tests.move`
-EVM: `gmp-common/` ⚠️
-SVM: `gmp_common_tests.rs`
+**EscrowConfirmation (0x02)**
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |
@@ -197,11 +184,7 @@ SVM: `gmp_common_tests.rs`
 | 11 | test_escrow_confirmation_big_endian_amount | ✅ | ⚠️ | ✅ |
 | 12 | test_escrow_confirmation_field_offsets | ✅ | ⚠️ | ✅ |
 
-### FulfillmentProof (0x03)
-
-MVM: `gmp_common_tests.move`
-EVM: `gmp-common/` ⚠️
-SVM: `gmp_common_tests.rs`
+**FulfillmentProof (0x03)**
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |
@@ -211,11 +194,7 @@ SVM: `gmp_common_tests.rs`
 | 16 | test_fulfillment_proof_big_endian_fields | ✅ | ⚠️ | ✅ |
 | 17 | test_fulfillment_proof_field_offsets | ✅ | ⚠️ | ✅ |
 
-### Peek Message Type
-
-MVM: `gmp_common_tests.move`
-EVM: `gmp-common/` ⚠️
-SVM: `gmp_common_tests.rs`
+**Peek Message Type**
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |
@@ -223,11 +202,7 @@ SVM: `gmp_common_tests.rs`
 | 19 | test_peek_escrow_confirmation | ✅ | ⚠️ | ✅ |
 | 20 | test_peek_fulfillment_proof | ✅ | ⚠️ | ✅ |
 
-### Error Conditions
-
-MVM: `gmp_common_tests.move`
-EVM: `gmp-common/` ⚠️
-SVM: `gmp_common_tests.rs`
+**Error Conditions**
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |
@@ -242,11 +217,7 @@ SVM: `gmp_common_tests.rs`
 | 29 | test_reject_wrong_length_fulfillment_proof | ✅ | ⚠️ | ✅ |
 | 30 | test_reject_off_by_one_length | ✅ | ⚠️ | ✅ |
 
-### Known Byte Sequences
-
-MVM: `gmp_common_tests.move`
-EVM: `gmp-common/` ⚠️
-SVM: `gmp_common_tests.rs`
+**Known Byte Sequences**
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |
@@ -254,24 +225,16 @@ SVM: `gmp_common_tests.rs`
 | 32 | test_decode_known_escrow_confirmation_bytes | ✅ | ⚠️ | ✅ |
 | 33 | test_decode_known_fulfillment_proof_bytes | ✅ | ⚠️ | ✅ |
 
-### Boundary Conditions
-
-MVM: `gmp_common_tests.move`
-EVM: `gmp-common/` ⚠️
-SVM: `gmp_common_tests.rs`
+**Boundary Conditions**
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |
 | 34 | test_max_u64_amount_roundtrip | ✅ | ⚠️ | ✅ |
 | 35 | test_zero_solver_addr_means_any | ✅ | ⚠️ | ✅ |
 
-### Cross-Chain Encoding Compatibility
+**Cross-Chain Encoding Compatibility**
 
 These tests verify that encoding produces identical bytes across all frameworks. Expected bytes are defined in `intent-frameworks/common/testing/gmp-encoding-test-vectors.json`.
-
-MVM: `gmp_common_tests.move`
-EVM: `gmp-common/` ⚠️
-SVM: `gmp_common_tests.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |
@@ -287,15 +250,11 @@ SVM: `gmp_common_tests.rs`
 
 Outflow validator handles the connected chain side of outflow intents (tokens flow OUT of Movement TO connected chain). The solver fulfills on the connected chain, and the validator sends proof back to the hub.
 
-- `intent-frameworks/svm/programs/outflow-validator/tests/interface_tests.rs`
-- `intent-frameworks/mvm/tests/interface_tests.move`
-- `intent-frameworks/evm/test/outflow-validator/` (future)
-
 ### Outflow Validator Interface Tests
 
-MVM: `interface_tests.move`
-EVM: `outflow-validator/` ⚠️
-SVM: `interface_tests.rs`
+MVM: `intent-frameworks/mvm/tests/interface_tests.move`
+EVM: `intent-frameworks/evm/test/outflow-validator/` ⚠️
+SVM: `intent-frameworks/svm/programs/outflow-validator/tests/interface_tests.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |
@@ -306,3 +265,20 @@ SVM: `interface_tests.rs`
 | 5 | test_config_account_roundtrip | N/A | ⚠️ | ✅ |
 | 6 | test_error_conversion | N/A | ⚠️ | ✅ |
 | 7 | test_error_codes_unique | N/A | ⚠️ | ✅ |
+
+---
+
+## Native GMP Endpoint test alignment
+
+Native GMP endpoint provides a standardized interface for cross-chain messaging. Can be used for local testing, CI, or production with your own relay infrastructure. In production, this can also be replaced by LayerZero's endpoint.
+
+### Native GMP Endpoint Interface Tests
+
+MVM: `intent-frameworks/mvm/tests/native_gmp_endpoint_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/native-gmp-endpoint/` ⚠️
+SVM: `intent-frameworks/svm/programs/native-gmp-endpoint/src/lib.rs` (inline tests)
+
+| # | Test | MVM | EVM | SVM |
+| --- | --- | --- | --- | --- |
+| 1 | test_send_instruction_serialization | N/A | ⚠️ | ✅ |
+| 2 | test_deliver_message_instruction_serialization | N/A | ⚠️ | ✅ |
