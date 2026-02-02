@@ -323,3 +323,31 @@ SVM: `intent-frameworks/svm/programs/native-gmp-endpoint/tests/endpoint_tests.rs
 | 19 | test_deliver_message_rejects_no_trusted_remote | ✅ | ⚠️ | ✅ |
 | 20 | test_set_trusted_remote_unauthorized | ✅ | ⚠️ | ✅ |
 | 21 | test_deliver_message_rejects_lower_nonce | ✅ | ⚠️ | ✅ |
+
+---
+
+## Inflow Escrow GMP test alignment
+
+Inflow escrow handles the connected chain side of inflow intents (tokens locked on connected chain, desired on hub). The user locks tokens in escrow on the connected chain (SVM/EVM), the solver fulfills by delivering tokens on the hub (Movement), and the hub sends fulfillment proof via GMP to release the escrowed tokens to the solver.
+
+### Inflow Escrow GMP Tests
+
+MVM: `intent-frameworks/mvm/tests/inflow_escrow_gmp_tests.move` ⚠️
+EVM: `intent-frameworks/evm/test/inflow-escrow-gmp/` ⚠️
+SVM: `intent-frameworks/svm/programs/intent_escrow/tests/gmp.rs`
+
+| # | Test | MVM | EVM | SVM |
+| --- | --- | --- | --- | --- |
+| 1 | test_set_gmp_config | ⚠️ | ⚠️ | ✅ |
+| 2 | test_set_gmp_config_rejects_unauthorized | ⚠️ | ⚠️ | ✅ |
+| 3 | test_lz_receive_requirements_stores_requirements | ⚠️ | ⚠️ | ✅ |
+| 4 | test_lz_receive_requirements_idempotent | ⚠️ | ⚠️ | ✅ |
+| 5 | test_lz_receive_requirements_rejects_untrusted_source | ⚠️ | ⚠️ | ✅ |
+| 6 | test_lz_receive_fulfillment_proof_releases_escrow | ⚠️ | ⚠️ | ✅ |
+| 7 | test_lz_receive_fulfillment_proof_rejects_untrusted_source | ⚠️ | ⚠️ | ✅ |
+| 8 | test_lz_receive_fulfillment_proof_rejects_already_fulfilled | ⚠️ | ⚠️ | ✅ |
+| 9 | test_create_escrow_validates_against_requirements | ⚠️ | ⚠️ | ✅ |
+| 10 | test_create_escrow_rejects_amount_mismatch | ⚠️ | ⚠️ | ✅ |
+| 11 | test_create_escrow_rejects_token_mismatch | ⚠️ | ⚠️ | ✅ |
+| 12 | test_create_escrow_sends_escrow_confirmation | ⚠️ | ⚠️ | ✅ |
+| 13 | test_full_inflow_gmp_workflow | ⚠️ | ⚠️ | ✅ |

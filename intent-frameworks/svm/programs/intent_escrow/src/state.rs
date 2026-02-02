@@ -127,10 +127,51 @@ impl StoredIntentRequirements {
     }
 }
 
+/// GMP configuration for cross-chain messaging.
+/// Stores trusted hub address and GMP endpoint for source validation.
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+pub struct GmpConfig {
+    /// Discriminator for account type
+    pub discriminator: [u8; 8],
+    /// Admin who can update config
+    pub admin: Pubkey,
+    /// The hub chain ID (LayerZero endpoint ID, e.g., Movement = 30106)
+    pub hub_chain_id: u32,
+    /// The trusted hub address (32 bytes, for GMP message verification)
+    pub trusted_hub_addr: [u8; 32],
+    /// The native GMP endpoint program ID (for CPI)
+    pub gmp_endpoint: Pubkey,
+    /// PDA bump seed
+    pub bump: u8,
+}
+
+impl GmpConfig {
+    pub const DISCRIMINATOR: [u8; 8] = [0x47, 0x4d, 0x50, 0x43, 0x4f, 0x4e, 0x46, 0x47]; // "GMPCONFG"
+    pub const LEN: usize = 8 + 32 + 4 + 32 + 32 + 1; // 109 bytes
+
+    pub fn new(
+        admin: Pubkey,
+        hub_chain_id: u32,
+        trusted_hub_addr: [u8; 32],
+        gmp_endpoint: Pubkey,
+        bump: u8,
+    ) -> Self {
+        Self {
+            discriminator: Self::DISCRIMINATOR,
+            admin,
+            hub_chain_id,
+            trusted_hub_addr,
+            gmp_endpoint,
+            bump,
+        }
+    }
+}
+
 /// Seeds for PDA derivation
 pub mod seeds {
     pub const STATE_SEED: &[u8] = b"state";
     pub const ESCROW_SEED: &[u8] = b"escrow";
     pub const VAULT_SEED: &[u8] = b"vault";
     pub const REQUIREMENTS_SEED: &[u8] = b"requirements";
+    pub const GMP_CONFIG_SEED: &[u8] = b"gmp_config";
 }

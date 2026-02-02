@@ -16,7 +16,7 @@ use solana_sdk::{
 
 use intent_escrow::{
     instruction::EscrowInstruction,
-    state::{seeds, Escrow, EscrowState, StoredIntentRequirements},
+    state::{seeds, Escrow, EscrowState, GmpConfig, StoredIntentRequirements},
 };
 
 // ============================================================================
@@ -29,6 +29,16 @@ pub fn test_program_id() -> Pubkey {
     // Use a deterministic pubkey derived from a known seed for testing
     solana_sdk::pubkey!("Escrow11111111111111111111111111111111111111")
 }
+
+// ============================================================================
+// DUMMY TEST CONSTANTS
+// ============================================================================
+
+/// Dummy hub chain ID for testing GMP functionality
+pub const DUMMY_HUB_CHAIN_ID: u32 = 1;
+
+/// Dummy trusted hub address for testing GMP functionality
+pub const DUMMY_TRUSTED_HUB_ADDR: [u8; 32] = [0u8; 32];
 
 // ============================================================================
 // TEST HARNESS HELPERS
@@ -302,10 +312,37 @@ pub fn create_cancel_ix(
     }
 }
 
+/// Helper: Build a SetGmpConfig instruction
+pub fn create_set_gmp_config_ix(
+    program_id: Pubkey,
+    gmp_config_pda: Pubkey,
+    admin: Pubkey,
+    hub_chain_id: u32,
+    trusted_hub_addr: [u8; 32],
+    gmp_endpoint: Pubkey,
+) -> Instruction {
+    Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(gmp_config_pda, false),
+            AccountMeta::new(admin, true),
+            AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        ],
+        data: EscrowInstruction::SetGmpConfig {
+            hub_chain_id,
+            trusted_hub_addr,
+            gmp_endpoint,
+        }
+        .try_to_vec()
+        .unwrap(),
+    }
+}
+
 /// Helper: Build an LzReceiveRequirements instruction
 pub fn create_lz_receive_requirements_ix(
     program_id: Pubkey,
     requirements_pda: Pubkey,
+    gmp_config_pda: Pubkey,
     gmp_caller: Pubkey,
     payer: Pubkey,
     src_chain_id: u32,
@@ -316,6 +353,7 @@ pub fn create_lz_receive_requirements_ix(
         program_id,
         accounts: vec![
             AccountMeta::new(requirements_pda, false),
+            AccountMeta::new_readonly(gmp_config_pda, false),
             AccountMeta::new_readonly(gmp_caller, true),
             AccountMeta::new(payer, true),
             AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
@@ -337,6 +375,7 @@ pub fn create_lz_receive_fulfillment_proof_ix(
     escrow_pda: Pubkey,
     vault_pda: Pubkey,
     solver_token: Pubkey,
+    gmp_config_pda: Pubkey,
     gmp_caller: Pubkey,
     src_chain_id: u32,
     src_addr: [u8; 32],
@@ -349,6 +388,7 @@ pub fn create_lz_receive_fulfillment_proof_ix(
             AccountMeta::new(escrow_pda, false),
             AccountMeta::new(vault_pda, false),
             AccountMeta::new(solver_token, false),
+            AccountMeta::new_readonly(gmp_config_pda, false),
             AccountMeta::new_readonly(gmp_caller, true),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
@@ -392,6 +432,12 @@ pub struct TestEnv {
     pub requester_token: Pubkey,
     pub solver_token: Pubkey,
     pub state_pda: Pubkey,
+    /// GMP config PDA - must be from TestEnv, not a DUMMY constant.
+    /// PDAs are cryptographically derived from seeds + program_id and validated
+    /// on-chain. A hardcoded "dummy" address would fail PDA validation.
+    pub gmp_config_pda: Pubkey,
+    pub hub_chain_id: u32,
+    pub trusted_hub_addr: [u8; 32],
 }
 
 /// Helper: Create a baseline environment used by most tests
@@ -433,6 +479,23 @@ pub async fn setup_basic_env(context: &mut ProgramTestContext) -> TestEnv {
     // Initialize program
     let state_pda = initialize_program(context, &requester, program_id, approver.pubkey()).await;
 
+    // Initialize GMP config with dummy test constants
+    let gmp_endpoint = Pubkey::new_unique(); // Mock GMP endpoint
+
+    let (gmp_config_pda, _) =
+        Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], &program_id);
+
+    let set_gmp_config_ix = create_set_gmp_config_ix(
+        program_id,
+        gmp_config_pda,
+        requester.pubkey(),
+        DUMMY_HUB_CHAIN_ID,
+        DUMMY_TRUSTED_HUB_ADDR,
+        gmp_endpoint,
+    );
+
+    send_tx(context, &payer, &[set_gmp_config_ix], &[&requester]).await;
+
     TestEnv {
         program_id,
         requester,
@@ -443,6 +506,9 @@ pub async fn setup_basic_env(context: &mut ProgramTestContext) -> TestEnv {
         requester_token,
         solver_token,
         state_pda,
+        gmp_config_pda,
+        hub_chain_id: DUMMY_HUB_CHAIN_ID,
+        trusted_hub_addr: DUMMY_TRUSTED_HUB_ADDR,
     }
 }
 

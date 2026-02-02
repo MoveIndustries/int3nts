@@ -18,12 +18,12 @@ use solana_program::{
 };
 use spl_token::state::Account as TokenAccount;
 
-use gmp_common::messages::{FulfillmentProof, IntentRequirements};
+use gmp_common::messages::{EscrowConfirmation, FulfillmentProof, IntentRequirements};
 
 use crate::{
     error::EscrowError,
     instruction::EscrowInstruction,
-    state::{seeds, Escrow, EscrowState, StoredIntentRequirements},
+    state::{seeds, Escrow, EscrowState, GmpConfig, StoredIntentRequirements},
     DEFAULT_EXPIRY_DURATION,
 };
 
@@ -42,6 +42,20 @@ impl Processor {
             EscrowInstruction::Initialize { approver } => {
                 msg!("Instruction: Initialize");
                 Self::process_initialize(program_id, accounts, approver)
+            }
+            EscrowInstruction::SetGmpConfig {
+                hub_chain_id,
+                trusted_hub_addr,
+                gmp_endpoint,
+            } => {
+                msg!("Instruction: SetGmpConfig");
+                Self::process_set_gmp_config(
+                    program_id,
+                    accounts,
+                    hub_chain_id,
+                    trusted_hub_addr,
+                    gmp_endpoint,
+                )
             }
             EscrowInstruction::CreateEscrow {
                 intent_id,
@@ -129,6 +143,94 @@ impl Processor {
         state.serialize(&mut &mut state_account.data.borrow_mut()[..])?;
 
         msg!("Escrow program initialized with approver: {}", approver);
+        Ok(())
+    }
+
+    /// Set or update GMP configuration.
+    fn process_set_gmp_config(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        hub_chain_id: u32,
+        trusted_hub_addr: [u8; 32],
+        gmp_endpoint: Pubkey,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+        let gmp_config_account = next_account_info(account_info_iter)?;
+        let admin = next_account_info(account_info_iter)?;
+        let system_program = next_account_info(account_info_iter)?;
+
+        // Admin must be signer
+        if !admin.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Derive GMP config PDA
+        let (config_pda, config_bump) =
+            Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
+        if config_pda != *gmp_config_account.key {
+            return Err(EscrowError::InvalidPDA.into());
+        }
+
+        // Check if config already exists
+        if gmp_config_account.data_len() > 0 {
+            // Update existing config - verify admin matches
+            let mut config = GmpConfig::try_from_slice(&gmp_config_account.data.borrow())
+                .map_err(|_| EscrowError::AccountNotInitialized)?;
+
+            if config.admin != *admin.key {
+                return Err(EscrowError::UnauthorizedApprover.into());
+            }
+
+            // Update config
+            config.hub_chain_id = hub_chain_id;
+            config.trusted_hub_addr = trusted_hub_addr;
+            config.gmp_endpoint = gmp_endpoint;
+            config.serialize(&mut &mut gmp_config_account.data.borrow_mut()[..])?;
+
+            msg!(
+                "GMP config updated: hub_chain_id={}, gmp_endpoint={}",
+                hub_chain_id,
+                gmp_endpoint
+            );
+        } else {
+            // Create new config account
+            let rent = Rent::get()?;
+            let space = GmpConfig::LEN;
+            let lamports = rent.minimum_balance(space);
+
+            invoke_signed(
+                &system_instruction::create_account(
+                    admin.key,
+                    gmp_config_account.key,
+                    lamports,
+                    space as u64,
+                    program_id,
+                ),
+                &[
+                    admin.clone(),
+                    gmp_config_account.clone(),
+                    system_program.clone(),
+                ],
+                &[&[seeds::GMP_CONFIG_SEED, &[config_bump]]],
+            )?;
+
+            // Initialize config
+            let config = GmpConfig::new(
+                *admin.key,
+                hub_chain_id,
+                trusted_hub_addr,
+                gmp_endpoint,
+                config_bump,
+            );
+            config.serialize(&mut &mut gmp_config_account.data.borrow_mut()[..])?;
+
+            msg!(
+                "GMP config initialized: hub_chain_id={}, gmp_endpoint={}",
+                hub_chain_id,
+                gmp_endpoint
+            );
+        }
+
         Ok(())
     }
 
@@ -298,10 +400,87 @@ impl Processor {
         );
         escrow.serialize(&mut &mut escrow_account.data.borrow_mut()[..])?;
 
-        // If requirements exist, mark escrow as created
+        // If requirements exist, mark escrow as created and send EscrowConfirmation
         if let (Some(mut requirements), Some(req_account)) = (stored_requirements, requirements_account) {
             requirements.escrow_created = true;
             requirements.serialize(&mut &mut req_account.data.borrow_mut()[..])?;
+
+            // Try to send EscrowConfirmation GMP message if GMP config is available
+            let gmp_config_account = next_account_info(account_info_iter).ok();
+            let gmp_endpoint_program = next_account_info(account_info_iter).ok();
+
+            if let (Some(config_account), Some(endpoint_program)) =
+                (gmp_config_account, gmp_endpoint_program)
+            {
+                // Verify GMP config PDA
+                let (config_pda, _) =
+                    Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
+                if config_pda == *config_account.key && config_account.data_len() > 0 {
+                    let config = GmpConfig::try_from_slice(&config_account.data.borrow())
+                        .map_err(|_| EscrowError::AccountNotInitialized)?;
+
+                    // Verify GMP endpoint matches config
+                    if endpoint_program.key == &config.gmp_endpoint {
+                        // Build EscrowConfirmation message
+                        let confirmation = EscrowConfirmation {
+                            intent_id,
+                            escrow_id: escrow_account.key.to_bytes(),
+                            amount_escrowed: amount,
+                            token_addr: token_mint.key.to_bytes(),
+                            creator_addr: requester.key.to_bytes(),
+                        };
+                        let payload = confirmation.encode();
+
+                        // Collect remaining accounts for GMP CPI
+                        let gmp_accounts: Vec<AccountInfo> = account_info_iter.cloned().collect();
+
+                        // Build Send instruction for GMP endpoint
+                        // NativeGmpInstruction::Send variant index is 4
+                        let mut send_data =
+                            Vec::with_capacity(1 + 4 + 32 + 4 + payload.len());
+                        send_data.push(4); // Send variant index
+                        send_data.extend_from_slice(&config.hub_chain_id.to_le_bytes());
+                        send_data.extend_from_slice(&config.trusted_hub_addr);
+                        send_data.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+                        send_data.extend_from_slice(&payload);
+
+                        // Build account metas for GMP Send CPI
+                        let mut account_metas = Vec::with_capacity(gmp_accounts.len());
+                        for acc in &gmp_accounts {
+                            if acc.is_writable {
+                                account_metas.push(
+                                    solana_program::instruction::AccountMeta::new(
+                                        *acc.key,
+                                        acc.is_signer,
+                                    ),
+                                );
+                            } else {
+                                account_metas.push(
+                                    solana_program::instruction::AccountMeta::new_readonly(
+                                        *acc.key,
+                                        acc.is_signer,
+                                    ),
+                                );
+                            }
+                        }
+
+                        let cpi_instruction = solana_program::instruction::Instruction {
+                            program_id: *endpoint_program.key,
+                            accounts: account_metas,
+                            data: send_data,
+                        };
+
+                        invoke(&cpi_instruction, &gmp_accounts)?;
+
+                        msg!(
+                            "EscrowConfirmationSent: intent_id={:?}, escrow_id={}, amount={}",
+                            &intent_id[..8],
+                            escrow_account.key,
+                            amount
+                        );
+                    }
+                }
+            }
         }
 
         msg!(
@@ -466,21 +645,49 @@ impl Processor {
 
     /// Process LzReceiveRequirements instruction.
     /// Stores intent requirements received via GMP from the hub.
+    /// Implements idempotency: if requirements already exist, silently succeeds.
     fn process_lz_receive_requirements(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        _src_chain_id: u32,
-        _src_addr: [u8; 32],
+        src_chain_id: u32,
+        src_addr: [u8; 32],
         payload: Vec<u8>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let requirements_account = next_account_info(account_info_iter)?;
+        let gmp_config_account = next_account_info(account_info_iter)?;
         let gmp_caller = next_account_info(account_info_iter)?;
         let payer = next_account_info(account_info_iter)?;
         let system_program = next_account_info(account_info_iter)?;
 
         // GMP caller must be a signer (trusted relay or endpoint)
         if !gmp_caller.is_signer {
+            return Err(EscrowError::UnauthorizedGmpSource.into());
+        }
+
+        // Load and validate GMP config
+        let (config_pda, _) =
+            Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
+        if config_pda != *gmp_config_account.key {
+            return Err(EscrowError::InvalidPDA.into());
+        }
+
+        let config = GmpConfig::try_from_slice(&gmp_config_account.data.borrow())
+            .map_err(|_| EscrowError::AccountNotInitialized)?;
+
+        // Validate source chain matches trusted hub
+        if src_chain_id != config.hub_chain_id {
+            msg!(
+                "Invalid source chain: expected {}, got {}",
+                config.hub_chain_id,
+                src_chain_id
+            );
+            return Err(EscrowError::UnauthorizedGmpSource.into());
+        }
+
+        // Validate source address matches trusted hub
+        if src_addr != config.trusted_hub_addr {
+            msg!("Invalid source address: not trusted hub");
             return Err(EscrowError::UnauthorizedGmpSource.into());
         }
 
@@ -497,9 +704,13 @@ impl Processor {
             return Err(EscrowError::InvalidPDA.into());
         }
 
-        // Check if requirements already exist
+        // Idempotency check: if requirements already exist, emit log and return success
         if requirements_account.data_len() > 0 {
-            return Err(EscrowError::RequirementsAlreadyExist.into());
+            msg!(
+                "RequirementsDuplicate: intent_id={:?} (already stored, ignoring)",
+                &requirements.intent_id[..8]
+            );
+            return Ok(());
         }
 
         // Create requirements account
@@ -536,9 +747,10 @@ impl Processor {
         stored.serialize(&mut &mut requirements_account.data.borrow_mut()[..])?;
 
         msg!(
-            "Intent requirements stored: intent_id={:?}, amount={}",
+            "RequirementsReceived: intent_id={:?}, amount={}, src_chain_id={}",
             &requirements.intent_id[..8],
-            requirements.amount_required
+            requirements.amount_required,
+            src_chain_id
         );
         Ok(())
     }
@@ -548,8 +760,8 @@ impl Processor {
     fn process_lz_receive_fulfillment_proof(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        _src_chain_id: u32,
-        _src_addr: [u8; 32],
+        src_chain_id: u32,
+        src_addr: [u8; 32],
         payload: Vec<u8>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -557,11 +769,38 @@ impl Processor {
         let escrow_account = next_account_info(account_info_iter)?;
         let escrow_vault = next_account_info(account_info_iter)?;
         let solver_token_account = next_account_info(account_info_iter)?;
+        let gmp_config_account = next_account_info(account_info_iter)?;
         let gmp_caller = next_account_info(account_info_iter)?;
         let token_program = next_account_info(account_info_iter)?;
 
         // GMP caller must be a signer (trusted relay or endpoint)
         if !gmp_caller.is_signer {
+            return Err(EscrowError::UnauthorizedGmpSource.into());
+        }
+
+        // Load and validate GMP config
+        let (config_pda, _) =
+            Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
+        if config_pda != *gmp_config_account.key {
+            return Err(EscrowError::InvalidPDA.into());
+        }
+
+        let config = GmpConfig::try_from_slice(&gmp_config_account.data.borrow())
+            .map_err(|_| EscrowError::AccountNotInitialized)?;
+
+        // Validate source chain matches trusted hub
+        if src_chain_id != config.hub_chain_id {
+            msg!(
+                "Invalid source chain: expected {}, got {}",
+                config.hub_chain_id,
+                src_chain_id
+            );
+            return Err(EscrowError::UnauthorizedGmpSource.into());
+        }
+
+        // Validate source address matches trusted hub
+        if src_addr != config.trusted_hub_addr {
+            msg!("Invalid source address: not trusted hub");
             return Err(EscrowError::UnauthorizedGmpSource.into());
         }
 

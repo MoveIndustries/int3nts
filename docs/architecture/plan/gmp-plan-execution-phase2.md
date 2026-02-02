@@ -136,26 +136,30 @@
 
 ---
 
-### Commit 5: Implement InflowEscrowGMP program (SVM)
+### Commit 5: Extend intent_escrow with full GMP support (SVM)
 
 **Files:**
 
-- `intent-frameworks/svm/programs/escrow-gmp/src/lib.rs`
-- `intent-frameworks/svm/programs/escrow-gmp/tests/escrow_tests.rs`
+- `intent-frameworks/svm/programs/intent_escrow/src/` (extend existing)
+- `intent-frameworks/svm/programs/intent_escrow/tests/`
 
-**Tasks:**
+**Already done (from commit 4e6b251):**
 
-- [ ] Implement GMP receive handler for native GMP endpoint
-- [ ] Implement `lz_receive` for intent requirements from hub
-- [ ] **Idempotency check**: Before storing, check if requirements already exist for intent_id + step number
-- [ ] **If requirements already exist → ignore duplicate message (idempotent)**
-- [ ] **If requirements don't exist → store requirements** (mapped by intent_id + step number)
-- [ ] Implement `create_escrow_with_validation` - validates requirements exist and match escrow details
-- [ ] Implement `lz_receive` for fulfillment proof from hub
-- [ ] Implement automatic escrow release on fulfillment proof receipt
-- [ ] Send `EscrowConfirmation` message back to hub on creation
-- [ ] Test all escrow scenarios
-- [ ] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with SVM InflowEscrowGMP test status
+- [x] Implement `LzReceiveRequirements` - stores intent requirements from hub
+- [x] Implement `LzReceiveFulfillmentProof` - auto-releases escrow on proof receipt
+- [x] Implement `CreateEscrow` with optional requirements validation
+- [x] Add `StoredIntentRequirements` account structure
+
+**Remaining tasks:**
+
+- [x] Add `GmpConfig` account (hub_chain_id, trusted_hub_addr, gmp_endpoint)
+- [x] Add `SetGmpConfig` instruction for admin configuration
+- [x] Add source chain/address validation to `LzReceiveRequirements` and `LzReceiveFulfillmentProof`
+- [x] Add idempotency to `LzReceiveRequirements` (emit duplicate event instead of error)
+- [x] Send `EscrowConfirmation` GMP message back to hub on escrow creation
+- [x] ~~Add events module for GMP events~~ (using msg! logs - sufficient for Solana)
+- [x] Update tests for GMP config and EscrowConfirmation flow (added `tests/gmp.rs` with 13 tests)
+- [x] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with SVM InflowEscrow test status
 
 **Test:**
 
@@ -167,7 +171,7 @@
 
 ---
 
-### Commit 6: Implement InflowEscrowGMP module (MVM)
+### Commit 6: Implement inflow_escrow_gmp module (MVM)
 
 **Files:**
 
@@ -176,17 +180,14 @@
 
 **Tasks:**
 
-- [ ] Implement GMP receive handler for native GMP endpoint
-- [ ] Implement `lz_receive` for intent requirements from hub
-- [ ] **Idempotency check**: Before storing, check if requirements already exist for intent_id + step number
-- [ ] **If requirements already exist → ignore duplicate message (idempotent)**
-- [ ] **If requirements don't exist → store requirements** (mapped by intent_id + step number)
+- [ ] Create `inflow_escrow_gmp` module with GMP config (hub_chain_id, trusted_hub_addr)
+- [ ] Implement `receive_intent_requirements` - stores requirements from hub (with idempotency)
 - [ ] Implement `create_escrow_with_validation` - validates requirements exist and match escrow details
-- [ ] Implement `lz_receive` for fulfillment proof from hub
-- [ ] Implement automatic escrow release on fulfillment proof receipt
-- [ ] Send `EscrowConfirmation` message back to hub on creation
-- [ ] Test all escrow scenarios
-- [ ] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with MVM InflowEscrowGMP test status
+- [ ] Implement `receive_fulfillment_proof` - auto-releases escrow on proof receipt
+- [ ] Send `EscrowConfirmation` GMP message back to hub on escrow creation via `gmp_sender::lz_send`
+- [ ] Add routing in `native_gmp_endpoint` for inflow escrow messages
+- [ ] Test all escrow scenarios (create, validate, release)
+- [ ] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with MVM InflowEscrow test status
 
 **Test:**
 
@@ -198,20 +199,27 @@
 
 ---
 
-### Commit 7: Integrate GMP into MVM hub intent contract
+### Commit 7: Complete GMP integration in MVM hub intent contract
 
 **Files:**
 
-- `intent-frameworks/mvm/sources/intent_gmp.move`
+- `intent-frameworks/mvm/sources/interfaces/intent_gmp_hub.move` (extend existing)
 - `intent-frameworks/mvm/tests/intent_gmp_tests.move`
 
-**Tasks:**
+**Already done (from Phase 1):**
 
-- [ ] Add `send_intent_requirements()` - calls `lz_send()` on intent creation
-- [ ] Add `send_fulfillment_proof()` - calls `lz_send()` on fulfillment
-- [ ] Add `receive_escrow_confirmation()` - called by `lz_receive()`
+- [x] Add `send_intent_requirements()` - encodes and emits event
+- [x] Add `send_fulfillment_proof()` - encodes and emits event
+- [x] Add `receive_escrow_confirmation()` - decodes and emits event
+- [x] Add `receive_fulfillment_proof()` - decodes and emits event
+
+**Remaining tasks (implement TODOs in existing code):**
+
+- [ ] Integrate with `gmp_sender::lz_send()` for actual message sending (currently just returns payload)
+- [ ] Add trusted source validation in receive handlers
+- [ ] Connect to intent storage - look up intent by intent_id
 - [ ] Gate fulfillment on escrow confirmation receipt (for inflow)
-- [ ] Add `receive_fulfillment_proof()` - called by `lz_receive()` for outflow completion
+- [ ] Trigger token release on fulfillment proof receipt (for outflow)
 - [ ] Test message encoding matches SVM schema
 - [ ] Test fulfillment blocked without escrow confirmation
 - [ ] Test state updates on GMP message receipt
@@ -345,7 +353,7 @@
 
 **Tasks:**
 
-- [ ] Update SVM deployment scripts to include GMP programs (OutflowValidator, InflowEscrowGMP)
+- [ ] Update SVM deployment scripts to include GMP programs (OutflowValidator, intent_escrow with GMP config)
 - [ ] Update MVM deployment scripts to include GMP modules
 - [ ] Add trusted remote configuration to deployment scripts
 - [ ] Deploy updated contracts/modules to testnets

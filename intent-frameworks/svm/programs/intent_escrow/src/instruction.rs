@@ -13,7 +13,23 @@ pub enum EscrowInstruction {
     /// 2. `[]` System program
     Initialize { approver: Pubkey },
 
-    /// Create a new escrow and deposit funds atomically
+    /// Set or update GMP configuration for cross-chain messaging
+    ///
+    /// Accounts expected:
+    /// 0. `[writable]` GMP config account (PDA)
+    /// 1. `[signer]` Admin (must match state approver or be initial setup)
+    /// 2. `[]` System program
+    SetGmpConfig {
+        /// The hub chain ID (LayerZero endpoint ID)
+        hub_chain_id: u32,
+        /// The trusted hub address (32 bytes)
+        trusted_hub_addr: [u8; 32],
+        /// The native GMP endpoint program ID
+        gmp_endpoint: Pubkey,
+    },
+
+    /// Create a new escrow and deposit funds atomically.
+    /// If requirements exist, validates escrow matches and sends EscrowConfirmation to hub.
     ///
     /// Accounts expected:
     /// 0. `[writable]` Escrow account (PDA)
@@ -26,6 +42,9 @@ pub enum EscrowInstruction {
     /// 7. `[]` System program
     /// 8. `[]` Rent sysvar
     /// 9. `[writable, optional]` Requirements account (PDA) - if present, validates against GMP requirements
+    /// 10. `[optional]` GMP config account (PDA) - required if sending EscrowConfirmation
+    /// 11. `[optional]` GMP endpoint program - required if sending EscrowConfirmation
+    /// 12+ `[optional]` Additional accounts for GMP endpoint CPI
     CreateEscrow {
         intent_id: [u8; 32],
         amount: u64,
@@ -58,11 +77,14 @@ pub enum EscrowInstruction {
 
     /// Receive intent requirements from hub via GMP
     ///
+    /// Implements idempotency: if requirements already exist, silently succeeds.
+    ///
     /// Accounts expected:
     /// 0. `[writable]` Requirements account (PDA)
-    /// 1. `[signer]` GMP endpoint or relay (trusted caller)
-    /// 2. `[signer]` Payer
-    /// 3. `[]` System program
+    /// 1. `[]` GMP config account (PDA)
+    /// 2. `[signer]` GMP endpoint or relay (trusted caller)
+    /// 3. `[signer]` Payer
+    /// 4. `[]` System program
     LzReceiveRequirements {
         /// Source chain ID
         src_chain_id: u32,
@@ -79,8 +101,9 @@ pub enum EscrowInstruction {
     /// 1. `[writable]` Escrow account (PDA)
     /// 2. `[writable]` Escrow vault (PDA)
     /// 3. `[writable]` Solver token account
-    /// 4. `[signer]` GMP endpoint or relay (trusted caller)
-    /// 5. `[]` Token program
+    /// 4. `[]` GMP config account (PDA)
+    /// 5. `[signer]` GMP endpoint or relay (trusted caller)
+    /// 6. `[]` Token program
     LzReceiveFulfillmentProof {
         /// Source chain ID
         src_chain_id: u32,

@@ -3,7 +3,7 @@ mod common;
 use common::{
     create_cancel_ix, create_escrow_ix, create_lz_receive_fulfillment_proof_ix,
     create_lz_receive_requirements_ix, generate_intent_id, get_token_balance, program_test,
-    read_escrow, setup_basic_env,
+    read_escrow, setup_basic_env, DUMMY_HUB_CHAIN_ID, DUMMY_TRUSTED_HUB_ADDR,
 };
 use gmp_common::messages::{FulfillmentProof, IntentRequirements};
 use intent_escrow::state::seeds;
@@ -244,8 +244,8 @@ async fn test_revert_if_already_claimed() {
 
     let intent_id = [5u8; 32];
     let amount = 1_000_000u64;
-    let src_chain_id = 1u32;
-    let src_addr = [0u8; 32]; // Hub address
+    let src_chain_id = DUMMY_HUB_CHAIN_ID;
+    let src_addr = DUMMY_TRUSTED_HUB_ADDR;
 
     let (escrow_pda, _) =
         Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
@@ -269,6 +269,7 @@ async fn test_revert_if_already_claimed() {
     let lz_receive_req_ix = create_lz_receive_requirements_ix(
         env.program_id,
         requirements_pda,
+        env.gmp_config_pda, // PDA - must be derived, cannot be a DUMMY constant
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         src_chain_id,
@@ -322,6 +323,7 @@ async fn test_revert_if_already_claimed() {
         escrow_pda,
         vault_pda,
         env.solver_token,
+        env.gmp_config_pda,
         gmp_caller.pubkey(),
         src_chain_id,
         src_addr,
