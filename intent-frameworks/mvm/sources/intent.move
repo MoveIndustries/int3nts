@@ -8,19 +8,19 @@ module mvmt_intent::intent {
     use mvmt_intent::intent_reservation::IntentReserved;
 
     /// The offered intent has expired
-    const EINTENT_EXPIRED: u64 = 0;
+    const E_INTENT_EXPIRED: u64 = 0;
 
     /// The registered hook function for consuming resource doesn't match the type requirement.
-    const ECONSUMPTION_FUNCTION_TYPE_MISMATCH: u64 = 1;
+    const E_CONSUMPTION_FUNCTION_TYPE_MISMATCH: u64 = 1;
 
     /// Only owner can revoke an intent.
-    const ENOT_OWNER: u64 = 2;
+    const E_NOT_OWNER: u64 = 2;
 
     /// Provided wrong witness to complete intent.
-    const EINVALID_WITNESS: u64 = 3;
+    const E_INVALID_WITNESS: u64 = 3;
 
     /// Intent is not revocable by the owner.
-    const ENOT_REVOCABLE: u64 = 4;
+    const E_NOT_REVOCABLE: u64 = 4;
 
     /// Core intent structure that locks a resource until specific conditions are met.
     ///
@@ -106,7 +106,7 @@ module mvmt_intent::intent {
     /// - `Session<Args>`: Session containing trading conditions (hot potato type)
     ///
     /// # Aborts
-    /// - `EINTENT_EXPIRED`: If the current time exceeds the intent's expiry time
+    /// - `E_INTENT_EXPIRED`: If the current time exceeds the intent's expiry time
     public fun start_intent_session<Source: store, Args: store + drop>(
         intent: Object<Intent<Source, Args>>
     ): (Source, Session<Args>) acquires Intent {
@@ -114,7 +114,7 @@ module mvmt_intent::intent {
             borrow_global<Intent<Source, Args>>(object::object_address(&intent));
         assert!(
             timestamp::now_seconds() <= intent_ref.expiry_time,
-            error::permission_denied(EINTENT_EXPIRED)
+            error::permission_denied(E_INTENT_EXPIRED)
         );
 
         let Intent {
@@ -165,7 +165,7 @@ module mvmt_intent::intent {
     /// - `_witness`: The witness proving conditions were met
     ///
     /// # Aborts
-    /// - `EINVALID_WITNESS`: If the witness type doesn't match the required type
+    /// - `E_INVALID_WITNESS`: If the witness type doesn't match the required type
     public fun finish_intent_session<Witness: drop, Args: store + drop>(
         session: Session<Args>, _witness: Witness
     ) {
@@ -173,7 +173,7 @@ module mvmt_intent::intent {
 
         assert!(
             type_info::type_of<Witness>() == witness_type,
-            error::permission_denied(EINVALID_WITNESS)
+            error::permission_denied(E_INVALID_WITNESS)
         );
     }
 
@@ -190,15 +190,15 @@ module mvmt_intent::intent {
     /// - `Source`: The locked resource that was offered
     ///
     /// # Aborts
-    /// - `ENOT_OWNER`: If the signer is not the owner of the intent
-    /// - `ENOT_REVOCABLE`: If the intent is not revocable
+    /// - `E_NOT_OWNER`: If the signer is not the owner of the intent
+    /// - `E_NOT_REVOCABLE`: If the intent is not revocable
     public fun revoke_intent<Source: store, Args: store + drop>(
         requester: &signer,
         intent: Object<Intent<Source, Args>>
     ): Source acquires Intent {
         assert!(
             object::owner(intent) == signer::address_of(requester),
-            error::permission_denied(ENOT_OWNER)
+            error::permission_denied(E_NOT_OWNER)
         );
         let Intent {
             offered_resource,
@@ -210,7 +210,7 @@ module mvmt_intent::intent {
             revocable
         } = move_from<Intent<Source, Args>>(object::object_address(&intent));
 
-        assert!(revocable, error::permission_denied(ENOT_REVOCABLE));
+        assert!(revocable, error::permission_denied(E_NOT_REVOCABLE));
         object::delete(self_delete_ref);
         offered_resource
     }

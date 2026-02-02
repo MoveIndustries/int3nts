@@ -22,21 +22,21 @@ module mvmt_intent::fa_intent_with_oracle {
     // ============================================================================
 
     /// The received fungible asset was not the expected token type.
-    const ENOT_DESIRED_TOKEN: u64 = 0;
+    const E_NOT_DESIRED_TOKEN: u64 = 0;
 
     /// The received fungible asset amount is smaller than required.
-    const EAMOUNT_NOT_MEET: u64 = 1;
+    const E_AMOUNT_NOT_MEET: u64 = 1;
 
     /// A signature witness is required but missing.
-    const ESIGNATURE_REQUIRED: u64 = 2;
+    const E_SIGNATURE_REQUIRED: u64 = 2;
 
     /// Provided oracle signature failed verification.
-    const EINVALID_SIGNATURE: u64 = 3;
+    const E_INVALID_SIGNATURE: u64 = 3;
 
     /// Oracle-reported value did not satisfy the minimum threshold.
-    const EORACLE_VALUE_TOO_LOW: u64 = 4;
+    const E_ORACLE_VALUE_TOO_LOW: u64 = 4;
     /// The desired metadata address is invalid or missing for cross-chain intents.
-    const EINVALID_METADATA_ADDR: u64 = 5;
+    const E_INVALID_METADATA_ADDR: u64 = 5;
 
     // ============================================================================
     // DATA TYPES
@@ -266,11 +266,11 @@ module mvmt_intent::fa_intent_with_oracle {
     /// - `oracle_witness_opt`: Optional signature witness (must be `some`)
     ///
     /// # Aborts
-    /// - `ENOT_DESIRED_TOKEN`: Received asset metadata mismatches the requested one
-    /// - `EAMOUNT_NOT_MEET`: Received asset amount is below `desired_amount`
-    /// - `ESIGNATURE_REQUIRED`: Solver omitted the signature witness
-    /// - `EINVALID_SIGNATURE`: Supplied signature failed Ed25519 verification
-    /// - `EORACLE_VALUE_TOO_LOW`: Oracle value does not reach the configured threshold
+    /// - `E_NOT_DESIRED_TOKEN`: Received asset metadata mismatches the requested one
+    /// - `E_AMOUNT_NOT_MEET`: Received asset amount is below `desired_amount`
+    /// - `E_SIGNATURE_REQUIRED`: Solver omitted the signature witness
+    /// - `E_INVALID_SIGNATURE`: Supplied signature failed Ed25519 verification
+    /// - `E_ORACLE_VALUE_TOO_LOW`: Oracle value does not reach the configured threshold
     public fun finish_fa_receiving_session_with_oracle(
         session: Session<OracleGuardedLimitOrder>,
         received_fa: FungibleAsset,
@@ -279,7 +279,7 @@ module mvmt_intent::fa_intent_with_oracle {
         let argument = intent::get_argument(&session);
         assert!(
             fungible_asset::metadata_from_asset(&received_fa) == argument.desired_metadata,
-            error::invalid_argument(ENOT_DESIRED_TOKEN)
+            error::invalid_argument(E_NOT_DESIRED_TOKEN)
         );
         // Payment validation: if desired_chain_id != offered_chain_id, we're on the offered chain
         // and nothing is desired on this chain, so payment should be 0
@@ -291,7 +291,7 @@ module mvmt_intent::fa_intent_with_oracle {
         };
         assert!(
             fungible_asset::amount(&received_fa) >= required_payment_amount,
-            error::invalid_argument(EAMOUNT_NOT_MEET),
+            error::invalid_argument(E_AMOUNT_NOT_MEET),
         );
 
         verify_oracle_requirement(argument, &oracle_witness_opt);
@@ -316,7 +316,7 @@ module mvmt_intent::fa_intent_with_oracle {
     /// - `oracle_witness`: Optional witness supplied by the solver
     ///
     /// # Aborts
-    /// - `ESIGNATURE_REQUIRED`: Missing witness when the order expects one
+    /// - `E_SIGNATURE_REQUIRED`: Missing witness when the order expects one
     fun verify_oracle_requirement(
         argument: &OracleGuardedLimitOrder,
         oracle_witness: &Option<OracleSignatureWitness>,
@@ -325,7 +325,7 @@ module mvmt_intent::fa_intent_with_oracle {
             let witness = option::borrow(oracle_witness);
             verify_oracle_witness(&argument.requirement, witness, argument.intent_id);
         } else {
-            abort error::invalid_argument(ESIGNATURE_REQUIRED)
+            abort error::invalid_argument(E_SIGNATURE_REQUIRED)
         }
     }
 
@@ -340,8 +340,8 @@ module mvmt_intent::fa_intent_with_oracle {
     /// - `intent_id`: Intent ID from hub chain (for escrows) - this is what was signed
     ///
     /// # Aborts
-    /// - `EINVALID_SIGNATURE`: Signature verification failed
-    /// - `EORACLE_VALUE_TOO_LOW`: Reported value is below `min_reported_value`
+    /// - `E_INVALID_SIGNATURE`: Signature verification failed
+    /// - `E_ORACLE_VALUE_TOO_LOW`: Reported value is below `min_reported_value`
     fun verify_oracle_witness(
         requirement: &OracleSignatureRequirement,
         witness: &OracleSignatureWitness,
@@ -351,11 +351,11 @@ module mvmt_intent::fa_intent_with_oracle {
         let message = bcs::to_bytes(&intent_id);
         assert!(
             ed25519::signature_verify_strict(&witness.signature, &requirement.public_key, message),
-            error::invalid_argument(EINVALID_SIGNATURE)
+            error::invalid_argument(E_INVALID_SIGNATURE)
         );
         assert!(
             witness.reported_value >= requirement.min_reported_value,
-            error::invalid_argument(EORACLE_VALUE_TOO_LOW)
+            error::invalid_argument(E_ORACLE_VALUE_TOO_LOW)
         );
     }
 

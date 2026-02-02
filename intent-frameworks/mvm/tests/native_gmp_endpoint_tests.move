@@ -5,6 +5,7 @@ module mvmt_intent::native_gmp_endpoint_tests {
     use mvmt_intent::native_gmp_endpoint;
     use mvmt_intent::gmp_sender;
     use mvmt_intent::gmp_common;
+    use mvmt_intent::intent_gmp_hub;
 
     // Test addresses
     const ADMIN_ADDR: address = @0x123;
@@ -20,6 +21,11 @@ module mvmt_intent::native_gmp_endpoint_tests {
         // Initialize sender (for lz_send) and receiver (for deliver_message) separately
         gmp_sender::initialize(&admin);
         native_gmp_endpoint::initialize(&admin);
+        intent_gmp_hub::initialize(&admin);
+
+        // Set trusted remote for hub (needed for receive_escrow_confirmation validation)
+        intent_gmp_hub::set_trusted_remote(&admin, SOLANA_CHAIN_ID, create_test_trusted_remote());
+
         admin
     }
 

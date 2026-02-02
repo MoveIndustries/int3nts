@@ -11,17 +11,17 @@ module mvmt_intent::intent_reservation {
     use mvmt_intent::solver_registry;
 
     /// The public key used for verification is invalid.
-    const EINVALID_PUBLIC_KEY: u64 = 1;
+    const E_INVALID_PUBLIC_KEY: u64 = 1;
     /// The signature is invalid.
-    const EINVALID_SIGNATURE: u64 = 2;
+    const E_INVALID_SIGNATURE: u64 = 2;
     /// The signer is not the authorized solver for this intent.
-    const EUNAUTHORIZED_SOLVER: u64 = 3;
+    const E_UNAUTHORIZED_SOLVER: u64 = 3;
     /// The authentication key format is invalid (not a single-key Ed25519 account).
-    const EINVALID_AUTH_KEY_FORMAT: u64 = 4;
+    const E_INVALID_AUTH_KEY_FORMAT: u64 = 4;
     /// The public key validation failed.
-    const EPUBLIC_KEY_VALIDATION_FAILED: u64 = 5;
+    const E_PUBLIC_KEY_VALIDATION_FAILED: u64 = 5;
     /// The solver is not registered in the solver registry.
-    const ESOLVER_NOT_REGISTERED: u64 = 6;
+    const E_SOLVER_NOT_REGISTERED: u64 = 6;
 
     #[event]
     struct IntentHashVerificationEvent has store, drop {
@@ -199,8 +199,8 @@ module mvmt_intent::intent_reservation {
     /// This version looks up the solver's public key from the registry.
     /// 
     /// # Aborts
-    /// - `ESOLVER_NOT_REGISTERED`: Solver is not registered in the solver registry
-    /// - `EINVALID_SIGNATURE`: Signature verification failed
+    /// - `E_SOLVER_NOT_REGISTERED`: Solver is not registered in the solver registry
+    /// - `E_INVALID_SIGNATURE`: Signature verification failed
     public fun verify_and_create_reservation_from_registry(
         intent_to_sign: IntentToSign,
         solver_signature: vector<u8>,
@@ -208,11 +208,11 @@ module mvmt_intent::intent_reservation {
         let solver = intent_to_sign.solver;
         
         // Check if solver is registered
-        assert!(solver_registry::is_registered(solver), std::error::invalid_argument(ESOLVER_NOT_REGISTERED));
+        assert!(solver_registry::is_registered(solver), std::error::invalid_argument(E_SOLVER_NOT_REGISTERED));
         
         // Get public key from registry
         let public_key_opt = solver_registry::get_public_key_unvalidated(solver);
-        assert!(option::is_some(&public_key_opt), std::error::invalid_argument(ESOLVER_NOT_REGISTERED));
+        assert!(option::is_some(&public_key_opt), std::error::invalid_argument(E_SOLVER_NOT_REGISTERED));
         
         let solver_public_key = option::extract(&mut public_key_opt);
         let signature = ed25519::new_signature_from_bytes(solver_signature);
@@ -226,7 +226,7 @@ module mvmt_intent::intent_reservation {
         if (ed25519::signature_verify_strict(&signature, &solver_public_key, message)) {
             option::some(IntentReserved { solver })
         } else {
-            abort std::error::invalid_argument(EINVALID_SIGNATURE)
+            abort std::error::invalid_argument(E_INVALID_SIGNATURE)
         }
     }
 
@@ -234,8 +234,8 @@ module mvmt_intent::intent_reservation {
     /// Use this for cross-chain intents where metadata objects may not exist locally.
     /// 
     /// # Aborts
-    /// - `ESOLVER_NOT_REGISTERED`: Solver is not registered in the solver registry
-    /// - `EINVALID_SIGNATURE`: Signature verification failed
+    /// - `E_SOLVER_NOT_REGISTERED`: Solver is not registered in the solver registry
+    /// - `E_INVALID_SIGNATURE`: Signature verification failed
     public fun verify_and_create_reservation_from_registry_raw(
         intent_to_sign: IntentToSignRaw,
         solver_signature: vector<u8>,
@@ -243,11 +243,11 @@ module mvmt_intent::intent_reservation {
         let solver = intent_to_sign.solver;
         
         // Check if solver is registered
-        assert!(solver_registry::is_registered(solver), std::error::invalid_argument(ESOLVER_NOT_REGISTERED));
+        assert!(solver_registry::is_registered(solver), std::error::invalid_argument(E_SOLVER_NOT_REGISTERED));
         
         // Get public key from registry
         let public_key_opt = solver_registry::get_public_key_unvalidated(solver);
-        assert!(option::is_some(&public_key_opt), std::error::invalid_argument(ESOLVER_NOT_REGISTERED));
+        assert!(option::is_some(&public_key_opt), std::error::invalid_argument(E_SOLVER_NOT_REGISTERED));
         
         let solver_public_key = option::extract(&mut public_key_opt);
         let signature = ed25519::new_signature_from_bytes(solver_signature);
@@ -261,16 +261,16 @@ module mvmt_intent::intent_reservation {
         if (ed25519::signature_verify_strict(&signature, &solver_public_key, message)) {
             option::some(IntentReserved { solver })
         } else {
-            abort std::error::invalid_argument(EINVALID_SIGNATURE)
+            abort std::error::invalid_argument(E_INVALID_SIGNATURE)
         }
     }
 
     /// Verifies a solver's signature against the intent data and creates a reservation.
     /// 
     /// # Aborts
-    /// - `EINVALID_AUTH_KEY_FORMAT`: Authentication key is not a single-key Ed25519 account (length != 33 or first byte != 0x00)
-    /// - `EPUBLIC_KEY_VALIDATION_FAILED`: Public key extracted from authentication key failed validation
-    /// - `EINVALID_SIGNATURE`: Signature verification failed
+    /// - `E_INVALID_AUTH_KEY_FORMAT`: Authentication key is not a single-key Ed25519 account (length != 33 or first byte != 0x00)
+    /// - `E_PUBLIC_KEY_VALIDATION_FAILED`: Public key extracted from authentication key failed validation
+    /// - `E_INVALID_SIGNATURE`: Signature verification failed
     public fun verify_and_create_reservation(
         intent_to_sign: IntentToSign,
         solver_signature: vector<u8>,
@@ -291,17 +291,17 @@ module mvmt_intent::intent_reservation {
             // New format: authentication key is the account address (32 bytes)
             // For new format accounts, we cannot extract the Ed25519 public key from the address
             // This means accounts created with movement/aptos init (new format) are not supported
-            abort std::error::invalid_argument(EINVALID_AUTH_KEY_FORMAT)
+            abort std::error::invalid_argument(E_INVALID_AUTH_KEY_FORMAT)
         } else {
             // Invalid format
-            abort std::error::invalid_argument(EINVALID_AUTH_KEY_FORMAT)
+            abort std::error::invalid_argument(E_INVALID_AUTH_KEY_FORMAT)
         };
 
         let unvalidated_public_key = ed25519::new_unvalidated_public_key_from_bytes(public_key_bytes);
         let validated_public_key_opt = ed25519::public_key_validate(&unvalidated_public_key);
         
         if (option::is_none(&validated_public_key_opt)) {
-            abort std::error::invalid_argument(EPUBLIC_KEY_VALIDATION_FAILED)
+            abort std::error::invalid_argument(E_PUBLIC_KEY_VALIDATION_FAILED)
         };
 
         let signature = ed25519::new_signature_from_bytes(solver_signature);
@@ -316,7 +316,7 @@ module mvmt_intent::intent_reservation {
         if (ed25519::signature_verify_strict(&signature, &unvalidated_public_key, message)) {
             option::some(IntentReserved { solver })
         } else {
-            abort std::error::invalid_argument(EINVALID_SIGNATURE)
+            abort std::error::invalid_argument(E_INVALID_SIGNATURE)
         }
     }
 
@@ -324,7 +324,7 @@ module mvmt_intent::intent_reservation {
     public fun ensure_solver_authorized(solver_signer: &signer, reservation: &Option<IntentReserved>) {
         if (option::is_some(reservation)) {
             let intent_reserved = option::borrow(reservation);
-            assert!(signer::address_of(solver_signer) == intent_reserved.solver, EUNAUTHORIZED_SOLVER);
+            assert!(signer::address_of(solver_signer) == intent_reserved.solver, E_UNAUTHORIZED_SOLVER);
         }
     }
 

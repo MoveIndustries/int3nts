@@ -11,7 +11,7 @@ module mvmt_intent::fa_intent_inflow {
     use mvmt_intent::intent_registry;
 
     /// The solver signature is invalid and cannot be verified.
-    const EINVALID_SIGNATURE: u64 = 2;
+    const E_INVALID_SIGNATURE: u64 = 2;
 
     // ============================================================================
     // SHARED UTILITIES
@@ -124,7 +124,7 @@ module mvmt_intent::fa_intent_inflow {
     ///
     /// # Aborts
     /// - `ESOLVER_NOT_REGISTERED`: Solver is not registered in the solver registry
-    /// - `EINVALID_SIGNATURE`: Signature verification failed
+    /// - `E_INVALID_SIGNATURE`: Signature verification failed
     public fun create_inflow_intent(
         account: &signer,
         offered_metadata_addr: address,
@@ -171,7 +171,7 @@ module mvmt_intent::fa_intent_inflow {
         // Fail if signature verification failed - cross-chain intents must be reserved
         assert!(
             option::is_some(&reservation_result),
-            error::invalid_argument(EINVALID_SIGNATURE)
+            error::invalid_argument(E_INVALID_SIGNATURE)
         );
 
         let intent_obj = fa_intent::create_fa_to_fa_intent(

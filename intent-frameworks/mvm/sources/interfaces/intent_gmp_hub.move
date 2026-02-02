@@ -10,24 +10,44 @@
 /// - Receives FulfillmentProof from connected chains
 ///
 module mvmt_intent::intent_gmp_hub {
+    use std::signer;
     use std::vector;
+    use std::error;
     use aptos_framework::event;
+    use aptos_std::simple_map::{Self, SimpleMap};
     use mvmt_intent::gmp_common::{
         Self,
         EscrowConfirmation,
         FulfillmentProof,
     };
+    use mvmt_intent::gmp_sender;
 
     // ============================================================================
     // ERROR CODES
     // ============================================================================
 
-    const EINVALID_SOURCE_CHAIN: u64 = 2;
-    const EINVALID_SOURCE_ADDRESS: u64 = 3;
-    const EINTENT_NOT_FOUND: u64 = 4;
-    const EESCROW_MISMATCH: u64 = 5;
-    const EALREADY_CONFIRMED: u64 = 6;
-    const EALREADY_FULFILLED: u64 = 7;
+    const E_NOT_INITIALIZED: u64 = 1;
+    const E_ALREADY_INITIALIZED: u64 = 2;
+    const E_INVALID_SOURCE_CHAIN: u64 = 3;
+    const E_INVALID_SOURCE_ADDRESS: u64 = 4;
+    const E_INTENT_NOT_FOUND: u64 = 5;
+    const E_ESCROW_MISMATCH: u64 = 6;
+    const E_ALREADY_CONFIRMED: u64 = 7;
+    const E_ALREADY_FULFILLED: u64 = 8;
+    const E_TRUSTED_REMOTE_NOT_FOUND: u64 = 9;
+
+    // ============================================================================
+    // STATE
+    // ============================================================================
+
+    /// Configuration for GMP hub operations.
+    /// Maps destination chain IDs to their trusted program addresses.
+    struct GmpHubConfig has key {
+        /// Admin address (can update trusted remotes)
+        admin: address,
+        /// Maps chain_id -> trusted program address (32 bytes)
+        trusted_remotes: SimpleMap<u32, vector<u8>>,
+    }
 
     // ============================================================================
     // EVENTS
@@ -77,6 +97,83 @@ module mvmt_intent::intent_gmp_hub {
     }
 
     // ============================================================================
+    // INITIALIZATION
+    // ============================================================================
+
+    /// Initialize the GMP hub configuration.
+    /// Must be called once during deployment.
+    public entry fun initialize(admin: &signer) {
+        let admin_addr = signer::address_of(admin);
+
+        assert!(
+            admin_addr == @mvmt_intent,
+            error::permission_denied(E_NOT_INITIALIZED)
+        );
+
+        assert!(
+            !exists<GmpHubConfig>(@mvmt_intent),
+            error::already_exists(E_ALREADY_INITIALIZED)
+        );
+
+        move_to(admin, GmpHubConfig {
+            admin: admin_addr,
+            trusted_remotes: simple_map::new(),
+        });
+    }
+
+    /// Set a trusted remote program address for a destination chain.
+    /// Only admin can call this.
+    public entry fun set_trusted_remote(
+        admin: &signer,
+        chain_id: u32,
+        remote_addr: vector<u8>,
+    ) acquires GmpHubConfig {
+        let admin_addr = signer::address_of(admin);
+        let config = borrow_global_mut<GmpHubConfig>(@mvmt_intent);
+
+        assert!(
+            admin_addr == config.admin,
+            error::permission_denied(E_NOT_INITIALIZED)
+        );
+
+        // Add or update the trusted remote
+        if (simple_map::contains_key(&config.trusted_remotes, &chain_id)) {
+            *simple_map::borrow_mut(&mut config.trusted_remotes, &chain_id) = remote_addr;
+        } else {
+            simple_map::add(&mut config.trusted_remotes, chain_id, remote_addr);
+        }
+    }
+
+    /// Check if a source chain and address are trusted.
+    fun is_trusted_source(src_chain_id: u32, src_address: &vector<u8>): bool acquires GmpHubConfig {
+        if (!exists<GmpHubConfig>(@mvmt_intent)) {
+            return false
+        };
+
+        let config = borrow_global<GmpHubConfig>(@mvmt_intent);
+
+        if (!simple_map::contains_key(&config.trusted_remotes, &src_chain_id)) {
+            return false
+        };
+
+        let trusted_addr = simple_map::borrow(&config.trusted_remotes, &src_chain_id);
+        trusted_addr == src_address
+    }
+
+    /// Get the trusted remote address for a destination chain.
+    /// Aborts if not found.
+    fun get_trusted_remote(dst_chain_id: u32): vector<u8> acquires GmpHubConfig {
+        let config = borrow_global<GmpHubConfig>(@mvmt_intent);
+
+        assert!(
+            simple_map::contains_key(&config.trusted_remotes, &dst_chain_id),
+            error::not_found(E_TRUSTED_REMOTE_NOT_FOUND)
+        );
+
+        *simple_map::borrow(&config.trusted_remotes, &dst_chain_id)
+    }
+
+    // ============================================================================
     // OUTBOUND: Hub -> Connected Chain
     // ============================================================================
 
@@ -86,6 +183,7 @@ module mvmt_intent::intent_gmp_hub {
     /// chain uses this to validate escrow creation matches the intent.
     ///
     /// # Arguments
+    /// - `sender`: Signer sending the message (typically @mvmt_intent)
     /// - `dst_chain_id`: LayerZero endpoint ID of destination chain
     /// - `intent_id`: 32-byte intent identifier
     /// - `requester_addr`: 32-byte requester address (on connected chain)
@@ -95,8 +193,9 @@ module mvmt_intent::intent_gmp_hub {
     /// - `expiry`: Unix timestamp when intent expires
     ///
     /// # Returns
-    /// - Encoded GMP message payload (for off-chain relay)
+    /// - Nonce assigned to the outbound message
     public fun send_intent_requirements(
+        sender: &signer,
         dst_chain_id: u32,
         intent_id: vector<u8>,
         requester_addr: vector<u8>,
@@ -104,7 +203,10 @@ module mvmt_intent::intent_gmp_hub {
         token_addr: vector<u8>,
         solver_addr: vector<u8>,
         expiry: u64,
-    ): vector<u8> {
+    ): u64 acquires GmpHubConfig {
+        // Get the trusted remote address for this chain
+        let dst_addr = get_trusted_remote(dst_chain_id);
+
         // Create the message
         let msg = gmp_common::new_intent_requirements(
             intent_id,
@@ -118,7 +220,7 @@ module mvmt_intent::intent_gmp_hub {
         // Encode for transmission
         let payload = gmp_common::encode_intent_requirements(&msg);
 
-        // Emit event for off-chain relay to pick up
+        // Emit event for tracking
         event::emit(IntentRequirementsSent {
             intent_id: *gmp_common::intent_requirements_intent_id(&msg),
             dst_chain_id,
@@ -129,9 +231,8 @@ module mvmt_intent::intent_gmp_hub {
             expiry: gmp_common::intent_requirements_expiry(&msg),
         });
 
-        // TODO: In production, call LayerZero endpoint to send message
-        // For now, return encoded payload for off-chain relay (trusted-gmp)
-        payload
+        // Send via GMP sender (emits MessageSent event for relay)
+        gmp_sender::lz_send(sender, dst_chain_id, dst_addr, payload)
     }
 
     /// Send FulfillmentProof to a connected chain when fulfillment is recorded.
@@ -140,6 +241,7 @@ module mvmt_intent::intent_gmp_hub {
     /// uses this to release escrowed tokens to the solver.
     ///
     /// # Arguments
+    /// - `sender`: Signer sending the message (typically @mvmt_intent)
     /// - `dst_chain_id`: LayerZero endpoint ID of destination chain
     /// - `intent_id`: 32-byte intent identifier
     /// - `solver_addr`: 32-byte solver address (on connected chain)
@@ -147,14 +249,18 @@ module mvmt_intent::intent_gmp_hub {
     /// - `timestamp`: Unix timestamp of fulfillment
     ///
     /// # Returns
-    /// - Encoded GMP message payload (for off-chain relay)
+    /// - Nonce assigned to the outbound message
     public fun send_fulfillment_proof(
+        sender: &signer,
         dst_chain_id: u32,
         intent_id: vector<u8>,
         solver_addr: vector<u8>,
         amount_fulfilled: u64,
         timestamp: u64,
-    ): vector<u8> {
+    ): u64 acquires GmpHubConfig {
+        // Get the trusted remote address for this chain
+        let dst_addr = get_trusted_remote(dst_chain_id);
+
         // Create the message
         let msg = gmp_common::new_fulfillment_proof(
             intent_id,
@@ -166,7 +272,7 @@ module mvmt_intent::intent_gmp_hub {
         // Encode for transmission
         let payload = gmp_common::encode_fulfillment_proof(&msg);
 
-        // Emit event for off-chain relay to pick up
+        // Emit event for tracking
         event::emit(FulfillmentProofSent {
             intent_id: *gmp_common::fulfillment_proof_intent_id(&msg),
             dst_chain_id,
@@ -175,9 +281,8 @@ module mvmt_intent::intent_gmp_hub {
             timestamp: gmp_common::fulfillment_proof_timestamp(&msg),
         });
 
-        // TODO: In production, call LayerZero endpoint to send message
-        // For now, return encoded payload for off-chain relay (trusted-gmp)
-        payload
+        // Send via GMP sender (emits MessageSent event for relay)
+        gmp_sender::lz_send(sender, dst_chain_id, dst_addr, payload)
     }
 
     // ============================================================================
@@ -186,8 +291,8 @@ module mvmt_intent::intent_gmp_hub {
 
     /// Receive and process EscrowConfirmation from a connected chain.
     ///
-    /// Called by trusted-gmp relay when a connected chain confirms escrow creation.
-    /// The hub validates the confirmation matches the original intent requirements.
+    /// Called by native_gmp_endpoint when a connected chain confirms escrow creation.
+    /// The hub validates the confirmation comes from a trusted source.
     ///
     /// # Arguments
     /// - `src_chain_id`: LayerZero endpoint ID of source chain
@@ -198,15 +303,19 @@ module mvmt_intent::intent_gmp_hub {
     /// - Decoded EscrowConfirmation struct
     ///
     /// # Aborts
-    /// - EINVALID_SOURCE_CHAIN: If source chain is not trusted
-    /// - EINTENT_NOT_FOUND: If intent_id doesn't exist
-    /// - EESCROW_MISMATCH: If confirmation doesn't match intent requirements
-    /// - EALREADY_CONFIRMED: If escrow was already confirmed
+    /// - E_INVALID_SOURCE_CHAIN: If source chain is not trusted
+    /// - EINVALID_SOURCE_ADDRESS: If source address doesn't match trusted remote
     public fun receive_escrow_confirmation(
         src_chain_id: u32,
-        _src_address: vector<u8>,
+        src_address: vector<u8>,
         payload: vector<u8>,
-    ): EscrowConfirmation {
+    ): EscrowConfirmation acquires GmpHubConfig {
+        // Validate source is trusted
+        assert!(
+            is_trusted_source(src_chain_id, &src_address),
+            error::permission_denied(E_INVALID_SOURCE_CHAIN)
+        );
+
         // Decode the message
         let msg = gmp_common::decode_escrow_confirmation(&payload);
 
@@ -220,17 +329,17 @@ module mvmt_intent::intent_gmp_hub {
             creator_addr: *gmp_common::escrow_confirmation_creator_addr(&msg),
         });
 
-        // TODO: Validate source chain and address are trusted
-        // TODO: Look up intent by intent_id and validate confirmation matches
-        // TODO: Mark intent as having confirmed escrow
+        // Note: Intent validation and state updates should be done by the caller
+        // (e.g., fa_intent_inflow module) based on their specific requirements.
+        // This function only handles GMP message validation and decoding.
 
         msg
     }
 
     /// Receive and process FulfillmentProof from a connected chain.
     ///
-    /// Called by trusted-gmp relay when a connected chain reports fulfillment.
-    /// The hub uses this to trigger release of desired tokens to the solver.
+    /// Called by native_gmp_endpoint when a connected chain reports fulfillment.
+    /// The hub validates the proof comes from a trusted source.
     ///
     /// # Arguments
     /// - `src_chain_id`: LayerZero endpoint ID of source chain
@@ -241,14 +350,19 @@ module mvmt_intent::intent_gmp_hub {
     /// - Decoded FulfillmentProof struct
     ///
     /// # Aborts
-    /// - EINVALID_SOURCE_CHAIN: If source chain is not trusted
-    /// - EINTENT_NOT_FOUND: If intent_id doesn't exist
-    /// - EALREADY_FULFILLED: If intent was already fulfilled
+    /// - E_INVALID_SOURCE_CHAIN: If source chain is not trusted
+    /// - EINVALID_SOURCE_ADDRESS: If source address doesn't match trusted remote
     public fun receive_fulfillment_proof(
         src_chain_id: u32,
-        _src_address: vector<u8>,
+        src_address: vector<u8>,
         payload: vector<u8>,
-    ): FulfillmentProof {
+    ): FulfillmentProof acquires GmpHubConfig {
+        // Validate source is trusted
+        assert!(
+            is_trusted_source(src_chain_id, &src_address),
+            error::permission_denied(E_INVALID_SOURCE_CHAIN)
+        );
+
         // Decode the message
         let msg = gmp_common::decode_fulfillment_proof(&payload);
 
@@ -261,9 +375,9 @@ module mvmt_intent::intent_gmp_hub {
             timestamp: gmp_common::fulfillment_proof_timestamp(&msg),
         });
 
-        // TODO: Validate source chain and address are trusted
-        // TODO: Look up intent by intent_id
-        // TODO: Trigger release of escrowed tokens to solver
+        // Note: Intent validation and token release should be done by the caller
+        // (e.g., fa_intent_outflow module) based on their specific requirements.
+        // This function only handles GMP message validation and decoding.
 
         msg
     }

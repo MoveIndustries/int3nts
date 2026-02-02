@@ -30,19 +30,19 @@ module mvmt_intent::native_gmp_endpoint {
     // ============================================================================
 
     /// Caller is not an authorized relay
-    const EUNAUTHORIZED_RELAY: u64 = 1;
+    const E_UNAUTHORIZED_RELAY: u64 = 1;
     /// Message nonce already used (replay attack)
-    const ENONCE_ALREADY_USED: u64 = 2;
+    const E_NONCE_ALREADY_USED: u64 = 2;
     /// Invalid payload format
-    const EINVALID_PAYLOAD: u64 = 3;
+    const E_INVALID_PAYLOAD: u64 = 3;
     /// Source address is not trusted for the given chain
-    const EUNTRUSTED_REMOTE: u64 = 4;
+    const E_UNTRUSTED_REMOTE: u64 = 4;
     /// No trusted remote configured for the source chain
-    const ENO_TRUSTED_REMOTE: u64 = 5;
+    const E_NO_TRUSTED_REMOTE: u64 = 5;
     /// Caller is not the admin
-    const EUNAUTHORIZED_ADMIN: u64 = 6;
+    const E_UNAUTHORIZED_ADMIN: u64 = 6;
     /// Unknown message type in payload
-    const EUNKNOWN_MESSAGE_TYPE: u64 = 7;
+    const E_UNKNOWN_MESSAGE_TYPE: u64 = 7;
 
     // ============================================================================
     // MESSAGE TYPE CONSTANTS
@@ -128,9 +128,9 @@ module mvmt_intent::native_gmp_endpoint {
     /// - `nonce`: Nonce from source chain (for ordering/replay protection)
     ///
     /// # Aborts
-    /// - EUNAUTHORIZED_RELAY: If caller is not an authorized relay
-    /// - EUNTRUSTED_REMOTE: If source address is not trusted for the chain
-    /// - ENONCE_ALREADY_USED: If nonce has already been processed (replay)
+    /// - E_UNAUTHORIZED_RELAY: If caller is not an authorized relay
+    /// - E_UNTRUSTED_REMOTE: If source address is not trusted for the chain
+    /// - E_NONCE_ALREADY_USED: If nonce has already been processed (replay)
     public fun deliver_message(
         relay: &signer,
         src_chain_id: u32,
@@ -142,17 +142,17 @@ module mvmt_intent::native_gmp_endpoint {
 
         // Verify relay is authorized
         let config = borrow_global_mut<EndpointConfig>(@mvmt_intent);
-        assert!(is_authorized_relay(&config.authorized_relays, relay_addr), EUNAUTHORIZED_RELAY);
+        assert!(is_authorized_relay(&config.authorized_relays, relay_addr), E_UNAUTHORIZED_RELAY);
 
         // Verify trusted remote: source address must be trusted for this chain
-        assert!(table::contains(&config.trusted_remotes, src_chain_id), ENO_TRUSTED_REMOTE);
+        assert!(table::contains(&config.trusted_remotes, src_chain_id), E_NO_TRUSTED_REMOTE);
         let trusted_addr = table::borrow(&config.trusted_remotes, src_chain_id);
-        assert!(&src_addr == trusted_addr, EUNTRUSTED_REMOTE);
+        assert!(&src_addr == trusted_addr, E_UNTRUSTED_REMOTE);
 
         // Replay protection: check and update inbound nonce
         if (table::contains(&config.inbound_nonces, src_chain_id)) {
             let last_nonce = *table::borrow(&config.inbound_nonces, src_chain_id);
-            assert!(nonce > last_nonce, ENONCE_ALREADY_USED);
+            assert!(nonce > last_nonce, E_NONCE_ALREADY_USED);
             *table::borrow_mut(&mut config.inbound_nonces, src_chain_id) = nonce;
         } else {
             // First message from this chain
@@ -212,7 +212,7 @@ module mvmt_intent::native_gmp_endpoint {
                 src_chain_id, src_addr, payload
             );
         } else {
-            abort EUNKNOWN_MESSAGE_TYPE
+            abort E_UNKNOWN_MESSAGE_TYPE
         };
     }
 
@@ -247,7 +247,7 @@ module mvmt_intent::native_gmp_endpoint {
         let config = borrow_global_mut<EndpointConfig>(@mvmt_intent);
 
         // Verify caller is admin
-        assert!(config.admin == admin_addr, EUNAUTHORIZED_ADMIN);
+        assert!(config.admin == admin_addr, E_UNAUTHORIZED_ADMIN);
 
         // Store or update trusted remote
         if (table::contains(&config.trusted_remotes, src_chain_id)) {
@@ -266,7 +266,7 @@ module mvmt_intent::native_gmp_endpoint {
         let config = borrow_global_mut<EndpointConfig>(@mvmt_intent);
 
         // Only existing authorized relays can add new ones
-        assert!(is_authorized_relay(&config.authorized_relays, admin_addr), EUNAUTHORIZED_RELAY);
+        assert!(is_authorized_relay(&config.authorized_relays, admin_addr), E_UNAUTHORIZED_RELAY);
 
         // Add if not already present
         if (!is_authorized_relay(&config.authorized_relays, relay_addr)) {
@@ -283,7 +283,7 @@ module mvmt_intent::native_gmp_endpoint {
         let config = borrow_global_mut<EndpointConfig>(@mvmt_intent);
 
         // Only existing authorized relays can remove
-        assert!(is_authorized_relay(&config.authorized_relays, admin_addr), EUNAUTHORIZED_RELAY);
+        assert!(is_authorized_relay(&config.authorized_relays, admin_addr), E_UNAUTHORIZED_RELAY);
 
         // Find and remove
         let (found, index) = vector::index_of(&config.authorized_relays, &relay_addr);

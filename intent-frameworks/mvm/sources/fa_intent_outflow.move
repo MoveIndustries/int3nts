@@ -12,13 +12,13 @@ module mvmt_intent::fa_intent_outflow {
     use aptos_std::ed25519;
 
     /// The solver signature is invalid and cannot be verified.
-    const EINVALID_SIGNATURE: u64 = 2;
+    const E_INVALID_SIGNATURE: u64 = 2;
     /// The requester address on the connected chain is invalid (zero address).
-    const EINVALID_REQUESTER_ADDR: u64 = 3;
+    const E_INVALID_REQUESTER_ADDR: u64 = 3;
     /// The approver (trusted-gmp) config has not been initialized.
-    const EAPPROVER_NOT_INITIALIZED: u64 = 4;
+    const E_APPROVER_NOT_INITIALIZED: u64 = 4;
     /// Only the module publisher can initialize/update the approver config.
-    const ENOT_AUTHORIZED: u64 = 5;
+    const E_NOT_AUTHORIZED: u64 = 5;
 
     // ============================================================================
     // APPROVER CONFIG (Global trusted-gmp approver public key)
@@ -41,7 +41,7 @@ module mvmt_intent::fa_intent_outflow {
         approver_public_key: vector<u8>
     ) acquires ApproverConfig {
         let admin_addr = signer::address_of(admin);
-        assert!(admin_addr == @mvmt_intent, error::permission_denied(ENOT_AUTHORIZED));
+        assert!(admin_addr == @mvmt_intent, error::permission_denied(E_NOT_AUTHORIZED));
         
         if (exists<ApproverConfig>(@mvmt_intent)) {
             // Update existing config
@@ -58,7 +58,7 @@ module mvmt_intent::fa_intent_outflow {
     /// Get the configured approver public key.
     /// Aborts if approver config has not been initialized.
     fun get_approver_public_key(): vector<u8> acquires ApproverConfig {
-        assert!(exists<ApproverConfig>(@mvmt_intent), error::not_found(EAPPROVER_NOT_INITIALIZED));
+        assert!(exists<ApproverConfig>(@mvmt_intent), error::not_found(E_APPROVER_NOT_INITIALIZED));
         let config = borrow_global<ApproverConfig>(@mvmt_intent);
         config.public_key
     }
@@ -198,8 +198,8 @@ module mvmt_intent::fa_intent_outflow {
     ///
     /// # Aborts
     /// - `ESOLVER_NOT_REGISTERED`: Solver is not registered in the solver registry
-    /// - `EINVALID_SIGNATURE`: Signature verification failed
-    /// - `EINVALID_REQUESTER_ADDR`: requester_addr_connected_chain is zero address (0x0)
+    /// - `E_INVALID_SIGNATURE`: Signature verification failed
+    /// - `E_INVALID_REQUESTER_ADDR`: requester_addr_connected_chain is zero address (0x0)
     public fun create_outflow_intent(
         requester_signer: &signer,
         offered_metadata: Object<Metadata>,
@@ -219,7 +219,7 @@ module mvmt_intent::fa_intent_outflow {
         // Outflow intents require a valid address on the connected chain where the solver should send tokens
         assert!(
             requester_addr_connected_chain != @0x0,
-            error::invalid_argument(EINVALID_REQUESTER_ADDR)
+            error::invalid_argument(E_INVALID_REQUESTER_ADDR)
         );
 
         // Withdraw actual tokens from requester (locked on hub chain for outflow)
@@ -253,7 +253,7 @@ module mvmt_intent::fa_intent_outflow {
         // Fail if signature verification failed - cross-chain intents must be reserved
         assert!(
             option::is_some(&reservation_result),
-            error::invalid_argument(EINVALID_SIGNATURE)
+            error::invalid_argument(E_INVALID_SIGNATURE)
         );
 
         // Build ed25519::UnvalidatedPublicKey from bytes
@@ -319,9 +319,9 @@ module mvmt_intent::fa_intent_outflow {
     /// - `solver_signature`: Solver's signature approving the intent
     ///
     /// # Aborts
-    /// - `EAPPROVER_NOT_INITIALIZED`: Approver config has not been set
-    /// - `EINVALID_SIGNATURE`: Solver signature verification failed
-    /// - `EINVALID_REQUESTER_ADDR`: requester_addr_connected_chain is zero address
+    /// - `E_APPROVER_NOT_INITIALIZED`: Approver config has not been set
+    /// - `E_INVALID_SIGNATURE`: Solver signature verification failed
+    /// - `E_INVALID_REQUESTER_ADDR`: requester_addr_connected_chain is zero address
     public entry fun create_outflow_intent_entry(
         requester_signer: &signer,
         offered_metadata: Object<Metadata>,

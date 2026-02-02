@@ -12,18 +12,18 @@ module mvmt_intent::fa_intent {
     use aptos_framework::timestamp;
 
     /// The token offered is not the desired fungible asset.
-    const ENOT_DESIRED_TOKEN: u64 = 0;
+    const E_NOT_DESIRED_TOKEN: u64 = 0;
 
     /// The token offered does not meet amount requirement.
-    const EAMOUNT_NOT_MEET: u64 = 1;
+    const E_AMOUNT_NOT_MEET: u64 = 1;
     /// The solver signature is invalid and cannot be verified.
-    const EINVALID_SIGNATURE: u64 = 2;
+    const E_INVALID_SIGNATURE: u64 = 2;
     /// The offered metadata address is invalid or missing for cross-chain intents.
-    const EINVALID_METADATA_ADDR: u64 = 5;
+    const E_INVALID_METADATA_ADDR: u64 = 5;
     /// Chain info has not been initialized.
-    const ECHAIN_INFO_NOT_INITIALIZED: u64 = 3;
+    const E_CHAIN_INFO_NOT_INITIALIZED: u64 = 3;
     /// Chain info has already been initialized.
-    const ECHAIN_INFO_ALREADY_INITIALIZED: u64 = 4;
+    const E_CHAIN_INFO_ALREADY_INITIALIZED: u64 = 4;
 
     /// Stores the chain ID where this module is deployed.
     struct ChainInfo has key {
@@ -64,12 +64,12 @@ module mvmt_intent::fa_intent {
         // Ensure account is the module deployer (address should match @mvmt_intent)
         assert!(
             module_addr == @mvmt_intent,
-            error::invalid_argument(ECHAIN_INFO_NOT_INITIALIZED)
+            error::invalid_argument(E_CHAIN_INFO_NOT_INITIALIZED)
         );
         // Only allow initialization if ChainInfo doesn't exist yet
         assert!(
             !exists<ChainInfo>(module_addr),
-            error::invalid_state(ECHAIN_INFO_ALREADY_INITIALIZED)
+            error::invalid_state(E_CHAIN_INFO_ALREADY_INITIALIZED)
         );
         move_to(account, ChainInfo { chain_id });
     }
@@ -77,13 +77,13 @@ module mvmt_intent::fa_intent {
     /// Get the chain ID where this module is deployed.
     ///
     /// # Aborts
-    /// - `ECHAIN_INFO_NOT_INITIALIZED`: If chain info has not been initialized
+    /// - `E_CHAIN_INFO_NOT_INITIALIZED`: If chain info has not been initialized
     fun get_chain_id(): u64 acquires ChainInfo {
         // ChainInfo is stored at the module deployer's address (same as @mvmt_intent)
         let module_addr = @mvmt_intent;
         assert!(
             exists<ChainInfo>(module_addr),
-            error::invalid_state(ECHAIN_INFO_NOT_INITIALIZED)
+            error::invalid_state(E_CHAIN_INFO_NOT_INITIALIZED)
         );
         borrow_global<ChainInfo>(module_addr).chain_id
     }
@@ -178,11 +178,11 @@ module mvmt_intent::fa_intent {
             // Cross-chain: must provide explicit amount and metadata address
             assert!(
                 option::is_some(&offered_amount_override),
-                error::invalid_argument(EAMOUNT_NOT_MEET)
+                error::invalid_argument(E_AMOUNT_NOT_MEET)
             );
             assert!(
                 option::is_some(&offered_metadata_addr_override),
-                error::invalid_argument(EINVALID_METADATA_ADDR)
+                error::invalid_argument(E_INVALID_METADATA_ADDR)
             );
             (*option::borrow(&offered_amount_override), offered_metadata_addr_override)
         };
@@ -311,7 +311,7 @@ module mvmt_intent::fa_intent {
                 // Fail if signature verification failed instead of silently falling back
                 assert!(
                     option::is_some(&result),
-                    error::invalid_argument(EINVALID_SIGNATURE)
+                    error::invalid_argument(E_INVALID_SIGNATURE)
                 );
                 result
             };
@@ -389,8 +389,8 @@ module mvmt_intent::fa_intent {
     /// - `received_fa`: The fungible asset received from the trade
     ///
     /// # Aborts
-    /// - `ENOT_DESIRED_TOKEN`: If the received asset is not the desired token type
-    /// - `EAMOUNT_NOT_MEET`: If the received amount is less than the required amount
+    /// - `E_NOT_DESIRED_TOKEN`: If the received asset is not the desired token type
+    /// - `E_AMOUNT_NOT_MEET`: If the received amount is less than the required amount
     /// Completes a receiving session with the provided fungible asset and emits fulfillment event.
     ///
     /// # Arguments
@@ -412,11 +412,11 @@ module mvmt_intent::fa_intent {
 
         assert!(
             provided_metadata == argument.desired_metadata,
-            error::invalid_argument(ENOT_DESIRED_TOKEN)
+            error::invalid_argument(E_NOT_DESIRED_TOKEN)
         );
         assert!(
             provided_amount >= argument.desired_amount,
-            error::invalid_argument(EAMOUNT_NOT_MEET)
+            error::invalid_argument(E_AMOUNT_NOT_MEET)
         );
 
         primary_fungible_store::deposit(argument.requester_addr, received_fa);
@@ -454,11 +454,11 @@ module mvmt_intent::fa_intent {
         assert!(
             fungible_asset::metadata_from_asset(&received_fa)
                 == argument.desired_metadata,
-            error::invalid_argument(ENOT_DESIRED_TOKEN)
+            error::invalid_argument(E_NOT_DESIRED_TOKEN)
         );
         assert!(
             fungible_asset::amount(&received_fa) >= argument.desired_amount,
-            error::invalid_argument(EAMOUNT_NOT_MEET)
+            error::invalid_argument(E_AMOUNT_NOT_MEET)
         );
 
         primary_fungible_store::deposit(argument.requester_addr, received_fa);

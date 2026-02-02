@@ -9,9 +9,9 @@ module mvmt_intent::gmp_common {
     // ERROR CODES
     // ============================================================================
 
-    const EINVALID_MESSAGE_TYPE: u64 = 1;
-    const EINVALID_LENGTH: u64 = 2;
-    const EUNKNOWN_MESSAGE_TYPE: u64 = 3;
+    const E_INVALID_MESSAGE_TYPE: u64 = 1;
+    const E_INVALID_LENGTH: u64 = 2;
+    const E_UNKNOWN_MESSAGE_TYPE: u64 = 3;
 
     // ============================================================================
     // CONSTANTS
@@ -185,8 +185,8 @@ module mvmt_intent::gmp_common {
     /// Decode IntentRequirements from raw bytes. Aborts on wrong length or type.
     public fun decode_intent_requirements(data: &vector<u8>): IntentRequirements {
         let len = vector::length(data);
-        assert!(len == INTENT_REQUIREMENTS_SIZE, EINVALID_LENGTH);
-        assert!(*vector::borrow(data, 0) == MESSAGE_TYPE_INTENT_REQUIREMENTS, EINVALID_MESSAGE_TYPE);
+        assert!(len == INTENT_REQUIREMENTS_SIZE, E_INVALID_LENGTH);
+        assert!(*vector::borrow(data, 0) == MESSAGE_TYPE_INTENT_REQUIREMENTS, E_INVALID_MESSAGE_TYPE);
 
         IntentRequirements {
             intent_id: slice_bytes(data, 1, 32),
@@ -201,8 +201,8 @@ module mvmt_intent::gmp_common {
     /// Decode EscrowConfirmation from raw bytes. Aborts on wrong length or type.
     public fun decode_escrow_confirmation(data: &vector<u8>): EscrowConfirmation {
         let len = vector::length(data);
-        assert!(len == ESCROW_CONFIRMATION_SIZE, EINVALID_LENGTH);
-        assert!(*vector::borrow(data, 0) == MESSAGE_TYPE_ESCROW_CONFIRMATION, EINVALID_MESSAGE_TYPE);
+        assert!(len == ESCROW_CONFIRMATION_SIZE, E_INVALID_LENGTH);
+        assert!(*vector::borrow(data, 0) == MESSAGE_TYPE_ESCROW_CONFIRMATION, E_INVALID_MESSAGE_TYPE);
 
         EscrowConfirmation {
             intent_id: slice_bytes(data, 1, 32),
@@ -216,8 +216,8 @@ module mvmt_intent::gmp_common {
     /// Decode FulfillmentProof from raw bytes. Aborts on wrong length or type.
     public fun decode_fulfillment_proof(data: &vector<u8>): FulfillmentProof {
         let len = vector::length(data);
-        assert!(len == FULFILLMENT_PROOF_SIZE, EINVALID_LENGTH);
-        assert!(*vector::borrow(data, 0) == MESSAGE_TYPE_FULFILLMENT_PROOF, EINVALID_MESSAGE_TYPE);
+        assert!(len == FULFILLMENT_PROOF_SIZE, E_INVALID_LENGTH);
+        assert!(*vector::borrow(data, 0) == MESSAGE_TYPE_FULFILLMENT_PROOF, E_INVALID_MESSAGE_TYPE);
 
         FulfillmentProof {
             intent_id: slice_bytes(data, 1, 32),
@@ -229,13 +229,13 @@ module mvmt_intent::gmp_common {
 
     /// Read the message type byte without fully decoding. Aborts if empty or unknown.
     public fun peek_message_type(data: &vector<u8>): u8 {
-        assert!(vector::length(data) > 0, EINVALID_LENGTH);
+        assert!(vector::length(data) > 0, E_INVALID_LENGTH);
         let msg_type = *vector::borrow(data, 0);
         assert!(
             msg_type == MESSAGE_TYPE_INTENT_REQUIREMENTS
                 || msg_type == MESSAGE_TYPE_ESCROW_CONFIRMATION
                 || msg_type == MESSAGE_TYPE_FULFILLMENT_PROOF,
-            EUNKNOWN_MESSAGE_TYPE,
+            E_UNKNOWN_MESSAGE_TYPE,
         );
         msg_type
     }

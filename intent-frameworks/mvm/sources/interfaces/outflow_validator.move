@@ -19,11 +19,11 @@ module mvmt_intent::outflow_validator {
     // ERROR CODES
     // ============================================================================
 
-    const EINVALID_SOURCE_CHAIN: u64 = 1;
-    const EINVALID_SOURCE_ADDRESS: u64 = 2;
-    const EREQUIREMENTS_ALREADY_STORED: u64 = 3;
-    const EREQUIREMENTS_NOT_FOUND: u64 = 4;
-    const EALREADY_FULFILLED: u64 = 5;
+    const E_INVALID_SOURCE_CHAIN: u64 = 1;
+    const E_INVALID_SOURCE_ADDRESS: u64 = 2;
+    const E_REQUIREMENTS_ALREADY_STORED: u64 = 3;
+    const E_REQUIREMENTS_NOT_FOUND: u64 = 4;
+    const E_ALREADY_FULFILLED: u64 = 5;
 
     // ============================================================================
     // EVENTS

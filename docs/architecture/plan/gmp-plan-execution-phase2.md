@@ -199,30 +199,55 @@
 
 ---
 
-### Commit 7: Complete GMP integration in MVM hub intent contract
+### Commit 7: Complete GMP hub interface with message sending and source validation
 
 **Files:**
 
 - `intent-frameworks/mvm/sources/interfaces/intent_gmp_hub.move` (extend existing)
 - `intent-frameworks/mvm/tests/intent_gmp_tests.move`
+- `intent-frameworks/mvm/tests/native_gmp_endpoint_tests.move`
 
-**Already done (from Phase 1):**
+**Completed tasks:**
 
-- [x] Add `send_intent_requirements()` - encodes and emits event
-- [x] Add `send_fulfillment_proof()` - encodes and emits event
-- [x] Add `receive_escrow_confirmation()` - decodes and emits event
-- [x] Add `receive_fulfillment_proof()` - decodes and emits event
+- [x] Add GmpHubConfig with trusted remote mapping per chain ID
+- [x] Add initialize() and set_trusted_remote() for configuration management
+- [x] Integrate with `gmp_sender::lz_send()` for actual message sending (send functions now call lz_send and return nonce)
+- [x] Add trusted source validation in receive handlers (both receive functions validate source via is_trusted_source)
+- [x] Test message encoding (payload size and discriminator bytes verified)
+- [x] Test source validation (added tests for rejecting untrusted sources)
+- [x] Update native_gmp_endpoint tests to initialize intent_gmp_hub config
 
-**Remaining tasks (implement TODOs in existing code):**
+**Test:**
 
-- [ ] Integrate with `gmp_sender::lz_send()` for actual message sending (currently just returns payload)
-- [ ] Add trusted source validation in receive handlers
-- [ ] Connect to intent storage - look up intent by intent_id
-- [ ] Gate fulfillment on escrow confirmation receipt (for inflow)
-- [ ] Trigger token release on fulfillment proof receipt (for outflow)
-- [ ] Test message encoding matches SVM schema
+```bash
+nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
+```
+
+> ⚠️ **All MVM unit tests must pass before proceeding to Commit 8.**
+
+---
+
+### Commit 8: Integrate GMP hub with intent creation and fulfillment flows
+
+**Files:**
+
+- `intent-frameworks/mvm/sources/fa_intent_inflow.move`
+- `intent-frameworks/mvm/sources/fa_intent_outflow.move`
+- `intent-frameworks/mvm/tests/fa_intent_inflow_tests.move` (if exists)
+- `intent-frameworks/mvm/tests/fa_intent_outflow_tests.move` (if exists)
+
+**Tasks:**
+
+- [ ] Update `fa_intent_inflow::create_inflow_intent()` to call `intent_gmp_hub::send_intent_requirements()`
+- [ ] Update `fa_intent_inflow::fulfill_inflow_intent()` to:
+  - Check for escrow confirmation receipt before allowing fulfillment
+  - Call `intent_gmp_hub::send_fulfillment_proof()` after fulfillment
+- [ ] Update `fa_intent_outflow::create_outflow_intent()` to call `intent_gmp_hub::send_intent_requirements()`
+- [ ] Add GMP receive handler in `fa_intent_outflow` to process fulfillment proofs and trigger token release
+- [ ] Add intent state tracking (escrow_confirmed, fulfillment_proof_received) in intent storage
+- [ ] Test intent creation sends GMP requirements
 - [ ] Test fulfillment blocked without escrow confirmation
-- [ ] Test state updates on GMP message receipt
+- [ ] Test fulfillment proof triggers token release
 
 **Test:**
 
@@ -230,11 +255,11 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 8.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 9.**
 
 ---
 
-### Commit 8: Implement native GMP relay in trusted-gmp
+### Commit 9: Implement native GMP relay in trusted-gmp
 
 **Files:**
 
@@ -385,7 +410,7 @@ solana program show <OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
 
 ## Exit Criteria
 
-- [ ] All 12 commits merged to feature branch
+- [ ] All 13 commits merged to feature branch
 - [ ] SVM programs build and pass unit tests
 - [ ] MVM modules build and pass unit tests
 - [ ] Native GMP relay works for MVM ↔ SVM

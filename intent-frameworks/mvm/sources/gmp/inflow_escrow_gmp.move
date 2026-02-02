@@ -37,37 +37,37 @@ module mvmt_intent::inflow_escrow_gmp {
     // ============================================================================
 
     /// Caller is not the admin
-    const EUNAUTHORIZED_ADMIN: u64 = 1;
+    const E_UNAUTHORIZED_ADMIN: u64 = 1;
     /// Invalid source chain (not the trusted hub)
-    const EINVALID_SOURCE_CHAIN: u64 = 2;
+    const E_INVALID_SOURCE_CHAIN: u64 = 2;
     /// Invalid source address (not the trusted hub)
-    const EINVALID_SOURCE_ADDRESS: u64 = 3;
+    const E_INVALID_SOURCE_ADDRESS: u64 = 3;
     /// Requirements already exist for this intent (idempotent - not an error in normal flow)
-    const EREQUIREMENTS_ALREADY_STORED: u64 = 4;
+    const E_REQUIREMENTS_ALREADY_STORED: u64 = 4;
     /// Requirements not found for this intent
-    const EREQUIREMENTS_NOT_FOUND: u64 = 5;
+    const E_REQUIREMENTS_NOT_FOUND: u64 = 5;
     /// Escrow already created for this intent
-    const EESCROW_ALREADY_CREATED: u64 = 6;
+    const E_ESCROW_ALREADY_CREATED: u64 = 6;
     /// Intent has expired
-    const EINTENT_EXPIRED: u64 = 7;
+    const E_INTENT_EXPIRED: u64 = 7;
     /// Amount does not match requirements
-    const EAMOUNT_MISMATCH: u64 = 8;
+    const E_AMOUNT_MISMATCH: u64 = 8;
     /// Token does not match requirements
-    const ETOKEN_MISMATCH: u64 = 9;
+    const E_TOKEN_MISMATCH: u64 = 9;
     /// Config not initialized
-    const ECONFIG_NOT_INITIALIZED: u64 = 10;
+    const E_CONFIG_NOT_INITIALIZED: u64 = 10;
     /// Escrow not found
-    const EESCROW_NOT_FOUND: u64 = 11;
+    const E_ESCROW_NOT_FOUND: u64 = 11;
     /// Already fulfilled (fulfillment proof already received)
-    const EALREADY_FULFILLED: u64 = 12;
+    const E_ALREADY_FULFILLED: u64 = 12;
     /// Escrow not fulfilled yet (cannot release without fulfillment proof)
-    const ENOT_FULFILLED: u64 = 13;
+    const E_NOT_FULFILLED: u64 = 13;
     /// Unauthorized solver (not the authorized solver for this escrow)
-    const EUNAUTHORIZED_SOLVER: u64 = 14;
+    const E_UNAUTHORIZED_SOLVER: u64 = 14;
     /// Escrow already released
-    const EESCROW_ALREADY_RELEASED: u64 = 15;
+    const E_ESCROW_ALREADY_RELEASED: u64 = 15;
     /// Requester mismatch
-    const EREQUESTER_MISMATCH: u64 = 16;
+    const E_REQUESTER_MISMATCH: u64 = 16;
 
     // ============================================================================
     // EVENTS
@@ -208,7 +208,7 @@ module mvmt_intent::inflow_escrow_gmp {
         trusted_hub_addr: vector<u8>,
     ) {
         let admin_addr = signer::address_of(admin);
-        assert!(admin_addr == @mvmt_intent, EUNAUTHORIZED_ADMIN);
+        assert!(admin_addr == @mvmt_intent, E_UNAUTHORIZED_ADMIN);
 
         // Initialize config
         move_to(admin, InflowEscrowConfig {
@@ -244,7 +244,7 @@ module mvmt_intent::inflow_escrow_gmp {
     ) acquires InflowEscrowConfig {
         let admin_addr = signer::address_of(admin);
         let config = borrow_global_mut<InflowEscrowConfig>(@mvmt_intent);
-        assert!(config.admin == admin_addr, EUNAUTHORIZED_ADMIN);
+        assert!(config.admin == admin_addr, E_UNAUTHORIZED_ADMIN);
 
         config.hub_chain_id = hub_chain_id;
         config.trusted_hub_addr = trusted_hub_addr;
@@ -269,15 +269,15 @@ module mvmt_intent::inflow_escrow_gmp {
         payload: vector<u8>,
     ) acquires InflowEscrowConfig, IntentRequirementsStore {
         // Verify config exists
-        assert!(exists<InflowEscrowConfig>(@mvmt_intent), ECONFIG_NOT_INITIALIZED);
+        assert!(exists<InflowEscrowConfig>(@mvmt_intent), E_CONFIG_NOT_INITIALIZED);
 
         let config = borrow_global<InflowEscrowConfig>(@mvmt_intent);
 
         // Verify source chain matches trusted hub
-        assert!(src_chain_id == config.hub_chain_id, EINVALID_SOURCE_CHAIN);
+        assert!(src_chain_id == config.hub_chain_id, E_INVALID_SOURCE_CHAIN);
 
         // Verify source address matches trusted hub
-        assert!(src_addr == config.trusted_hub_addr, EINVALID_SOURCE_ADDRESS);
+        assert!(src_addr == config.trusted_hub_addr, E_INVALID_SOURCE_ADDRESS);
 
         // Decode the message
         let msg = gmp_common::decode_intent_requirements(&payload);
@@ -371,32 +371,32 @@ module mvmt_intent::inflow_escrow_gmp {
         let creator_addr = signer::address_of(creator);
 
         // Verify config exists
-        assert!(exists<InflowEscrowConfig>(@mvmt_intent), ECONFIG_NOT_INITIALIZED);
+        assert!(exists<InflowEscrowConfig>(@mvmt_intent), E_CONFIG_NOT_INITIALIZED);
 
         // Load requirements
         let req_store = borrow_global_mut<IntentRequirementsStore>(@mvmt_intent);
-        assert!(table::contains(&req_store.requirements, intent_id), EREQUIREMENTS_NOT_FOUND);
+        assert!(table::contains(&req_store.requirements, intent_id), E_REQUIREMENTS_NOT_FOUND);
 
         let requirements = table::borrow_mut(&mut req_store.requirements, intent_id);
 
         // Verify escrow hasn't already been created
-        assert!(!requirements.escrow_created, EESCROW_ALREADY_CREATED);
+        assert!(!requirements.escrow_created, E_ESCROW_ALREADY_CREATED);
 
         // Verify not expired
         let current_time = aptos_framework::timestamp::now_seconds();
-        assert!(current_time <= requirements.expiry, EINTENT_EXPIRED);
+        assert!(current_time <= requirements.expiry, E_INTENT_EXPIRED);
 
         // Verify amount matches
         let amount = fungible_asset::amount(&asset);
-        assert!(amount == requirements.amount_required, EAMOUNT_MISMATCH);
+        assert!(amount == requirements.amount_required, E_AMOUNT_MISMATCH);
 
         // Verify token matches
         let token_addr_from_metadata = address_to_bytes32(object::object_address(&token_metadata));
-        assert!(token_addr_from_metadata == requirements.token_addr, ETOKEN_MISMATCH);
+        assert!(token_addr_from_metadata == requirements.token_addr, E_TOKEN_MISMATCH);
 
         // Verify creator is the requester
         let creator_bytes = address_to_bytes32(creator_addr);
-        assert!(creator_bytes == requirements.requester_addr, EREQUESTER_MISMATCH);
+        assert!(creator_bytes == requirements.requester_addr, E_REQUESTER_MISMATCH);
 
         // Generate escrow ID (hash of intent_id + creator for uniqueness)
         let escrow_id = generate_escrow_id(&intent_id, creator_addr);
@@ -479,15 +479,15 @@ module mvmt_intent::inflow_escrow_gmp {
         payload: vector<u8>,
     ) acquires InflowEscrowConfig, EscrowStore {
         // Verify config exists
-        assert!(exists<InflowEscrowConfig>(@mvmt_intent), ECONFIG_NOT_INITIALIZED);
+        assert!(exists<InflowEscrowConfig>(@mvmt_intent), E_CONFIG_NOT_INITIALIZED);
 
         let config = borrow_global<InflowEscrowConfig>(@mvmt_intent);
 
         // Verify source chain matches trusted hub
-        assert!(src_chain_id == config.hub_chain_id, EINVALID_SOURCE_CHAIN);
+        assert!(src_chain_id == config.hub_chain_id, E_INVALID_SOURCE_CHAIN);
 
         // Verify source address matches trusted hub
-        assert!(src_addr == config.trusted_hub_addr, EINVALID_SOURCE_ADDRESS);
+        assert!(src_addr == config.trusted_hub_addr, E_INVALID_SOURCE_ADDRESS);
 
         // Decode the message
         let msg = gmp_common::decode_fulfillment_proof(&payload);
@@ -496,12 +496,12 @@ module mvmt_intent::inflow_escrow_gmp {
 
         // Load escrow
         let escrow_store = borrow_global_mut<EscrowStore>(@mvmt_intent);
-        assert!(table::contains(&escrow_store.escrows, intent_id), EESCROW_NOT_FOUND);
+        assert!(table::contains(&escrow_store.escrows, intent_id), E_ESCROW_NOT_FOUND);
 
         let escrow = table::borrow_mut(&mut escrow_store.escrows, intent_id);
 
         // Verify not already fulfilled
-        assert!(!escrow.fulfilled, EALREADY_FULFILLED);
+        assert!(!escrow.fulfilled, E_ALREADY_FULFILLED);
 
         // Mark as fulfilled (solver can now release)
         escrow.fulfilled = true;
@@ -538,21 +538,21 @@ module mvmt_intent::inflow_escrow_gmp {
 
         // Load escrow
         let escrow_store = borrow_global_mut<EscrowStore>(@mvmt_intent);
-        assert!(table::contains(&escrow_store.escrows, intent_id), EESCROW_NOT_FOUND);
+        assert!(table::contains(&escrow_store.escrows, intent_id), E_ESCROW_NOT_FOUND);
 
         let escrow = table::borrow_mut(&mut escrow_store.escrows, intent_id);
 
         // Verify fulfillment proof received
-        assert!(escrow.fulfilled, ENOT_FULFILLED);
+        assert!(escrow.fulfilled, E_NOT_FULFILLED);
 
         // Verify not already released
-        assert!(!escrow.released, EESCROW_ALREADY_RELEASED);
+        assert!(!escrow.released, E_ESCROW_ALREADY_RELEASED);
 
         // Verify solver is authorized (zero address = any solver allowed)
         let zero_addr = create_zero_bytes32();
         if (escrow.solver_addr != zero_addr) {
             let solver_bytes = address_to_bytes32(solver_addr);
-            assert!(solver_bytes == escrow.solver_addr, EUNAUTHORIZED_SOLVER);
+            assert!(solver_bytes == escrow.solver_addr, E_UNAUTHORIZED_SOLVER);
         };
 
         // Mark as released
