@@ -3,6 +3,7 @@ module mvmt_intent::native_gmp_endpoint_tests {
     use std::vector;
     use aptos_framework::account;
     use mvmt_intent::native_gmp_endpoint;
+    use mvmt_intent::gmp_sender;
     use mvmt_intent::gmp_common;
 
     // Test addresses
@@ -16,6 +17,8 @@ module mvmt_intent::native_gmp_endpoint_tests {
 
     fun setup_test(): signer {
         let admin = account::create_account_for_test(ADMIN_ADDR);
+        // Initialize sender (for lz_send) and receiver (for deliver_message) separately
+        gmp_sender::initialize(&admin);
         native_gmp_endpoint::initialize(&admin);
         admin
     }
@@ -138,14 +141,14 @@ module mvmt_intent::native_gmp_endpoint_tests {
     // ============================================================================
 
     /// 13. Test: Send updates nonce state
-    /// Verifies that lz_send increments the outbound nonce correctly for each message.
+    /// Verifies that gmp_sender::lz_send increments the outbound nonce correctly for each message.
     /// Why: Nonce tracking prevents message reordering and provides unique message IDs.
     #[test]
     fun test_send_updates_nonce_state() {
         let admin = setup_test();
 
         // Initial nonce should be 1
-        let initial_nonce = native_gmp_endpoint::get_next_nonce();
+        let initial_nonce = gmp_sender::get_next_nonce();
         assert!(initial_nonce == 1, 1);
 
         // Create destination address and payload
@@ -157,8 +160,8 @@ module mvmt_intent::native_gmp_endpoint_tests {
         };
         let payload = vector[0x01, 0x02, 0x03];
 
-        // Send first message
-        let nonce1 = native_gmp_endpoint::lz_send(
+        // Send first message (using gmp_sender, following LZ pattern)
+        let nonce1 = gmp_sender::lz_send(
             &admin,
             SOLANA_CHAIN_ID,
             copy dst_addr,
@@ -167,11 +170,11 @@ module mvmt_intent::native_gmp_endpoint_tests {
         assert!(nonce1 == 1, 2);
 
         // Nonce should now be 2
-        let after_first = native_gmp_endpoint::get_next_nonce();
+        let after_first = gmp_sender::get_next_nonce();
         assert!(after_first == 2, 3);
 
         // Send second message
-        let nonce2 = native_gmp_endpoint::lz_send(
+        let nonce2 = gmp_sender::lz_send(
             &admin,
             SOLANA_CHAIN_ID,
             copy dst_addr,
@@ -180,7 +183,7 @@ module mvmt_intent::native_gmp_endpoint_tests {
         assert!(nonce2 == 2, 4);
 
         // Nonce should now be 3
-        let after_second = native_gmp_endpoint::get_next_nonce();
+        let after_second = gmp_sender::get_next_nonce();
         assert!(after_second == 3, 5);
     }
 

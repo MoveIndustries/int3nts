@@ -1,19 +1,20 @@
-/// Native GMP Endpoint
+/// Native GMP Endpoint (Receiver)
 ///
-/// A native GMP endpoint that can be used for local testing, CI, or production
-/// with a trusted relay or DKG-based message verification.
+/// Handles inbound cross-chain message delivery and routing.
+/// This module is intentionally separate from gmp_sender to avoid circular
+/// dependencies (following LayerZero's architectural pattern).
 ///
-/// ## Purpose
+/// ## Architecture
 ///
-/// This endpoint provides a standardized interface for cross-chain messaging.
-/// In production, this can be replaced by LayerZero's endpoint or used directly
-/// with your own relay infrastructure.
+/// - gmp_sender: Send functionality (lz_send)
+/// - native_gmp_endpoint: Receive/routing functionality (this module)
 ///
 /// ## Functions
 ///
-/// - `lz_send`: Emit a MessageSent event for the relay to pick up
 /// - `deliver_message`: Called by relay to deliver messages to destination
 /// - `set_trusted_remote`: Configure trusted source addresses per chain
+///
+/// For sending messages, use gmp_sender::lz_send instead.
 module mvmt_intent::native_gmp_endpoint {
     use std::vector;
     use std::signer;
@@ -21,6 +22,7 @@ module mvmt_intent::native_gmp_endpoint {
     use aptos_std::table::{Self, Table};
     use mvmt_intent::gmp_common;
     use mvmt_intent::intent_gmp_hub;
+    use mvmt_intent::outflow_validator_impl;
 
     // ============================================================================
     // ERROR CODES
@@ -57,22 +59,6 @@ module mvmt_intent::native_gmp_endpoint {
     // ============================================================================
 
     #[event]
-    /// Emitted when a message is sent to another chain.
-    /// The GMP relay monitors these events and delivers them to the destination.
-    struct MessageSent has drop, store {
-        /// Destination chain endpoint ID (e.g., Solana = 30168)
-        dst_chain_id: u32,
-        /// Destination address (32 bytes, the receiving program)
-        dst_addr: vector<u8>,
-        /// Message payload (encoded GMP message)
-        payload: vector<u8>,
-        /// Sender address
-        sender: address,
-        /// Sequence number for ordering
-        nonce: u64,
-    }
-
-    #[event]
     /// Emitted when a message is delivered from another chain.
     struct MessageDelivered has drop, store {
         /// Source chain endpoint ID
@@ -89,12 +75,10 @@ module mvmt_intent::native_gmp_endpoint {
     // STATE
     // ============================================================================
 
-    /// Global endpoint configuration.
+    /// Global endpoint configuration for message delivery.
     struct EndpointConfig has key {
         /// Authorized relay addresses (can call deliver_message)
         authorized_relays: vector<address>,
-        /// Next outbound nonce
-        next_nonce: u64,
         /// Admin address (can configure trusted remotes)
         admin: address,
         /// Trusted remote addresses per source chain (chain_id -> trusted_addr)
@@ -107,8 +91,9 @@ module mvmt_intent::native_gmp_endpoint {
     // INITIALIZATION
     // ============================================================================
 
-    /// Initialize the native GMP endpoint.
+    /// Initialize the native GMP endpoint (receiver).
     /// Called once during deployment.
+    /// Note: For sending, also initialize gmp_sender separately.
     public entry fun initialize(admin: &signer) {
         let admin_addr = signer::address_of(admin);
 
@@ -118,64 +103,10 @@ module mvmt_intent::native_gmp_endpoint {
 
         move_to(admin, EndpointConfig {
             authorized_relays,
-            next_nonce: 1,
             admin: admin_addr,
             trusted_remotes: table::new(),
             inbound_nonces: table::new(),
         });
-    }
-
-    // ============================================================================
-    // OUTBOUND: Send message to another chain
-    // ============================================================================
-
-    /// Send a cross-chain message.
-    ///
-    /// Emits a `MessageSent` event that the GMP relay monitors.
-    /// The relay picks up the event and calls `deliver_message` on the
-    /// destination chain.
-    ///
-    /// # Arguments
-    /// - `sender`: The account sending the message
-    /// - `dst_chain_id`: Destination chain endpoint ID (e.g., Solana = 30168)
-    /// - `dst_addr`: Destination address (32 bytes, the receiving program)
-    /// - `payload`: Message payload (encoded GMP message)
-    ///
-    /// # Returns
-    /// - Nonce assigned to this message
-    public fun lz_send(
-        sender: &signer,
-        dst_chain_id: u32,
-        dst_addr: vector<u8>,
-        payload: vector<u8>,
-    ): u64 acquires EndpointConfig {
-        let sender_addr = signer::address_of(sender);
-
-        // Get and increment nonce
-        let config = borrow_global_mut<EndpointConfig>(@mvmt_intent);
-        let nonce = config.next_nonce;
-        config.next_nonce = nonce + 1;
-
-        // Emit event for relay to pick up
-        event::emit(MessageSent {
-            dst_chain_id,
-            dst_addr,
-            payload,
-            sender: sender_addr,
-            nonce,
-        });
-
-        nonce
-    }
-
-    /// Entry function wrapper for lz_send.
-    public entry fun lz_send_entry(
-        sender: &signer,
-        dst_chain_id: u32,
-        dst_addr: vector<u8>,
-        payload: vector<u8>,
-    ) acquires EndpointConfig {
-        lz_send(sender, dst_chain_id, dst_addr, payload);
     }
 
     // ============================================================================
@@ -242,10 +173,12 @@ module mvmt_intent::native_gmp_endpoint {
     /// Route a GMP message to the appropriate handler based on payload type.
     ///
     /// Message types:
+    /// - 0x01 (IntentRequirements): Route to outflow_validator_impl::receive_intent_requirements
+    ///   (when MVM is a connected chain receiving requirements from hub)
     /// - 0x02 (EscrowConfirmation): Route to intent_gmp_hub::receive_escrow_confirmation
+    ///   (when MVM is hub receiving escrow confirmations from connected chains)
     /// - 0x03 (FulfillmentProof): Route to intent_gmp_hub::receive_fulfillment_proof
-    ///
-    /// Note: 0x01 (IntentRequirements) is outbound-only from hub, not expected inbound.
+    ///   (when MVM is hub receiving fulfillment proofs from connected chains)
     fun route_message(
         src_chain_id: u32,
         src_addr: vector<u8>,
@@ -254,14 +187,16 @@ module mvmt_intent::native_gmp_endpoint {
         // Peek at message type (first byte)
         let msg_type = gmp_common::peek_message_type(&payload);
 
-        if (msg_type == MESSAGE_TYPE_ESCROW_CONFIRMATION) {
-            // Connected chain confirms escrow was created
+        if (msg_type == MESSAGE_TYPE_INTENT_REQUIREMENTS) {
+            // MVM as connected chain: receive intent requirements from hub
+            outflow_validator_impl::receive_intent_requirements(src_chain_id, src_addr, payload);
+        } else if (msg_type == MESSAGE_TYPE_ESCROW_CONFIRMATION) {
+            // MVM as hub: connected chain confirms escrow was created
             intent_gmp_hub::receive_escrow_confirmation(src_chain_id, src_addr, payload);
         } else if (msg_type == MESSAGE_TYPE_FULFILLMENT_PROOF) {
-            // Connected chain reports fulfillment (for outflow intents)
+            // MVM as hub: connected chain reports fulfillment (for outflow intents)
             intent_gmp_hub::receive_fulfillment_proof(src_chain_id, src_addr, payload);
         } else {
-            // IntentRequirements (0x01) is outbound-only, shouldn't be received
             abort EUNKNOWN_MESSAGE_TYPE
         };
     }
@@ -345,12 +280,6 @@ module mvmt_intent::native_gmp_endpoint {
     // ============================================================================
     // VIEW FUNCTIONS
     // ============================================================================
-
-    #[view]
-    /// Get the next outbound nonce.
-    public fun get_next_nonce(): u64 acquires EndpointConfig {
-        borrow_global<EndpointConfig>(@mvmt_intent).next_nonce
-    }
 
     #[view]
     /// Check if an address is an authorized relay.

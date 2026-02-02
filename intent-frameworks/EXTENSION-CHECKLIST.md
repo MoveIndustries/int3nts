@@ -268,25 +268,25 @@ SVM: `intent-frameworks/svm/programs/outflow-validator/tests/interface_tests.rs`
 
 ### Outflow Validator Integration Tests
 
-MVM: ⚠️
+MVM: `intent-frameworks/mvm/tests/outflow_validator_tests.move`
 EVM: ⚠️
 SVM: `intent-frameworks/svm/programs/outflow-validator/tests/validator_tests.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |
-| 1 | test_initialize_creates_config | ⚠️ | ⚠️ | ✅ |
-| 2 | test_initialize_rejects_double_init | ⚠️ | ⚠️ | ✅ |
-| 3 | test_lz_receive_stores_requirements | ⚠️ | ⚠️ | ✅ |
-| 4 | test_lz_receive_idempotent | ⚠️ | ⚠️ | ✅ |
-| 5 | test_lz_receive_rejects_untrusted_source | ⚠️ | ⚠️ | ✅ |
-| 6 | test_lz_receive_rejects_invalid_payload | ⚠️ | ⚠️ | ✅ |
-| 7 | test_fulfill_intent_rejects_already_fulfilled | ⚠️ | ⚠️ | ✅ |
-| 8 | test_fulfill_intent_rejects_expired | ⚠️ | ⚠️ | ✅ |
-| 9 | test_fulfill_intent_rejects_unauthorized_solver | ⚠️ | ⚠️ | ✅ |
-| 10 | test_fulfill_intent_rejects_token_mismatch | ⚠️ | ⚠️ | ✅ |
-| 11 | test_fulfill_intent_rejects_requirements_not_found | ⚠️ | ⚠️ | ✅ |
-| 12 | test_fulfill_intent_rejects_recipient_mismatch | ⚠️ | ⚠️ | ✅ |
-| 13 | test_fulfill_intent_succeeds | ⚠️ | ⚠️ | ✅ |
+| 1 | test_initialize_creates_config | ✅ | ⚠️ | ✅ |
+| 2 | test_initialize_rejects_double_init | ✅ | ⚠️ | ✅ |
+| 3 | test_lz_receive_stores_requirements | ✅ | ⚠️ | ✅ |
+| 4 | test_lz_receive_idempotent | ✅ | ⚠️ | ✅ |
+| 5 | test_lz_receive_rejects_untrusted_source | ✅ | ⚠️ | ✅ |
+| 6 | test_lz_receive_rejects_invalid_payload | ✅ | ⚠️ | ✅ |
+| 7 | test_fulfill_intent_rejects_already_fulfilled | ✅ | ⚠️ | ✅ |
+| 8 | test_fulfill_intent_rejects_expired | ✅ | ⚠️ | ✅ |
+| 9 | test_fulfill_intent_rejects_unauthorized_solver | ✅ | ⚠️ | ✅ |
+| 10 | test_fulfill_intent_rejects_token_mismatch | ✅ | ⚠️ | ✅ |
+| 11 | test_fulfill_intent_rejects_requirements_not_found | ✅ | ⚠️ | ✅ |
+| 12 | test_fulfill_intent_rejects_recipient_mismatch | ✅ | ⚠️ | ✅ |
+| 13 | test_fulfill_intent_succeeds | ✅ | ⚠️ | ✅ |
 
 ---
 

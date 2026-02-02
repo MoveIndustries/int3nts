@@ -90,6 +90,7 @@
 - [x] Send GMP message to hub via `lz_send`
 - [x] Emit `FulfillmentSucceeded` or `FulfillmentFailed` events
 - [x] Test all validation scenarios
+- [x] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with SVM OutflowValidator test status
 
 **Test:**
 
@@ -101,7 +102,41 @@
 
 ---
 
-### Commit 4: Implement InflowEscrowGMP program (SVM)
+### Commit 4: Implement OutflowValidator module (MVM)
+
+**Files:**
+
+- `intent-frameworks/mvm/sources/gmp/outflow_validator.move` (already exists from Phase 1, implement)
+- `intent-frameworks/mvm/tests/outflow_validator_tests.move`
+
+**Tasks:**
+
+- [x] Implement GMP receive handler for native GMP endpoint
+- [x] Implement `lz_receive` to receive intent requirements from hub
+- [x] **Idempotency check**: Before storing, check if requirements already exist for intent_id + step number
+- [x] **If requirements already exist → ignore duplicate message (idempotent)**
+- [x] **If requirements don't exist → store intent requirements** (intent_id/step => {requirements, authorizedSolver})
+- [x] Implement `fulfill_intent` entry function for authorized solvers to call
+- [x] Function pulls tokens from authorized solver's wallet via coin/FA transfer
+- [x] Validate recipient, amount, token match stored requirements
+- [x] Validate solver matches authorized solver from stored requirements
+- [x] Forward tokens to user wallet
+- [x] Send GMP message to hub via `lz_send`
+- [x] Emit `FulfillmentSucceeded` or `FulfillmentFailed` events
+- [x] Test all validation scenarios
+- [x] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with MVM OutflowValidator test status
+
+**Test:**
+
+```bash
+./testing-infra/run-all-unit-tests.sh
+```
+
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.**
+
+---
+
+### Commit 5: Implement InflowEscrowGMP program (SVM)
 
 **Files:**
 
@@ -120,6 +155,7 @@
 - [ ] Implement automatic escrow release on fulfillment proof receipt
 - [ ] Send `EscrowConfirmation` message back to hub on creation
 - [ ] Test all escrow scenarios
+- [ ] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with SVM InflowEscrowGMP test status
 
 **Test:**
 
@@ -127,11 +163,42 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.**
 
 ---
 
-### Commit 5: Integrate GMP into MVM hub intent contract
+### Commit 6: Implement InflowEscrowGMP module (MVM)
+
+**Files:**
+
+- `intent-frameworks/mvm/sources/gmp/inflow_escrow_gmp.move`
+- `intent-frameworks/mvm/tests/inflow_escrow_gmp_tests.move`
+
+**Tasks:**
+
+- [ ] Implement GMP receive handler for native GMP endpoint
+- [ ] Implement `lz_receive` for intent requirements from hub
+- [ ] **Idempotency check**: Before storing, check if requirements already exist for intent_id + step number
+- [ ] **If requirements already exist → ignore duplicate message (idempotent)**
+- [ ] **If requirements don't exist → store requirements** (mapped by intent_id + step number)
+- [ ] Implement `create_escrow_with_validation` - validates requirements exist and match escrow details
+- [ ] Implement `lz_receive` for fulfillment proof from hub
+- [ ] Implement automatic escrow release on fulfillment proof receipt
+- [ ] Send `EscrowConfirmation` message back to hub on creation
+- [ ] Test all escrow scenarios
+- [ ] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with MVM InflowEscrowGMP test status
+
+**Test:**
+
+```bash
+./testing-infra/run-all-unit-tests.sh
+```
+
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.**
+
+---
+
+### Commit 7: Integrate GMP into MVM hub intent contract
 
 **Files:**
 
@@ -155,11 +222,11 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 8.**
 
 ---
 
-### Commit 6: Implement native GMP relay in trusted-gmp
+### Commit 8: Implement native GMP relay in trusted-gmp
 
 **Files:**
 
@@ -182,11 +249,11 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 9.**
 
 ---
 
-### Commit 7: Fix existing E2E tests for GMP: MVM ↔ MVM
+### Commit 9: Fix existing E2E tests for GMP: MVM ↔ MVM
 
 **Files:**
 
@@ -211,11 +278,11 @@
 ./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 8.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 10.**
 
 ---
 
-### Commit 8: Fix existing E2E tests for GMP: MVM ↔ SVM outflow
+### Commit 10: Fix existing E2E tests for GMP: MVM ↔ SVM outflow
 
 **Files:**
 
@@ -238,11 +305,11 @@
 ./testing-infra/ci-e2e/e2e-tests-svm/run-tests-outflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 9.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 11.**
 
 ---
 
-### Commit 9: Fix existing E2E tests for GMP: MVM ↔ SVM inflow
+### Commit 11: Fix existing E2E tests for GMP: MVM ↔ SVM inflow
 
 **Files:**
 
@@ -265,11 +332,11 @@
 ./testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 10.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 12.**
 
 ---
 
-### Commit 10: Update existing deployment scripts for GMP
+### Commit 12: Update existing deployment scripts for GMP
 
 **Files:**
 
@@ -310,7 +377,7 @@ solana program show <OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
 
 ## Exit Criteria
 
-- [ ] All 10 commits merged to feature branch
+- [ ] All 12 commits merged to feature branch
 - [ ] SVM programs build and pass unit tests
 - [ ] MVM modules build and pass unit tests
 - [ ] Native GMP relay works for MVM ↔ SVM
