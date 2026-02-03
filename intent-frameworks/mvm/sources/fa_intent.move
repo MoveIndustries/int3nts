@@ -53,6 +53,16 @@ module mvmt_intent::fa_intent {
         order.desired_metadata
     }
 
+    /// Getter for intent_id to allow access from other modules (for GMP integration)
+    public fun get_intent_id(order: &FungibleAssetLimitOrder): Option<address> {
+        order.intent_id
+    }
+
+    /// Getter for offered_chain_id to allow access from other modules
+    public fun get_offered_chain_id(order: &FungibleAssetLimitOrder): u64 {
+        order.offered_chain_id
+    }
+
     /// Initialize chain info with the chain ID where this module is deployed.
     /// Must be called once during module deployment.
     ///

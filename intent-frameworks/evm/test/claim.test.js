@@ -53,7 +53,7 @@ describe("IntentEscrow - Claim", function () {
   });
 
   /// 2. Test: Invalid Signature Rejection
-  /// Verifies that claims with invalid signatures are rejected with UnauthorizedApprover error.
+  /// Verifies that claims with invalid signatures are rejected with E_UNAUTHORIZED_APPROVER error.
   /// Why: Security requirement - only approver-approved fulfillments should allow fund release.
   it("Should revert with invalid signature", async function () {
     const wrongIntentId = intentId + 1n;
@@ -65,7 +65,7 @@ describe("IntentEscrow - Claim", function () {
 
     await expect(
       escrow.connect(solver).claim(intentId, signature)
-    ).to.be.revertedWithCustomError(escrow, "UnauthorizedApprover");
+    ).to.be.revertedWithCustomError(escrow, "E_UNAUTHORIZED_APPROVER");
   });
 
   /// 3. Test: Signature Replay Prevention
@@ -90,7 +90,7 @@ describe("IntentEscrow - Claim", function () {
     // This should fail because the signature is bound to intent_id A, not intent_id B
     await expect(
       escrow.connect(solver).claim(intentIdB, signatureForA)
-    ).to.be.revertedWithCustomError(escrow, "UnauthorizedApprover");
+    ).to.be.revertedWithCustomError(escrow, "E_UNAUTHORIZED_APPROVER");
   });
 
 
@@ -110,11 +110,11 @@ describe("IntentEscrow - Claim", function () {
 
     await expect(
       escrow.connect(solver).claim(intentId, signature)
-    ).to.be.revertedWithCustomError(escrow, "EscrowAlreadyClaimed");
+    ).to.be.revertedWithCustomError(escrow, "E_ESCROW_ALREADY_CLAIMED");
   });
 
   /// 5. Test: Non-Existent Escrow Rejection
-  /// Verifies that attempting to claim a non-existent escrow reverts with EscrowDoesNotExist error.
+  /// Verifies that attempting to claim a non-existent escrow reverts with E_ESCROW_DOES_NOT_EXIST error.
   /// Why: Prevents claims on non-existent escrows and ensures proper error handling.
   it("Should revert if escrow does not exist", async function () {
     const newIntentId = intentId + 1n;
@@ -127,7 +127,7 @@ describe("IntentEscrow - Claim", function () {
 
     await expect(
       escrow.connect(solver).claim(newIntentId, signature)
-    ).to.be.revertedWithCustomError(escrow, "EscrowDoesNotExist");
+    ).to.be.revertedWithCustomError(escrow, "E_ESCROW_DOES_NOT_EXIST");
   });
 });
 

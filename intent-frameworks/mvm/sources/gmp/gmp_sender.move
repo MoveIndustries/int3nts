@@ -131,4 +131,19 @@ module mvmt_intent::gmp_sender {
     public fun get_next_nonce(): u64 acquires SenderConfig {
         borrow_global<SenderConfig>(@mvmt_intent).next_nonce
     }
+
+    // ============================================================================
+    // TEST HELPERS
+    // ============================================================================
+
+    #[test_only]
+    /// Initialize for testing.
+    public fun init_for_test(admin: &signer) {
+        if (!exists<SenderConfig>(@mvmt_intent)) {
+            move_to(admin, SenderConfig {
+                next_nonce: 1,
+                admin: signer::address_of(admin),
+            });
+        };
+    }
 }

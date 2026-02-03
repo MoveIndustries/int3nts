@@ -32,7 +32,7 @@ describe("IntentEscrow - Expiry Handling", function () {
     // Cancellation blocked before expiry
     await expect(
       escrow.connect(requester).cancel(intentId)
-    ).to.be.revertedWithCustomError(escrow, "EscrowNotExpiredYet");
+    ).to.be.revertedWithCustomError(escrow, "E_ESCROW_NOT_EXPIRED_YET");
 
     // Advance time past expiry
     const expiryDuration = await escrow.EXPIRY_DURATION();
@@ -97,7 +97,7 @@ describe("IntentEscrow - Expiry Handling", function () {
 
     await expect(
       escrow.connect(solver).claim(intentId, signature)
-    ).to.be.revertedWithCustomError(escrow, "EscrowExpired");
+    ).to.be.revertedWithCustomError(escrow, "E_ESCROW_EXPIRED");
 
     expect(await token.balanceOf(escrow.target)).to.equal(amount);
     expect(await token.balanceOf(solver.address)).to.equal(0);

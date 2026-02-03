@@ -118,8 +118,8 @@ async function main() {
     console.log("Claim transaction hash:", receipt.hash);
     console.log("Escrow released successfully!");
   } catch (error) {
-    // Check if error is EscrowAlreadyClaimed - handle gracefully
-    if (error.message && error.message.includes("EscrowAlreadyClaimed")) {
+    // Check if error is E_ESCROW_ALREADY_CLAIMED - handle gracefully
+    if (error.message && error.message.includes("E_ESCROW_ALREADY_CLAIMED")) {
       console.log("Escrow already claimed - skipping");
       console.log("Escrow released successfully!");
       process.exit(0);

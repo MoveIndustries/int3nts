@@ -2,72 +2,25 @@ module mvmt_intent::fa_intent_outflow {
     use std::signer;
     use std::option;
     use std::error;
+    use std::bcs;
     use aptos_framework::primary_fungible_store;
-    use aptos_framework::object::Object;
+    use aptos_framework::object::{Self as object, Object};
     use aptos_framework::fungible_asset::{Self as fungible_asset, FungibleAsset, Metadata};
     use mvmt_intent::fa_intent_with_oracle;
-    use mvmt_intent::intent::Intent;
+    use mvmt_intent::intent::{Self as intent, Intent};
     use mvmt_intent::intent_reservation;
     use mvmt_intent::intent_registry;
+    use mvmt_intent::intent_gmp_hub;
+    use mvmt_intent::gmp_intent_state;
+    use mvmt_intent::gmp_common;
     use aptos_std::ed25519;
 
     /// The solver signature is invalid and cannot be verified.
     const E_INVALID_SIGNATURE: u64 = 2;
     /// The requester address on the connected chain is invalid (zero address).
     const E_INVALID_REQUESTER_ADDR: u64 = 3;
-    /// The approver (trusted-gmp) config has not been initialized.
-    const E_APPROVER_NOT_INITIALIZED: u64 = 4;
-    /// Only the module publisher can initialize/update the approver config.
-    const E_NOT_AUTHORIZED: u64 = 5;
-
-    // ============================================================================
-    // APPROVER CONFIG (Global trusted-gmp approver public key)
-    // ============================================================================
-
-    /// Global configuration storing the trusted-gmp approver's public key.
-    struct ApproverConfig has key {
-        /// The Ed25519 public key of the trusted-gmp (32 bytes)
-        public_key: vector<u8>,
-    }
-
-    /// Initialize the approver configuration with the trusted-gmp public key.
-    /// Can only be called by the module publisher (@mvmt_intent).
-    ///
-    /// # Arguments
-    /// - `admin`: Must be the module publisher
-    /// - `approver_public_key`: 32-byte Ed25519 public key of the trusted-gmp
-    public entry fun initialize_approver(
-        admin: &signer,
-        approver_public_key: vector<u8>
-    ) acquires ApproverConfig {
-        let admin_addr = signer::address_of(admin);
-        assert!(admin_addr == @mvmt_intent, error::permission_denied(E_NOT_AUTHORIZED));
-        
-        if (exists<ApproverConfig>(@mvmt_intent)) {
-            // Update existing config
-            let config = borrow_global_mut<ApproverConfig>(@mvmt_intent);
-            config.public_key = approver_public_key;
-        } else {
-            // Create new config
-            move_to(admin, ApproverConfig {
-                public_key: approver_public_key,
-            });
-        }
-    }
-
-    /// Get the configured approver public key.
-    /// Aborts if approver config has not been initialized.
-    fun get_approver_public_key(): vector<u8> acquires ApproverConfig {
-        assert!(exists<ApproverConfig>(@mvmt_intent), error::not_found(E_APPROVER_NOT_INITIALIZED));
-        let config = borrow_global<ApproverConfig>(@mvmt_intent);
-        config.public_key
-    }
-
-    #[view]
-    /// View function to check if approver is configured and get the public key.
-    public fun get_approver_config(): vector<u8> acquires ApproverConfig {
-        get_approver_public_key()
-    }
+    /// Fulfillment proof not received for this intent.
+    const E_FULFILLMENT_PROOF_NOT_RECEIVED: u64 = 7;
 
     // ============================================================================
     // SHARED UTILITIES
@@ -104,67 +57,109 @@ module mvmt_intent::fa_intent_outflow {
     // OUTFLOW REQUEST-INTENT FUNCTIONS
     // ============================================================================
 
+    // ============================================================================
+    // GMP RECEIVE HANDLER
+    // ============================================================================
+
+    /// Receive and record a FulfillmentProof via GMP.
+    ///
+    /// This function is called by native_gmp_endpoint when a FulfillmentProof message
+    /// is received from the connected chain. It validates the message and records
+    /// the proof in GMP state, enabling the solver to claim their tokens.
+    ///
+    /// After this is called, the solver can call `fulfill_outflow_intent`
+    /// to claim the locked tokens.
+    ///
+    /// # Arguments
+    /// - `src_chain_id`: Source chain ID of the GMP message
+    /// - `src_address`: Source address on the connected chain (32 bytes)
+    /// - `payload`: Raw GMP message payload containing the FulfillmentProof
+    ///
+    /// # Returns
+    /// - true if proof was newly recorded, false if already received (idempotent)
+    public fun receive_fulfillment_proof(
+        src_chain_id: u32,
+        src_address: vector<u8>,
+        payload: vector<u8>,
+    ): bool {
+        // 1. Validate and decode the FulfillmentProof via intent_gmp_hub
+        let proof = intent_gmp_hub::receive_fulfillment_proof(
+            src_chain_id,
+            src_address,
+            payload,
+        );
+
+        // 2. Extract intent_id from proof
+        let intent_id_bytes = *gmp_common::fulfillment_proof_intent_id(&proof);
+
+        // 3. Check if intent exists
+        if (!gmp_intent_state::intent_exists(intent_id_bytes)) {
+            // Intent not found - might have been processed already
+            return false
+        };
+
+        // 4. Record the fulfillment proof (idempotent)
+        gmp_intent_state::record_fulfillment_proof(intent_id_bytes)
+    }
+
     /// Entry function for solver to fulfill an outflow intent.
     ///
     /// Outflow intents have tokens locked on the hub chain and request tokens on the connected chain.
-    /// The solver must first transfer tokens on the connected chain, then the approver approves that transaction.
-    /// The solver receives the locked tokens from the hub as reward, and provides 0 tokens as payment
-    /// (since desired_amount = 0 on hub for outflow intents).
-    /// Approver signature is required - it proves the solver transferred tokens on the connected chain.
+    /// The solver must first deliver tokens on the connected chain. Once the FulfillmentProof
+    /// is received via GMP (via `receive_fulfillment_proof`), the solver can call this function
+    /// to claim the locked tokens.
     ///
     /// # Arguments
-    /// - `solver`: Signer fulfilling the intent
-    /// - `intent`: Object reference to the outflow intent to fulfill (OracleGuardedLimitOrder)
-    /// - `approver_signature_bytes`: Approver's Ed25519 signature as bytes (signs the intent_id, proves connected chain transfer)
+    /// - `solver`: Signer of the solver claiming the tokens
+    /// - `intent`: Object reference to the outflow intent
+    ///
+    /// # Aborts
+    /// - E_FULFILLMENT_PROOF_NOT_RECEIVED: Fulfillment proof not received for this intent
     public entry fun fulfill_outflow_intent(
         solver: &signer,
         intent: Object<Intent<fa_intent_with_oracle::FungibleStoreManager, fa_intent_with_oracle::OracleGuardedLimitOrder>>,
-        approver_signature_bytes: vector<u8>
     ) {
         let solver_addr = signer::address_of(solver);
-        let intent_addr = aptos_framework::object::object_address(&intent);
+        let intent_addr = object::object_address(&intent);
 
-        // 1. Start the session (unlocks actual tokens that were locked on hub - these are the solver's reward)
+        // 1. Get intent_id from the intent argument
+        // We need to start the session first to access the argument
         let (unlocked_fa, session) =
             fa_intent_with_oracle::start_fa_offering_session(solver, intent);
 
-        // 2. Infer payment metadata from the unlocked tokens BEFORE depositing (FungibleAsset doesn't have copy)
-        // For outflow, desired_metadata matches offered_metadata (placeholder), so we use unlocked tokens' metadata
+        // Get the intent_id from the session argument
+        let argument = intent::get_argument(&session);
+        let intent_id_addr = fa_intent_with_oracle::get_intent_id(argument);
+        let intent_id_bytes = bcs::to_bytes(&intent_id_addr);
+
+        // 2. Verify fulfillment proof was received via GMP
+        assert!(
+            gmp_intent_state::is_fulfillment_proof_received(intent_id_bytes),
+            error::invalid_state(E_FULFILLMENT_PROOF_NOT_RECEIVED)
+        );
+
+        // 3. Get payment metadata from unlocked tokens BEFORE depositing
         let payment_metadata = fungible_asset::asset_metadata(&unlocked_fa);
 
-        // 3. Deposit unlocked tokens to solver (they get the locked tokens as payment for their work)
+        // 4. Deposit unlocked tokens to solver (they get the locked tokens as reward)
         primary_fungible_store::deposit(solver_addr, unlocked_fa);
 
-        // 4. Withdraw 0 tokens as payment (desired_amount = 0 on hub for outflow)
-        // The actual desired tokens are on the connected chain, which the solver already transferred
+        // 5. Withdraw 0 tokens as payment (desired_amount = 0 on hub for outflow)
         let solver_payment = primary_fungible_store::withdraw(
             solver, payment_metadata, 0
         );
 
-        // 5. Convert signature bytes to ed25519::Signature
-        let approver_signature =
-            ed25519::new_signature_from_bytes(approver_signature_bytes);
-
-        // 6. Create approver witness - signature itself is the approval
-        // The intent_id is stored in the session argument and will be used automatically
-        // by finish_fa_receiving_session_with_oracle for signature verification
-        let witness =
-            fa_intent_with_oracle::new_oracle_signature_witness(
-                0, // reported_value: signature verification is what matters, this is just metadata
-                approver_signature
-            );
-
-        // 7. Complete the intent with approver signature (proves connected chain transfer happened)
-        // The finish function will verify the signature against the intent_id stored in the argument
-        // Payment amount is 0, which matches desired_amount = 0 for outflow intents
-        fa_intent_with_oracle::finish_fa_receiving_session_with_oracle(
+        // 6. Complete the intent using GMP proof flow (no oracle witness needed)
+        fa_intent_with_oracle::finish_fa_receiving_session_for_gmp(
             session,
             solver_payment,
-            option::some(witness)
         );
 
-        // 8. Unregister intent from the registry
+        // 7. Unregister intent from the registry
         intent_registry::unregister_intent(intent_addr);
+
+        // 8. Remove intent from GMP state tracking
+        gmp_intent_state::remove_intent(intent_id_bytes);
     }
 
     /// Creates an outflow intent and returns the intent object.
@@ -293,67 +288,34 @@ module mvmt_intent::fa_intent_outflow {
         );
 
         // Register intent in the registry for dynamic account discovery
-        let intent_addr = aptos_framework::object::object_address(&intent_obj);
+        let intent_addr = object::object_address(&intent_obj);
         intent_registry::register_intent(signer::address_of(requester_signer), intent_addr, expiry_time);
 
-        intent_obj
-    }
+        // Convert intent_id to bytes for GMP
+        let intent_id_bytes = bcs::to_bytes(&intent_id);
 
-    /// Entry function to create an outflow intent.
-    ///
-    /// Reads the approver public key from the module's ApproverConfig.
-    /// The approver config must be initialized via `initialize_approver` before calling this function.
-    ///
-    /// # Arguments
-    /// - `requester_signer`: The account creating the intent (tokens will be withdrawn from this account)
-    /// - `offered_metadata`: Metadata of the token being offered (locked on hub chain)
-    /// - `offered_amount`: Amount of tokens to lock
-    /// - `offered_chain_id`: Chain ID where offered tokens are located (hub chain)
-    /// - `desired_metadata_addr`: Address of the desired token metadata (on connected chain)
-    /// - `desired_amount`: Amount of tokens desired on connected chain
-    /// - `desired_chain_id`: Chain ID where desired tokens are located (connected chain)
-    /// - `expiry_time`: Unix timestamp when the intent expires
-    /// - `intent_id`: Unique identifier for cross-chain correlation
-    /// - `requester_addr_connected_chain`: Requester's address on the connected chain
-    /// - `solver`: Address of the solver who will fulfill the intent
-    /// - `solver_signature`: Solver's signature approving the intent
-    ///
-    /// # Aborts
-    /// - `E_APPROVER_NOT_INITIALIZED`: Approver config has not been set
-    /// - `E_INVALID_SIGNATURE`: Solver signature verification failed
-    /// - `E_INVALID_REQUESTER_ADDR`: requester_addr_connected_chain is zero address
-    public entry fun create_outflow_intent_entry(
-        requester_signer: &signer,
-        offered_metadata: Object<Metadata>,
-        offered_amount: u64,
-        offered_chain_id: u64,
-        desired_metadata_addr: address,
-        desired_amount: u64,
-        desired_chain_id: u64,
-        expiry_time: u64,
-        intent_id: address,
-        requester_addr_connected_chain: address,
-        solver: address,
-        solver_signature: vector<u8>
-    ) acquires ApproverConfig {
-        // Read approver public key from stored config
-        let approver_public_key = get_approver_public_key();
-        
-        let _intent_obj =
-            create_outflow_intent(
-                requester_signer,
-                offered_metadata,
-                offered_amount,
-                offered_chain_id,
-                desired_metadata_addr,
-                desired_amount,
-                desired_chain_id,
-                expiry_time,
-                intent_id,
-                requester_addr_connected_chain,
-                approver_public_key,
-                solver,
-                solver_signature
-            );
+        // Register intent in GMP state tracking
+        // For outflow, dst_chain_id is desired_chain_id (connected chain where solver delivers)
+        let dst_chain_id = (desired_chain_id as u32);
+        gmp_intent_state::register_outflow_intent(intent_id_bytes, intent_addr, dst_chain_id);
+
+        // Send IntentRequirements to connected chain via GMP
+        // For outflow: requester_addr is on connected chain, token is desired token on connected chain
+        let requester_addr_bytes = bcs::to_bytes(&requester_addr_connected_chain);
+        let token_addr_bytes = bcs::to_bytes(&desired_metadata_addr);
+        let solver_addr_bytes = bcs::to_bytes(&solver);
+
+        let _nonce = intent_gmp_hub::send_intent_requirements(
+            requester_signer,
+            dst_chain_id,
+            intent_id_bytes,
+            requester_addr_bytes,
+            desired_amount, // Amount solver must deliver on connected chain
+            token_addr_bytes,
+            solver_addr_bytes,
+            expiry_time,
+        );
+
+        intent_obj
     }
 }

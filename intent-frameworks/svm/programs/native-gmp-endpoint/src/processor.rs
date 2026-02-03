@@ -27,7 +27,7 @@ pub fn process_instruction(
     instruction_data: &[u8],
 ) -> ProgramResult {
     let instruction = NativeGmpInstruction::try_from_slice(instruction_data)
-        .map_err(|_| GmpError::InvalidInstructionData)?;
+        .map_err(|_| GmpError::E_INVALID_INSTRUCTION_DATA)?;
 
     match instruction {
         NativeGmpInstruction::Initialize { chain_id } => {
@@ -91,12 +91,12 @@ fn process_initialize(
         Pubkey::find_program_address(&[seeds::CONFIG_SEED], program_id);
 
     if config_account.key != &config_pda {
-        return Err(GmpError::InvalidPda.into());
+        return Err(GmpError::E_INVALID_PDA.into());
     }
 
     // Check if already initialized
     if !config_account.data_is_empty() {
-        return Err(GmpError::AccountAlreadyInitialized.into());
+        return Err(GmpError::E_ACCOUNT_ALREADY_INITIALIZED.into());
     }
 
     // Create config account
@@ -144,10 +144,10 @@ fn process_add_relay(
 
     // Load and verify config
     let config = ConfigAccount::try_from_slice(&config_account.data.borrow())
-        .map_err(|_| GmpError::AccountNotInitialized)?;
+        .map_err(|_| GmpError::E_ACCOUNT_NOT_INITIALIZED)?;
 
     if config.admin != *admin.key {
-        return Err(GmpError::UnauthorizedAdmin.into());
+        return Err(GmpError::E_UNAUTHORIZED_ADMIN.into());
     }
 
     // Derive relay PDA
@@ -155,7 +155,7 @@ fn process_add_relay(
         Pubkey::find_program_address(&[seeds::RELAY_SEED, relay.as_ref()], program_id);
 
     if relay_account.key != &relay_pda {
-        return Err(GmpError::InvalidPda.into());
+        return Err(GmpError::E_INVALID_PDA.into());
     }
 
     // Create or update relay account
@@ -181,7 +181,7 @@ fn process_add_relay(
     } else {
         // Re-authorize existing relay
         let mut relay_data = RelayAccount::try_from_slice(&relay_account.data.borrow())
-            .map_err(|_| GmpError::InvalidDiscriminator)?;
+            .map_err(|_| GmpError::E_INVALID_DISCRIMINATOR)?;
         relay_data.is_authorized = true;
         relay_data.serialize(&mut &mut relay_account.data.borrow_mut()[..])?;
     }
@@ -208,10 +208,10 @@ fn process_remove_relay(
 
     // Load and verify config
     let config = ConfigAccount::try_from_slice(&config_account.data.borrow())
-        .map_err(|_| GmpError::AccountNotInitialized)?;
+        .map_err(|_| GmpError::E_ACCOUNT_NOT_INITIALIZED)?;
 
     if config.admin != *admin.key {
-        return Err(GmpError::UnauthorizedAdmin.into());
+        return Err(GmpError::E_UNAUTHORIZED_ADMIN.into());
     }
 
     // Derive relay PDA
@@ -219,12 +219,12 @@ fn process_remove_relay(
         Pubkey::find_program_address(&[seeds::RELAY_SEED, relay.as_ref()], program_id);
 
     if relay_account.key != &relay_pda {
-        return Err(GmpError::InvalidPda.into());
+        return Err(GmpError::E_INVALID_PDA.into());
     }
 
     // Deauthorize relay
     let mut relay_data = RelayAccount::try_from_slice(&relay_account.data.borrow())
-        .map_err(|_| GmpError::AccountNotInitialized)?;
+        .map_err(|_| GmpError::E_ACCOUNT_NOT_INITIALIZED)?;
     relay_data.is_authorized = false;
     relay_data.serialize(&mut &mut relay_account.data.borrow_mut()[..])?;
 
@@ -253,10 +253,10 @@ fn process_set_trusted_remote(
 
     // Load and verify config
     let config = ConfigAccount::try_from_slice(&config_account.data.borrow())
-        .map_err(|_| GmpError::AccountNotInitialized)?;
+        .map_err(|_| GmpError::E_ACCOUNT_NOT_INITIALIZED)?;
 
     if config.admin != *admin.key {
-        return Err(GmpError::UnauthorizedAdmin.into());
+        return Err(GmpError::E_UNAUTHORIZED_ADMIN.into());
     }
 
     // Derive trusted remote PDA
@@ -267,7 +267,7 @@ fn process_set_trusted_remote(
     );
 
     if trusted_remote_account.key != &trusted_remote_pda {
-        return Err(GmpError::InvalidPda.into());
+        return Err(GmpError::E_INVALID_PDA.into());
     }
 
     // Create or update trusted remote account
@@ -303,7 +303,7 @@ fn process_set_trusted_remote(
         // Update existing trusted remote
         let mut trusted_remote =
             TrustedRemoteAccount::try_from_slice(&trusted_remote_account.data.borrow())
-                .map_err(|_| GmpError::InvalidDiscriminator)?;
+                .map_err(|_| GmpError::E_INVALID_DISCRIMINATOR)?;
         trusted_remote.trusted_addr = trusted_addr;
         trusted_remote.serialize(&mut &mut trusted_remote_account.data.borrow_mut()[..])?;
     }
@@ -338,7 +338,7 @@ fn process_send(
 
     // Load config to get this chain's ID
     let config = ConfigAccount::try_from_slice(&config_account.data.borrow())
-        .map_err(|_| GmpError::AccountNotInitialized)?;
+        .map_err(|_| GmpError::E_ACCOUNT_NOT_INITIALIZED)?;
 
     // Derive nonce PDA
     let chain_id_bytes = dst_chain_id.to_le_bytes();
@@ -346,7 +346,7 @@ fn process_send(
         Pubkey::find_program_address(&[seeds::NONCE_OUT_SEED, &chain_id_bytes], program_id);
 
     if nonce_account.key != &nonce_pda {
-        return Err(GmpError::InvalidPda.into());
+        return Err(GmpError::E_INVALID_PDA.into());
     }
 
     // Create nonce account if needed, then increment
@@ -373,7 +373,7 @@ fn process_send(
         nonce
     } else {
         let mut nonce_data = OutboundNonceAccount::try_from_slice(&nonce_account.data.borrow())
-            .map_err(|_| GmpError::InvalidDiscriminator)?;
+            .map_err(|_| GmpError::E_INVALID_DISCRIMINATOR)?;
         let nonce = nonce_data.increment();
         nonce_data.serialize(&mut &mut nonce_account.data.borrow_mut()[..])?;
         nonce
@@ -422,26 +422,26 @@ fn process_deliver_message(
     // Verify config account
     let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], program_id);
     if config_account.key != &config_pda {
-        return Err(GmpError::InvalidPda.into());
+        return Err(GmpError::E_INVALID_PDA.into());
     }
 
     // Load config
     let _config = ConfigAccount::try_from_slice(&config_account.data.borrow())
-        .map_err(|_| GmpError::AccountNotInitialized)?;
+        .map_err(|_| GmpError::E_ACCOUNT_NOT_INITIALIZED)?;
 
     // Verify relay is authorized
     let (relay_pda, _) =
         Pubkey::find_program_address(&[seeds::RELAY_SEED, relay_signer.key.as_ref()], program_id);
 
     if relay_account.key != &relay_pda {
-        return Err(GmpError::InvalidPda.into());
+        return Err(GmpError::E_INVALID_PDA.into());
     }
 
     let relay_data = RelayAccount::try_from_slice(&relay_account.data.borrow())
-        .map_err(|_| GmpError::AccountNotInitialized)?;
+        .map_err(|_| GmpError::E_ACCOUNT_NOT_INITIALIZED)?;
 
     if !relay_data.is_authorized {
-        return Err(GmpError::UnauthorizedRelay.into());
+        return Err(GmpError::E_UNAUTHORIZED_RELAY.into());
     }
 
     // Verify trusted remote
@@ -452,11 +452,11 @@ fn process_deliver_message(
     );
 
     if trusted_remote_account.key != &trusted_remote_pda {
-        return Err(GmpError::InvalidPda.into());
+        return Err(GmpError::E_INVALID_PDA.into());
     }
 
     let trusted_remote = TrustedRemoteAccount::try_from_slice(&trusted_remote_account.data.borrow())
-        .map_err(|_| GmpError::UntrustedRemote)?;
+        .map_err(|_| GmpError::E_UNTRUSTED_REMOTE)?;
 
     if trusted_remote.trusted_addr != src_addr {
         msg!(
@@ -464,7 +464,7 @@ fn process_deliver_message(
             hex_encode(&trusted_remote.trusted_addr),
             hex_encode(&src_addr)
         );
-        return Err(GmpError::UntrustedRemote.into());
+        return Err(GmpError::E_UNTRUSTED_REMOTE.into());
     }
 
     // Check nonce for replay protection
@@ -472,7 +472,7 @@ fn process_deliver_message(
         Pubkey::find_program_address(&[seeds::NONCE_IN_SEED, &chain_id_bytes], program_id);
 
     if nonce_account.key != &nonce_pda {
-        return Err(GmpError::InvalidPda.into());
+        return Err(GmpError::E_INVALID_PDA.into());
     }
 
     // Create or check nonce account
@@ -499,7 +499,7 @@ fn process_deliver_message(
         nonce_data.serialize(&mut &mut nonce_account.data.borrow_mut()[..])?;
     } else {
         let mut nonce_data = InboundNonceAccount::try_from_slice(&nonce_account.data.borrow())
-            .map_err(|_| GmpError::InvalidDiscriminator)?;
+            .map_err(|_| GmpError::E_INVALID_DISCRIMINATOR)?;
 
         if nonce_data.is_replay(nonce) {
             msg!(
@@ -507,7 +507,7 @@ fn process_deliver_message(
                 nonce,
                 nonce_data.last_nonce
             );
-            return Err(GmpError::ReplayDetected.into());
+            return Err(GmpError::E_REPLAY_DETECTED.into());
         }
 
         nonce_data.update_nonce(nonce);

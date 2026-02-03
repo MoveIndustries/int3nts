@@ -215,10 +215,10 @@ fn test_config_account_roundtrip() {
 fn test_error_conversion() {
     use solana_program::program_error::ProgramError;
 
-    let error: ProgramError = OutflowError::UnauthorizedSolver.into();
+    let error: ProgramError = OutflowError::E_UNAUTHORIZED_SOLVER.into();
     match error {
         ProgramError::Custom(code) => {
-            assert_eq!(code, OutflowError::UnauthorizedSolver as u32);
+            assert_eq!(code, OutflowError::E_UNAUTHORIZED_SOLVER as u32);
         }
         _ => panic!("Expected Custom error"),
     }
@@ -229,17 +229,17 @@ fn test_error_conversion() {
 #[test]
 fn test_error_codes_unique() {
     let errors = [
-        OutflowError::InvalidGmpMessage,
-        OutflowError::RequirementsNotFound,
-        OutflowError::RequirementsAlreadyExist,
-        OutflowError::UnauthorizedSolver,
-        OutflowError::AmountMismatch,
-        OutflowError::TokenMismatch,
-        OutflowError::RecipientMismatch,
-        OutflowError::AlreadyFulfilled,
-        OutflowError::IntentExpired,
-        OutflowError::InvalidAccountOwner,
-        OutflowError::InvalidPda,
+        OutflowError::E_INVALID_GMP_MESSAGE,
+        OutflowError::E_REQUIREMENTS_NOT_FOUND,
+        OutflowError::E_REQUIREMENTS_ALREADY_EXIST,
+        OutflowError::E_UNAUTHORIZED_SOLVER,
+        OutflowError::E_AMOUNT_MISMATCH,
+        OutflowError::E_TOKEN_MISMATCH,
+        OutflowError::E_RECIPIENT_MISMATCH,
+        OutflowError::E_ALREADY_FULFILLED,
+        OutflowError::E_INTENT_EXPIRED,
+        OutflowError::E_INVALID_ACCOUNT_OWNER,
+        OutflowError::E_INVALID_PDA,
     ];
 
     let codes: Vec<u32> = errors.iter().map(|e| *e as u32).collect();

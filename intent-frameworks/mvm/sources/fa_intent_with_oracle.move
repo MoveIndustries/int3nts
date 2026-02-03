@@ -15,6 +15,7 @@ module mvmt_intent::fa_intent_with_oracle {
     use aptos_framework::primary_fungible_store;
     use mvmt_intent::intent::{Self, Session, Intent};
     use mvmt_intent::intent_reservation::{Self, IntentReserved};
+    use mvmt_intent::gmp_intent_state;
     use aptos_std::ed25519;
 
     // ============================================================================
@@ -37,6 +38,8 @@ module mvmt_intent::fa_intent_with_oracle {
     const E_ORACLE_VALUE_TOO_LOW: u64 = 4;
     /// The desired metadata address is invalid or missing for cross-chain intents.
     const E_INVALID_METADATA_ADDR: u64 = 5;
+    /// GMP fulfillment proof not received for this intent.
+    const E_FULFILLMENT_PROOF_NOT_RECEIVED: u64 = 6;
 
     // ============================================================================
     // DATA TYPES
@@ -115,6 +118,25 @@ module mvmt_intent::fa_intent_with_oracle {
         signature: ed25519::Signature,
     ): OracleSignatureWitness {
         OracleSignatureWitness { reported_value, signature }
+    }
+
+    // ============================================================================
+    // GETTERS (for GMP integration)
+    // ============================================================================
+
+    /// Get the intent_id from an OracleGuardedLimitOrder argument.
+    public fun get_intent_id(order: &OracleGuardedLimitOrder): address {
+        order.intent_id
+    }
+
+    /// Get the desired_chain_id from an OracleGuardedLimitOrder argument.
+    public fun get_desired_chain_id(order: &OracleGuardedLimitOrder): u64 {
+        order.desired_chain_id
+    }
+
+    /// Get the offered_chain_id from an OracleGuardedLimitOrder argument.
+    public fun get_offered_chain_id(order: &OracleGuardedLimitOrder): u64 {
+        order.offered_chain_id
     }
 
     // ============================================================================
@@ -295,6 +317,54 @@ module mvmt_intent::fa_intent_with_oracle {
         );
 
         verify_oracle_requirement(argument, &oracle_witness_opt);
+
+        primary_fungible_store::deposit(argument.requester_addr, received_fa);
+        intent::finish_intent_session(session, OracleGuardedWitness {})
+    }
+
+    /// Completes an oracle-guarded intent session using GMP proof instead of oracle signature.
+    ///
+    /// This function is used for outflow intents where the FulfillmentProof has been
+    /// received via GMP from the connected chain. The GMP proof serves as the authorization
+    /// instead of the oracle signature.
+    ///
+    /// # Arguments
+    /// - `session`: The active trading session (consumed)
+    /// - `received_fa`: Asset supplied by the solver (0 for outflow)
+    ///
+    /// # Aborts
+    /// - `E_FULFILLMENT_PROOF_NOT_RECEIVED`: GMP proof not received for this intent
+    /// - `E_NOT_DESIRED_TOKEN`: Received asset metadata mismatches
+    /// - `E_AMOUNT_NOT_MEET`: Received asset amount is below required (0 for cross-chain)
+    public fun finish_fa_receiving_session_for_gmp(
+        session: Session<OracleGuardedLimitOrder>,
+        received_fa: FungibleAsset,
+    ) {
+        let argument = intent::get_argument(&session);
+
+        // SECURITY: Verify GMP fulfillment proof was received - this is the authorization
+        let intent_id_bytes = bcs::to_bytes(&argument.intent_id);
+        assert!(
+            gmp_intent_state::is_fulfillment_proof_received(intent_id_bytes),
+            error::invalid_state(E_FULFILLMENT_PROOF_NOT_RECEIVED)
+        );
+
+        assert!(
+            fungible_asset::metadata_from_asset(&received_fa) == argument.desired_metadata,
+            error::invalid_argument(E_NOT_DESIRED_TOKEN)
+        );
+
+        // Payment validation: if desired_chain_id != offered_chain_id, we're on the offered chain
+        // and nothing is desired on this chain, so payment should be 0
+        let required_payment_amount = if (argument.desired_chain_id == argument.offered_chain_id) {
+            argument.desired_amount
+        } else {
+            0
+        };
+        assert!(
+            fungible_asset::amount(&received_fa) >= required_payment_amount,
+            error::invalid_argument(E_AMOUNT_NOT_MEET),
+        );
 
         primary_fungible_store::deposit(argument.requester_addr, received_fa);
         intent::finish_intent_session(session, OracleGuardedWitness {})

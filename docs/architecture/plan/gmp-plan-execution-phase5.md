@@ -32,7 +32,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.** Run `/commit` to finalize.
 
 ---
 
@@ -57,7 +57,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.** Run `/commit` to finalize.
 
 ---
 
@@ -82,7 +82,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.** Run `/commit` to finalize.
 
 ---
 
@@ -107,7 +107,7 @@
 # Documentation review - manual
 ```
 
-> ⚠️ **Documentation review before proceeding to Commit 5.**
+> ⚠️ **Documentation review before proceeding to Commit 5.** Run `/commit` to finalize.
 
 ---
 
@@ -135,7 +135,7 @@
 # Documentation review - manual
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.** Run `/commit` to finalize.
 
 ---
 
@@ -167,7 +167,7 @@ test ! -d verifier && echo "OK: coordinator + trusted-gmp only"
 grep -r "private_key\|secret_key\|signing_key" coordinator/ && exit 1 || echo "OK: coordinator has no keys"
 ```
 
-> ⚠️ **CI e2e tests must pass before Phase 5 is complete (6 commits total).**
+> ⚠️ **CI e2e tests must pass before Phase 5 is complete (6 commits total).** Run `/commit` to finalize.
 
 ---
 

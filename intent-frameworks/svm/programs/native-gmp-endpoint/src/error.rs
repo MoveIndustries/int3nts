@@ -6,46 +6,46 @@ use thiserror::Error;
 #[derive(Error, Debug, Clone)]
 pub enum GmpError {
     #[error("Invalid instruction data")]
-    InvalidInstructionData,
+    E_INVALID_INSTRUCTION_DATA,
 
     #[error("Account not initialized")]
-    AccountNotInitialized,
+    E_ACCOUNT_NOT_INITIALIZED,
 
     #[error("Account already initialized")]
-    AccountAlreadyInitialized,
+    E_ACCOUNT_ALREADY_INITIALIZED,
 
     #[error("Invalid account discriminator")]
-    InvalidDiscriminator,
+    E_INVALID_DISCRIMINATOR,
 
     #[error("Invalid PDA")]
-    InvalidPda,
+    E_INVALID_PDA,
 
     #[error("Unauthorized: caller is not admin")]
-    UnauthorizedAdmin,
+    E_UNAUTHORIZED_ADMIN,
 
     #[error("Unauthorized: caller is not an authorized relay")]
-    UnauthorizedRelay,
+    E_UNAUTHORIZED_RELAY,
 
     #[error("Untrusted remote: source chain or address not configured")]
-    UntrustedRemote,
+    E_UNTRUSTED_REMOTE,
 
     #[error("Replay detected: nonce already processed")]
-    ReplayDetected,
+    E_REPLAY_DETECTED,
 
     #[error("Invalid nonce: expected sequential nonce")]
-    InvalidNonce,
+    E_INVALID_NONCE,
 
     #[error("Destination program not provided")]
-    MissingDestinationProgram,
+    E_MISSING_DESTINATION_PROGRAM,
 
     #[error("CPI to destination program failed")]
-    CpiDeliveryFailed,
+    E_CPI_DELIVERY_FAILED,
 
     #[error("Invalid account owner")]
-    InvalidAccountOwner,
+    E_INVALID_ACCOUNT_OWNER,
 
     #[error("Arithmetic overflow")]
-    ArithmeticOverflow,
+    E_ARITHMETIC_OVERFLOW,
 }
 
 impl From<GmpError> for ProgramError {

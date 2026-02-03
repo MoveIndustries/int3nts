@@ -423,4 +423,25 @@ module mvmt_intent::intent_gmp_hub {
             result
         }
     }
+
+    // ============================================================================
+    // TEST HELPERS
+    // ============================================================================
+
+    #[test_only]
+    /// Initialize for testing with a trusted remote for dst_chain_id.
+    public fun init_for_test(admin: &signer, dst_chain_id: u32, trusted_remote: vector<u8>) acquires GmpHubConfig {
+        if (!exists<GmpHubConfig>(@mvmt_intent)) {
+            move_to(admin, GmpHubConfig {
+                admin: signer::address_of(admin),
+                trusted_remotes: simple_map::new(),
+            });
+        };
+
+        // Add trusted remote
+        let config = borrow_global_mut<GmpHubConfig>(@mvmt_intent);
+        if (!simple_map::contains_key(&config.trusted_remotes, &dst_chain_id)) {
+            simple_map::add(&mut config.trusted_remotes, dst_chain_id, trusted_remote);
+        };
+    }
 }

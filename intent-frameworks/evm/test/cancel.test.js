@@ -32,7 +32,7 @@ describe("IntentEscrow - Cancel", function () {
   it("Should revert if escrow has not expired yet", async function () {
     await expect(
       escrow.connect(requester).cancel(intentId)
-    ).to.be.revertedWithCustomError(escrow, "EscrowNotExpiredYet");
+    ).to.be.revertedWithCustomError(escrow, "E_ESCROW_NOT_EXPIRED_YET");
   });
 
   /// 2. Test: Cancellation After Expiry
@@ -63,7 +63,7 @@ describe("IntentEscrow - Cancel", function () {
   it("Should revert if not requester", async function () {
     await expect(
       escrow.connect(solver).cancel(intentId)
-    ).to.be.revertedWithCustomError(escrow, "UnauthorizedRequester");
+    ).to.be.revertedWithCustomError(escrow, "E_UNAUTHORIZED_REQUESTER");
   });
 
   /// 4. Test: Cancellation After Claim Prevention
@@ -81,7 +81,7 @@ describe("IntentEscrow - Cancel", function () {
 
     await expect(
       escrow.connect(requester).cancel(intentId)
-    ).to.be.revertedWithCustomError(escrow, "EscrowAlreadyClaimed");
+    ).to.be.revertedWithCustomError(escrow, "E_ESCROW_ALREADY_CLAIMED");
   });
 
   /// 5. Test: Non-Existent Escrow Prevention
@@ -92,7 +92,7 @@ describe("IntentEscrow - Cancel", function () {
 
     await expect(
       escrow.connect(requester).cancel(nonExistentIntentId)
-    ).to.be.revertedWithCustomError(escrow, "EscrowDoesNotExist");
+    ).to.be.revertedWithCustomError(escrow, "E_ESCROW_DOES_NOT_EXIST");
   });
 });
 

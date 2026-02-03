@@ -2,16 +2,22 @@ module mvmt_intent::fa_intent_inflow {
     use std::signer;
     use std::option;
     use std::error;
+    use std::bcs;
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self as object, Object};
     use aptos_framework::fungible_asset::{FungibleAsset, Metadata};
+    use aptos_framework::timestamp;
     use mvmt_intent::fa_intent::{Self, FungibleStoreManager, FungibleAssetLimitOrder};
     use mvmt_intent::intent::{Self as intent, Intent};
     use mvmt_intent::intent_reservation;
     use mvmt_intent::intent_registry;
+    use mvmt_intent::intent_gmp_hub;
+    use mvmt_intent::gmp_intent_state;
 
     /// The solver signature is invalid and cannot be verified.
     const E_INVALID_SIGNATURE: u64 = 2;
+    /// Escrow has not been confirmed for this intent.
+    const E_ESCROW_NOT_CONFIRMED: u64 = 6;
 
     // ============================================================================
     // SHARED UTILITIES
@@ -54,6 +60,11 @@ module mvmt_intent::fa_intent_inflow {
     /// The solver provides the desired tokens to the requester on the hub chain.
     /// No approver signature is required for inflow intents.
     ///
+    /// For cross-chain intents, this function:
+    /// 1. Verifies escrow confirmation was received from the connected chain
+    /// 2. Fulfills the intent by transferring tokens to requester
+    /// 3. Sends FulfillmentProof to the connected chain to release escrow
+    ///
     /// # Arguments
     /// - `solver`: Signer fulfilling the intent
     /// - `intent`: Object reference to the inflow intent to fulfill (FungibleAssetLimitOrder)
@@ -78,11 +89,29 @@ module mvmt_intent::fa_intent_inflow {
         let argument = intent::get_argument(&session);
         let desired_metadata = fa_intent::get_desired_metadata(argument);
 
-        // 3. Withdraw the desired tokens from solver's account
+        // Get intent_id for GMP (stored in the argument)
+        let intent_id_opt = fa_intent::get_intent_id(argument);
+        let is_cross_chain = option::is_some(&intent_id_opt);
+
+        // 3. For cross-chain intents, check escrow confirmation before proceeding
+        let intent_id_bytes = if (is_cross_chain) {
+            let intent_id_addr = *option::borrow(&intent_id_opt);
+            let id_bytes = bcs::to_bytes(&intent_id_addr);
+            // Check escrow is confirmed
+            assert!(
+                gmp_intent_state::is_escrow_confirmed(id_bytes),
+                error::invalid_state(E_ESCROW_NOT_CONFIRMED)
+            );
+            id_bytes
+        } else {
+            std::vector::empty<u8>()
+        };
+
+        // 4. Withdraw the desired tokens from solver's account
         let payment_fa =
             primary_fungible_store::withdraw(solver, desired_metadata, payment_amount);
 
-        // 4. Finish the session by providing the payment tokens and emit fulfillment event
+        // 5. Finish the session by providing the payment tokens and emit fulfillment event
         fa_intent::finish_fa_receiving_session_with_event(
             session,
             payment_fa,
@@ -90,8 +119,30 @@ module mvmt_intent::fa_intent_inflow {
             solver_addr
         );
 
-        // 5. Unregister intent from the registry
+        // 6. Unregister intent from the registry
         intent_registry::unregister_intent(intent_addr);
+
+        // 7. For cross-chain intents, send FulfillmentProof to connected chain and clean up state
+        if (is_cross_chain) {
+            // Get dst_chain_id from GMP state
+            let dst_chain_id = gmp_intent_state::get_dst_chain_id(intent_id_bytes);
+
+            // Convert solver address to 32-byte vector
+            let solver_addr_bytes = bcs::to_bytes(&solver_addr);
+
+            // Send fulfillment proof to connected chain
+            let _nonce = intent_gmp_hub::send_fulfillment_proof(
+                solver,
+                dst_chain_id,
+                intent_id_bytes,
+                solver_addr_bytes,
+                payment_amount,
+                timestamp::now_seconds(),
+            );
+
+            // Remove intent from GMP state tracking
+            gmp_intent_state::remove_intent(intent_id_bytes);
+        };
     }
 
     /// Creates an inflow intent and returns the intent object.
@@ -194,6 +245,31 @@ module mvmt_intent::fa_intent_inflow {
         // Register intent in the registry for dynamic account discovery
         let intent_addr = object::object_address(&intent_obj);
         intent_registry::register_intent(signer::address_of(account), intent_addr, expiry_time);
+
+        // Convert intent_id to bytes for GMP
+        let intent_id_bytes = bcs::to_bytes(&intent_id);
+
+        // Register intent in GMP state tracking
+        // Cast offered_chain_id from u64 to u32 for GMP (chain IDs fit in u32)
+        let dst_chain_id = (offered_chain_id as u32);
+        gmp_intent_state::register_inflow_intent(intent_id_bytes, intent_addr, dst_chain_id);
+
+        // Send IntentRequirements to connected chain via GMP
+        // Convert addresses to 32-byte vectors for GMP message
+        let requester_addr_bytes = bcs::to_bytes(&requester_addr_connected_chain);
+        let token_addr_bytes = bcs::to_bytes(&offered_metadata_addr);
+        let solver_addr_bytes = bcs::to_bytes(&solver);
+
+        let _nonce = intent_gmp_hub::send_intent_requirements(
+            account,
+            dst_chain_id,
+            intent_id_bytes,
+            requester_addr_bytes,
+            offered_amount,
+            token_addr_bytes,
+            solver_addr_bytes,
+            expiry_time,
+        );
 
         intent_obj
     }

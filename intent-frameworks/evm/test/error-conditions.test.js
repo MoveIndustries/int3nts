@@ -127,14 +127,14 @@ describe("IntentEscrow - Error Conditions", function () {
   });
 
   /// 8. Test: Non-Existent Escrow Cancellation Rejection
-  /// Verifies that cancel reverts with EscrowDoesNotExist for non-existent escrows.
+  /// Verifies that cancel reverts with E_ESCROW_DOES_NOT_EXIST for non-existent escrows.
   /// Why: Prevents cancellation of non-existent escrows and ensures proper error handling.
   it("Should revert cancel on non-existent escrow", async function () {
     const nonExistentIntentId = intentId + 1n;
 
     await expect(
       escrow.connect(requester).cancel(nonExistentIntentId)
-    ).to.be.revertedWithCustomError(escrow, "EscrowDoesNotExist");
+    ).to.be.revertedWithCustomError(escrow, "E_ESCROW_DOES_NOT_EXIST");
   });
 
   /// 9. Test: Zero Solver Address Rejection

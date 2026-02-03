@@ -42,7 +42,7 @@
 # Documentation review - manual
 ```
 
-> ⚠️ **Review complete before proceeding to Commit 2.**
+> ⚠️ **Review complete before proceeding to Commit 2.** Run `/commit` to finalize.
 
 ---
 
@@ -69,7 +69,7 @@
 # Documentation review - manual
 ```
 
-> ⚠️ **Review complete before proceeding to Commit 3.**
+> ⚠️ **Review complete before proceeding to Commit 3.** Run `/commit` to finalize.
 
 ---
 
@@ -98,7 +98,7 @@
 # Documentation review - manual
 ```
 
-> ⚠️ **Review complete before proceeding to Commit 4.**
+> ⚠️ **Review complete before proceeding to Commit 4.** Run `/commit` to finalize.
 
 ---
 
@@ -128,7 +128,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI tests must pass before proceeding to Commit 5.**
+> ⚠️ **CI tests must pass before proceeding to Commit 5.** Run `/commit` to finalize.
 
 ---
 
@@ -156,7 +156,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI tests must pass before proceeding to Commit 6.**
+> ⚠️ **CI tests must pass before proceeding to Commit 6.** Run `/commit` to finalize.
 
 ---
 
@@ -182,7 +182,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **Both chains must produce identical encoding before proceeding to Commit 7.**
+> ⚠️ **Both chains must produce identical encoding before proceeding to Commit 7.** Run `/commit` to finalize.
 
 ---
 
@@ -213,7 +213,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI tests must pass before proceeding to Commit 8.**
+> ⚠️ **CI tests must pass before proceeding to Commit 8.** Run `/commit` to finalize.
 
 ---
 
@@ -237,7 +237,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI tests must pass before proceeding to Commit 9.**
+> ⚠️ **CI tests must pass before proceeding to Commit 9.** Run `/commit` to finalize.
 
 ---
 
@@ -271,7 +271,7 @@ Connected chain functions (MVM as connected chain):
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI tests must pass before proceeding to Commit 10.**
+> ⚠️ **CI tests must pass before proceeding to Commit 10.** Run `/commit` to finalize.
 
 ---
 
@@ -298,7 +298,7 @@ Connected chain functions (MVM as connected chain):
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **Phase 1 complete after Commit 10.**
+> ⚠️ **Phase 1 complete after Commit 10.** Run `/commit` to finalize.
 
 ---
 

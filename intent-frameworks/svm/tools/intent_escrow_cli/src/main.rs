@@ -278,7 +278,7 @@ fn build_create_escrow_ix(
 fn build_claim_ix(
     program_id: Pubkey,
     intent_id: [u8; 32],
-    signature: [u8; 64],
+    _signature: [u8; 64],
     escrow_pda: Pubkey,
     state_pda: Pubkey,
     vault_pda: Pubkey,
@@ -296,7 +296,6 @@ fn build_claim_ix(
         ],
         data: EscrowInstruction::Claim {
             intent_id,
-            signature,
         }
         .try_to_vec()?,
     })

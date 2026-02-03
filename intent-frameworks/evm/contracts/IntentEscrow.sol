@@ -37,14 +37,14 @@ contract IntentEscrow {
     event EscrowCancelled(uint256 indexed intentId, address indexed requester, uint256 amount);
 
     /// @notice Errors
-    error EscrowAlreadyClaimed();
-    error EscrowDoesNotExist();
-    error NoDeposit();
-    error UnauthorizedRequester();
-    error InvalidSignature();
-    error UnauthorizedApprover();
-    error EscrowExpired(); // Escrow has expired (for claim operations)
-    error EscrowNotExpiredYet(); // Escrow has not expired yet (for cancel operations)
+    error E_ESCROW_ALREADY_CLAIMED();
+    error E_ESCROW_DOES_NOT_EXIST();
+    error E_NO_DEPOSIT();
+    error E_UNAUTHORIZED_REQUESTER();
+    error E_INVALID_SIGNATURE();
+    error E_UNAUTHORIZED_APPROVER();
+    error E_ESCROW_EXPIRED(); // Escrow has expired (for claim operations)
+    error E_ESCROW_NOT_EXPIRED_YET(); // Escrow has not expired yet (for cancel operations)
 
     /**
      * @notice Initialize the escrow with approver address
@@ -112,12 +112,12 @@ contract IntentEscrow {
     ) external {
         Escrow storage escrow = escrows[intentId];
         
-        if (escrow.requester == address(0)) revert EscrowDoesNotExist();
-        if (escrow.isClaimed) revert EscrowAlreadyClaimed();
-        if (escrow.amount == 0) revert NoDeposit();
+        if (escrow.requester == address(0)) revert E_ESCROW_DOES_NOT_EXIST();
+        if (escrow.isClaimed) revert E_ESCROW_ALREADY_CLAIMED();
+        if (escrow.amount == 0) revert E_NO_DEPOSIT();
         
         // Enforce expiry: claims are not allowed after expiry
-        if (block.timestamp > escrow.expiry) revert EscrowExpired();
+        if (block.timestamp > escrow.expiry) revert E_ESCROW_EXPIRED();
 
         // Verify signature
         // Approver signs only the intent_id (symmetric with Aptos - signature itself is the approval)
@@ -127,7 +127,7 @@ contract IntentEscrow {
         );
         
         address signer = recoverSigner(ethSignedMessageHash, signature);
-        if (signer != approver) revert UnauthorizedApprover();
+        if (signer != approver) revert E_UNAUTHORIZED_APPROVER();
 
         uint256 amount = escrow.amount;
         address token = escrow.token;
@@ -160,14 +160,14 @@ contract IntentEscrow {
     function cancel(uint256 intentId) external {
         Escrow storage escrow = escrows[intentId];
         
-        if (escrow.requester == address(0)) revert EscrowDoesNotExist();
-        if (escrow.isClaimed) revert EscrowAlreadyClaimed();
-        if (escrow.amount == 0) revert NoDeposit();
-        if (msg.sender != escrow.requester) revert UnauthorizedRequester();
+        if (escrow.requester == address(0)) revert E_ESCROW_DOES_NOT_EXIST();
+        if (escrow.isClaimed) revert E_ESCROW_ALREADY_CLAIMED();
+        if (escrow.amount == 0) revert E_NO_DEPOSIT();
+        if (msg.sender != escrow.requester) revert E_UNAUTHORIZED_REQUESTER();
         
         // Enforce expiry: cancellation is only allowed after expiry
         // This ensures funds remain locked until the contract-defined expiry period
-        if (block.timestamp <= escrow.expiry) revert EscrowNotExpiredYet();
+        if (block.timestamp <= escrow.expiry) revert E_ESCROW_NOT_EXPIRED_YET();
 
         uint256 amount = escrow.amount;
         address token = escrow.token;

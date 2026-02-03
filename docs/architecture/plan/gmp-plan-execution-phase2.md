@@ -35,7 +35,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.** Run `/commit` to finalize.
 
 ---
 
@@ -64,7 +64,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.** Run `/commit` to finalize.
 
 ---
 
@@ -98,7 +98,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.** Run `/commit` to finalize.
 
 ---
 
@@ -132,7 +132,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.** Run `/commit` to finalize.
 
 ---
 
@@ -167,7 +167,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.** Run `/commit` to finalize.
 
 ---
 
@@ -195,7 +195,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.** Run `/commit` to finalize.
 
 ---
 
@@ -223,7 +223,7 @@
 nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
 ```
 
-> ⚠️ **All MVM unit tests must pass before proceeding to Commit 8.**
+> ⚠️ **All MVM unit tests must pass before proceeding to Commit 8.** Run `/commit` to finalize.
 
 ---
 
@@ -255,7 +255,7 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 9.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 9.** Run `/commit` to finalize.
 
 ---
 
@@ -282,7 +282,7 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 9.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 9.** Run `/commit` to finalize.
 
 ---
 
@@ -311,7 +311,7 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 ./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 10.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 10.** Run `/commit` to finalize.
 
 ---
 
@@ -338,7 +338,7 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 ./testing-infra/ci-e2e/e2e-tests-svm/run-tests-outflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 11.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 11.** Run `/commit` to finalize.
 
 ---
 
@@ -365,7 +365,7 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 ./testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 12.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 12.** Run `/commit` to finalize.
 
 ---
 
@@ -393,7 +393,7 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 solana program show <OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
 ```
 
-> ⚠️ **CI e2e tests must pass before Phase 2 is complete.**
+> ⚠️ **CI e2e tests must pass before Phase 2 is complete.** Run `/commit` to finalize.
 
 ---
 

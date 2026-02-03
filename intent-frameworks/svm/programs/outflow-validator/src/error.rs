@@ -6,37 +6,37 @@ use thiserror::Error;
 #[derive(Error, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutflowError {
     #[error("Invalid GMP message")]
-    InvalidGmpMessage,
+    E_INVALID_GMP_MESSAGE,
 
     #[error("Intent requirements not found")]
-    RequirementsNotFound,
+    E_REQUIREMENTS_NOT_FOUND,
 
     #[error("Intent requirements already exist")]
-    RequirementsAlreadyExist,
+    E_REQUIREMENTS_ALREADY_EXIST,
 
     #[error("Unauthorized solver")]
-    UnauthorizedSolver,
+    E_UNAUTHORIZED_SOLVER,
 
     #[error("Amount mismatch")]
-    AmountMismatch,
+    E_AMOUNT_MISMATCH,
 
     #[error("Token mismatch")]
-    TokenMismatch,
+    E_TOKEN_MISMATCH,
 
     #[error("Recipient mismatch")]
-    RecipientMismatch,
+    E_RECIPIENT_MISMATCH,
 
     #[error("Intent already fulfilled")]
-    AlreadyFulfilled,
+    E_ALREADY_FULFILLED,
 
     #[error("Intent expired")]
-    IntentExpired,
+    E_INTENT_EXPIRED,
 
     #[error("Invalid account owner")]
-    InvalidAccountOwner,
+    E_INVALID_ACCOUNT_OWNER,
 
     #[error("Invalid PDA")]
-    InvalidPda,
+    E_INVALID_PDA,
 }
 
 impl From<OutflowError> for ProgramError {

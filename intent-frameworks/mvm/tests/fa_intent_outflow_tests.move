@@ -16,6 +16,10 @@ module mvmt_intent::fa_intent_outflow_tests {
     use mvmt_intent::intent_registry;
     use mvmt_intent::solver_registry;
     use mvmt_intent::test_utils;
+    use mvmt_intent::gmp_intent_state;
+    use mvmt_intent::gmp_sender;
+    use mvmt_intent::intent_gmp_hub;
+    use mvmt_intent::gmp_common;
 
     // ============================================================================
     // TEST HELPERS
@@ -42,17 +46,29 @@ module mvmt_intent::fa_intent_outflow_tests {
         u64, // desired_amount
     ) {
         timestamp::set_time_has_started_for_testing(aptos_framework);
-        
+
+        // Initialize GMP modules for cross-chain messaging
+        gmp_intent_state::init_for_test(mvmt_intent);
+        gmp_sender::init_for_test(mvmt_intent);
+        // Use dst_chain_id = 2 (connected chain) with a dummy trusted remote address
+        let dummy_trusted_remote = vector::empty<u8>();
+        let i = 0;
+        while (i < 32) {
+            vector::push_back(&mut dummy_trusted_remote, 0xAB);
+            i = i + 1;
+        };
+        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_trusted_remote);
+
         // Create test fungible assets
         let (offered_metadata, _) = mvmt_intent::test_utils::register_and_mint_tokens(aptos_framework, requester_signer, 100);
         let (desired_metadata, _) = mvmt_intent::test_utils::register_and_mint_tokens(aptos_framework, solver_signer, 0);
-        
+
         let intent_id = @0x5678;
         let solver_addr = signer::address_of(solver_signer);
         let expiry_time = timestamp::now_seconds() + 3600;
         let offered_amount = 50u64;
         let desired_amount = 25u64;
-        
+
         // Initialize solver registry and intent registry
         solver_registry::init_for_test(mvmt_intent);
         intent_registry::init_for_test(mvmt_intent);
@@ -295,62 +311,6 @@ module mvmt_intent::fa_intent_outflow_tests {
         requester_signer = @0xcafe,
         solver_signer = @0xdead
     )]
-    /// What is tested: fulfill_outflow_intent releases locked tokens to solver after approver signature validation
-    /// Why: Verify solver receives locked tokens after providing valid approver signature
-    fun test_fulfill_outflow_intent(
-        aptos_framework: &signer,
-        mvmt_intent: &signer,
-        requester_signer: &signer,
-        solver_signer: &signer,
-    ) {
-        use mvmt_intent::fa_intent_with_oracle;
-        use mvmt_intent::intent::Intent;
-        
-        // Set up outflow intent using shared helper
-        let (intent_obj, offered_metadata, _desired_metadata, approver_signature_bytes, _intent_id) = setup_outflow_intent(
-            aptos_framework,
-            mvmt_intent,
-            requester_signer,
-            solver_signer,
-        );
-        
-        // Verify intent was created and registered
-        let intent_addr = object::object_address(&intent_obj);
-        assert!(intent_addr != @0x0);
-        assert!(intent_registry::is_intent_registered(intent_addr));
-        assert!(intent_registry::get_intent_count(signer::address_of(requester_signer)) == 1);
-        
-        // Verify tokens were locked (requester_signer's balance decreased)
-        assert!(primary_fungible_store::balance(signer::address_of(requester_signer), offered_metadata) == 50);
-        
-        // Convert to generic Object type for entry function
-        let intent_obj_generic: Object<Intent<fa_intent_with_oracle::FungibleStoreManager, fa_intent_with_oracle::OracleGuardedLimitOrder>> = 
-            object::address_to_object(intent_addr);
-        
-        // Fulfill the outflow intent using fulfill_outflow_intent
-        fa_intent_outflow::fulfill_outflow_intent(
-            solver_signer,
-            intent_obj_generic,
-            approver_signature_bytes,
-        );
-        
-        // Verify solver_signer received the locked tokens (their reward)
-        assert!(primary_fungible_store::balance(signer::address_of(solver_signer), offered_metadata) == 50);
-        
-        // Verify requester_signer's balance is still 50 (tokens were locked, then solver got them)
-        assert!(primary_fungible_store::balance(signer::address_of(requester_signer), offered_metadata) == 50);
-        
-        // Verify intent was unregistered from registry after fulfillment
-        assert!(!intent_registry::is_intent_registered(intent_addr));
-        assert!(intent_registry::get_intent_count(signer::address_of(requester_signer)) == 0);
-    }
-
-    #[test(
-        aptos_framework = @0x1,
-        mvmt_intent = @0x123,
-        requester_signer = @0xcafe,
-        solver_signer = @0xdead
-    )]
     #[expected_failure(abort_code = 393223, location = aptos_framework::object)] // error::not_found(ERESOURCE_DOES_NOT_EXIST)
     /// What is tested: fulfilling an outflow intent with the inflow function aborts with ERESOURCE_DOES_NOT_EXIST
     /// Why: Outflow intents require approver signature; using inflow function would skip that check
@@ -383,6 +343,128 @@ module mvmt_intent::fa_intent_outflow_tests {
         // ERESOURCE_DOES_NOT_EXIST (a resource of that type doesn't exist at that address).
         let _wrong_type_intent: Object<Intent<fa_intent::FungibleStoreManager, fa_intent::FungibleAssetLimitOrder>> = 
             object::address_to_object(intent_addr);
+    }
+
+    #[test(
+        aptos_framework = @0x1,
+        mvmt_intent = @0x123,
+        requester_signer = @0xcafe,
+        solver_signer = @0xdead
+    )]
+    /// What is tested: fulfill_outflow_intent releases locked tokens to solver after GMP FulfillmentProof
+    /// Why: Solver receives locked tokens only after fulfillment proof is received via GMP
+    fun test_fulfill_outflow_intent(
+        aptos_framework: &signer,
+        mvmt_intent: &signer,
+        requester_signer: &signer,
+        solver_signer: &signer,
+    ) {
+        use mvmt_intent::fa_intent_with_oracle;
+        use mvmt_intent::intent::Intent;
+        use mvmt_intent::gmp_common;
+
+        // Set up outflow intent using shared helper
+        let (intent_obj, offered_metadata, _desired_metadata, _approver_signature_bytes, intent_id) = setup_outflow_intent(
+            aptos_framework,
+            mvmt_intent,
+            requester_signer,
+            solver_signer,
+        );
+
+        // Verify intent was created and registered
+        let intent_addr = object::object_address(&intent_obj);
+        assert!(intent_addr != @0x0);
+        assert!(intent_registry::is_intent_registered(intent_addr));
+
+        // Verify tokens were locked (requester_signer's balance decreased from 100 to 50)
+        assert!(primary_fungible_store::balance(signer::address_of(requester_signer), offered_metadata) == 50);
+
+        // Create a FulfillmentProof GMP message
+        let intent_id_bytes = bcs::to_bytes(&intent_id);
+        let solver_addr_bytes = bcs::to_bytes(&signer::address_of(solver_signer));
+        let fulfillment_proof = gmp_common::new_fulfillment_proof(
+            intent_id_bytes,
+            solver_addr_bytes,
+            50, // amount_fulfilled
+            timestamp::now_seconds(), // timestamp
+        );
+        let payload = gmp_common::encode_fulfillment_proof(&fulfillment_proof);
+
+        // Create trusted source address (matching what was set in init_for_test)
+        let trusted_src_addr = vector::empty<u8>();
+        let i = 0;
+        while (i < 32) {
+            vector::push_back(&mut trusted_src_addr, 0xAB);
+            i = i + 1;
+        };
+
+        // Simulate receiving FulfillmentProof from connected chain via GMP
+        let was_recorded = fa_intent_outflow::receive_fulfillment_proof(
+            2, // src_chain_id (connected chain)
+            trusted_src_addr,
+            payload,
+        );
+        assert!(was_recorded == true); // Should be newly recorded
+
+        // Convert to generic Object type for entry function
+        let intent_obj_generic: Object<Intent<fa_intent_with_oracle::FungibleStoreManager, fa_intent_with_oracle::OracleGuardedLimitOrder>> =
+            object::address_to_object(intent_addr);
+
+        // Fulfill the outflow intent (GMP proof was received, now solver claims tokens)
+        fa_intent_outflow::fulfill_outflow_intent(
+            solver_signer,
+            intent_obj_generic,
+        );
+
+        // Verify solver_signer received the locked tokens (their reward)
+        assert!(primary_fungible_store::balance(signer::address_of(solver_signer), offered_metadata) == 50);
+
+        // Verify intent was unregistered from registry after fulfillment
+        assert!(!intent_registry::is_intent_registered(intent_addr));
+    }
+
+    #[test(
+        aptos_framework = @0x1,
+        mvmt_intent = @0x123,
+        requester_signer = @0xcafe,
+        solver_signer = @0xdead
+    )]
+    #[expected_failure(abort_code = 0x30007, location = mvmt_intent::fa_intent_outflow)] // error::invalid_state(E_FULFILLMENT_PROOF_NOT_RECEIVED = 7)
+    /// What is tested: fulfill_outflow_intent fails when no GMP proof received
+    /// Why: Solver cannot claim tokens without GMP fulfillment proof
+    fun test_fulfill_fails_without_gmp_proof(
+        aptos_framework: &signer,
+        mvmt_intent: &signer,
+        requester_signer: &signer,
+        solver_signer: &signer,
+    ) {
+        use mvmt_intent::fa_intent_with_oracle;
+        use mvmt_intent::intent::Intent;
+
+        // Set up outflow intent using shared helper
+        let (intent_obj, _offered_metadata, _desired_metadata, _approver_signature_bytes, _intent_id) = setup_outflow_intent(
+            aptos_framework,
+            mvmt_intent,
+            requester_signer,
+            solver_signer,
+        );
+
+        // Verify intent was created
+        let intent_addr = object::object_address(&intent_obj);
+        assert!(intent_addr != @0x0);
+
+        // Note: We intentionally do NOT call receive_fulfillment_proof()
+        // to test that fulfillment fails without GMP proof
+
+        // Convert to generic Object type for entry function
+        let intent_obj_generic: Object<Intent<fa_intent_with_oracle::FungibleStoreManager, fa_intent_with_oracle::OracleGuardedLimitOrder>> =
+            object::address_to_object(intent_addr);
+
+        // Attempt to fulfill should fail (no GMP proof received)
+        fa_intent_outflow::fulfill_outflow_intent(
+            solver_signer,
+            intent_obj_generic,
+        );
     }
 
     #[test(

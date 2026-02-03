@@ -40,7 +40,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.** Run `/commit` to finalize.
 
 ---
 
@@ -69,7 +69,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.** Run `/commit` to finalize.
 
 ---
 
@@ -101,7 +101,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.** Run `/commit` to finalize.
 
 ---
 
@@ -127,7 +127,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.** Run `/commit` to finalize.
 
 ---
 
@@ -155,7 +155,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.** Run `/commit` to finalize.
 
 ---
 
@@ -184,7 +184,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.** Run `/commit` to finalize.
 
 ---
 
@@ -221,7 +221,7 @@ curl http://localhost:8080/health
 docker-compose down
 ```
 
-> ⚠️ **CI e2e tests must pass before Phase 4 is complete.**
+> ⚠️ **CI e2e tests must pass before Phase 4 is complete.** Run `/commit` to finalize.
 
 ---
 
