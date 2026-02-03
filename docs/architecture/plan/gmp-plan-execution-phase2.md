@@ -10,7 +10,7 @@
 
 ## Commits
 
-> 📋 **Commit Conventions:** Before each commit, review `.claude/CLAUDE.md` and `.cursor/rules` for commit message format, test requirements, and coding standards.
+> 📋 **Commit Conventions:** Before each commit, review `.claude/CLAUDE.md` and `.cursor/rules` for commit message format, test requirements, and coding standards. Run `/review-tests-new` to verify test coverage before committing.
 
 ### Commit 1: Implement native GMP endpoint for Solana
 
@@ -35,7 +35,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -64,7 +64,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -98,7 +98,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -132,7 +132,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -167,7 +167,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -195,7 +195,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -223,7 +223,7 @@
 nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
 ```
 
-> ⚠️ **All MVM unit tests must pass before proceeding to Commit 8.** Run `/commit` to finalize.
+> ⚠️ **All MVM unit tests must pass before proceeding to Commit 8.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -255,7 +255,7 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 9.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 9.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -263,37 +263,39 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 
 **Files:**
 
-- `trusted-gmp/src/native_gmp_relay.rs`
-- `trusted-gmp/src/main.rs`
-- `trusted-gmp/tests/relay_tests.rs`
+- `trusted-gmp/src/native_gmp_relay.rs` (new)
+- `trusted-gmp/src/main.rs` (simplified to only run native GMP relay)
+- `trusted-gmp/src/lib.rs` (added native_gmp_relay module export)
 
 **Tasks:**
 
-- [ ] Add `NativeGmpRelay` struct
-- [ ] Watch for `MessageSent` events on MVM and SVM native GMP endpoints
-- [ ] Deliver messages by calling `deliver_message` on destination chain
-- [ ] Support configurable chain RPCs and endpoint addresses
-- [ ] Integrate into trusted-gmp binary as `--mode native-gmp-relay`
-- [ ] Test event parsing and message delivery
+- [x] Add `NativeGmpRelay` struct
+- [x] Watch for `MessageSent` events on MVM native GMP endpoint
+- [x] Watch for `MessageSent` events on SVM native GMP endpoint
+- [x] Support configurable chain RPCs and endpoint addresses
+- [x] Make native GMP relay the default mode (no `--mode` flag needed)
+- [x] Add unit tests for event parsing (inline in module)
 
 **Test:**
 
 ```bash
-./testing-infra/run-all-unit-tests.sh
+RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 9.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 10.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 9: Fix existing E2E tests for GMP: MVM ↔ MVM
+### Commit 10: Fix existing E2E tests for GMP: MVM ↔ MVM
 
 **Files:**
 
 - `testing-infra/ci-e2e/e2e-tests-mvm/` (update existing)
+- `trusted-gmp/src/native_gmp_relay.rs` (implement actual tx submission)
 
 **Tasks:**
 
+- [ ] Implement actual transaction submission in `deliver_to_mvm()` and `deliver_to_svm()`
 - [ ] Update MVM e2e test environment to use native GMP endpoints
 - [ ] Start native GMP relay in background during tests
 - [ ] Update `run-tests-outflow.sh` to use GMP flow
@@ -311,11 +313,11 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 ./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 10.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 11.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 10: Fix existing E2E tests for GMP: MVM ↔ SVM outflow
+### Commit 11: Fix existing E2E tests for GMP: MVM ↔ SVM outflow
 
 **Files:**
 
@@ -338,11 +340,11 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 ./testing-infra/ci-e2e/e2e-tests-svm/run-tests-outflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 11.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 12.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 11: Fix existing E2E tests for GMP: MVM ↔ SVM inflow
+### Commit 12: Fix existing E2E tests for GMP: MVM ↔ SVM inflow
 
 **Files:**
 
@@ -365,11 +367,11 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 ./testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 12.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 13.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 12: Update existing deployment scripts for GMP
+### Commit 13: Update existing deployment scripts for GMP
 
 **Files:**
 
@@ -393,7 +395,7 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 solana program show <OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
 ```
 
-> ⚠️ **CI e2e tests must pass before Phase 2 is complete.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before Phase 2 is complete.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 

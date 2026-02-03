@@ -35,7 +35,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -69,7 +69,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -100,7 +100,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -125,7 +125,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -153,7 +153,7 @@
 ./testing-infra/ci-e2e/e2e-tests-gmp/mvm-evm-outflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -181,7 +181,7 @@
 ./testing-infra/ci-e2e/e2e-tests-gmp/mvm-evm-inflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -210,7 +210,7 @@
 npx hardhat verify --network base-sepolia <CONTRACT_ADDRESS>
 ```
 
-> ⚠️ **CI e2e tests must pass before Phase 3 is complete.** Run `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before Phase 3 is complete.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 

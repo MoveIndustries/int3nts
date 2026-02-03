@@ -53,19 +53,19 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
   - Review `outflow_validator.move` dependencies
   - Identify shared code with hub modules
   - Document minimal required dependencies
-  - Run `/commit` to finalize
+  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
 
 - [ ] **Commit 2: Extract minimal connected chain package (if beneficial)**
   - Assess whether connected chain modules can be a separate Move package
   - Evaluate deployment complexity vs code isolation benefits
   - Document recommendation (separate package vs single package with clear boundaries)
-  - Run `/commit` to finalize
+  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
 
 - [ ] **Commit 3: Minimize connected chain module dependencies**
   - Remove any hub-only dependencies from connected chain modules
   - Ensure connected chain modules only import what they need
   - Update tests to verify isolation
-  - Run `/commit` to finalize
+  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
 
 **Files to analyze:**
 
@@ -171,21 +171,21 @@ struct GenericLimitOrder<V: store + drop> has store, drop {
   - List all fields in `OracleGuardedLimitOrder`
   - Identify overlap and differences
   - Document security implications of each field
-  - Run `/commit` to finalize
+  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
 
 - [ ] **Commit 5: Prototype conditional oracle approach**
   - Create test branch with `oracle_required` flag
   - Implement conditional check in finish functions
   - Write security tests (attempt bypass without flag)
   - Document findings
-  - Run `/commit` to finalize
+  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
 
 - [ ] **Commit 6: Write recommendation document**
   - Compare approaches with concrete code examples
   - Security analysis of each approach
   - Recommendation with rationale
   - Migration path if unification is recommended
-  - Run `/commit` to finalize
+  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
 
 **Files to analyze:**
 
