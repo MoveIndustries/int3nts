@@ -59,7 +59,7 @@ On EVM, an OApp inherits from `OApp.sol` and overrides `_lzSend()` and `_lzRecei
 
 The LayerZero V2 Aptos SDK provides a set of Move modules that your application interacts with. The key pattern is:
 
-```
+```text
 your_oapp/
 ├── Move.toml                    # Dependencies include LayerZero packages
 ├── sources/
@@ -335,7 +335,7 @@ The endpoint:
 
 The options parameter encodes execution parameters for the destination chain. For Aptos:
 
-```
+```text
 // Options encoding (LZ V2 options format):
 // TYPE_3 options format:
 // [0x0003]                    -- options type (2 bytes)

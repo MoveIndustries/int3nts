@@ -12,7 +12,7 @@ This document explains the architectural pattern used for GMP (Generic Message P
 
 When implementing cross-chain messaging, application modules need to both **send** and **receive** GMP messages:
 
-```
+```text
 Application Module (e.g., outflow_validator)
 ├── Needs to SEND FulfillmentProof → calls GMP endpoint
 └── Needs to RECEIVE IntentRequirements ← called BY GMP endpoint
@@ -20,7 +20,7 @@ Application Module (e.g., outflow_validator)
 
 This creates a potential circular dependency:
 
-```
+```text
 GMP Endpoint ──imports──> Application (for routing received messages)
 Application ──imports──> GMP Endpoint (for sending messages)
      ↑                        │
@@ -42,7 +42,7 @@ LayerZero V2 solves this by **separating send and receive into distinct componen
 
 ### LayerZero on Aptos/Movement
 
-```
+```text
 ┌─────────────────────────┐     ┌─────────────────────────┐
 │   oapp_core             │     │   oapp_receive          │
 │   - lz_send()           │     │   - lz_receive()        │
@@ -61,7 +61,7 @@ LayerZero V2 solves this by **separating send and receive into distinct componen
 
 ### LayerZero on Solana
 
-```
+```text
 ┌─────────────────────────┐     ┌─────────────────────────┐
 │   LZ Endpoint Program   │     │   LZ Executor           │
 │   - send() instruction  │     │   - delivers messages   │
@@ -85,7 +85,7 @@ LayerZero V2 solves this by **separating send and receive into distinct componen
 
 ### MVM Architecture
 
-```
+```text
 ┌─────────────────────────┐     ┌─────────────────────────┐
 │   gmp_sender.move       │     │  native_gmp_endpoint.move│
 │                         │     │  (receiver)             │
@@ -109,7 +109,7 @@ LayerZero V2 solves this by **separating send and receive into distinct componen
 
 **Dependency graph (no cycles):**
 
-```
+```text
 gmp_sender ← outflow_validator_impl
                       ↑
          native_gmp_endpoint (receiver)
@@ -117,7 +117,7 @@ gmp_sender ← outflow_validator_impl
 
 ### SVM Architecture
 
-```
+```text
 ┌─────────────────────────┐     ┌─────────────────────────┐
 │   native-gmp-endpoint   │     │   outflow-validator     │
 │   (Program ID: ABC)     │     │   (Program ID: XYZ)     │
@@ -233,7 +233,7 @@ Use Move's friend mechanism to break the cycle.
 
 When deploying, initialize in this order:
 
-```
+```text
 1. gmp_sender::initialize()        // Sender first (no dependencies)
 2. native_gmp_endpoint::initialize() // Receiver second
 3. outflow_validator_impl::initialize() // Apps last

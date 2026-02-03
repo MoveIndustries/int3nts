@@ -123,13 +123,13 @@ Replace **"our off-chain signer (Trusted GMP) validates and signs"** with **"on-
 
 #### Current (Trusted GMP signs)
 
-```
+```text
 Trusted GMP (off-chain) validates → Signs approval → Contract checks signature
 ```
 
 #### After GMP (production)
 
-```
+```text
 On-chain contract validates → Sends GMP message → Receiving contract accepts via GMP
 ```
 

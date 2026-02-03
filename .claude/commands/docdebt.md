@@ -1,14 +1,10 @@
 ---
-name: fix-md-lint
-description: Go through markdown files in the repo and fix linting errors (MD031, MD032, etc.)
-disable-model-invocation: true
-context: fork
-agent: general-purpose
+description: Find and fix documentation debt including markdown linting errors, missing docs, and outdated content
 ---
 
-# Fix Markdown Linting Errors
+# Documentation Debt Analysis and Fix
 
-This skill goes through markdown files in the repo one by one and fixes common linting errors.
+This command finds and fixes documentation debt including markdown linting errors, missing documentation, and outdated content.
 
 ## Common Linting Rules to Fix
 
