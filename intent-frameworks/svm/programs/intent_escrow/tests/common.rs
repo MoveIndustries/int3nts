@@ -16,7 +16,7 @@ use solana_sdk::{
 
 use intent_escrow::{
     instruction::EscrowInstruction,
-    state::{seeds, Escrow, EscrowState, GmpConfig, StoredIntentRequirements},
+    state::{seeds, Escrow, EscrowState, StoredIntentRequirements},
 };
 
 // ============================================================================

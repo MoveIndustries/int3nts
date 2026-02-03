@@ -6,74 +6,74 @@ use thiserror::Error;
 #[derive(Error, Debug, Copy, Clone)]
 pub enum EscrowError {
     #[error("Escrow already claimed")]
-    E_ESCROW_ALREADY_CLAIMED,
+    EscrowAlreadyClaimed,
 
     #[error("Escrow does not exist")]
-    E_ESCROW_DOES_NOT_EXIST,
+    EscrowDoesNotExist,
 
     #[error("No deposit")]
-    E_NO_DEPOSIT,
+    NoDeposit,
 
     #[error("Unauthorized requester")]
-    E_UNAUTHORIZED_REQUESTER,
+    UnauthorizedRequester,
 
     #[error("Invalid signature")]
-    E_INVALID_SIGNATURE,
+    InvalidSignature,
 
     #[error("Unauthorized approver")]
-    E_UNAUTHORIZED_APPROVER,
+    UnauthorizedApprover,
 
     #[error("Escrow expired")]
-    E_ESCROW_EXPIRED,
+    EscrowExpired,
 
     #[error("Escrow not expired yet")]
-    E_ESCROW_NOT_EXPIRED_YET,
+    EscrowNotExpiredYet,
 
     #[error("Invalid amount")]
-    E_INVALID_AMOUNT,
+    InvalidAmount,
 
     #[error("Invalid solver")]
-    E_INVALID_SOLVER,
+    InvalidSolver,
 
     #[error("Invalid instruction data")]
-    E_INVALID_INSTRUCTION_DATA,
+    InvalidInstructionData,
 
     #[error("Account not initialized")]
-    E_ACCOUNT_NOT_INITIALIZED,
+    AccountNotInitialized,
 
     #[error("Invalid PDA")]
-    E_INVALID_PDA,
+    InvalidPda,
 
     #[error("Invalid account owner")]
-    E_INVALID_ACCOUNT_OWNER,
+    InvalidAccountOwner,
 
     #[error("Escrow already exists")]
-    E_ESCROW_ALREADY_EXISTS,
+    EscrowAlreadyExists,
 
     // GMP-related errors
     #[error("Invalid GMP message")]
-    E_INVALID_GMP_MESSAGE,
+    InvalidGmpMessage,
 
     #[error("Intent requirements not found")]
-    E_REQUIREMENTS_NOT_FOUND,
+    RequirementsNotFound,
 
     #[error("Intent requirements already exist")]
-    E_REQUIREMENTS_ALREADY_EXIST,
+    RequirementsAlreadyExist,
 
     #[error("Amount mismatch with requirements")]
-    E_AMOUNT_MISMATCH,
+    AmountMismatch,
 
     #[error("Token mismatch with requirements")]
-    E_TOKEN_MISMATCH,
+    TokenMismatch,
 
     #[error("Escrow already created for this intent")]
-    E_ESCROW_ALREADY_CREATED,
+    EscrowAlreadyCreated,
 
     #[error("Already fulfilled")]
-    E_ALREADY_FULFILLED,
+    AlreadyFulfilled,
 
     #[error("Unauthorized GMP source")]
-    E_UNAUTHORIZED_GMP_SOURCE,
+    UnauthorizedGmpSource,
 }
 
 impl From<EscrowError> for ProgramError {

@@ -316,10 +316,10 @@ fn test_inbound_nonce_account_replay_detection() {
 fn test_error_conversion() {
     use solana_program::program_error::ProgramError;
 
-    let error: ProgramError = GmpError::E_UNAUTHORIZED_RELAY.into();
+    let error: ProgramError = GmpError::UnauthorizedRelay.into();
     match error {
         ProgramError::Custom(code) => {
-            assert_eq!(code, GmpError::E_UNAUTHORIZED_RELAY as u32);
+            assert_eq!(code, GmpError::UnauthorizedRelay as u32);
         }
         _ => panic!("Expected Custom error"),
     }
@@ -331,15 +331,15 @@ fn test_error_conversion() {
 #[test]
 fn test_error_codes_unique() {
     let errors = [
-        GmpError::E_INVALID_INSTRUCTION_DATA,
-        GmpError::E_ACCOUNT_ALREADY_INITIALIZED,
-        GmpError::E_ACCOUNT_NOT_INITIALIZED,
-        GmpError::E_INVALID_PDA,
-        GmpError::E_UNAUTHORIZED_ADMIN,
-        GmpError::E_UNAUTHORIZED_RELAY,
-        GmpError::E_UNTRUSTED_REMOTE,
-        GmpError::E_REPLAY_DETECTED,
-        GmpError::E_INVALID_DISCRIMINATOR,
+        GmpError::InvalidInstructionData,
+        GmpError::AccountAlreadyInitialized,
+        GmpError::AccountNotInitialized,
+        GmpError::InvalidPda,
+        GmpError::UnauthorizedAdmin,
+        GmpError::UnauthorizedRelay,
+        GmpError::UntrustedRemote,
+        GmpError::ReplayDetected,
+        GmpError::InvalidDiscriminator,
     ];
 
     let codes: Vec<u32> = errors.iter().map(|e| e.clone() as u32).collect();

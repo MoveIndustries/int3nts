@@ -37,6 +37,9 @@ aptos move publish --dev --profile intent-account-chain1 --named-addresses mvmt_
 if [ $? -eq 0 ]; then
     log "   ✅ Hub deployment successful!"
     log_and_echo "✅ Hub chain contracts deployed"
+    # Save hub module address for connected chain to reference
+    mkdir -p "$PROJECT_ROOT/.tmp"
+    echo "HUB_MODULE_ADDR=$HUB_MODULE_ADDR" >> "$PROJECT_ROOT/.tmp/chain-info.env"
 else
     log_and_echo "   ❌ Hub deployment failed!"
     log_and_echo "   Log file contents:"
@@ -85,6 +88,68 @@ if [ $? -eq 0 ]; then
 else
     log_and_echo "   ❌ Failed to initialize trusted-gmp config"
     exit 1
+fi
+
+# Initialize native GMP endpoint for cross-chain messaging
+log ""
+log " Initializing native GMP endpoint..."
+aptos move run --profile intent-account-chain1 --assume-yes \
+    --function-id ${HUB_MODULE_ADDR}::native_gmp_endpoint::initialize >> "$LOG_FILE" 2>&1
+
+if [ $? -eq 0 ]; then
+    log "   ✅ Native GMP endpoint initialized"
+else
+    log "   ️ Native GMP endpoint may already be initialized (ignoring)"
+fi
+
+# Initialize intent GMP hub for cross-chain intent messaging
+log ""
+log " Initializing intent GMP hub..."
+aptos move run --profile intent-account-chain1 --assume-yes \
+    --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::initialize >> "$LOG_FILE" 2>&1
+
+if [ $? -eq 0 ]; then
+    log "   ✅ Intent GMP hub initialized"
+else
+    log "   ️ Intent GMP hub may already be initialized (ignoring)"
+fi
+
+# Fund the relay address and add as authorized relay
+log ""
+log " Setting up native GMP relay authorization..."
+
+# Get the relay's Move address from trusted-gmp keys
+if [ -z "$E2E_TRUSTED_GMP_MOVE_ADDRESS" ]; then
+    load_trusted_gmp_keys
+fi
+
+if [ -n "$E2E_TRUSTED_GMP_MOVE_ADDRESS" ]; then
+    RELAY_ADDRESS="$E2E_TRUSTED_GMP_MOVE_ADDRESS"
+    log "   Relay address: $RELAY_ADDRESS"
+
+    # Fund the relay address (transfer APT from deployer)
+    log "   - Funding relay address with APT..."
+    aptos account fund-with-faucet --profile intent-account-chain1 --account "$RELAY_ADDRESS" >> "$LOG_FILE" 2>&1
+
+    if [ $? -eq 0 ]; then
+        log "   ✅ Relay address funded"
+    else
+        log "   ️ Could not fund relay (may need manual funding)"
+    fi
+
+    # Add relay as authorized relay in native_gmp_endpoint
+    log "   - Adding relay as authorized in native_gmp_endpoint..."
+    aptos move run --profile intent-account-chain1 --assume-yes \
+        --function-id ${HUB_MODULE_ADDR}::native_gmp_endpoint::add_authorized_relay \
+        --args address:${RELAY_ADDRESS} >> "$LOG_FILE" 2>&1
+
+    if [ $? -eq 0 ]; then
+        log "   ✅ Relay added as authorized"
+    else
+        log "   ️ Could not add relay (may already be authorized)"
+    fi
+else
+    log "   ️ WARNING: E2E_TRUSTED_GMP_MOVE_ADDRESS not set, skipping relay setup"
 fi
 
 # Deploy USDhub test token

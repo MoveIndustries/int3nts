@@ -36,7 +36,7 @@ impl Processor {
         instruction_data: &[u8],
     ) -> ProgramResult {
         let instruction = EscrowInstruction::try_from_slice(instruction_data)
-            .map_err(|_| EscrowError::E_INVALID_INSTRUCTION_DATA)?;
+            .map_err(|_| EscrowError::InvalidInstructionData)?;
 
         match instruction {
             EscrowInstruction::Initialize { approver } => {
@@ -118,7 +118,7 @@ impl Processor {
         let (state_pda, state_bump) =
             Pubkey::find_program_address(&[seeds::STATE_SEED], program_id);
         if state_pda != *state_account.key {
-            return Err(EscrowError::E_INVALID_PDA.into());
+            return Err(EscrowError::InvalidPda.into());
         }
 
         // Create state account
@@ -168,17 +168,17 @@ impl Processor {
         let (config_pda, config_bump) =
             Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
         if config_pda != *gmp_config_account.key {
-            return Err(EscrowError::E_INVALID_PDA.into());
+            return Err(EscrowError::InvalidPda.into());
         }
 
         // Check if config already exists
         if gmp_config_account.data_len() > 0 {
             // Update existing config - verify admin matches
             let mut config = GmpConfig::try_from_slice(&gmp_config_account.data.borrow())
-                .map_err(|_| EscrowError::E_ACCOUNT_NOT_INITIALIZED)?;
+                .map_err(|_| EscrowError::AccountNotInitialized)?;
 
             if config.admin != *admin.key {
-                return Err(EscrowError::E_UNAUTHORIZED_APPROVER.into());
+                return Err(EscrowError::UnauthorizedApprover.into());
             }
 
             // Update config
@@ -256,10 +256,10 @@ impl Processor {
 
         // Validate inputs
         if amount == 0 {
-            return Err(EscrowError::E_INVALID_AMOUNT.into());
+            return Err(EscrowError::InvalidAmount.into());
         }
         if *reserved_solver.key == Pubkey::default() {
-            return Err(EscrowError::E_INVALID_SOLVER.into());
+            return Err(EscrowError::InvalidSolver.into());
         }
         if !requester.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -275,19 +275,19 @@ impl Processor {
             );
             if req_pda == *req_account.key && req_account.data_len() > 0 {
                 let requirements = StoredIntentRequirements::try_from_slice(&req_account.data.borrow())
-                    .map_err(|_| EscrowError::E_REQUIREMENTS_NOT_FOUND)?;
+                    .map_err(|_| EscrowError::RequirementsNotFound)?;
 
                 // Validate escrow matches requirements
                 if requirements.escrow_created {
-                    return Err(EscrowError::E_ESCROW_ALREADY_CREATED.into());
+                    return Err(EscrowError::EscrowAlreadyCreated.into());
                 }
                 if amount < requirements.amount_required {
-                    return Err(EscrowError::E_AMOUNT_MISMATCH.into());
+                    return Err(EscrowError::AmountMismatch.into());
                 }
                 // Validate token - convert Pubkey to 32-byte array for comparison
                 let token_bytes = token_mint.key.to_bytes();
                 if token_bytes != requirements.token_addr {
-                    return Err(EscrowError::E_TOKEN_MISMATCH.into());
+                    return Err(EscrowError::TokenMismatch.into());
                 }
 
                 stored_requirements = Some(requirements);
@@ -298,14 +298,14 @@ impl Processor {
         let (escrow_pda, escrow_bump) =
             Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], program_id);
         if escrow_pda != *escrow_account.key {
-            return Err(EscrowError::E_INVALID_PDA.into());
+            return Err(EscrowError::InvalidPda.into());
         }
 
         // Derive vault PDA
         let (vault_pda, vault_bump) =
             Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], program_id);
         if vault_pda != *escrow_vault.key {
-            return Err(EscrowError::E_INVALID_PDA.into());
+            return Err(EscrowError::InvalidPda.into());
         }
 
         // Check if escrow already exists
@@ -314,7 +314,7 @@ impl Processor {
             if let Ok(existing_escrow) = Escrow::try_from_slice(&escrow_account.data.borrow()) {
                 // Check if it's a valid escrow (has correct discriminator)
                 if existing_escrow.discriminator == Escrow::DISCRIMINATOR {
-                    return Err(EscrowError::E_ESCROW_ALREADY_EXISTS.into());
+                    return Err(EscrowError::EscrowAlreadyExists.into());
                 }
             }
         }
@@ -417,7 +417,7 @@ impl Processor {
                     Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
                 if config_pda == *config_account.key && config_account.data_len() > 0 {
                     let config = GmpConfig::try_from_slice(&config_account.data.borrow())
-                        .map_err(|_| EscrowError::E_ACCOUNT_NOT_INITIALIZED)?;
+                        .map_err(|_| EscrowError::AccountNotInitialized)?;
 
                     // Verify GMP endpoint matches config
                     if endpoint_program.key == &config.gmp_endpoint {
@@ -512,17 +512,17 @@ impl Processor {
             program_id,
         );
         if req_pda != *requirements_account.key {
-            return Err(EscrowError::E_INVALID_PDA.into());
+            return Err(EscrowError::InvalidPda.into());
         }
 
         // Load and validate requirements
         let requirements =
             StoredIntentRequirements::try_from_slice(&requirements_account.data.borrow())
-                .map_err(|_| EscrowError::E_REQUIREMENTS_NOT_FOUND)?;
+                .map_err(|_| EscrowError::RequirementsNotFound)?;
 
         // GMP mode: require fulfillment proof to have been received
         if !requirements.fulfilled {
-            return Err(EscrowError::E_ALREADY_FULFILLED.into()); // Not fulfilled yet
+            return Err(EscrowError::AlreadyFulfilled.into()); // Not fulfilled yet
         }
 
         // Deserialize escrow
@@ -530,18 +530,18 @@ impl Processor {
 
         // Validate escrow
         if escrow.intent_id != intent_id {
-            return Err(EscrowError::E_ESCROW_DOES_NOT_EXIST.into());
+            return Err(EscrowError::EscrowDoesNotExist.into());
         }
         if escrow.is_claimed {
-            return Err(EscrowError::E_ESCROW_ALREADY_CLAIMED.into());
+            return Err(EscrowError::EscrowAlreadyClaimed.into());
         }
         if escrow.amount == 0 {
-            return Err(EscrowError::E_NO_DEPOSIT.into());
+            return Err(EscrowError::NoDeposit.into());
         }
 
         let clock = Clock::get()?;
         if clock.unix_timestamp > escrow.expiry {
-            return Err(EscrowError::E_ESCROW_EXPIRED.into());
+            return Err(EscrowError::EscrowExpired.into());
         }
 
         // Transfer tokens from vault to solver
@@ -592,16 +592,16 @@ impl Processor {
 
         // Validate
         if escrow.intent_id != intent_id {
-            return Err(EscrowError::E_ESCROW_DOES_NOT_EXIST.into());
+            return Err(EscrowError::EscrowDoesNotExist.into());
         }
         if escrow.is_claimed {
-            return Err(EscrowError::E_ESCROW_ALREADY_CLAIMED.into());
+            return Err(EscrowError::EscrowAlreadyClaimed.into());
         }
         if escrow.amount == 0 {
-            return Err(EscrowError::E_NO_DEPOSIT.into());
+            return Err(EscrowError::NoDeposit.into());
         }
         if escrow.requester != *requester.key {
-            return Err(EscrowError::E_UNAUTHORIZED_REQUESTER.into());
+            return Err(EscrowError::UnauthorizedRequester.into());
         }
         if !requester.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -609,7 +609,7 @@ impl Processor {
 
         let clock = Clock::get()?;
         if clock.unix_timestamp <= escrow.expiry {
-            return Err(EscrowError::E_ESCROW_NOT_EXPIRED_YET.into());
+            return Err(EscrowError::EscrowNotExpiredYet.into());
         }
 
         // Transfer tokens back to requester
@@ -662,18 +662,18 @@ impl Processor {
 
         // GMP caller must be a signer (trusted relay or endpoint)
         if !gmp_caller.is_signer {
-            return Err(EscrowError::E_UNAUTHORIZED_GMP_SOURCE.into());
+            return Err(EscrowError::UnauthorizedGmpSource.into());
         }
 
         // Load and validate GMP config
         let (config_pda, _) =
             Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
         if config_pda != *gmp_config_account.key {
-            return Err(EscrowError::E_INVALID_PDA.into());
+            return Err(EscrowError::InvalidPda.into());
         }
 
         let config = GmpConfig::try_from_slice(&gmp_config_account.data.borrow())
-            .map_err(|_| EscrowError::E_ACCOUNT_NOT_INITIALIZED)?;
+            .map_err(|_| EscrowError::AccountNotInitialized)?;
 
         // Validate source chain matches trusted hub
         if src_chain_id != config.hub_chain_id {
@@ -682,18 +682,18 @@ impl Processor {
                 config.hub_chain_id,
                 src_chain_id
             );
-            return Err(EscrowError::E_UNAUTHORIZED_GMP_SOURCE.into());
+            return Err(EscrowError::UnauthorizedGmpSource.into());
         }
 
         // Validate source address matches trusted hub
         if src_addr != config.trusted_hub_addr {
             msg!("Invalid source address: not trusted hub");
-            return Err(EscrowError::E_UNAUTHORIZED_GMP_SOURCE.into());
+            return Err(EscrowError::UnauthorizedGmpSource.into());
         }
 
         // Decode the GMP message
         let requirements = IntentRequirements::decode(&payload)
-            .map_err(|_| EscrowError::E_INVALID_GMP_MESSAGE)?;
+            .map_err(|_| EscrowError::InvalidGmpMessage)?;
 
         // Derive requirements PDA
         let (req_pda, req_bump) = Pubkey::find_program_address(
@@ -701,7 +701,7 @@ impl Processor {
             program_id,
         );
         if req_pda != *requirements_account.key {
-            return Err(EscrowError::E_INVALID_PDA.into());
+            return Err(EscrowError::InvalidPda.into());
         }
 
         // Idempotency check: if requirements already exist, emit log and return success
@@ -775,18 +775,18 @@ impl Processor {
 
         // GMP caller must be a signer (trusted relay or endpoint)
         if !gmp_caller.is_signer {
-            return Err(EscrowError::E_UNAUTHORIZED_GMP_SOURCE.into());
+            return Err(EscrowError::UnauthorizedGmpSource.into());
         }
 
         // Load and validate GMP config
         let (config_pda, _) =
             Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
         if config_pda != *gmp_config_account.key {
-            return Err(EscrowError::E_INVALID_PDA.into());
+            return Err(EscrowError::InvalidPda.into());
         }
 
         let config = GmpConfig::try_from_slice(&gmp_config_account.data.borrow())
-            .map_err(|_| EscrowError::E_ACCOUNT_NOT_INITIALIZED)?;
+            .map_err(|_| EscrowError::AccountNotInitialized)?;
 
         // Validate source chain matches trusted hub
         if src_chain_id != config.hub_chain_id {
@@ -795,18 +795,18 @@ impl Processor {
                 config.hub_chain_id,
                 src_chain_id
             );
-            return Err(EscrowError::E_UNAUTHORIZED_GMP_SOURCE.into());
+            return Err(EscrowError::UnauthorizedGmpSource.into());
         }
 
         // Validate source address matches trusted hub
         if src_addr != config.trusted_hub_addr {
             msg!("Invalid source address: not trusted hub");
-            return Err(EscrowError::E_UNAUTHORIZED_GMP_SOURCE.into());
+            return Err(EscrowError::UnauthorizedGmpSource.into());
         }
 
         // Decode the GMP message
         let proof = FulfillmentProof::decode(&payload)
-            .map_err(|_| EscrowError::E_INVALID_GMP_MESSAGE)?;
+            .map_err(|_| EscrowError::InvalidGmpMessage)?;
 
         // Validate requirements account
         let (req_pda, _) = Pubkey::find_program_address(
@@ -814,28 +814,28 @@ impl Processor {
             program_id,
         );
         if req_pda != *requirements_account.key {
-            return Err(EscrowError::E_INVALID_PDA.into());
+            return Err(EscrowError::InvalidPda.into());
         }
 
         let mut requirements =
             StoredIntentRequirements::try_from_slice(&requirements_account.data.borrow())
-                .map_err(|_| EscrowError::E_REQUIREMENTS_NOT_FOUND)?;
+                .map_err(|_| EscrowError::RequirementsNotFound)?;
 
         if requirements.fulfilled {
-            return Err(EscrowError::E_ALREADY_FULFILLED.into());
+            return Err(EscrowError::AlreadyFulfilled.into());
         }
 
         // Load escrow
         let mut escrow = Escrow::try_from_slice(&escrow_account.data.borrow())?;
 
         if escrow.intent_id != proof.intent_id {
-            return Err(EscrowError::E_ESCROW_DOES_NOT_EXIST.into());
+            return Err(EscrowError::EscrowDoesNotExist.into());
         }
         if escrow.is_claimed {
-            return Err(EscrowError::E_ESCROW_ALREADY_CLAIMED.into());
+            return Err(EscrowError::EscrowAlreadyClaimed.into());
         }
         if escrow.amount == 0 {
-            return Err(EscrowError::E_NO_DEPOSIT.into());
+            return Err(EscrowError::NoDeposit.into());
         }
 
         // Transfer tokens from vault to solver

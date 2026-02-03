@@ -738,6 +738,7 @@ generate_trusted_gmp_keys() {
         source "$TRUSTED_GMP_KEYS_FILE"
         export E2E_TRUSTED_GMP_PRIVATE_KEY
         export E2E_TRUSTED_GMP_PUBLIC_KEY
+        export E2E_TRUSTED_GMP_MOVE_ADDRESS
         log_and_echo "   ✅ Loaded existing trusted-gmp ephemeral keys"
         return
     fi
@@ -753,9 +754,10 @@ generate_trusted_gmp_keys() {
     fi
     KEYS_OUTPUT=$("$generate_keys_bin" 2>/dev/null)
 
-    # Extract keys from output
+    # Extract keys and Move address from output
     PRIVATE_KEY=$(echo "$KEYS_OUTPUT" | grep "Private Key (base64):" | sed 's/.*: //')
     PUBLIC_KEY=$(echo "$KEYS_OUTPUT" | grep "Public Key (base64):" | sed 's/.*: //')
+    MOVE_ADDRESS=$(echo "$KEYS_OUTPUT" | grep "Move Address (hex):" | sed 's/.*: //')
 
     if [ -z "$PRIVATE_KEY" ] || [ -z "$PUBLIC_KEY" ]; then
         log_and_echo "❌ ERROR: Failed to generate trusted-gmp test keys"
@@ -765,6 +767,7 @@ generate_trusted_gmp_keys() {
     # Export keys as environment variables (E2E prefix to avoid collision)
     export E2E_TRUSTED_GMP_PRIVATE_KEY="$PRIVATE_KEY"
     export E2E_TRUSTED_GMP_PUBLIC_KEY="$PUBLIC_KEY"
+    export E2E_TRUSTED_GMP_MOVE_ADDRESS="$MOVE_ADDRESS"
 
     # Save keys to file for reuse within the same test run
     cat > "$TRUSTED_GMP_KEYS_FILE" << EOF
@@ -773,6 +776,7 @@ generate_trusted_gmp_keys() {
 # WARNING: These keys are for testing only. Do not use in production.
 E2E_TRUSTED_GMP_PRIVATE_KEY="$PRIVATE_KEY"
 E2E_TRUSTED_GMP_PUBLIC_KEY="$PUBLIC_KEY"
+E2E_TRUSTED_GMP_MOVE_ADDRESS="$MOVE_ADDRESS"
 EOF
 
     cd "$PROJECT_ROOT"
@@ -793,6 +797,7 @@ load_trusted_gmp_keys() {
         source "$TRUSTED_GMP_KEYS_FILE"
         export E2E_TRUSTED_GMP_PRIVATE_KEY
         export E2E_TRUSTED_GMP_PUBLIC_KEY
+        export E2E_TRUSTED_GMP_MOVE_ADDRESS
     else
         log_and_echo "❌ ERROR: Trusted-GMP keys file not found at $TRUSTED_GMP_KEYS_FILE"
         log_and_echo "   Run generate_trusted_gmp_keys first."

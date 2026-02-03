@@ -1,14 +1,10 @@
-//! Native GMP Relay Service
+//! Trusted GMP Service - Native GMP Relay
 //!
-//! A trusted message relay service that watches GMP endpoint events and delivers
-//! messages to destination contracts.
+//! A trusted message relay service that watches for `MessageSent` events on source chains
+//! and delivers cross-chain messages by calling `deliver_message` on destination chains.
 //!
-//! ## Overview
-//!
-//! The native GMP relay:
-//! 1. Watches for `MessageSent` events on MVM and SVM native GMP endpoints
-//! 2. Delivers messages to destination chains by calling `deliver_message`
-//! 3. Provides replay protection via nonce tracking
+//! This service replaces the legacy trusted-gmp validation API with native GMP messaging,
+//! enabling fully on-chain cross-chain intent validation.
 //!
 //! ## Security Requirements
 //!
@@ -18,10 +14,15 @@
 use anyhow::Result;
 use tracing::info;
 
+mod api;
 mod config;
+mod crypto;
+mod evm_client;
+mod monitor;
 mod mvm_client;
 mod native_gmp_relay;
 mod svm_client;
+mod validator;
 
 use config::Config;
 use native_gmp_relay::{NativeGmpRelay, NativeGmpRelayConfig};
@@ -59,11 +60,13 @@ async fn main() -> Result<()> {
         println!("  --help, -h        Show this help message");
         println!();
         println!("Environment variables:");
-        println!("  TRUSTED_GMP_CONFIG_PATH    Path to config file (overrides --config and --testnet)");
+        println!(
+            "  TRUSTED_GMP_CONFIG_PATH    Path to config file (overrides --config and --testnet)"
+        );
         return Ok(());
     }
 
-    // Parse command line arguments
+    // Parse config arguments
     let mut config_path = None;
 
     let mut i = 1; // Skip program name

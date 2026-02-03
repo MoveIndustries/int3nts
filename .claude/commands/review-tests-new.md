@@ -1,14 +1,6 @@
----
-name: review-tests-new
-description: Review ONLY new or modified test files for correct comment/header format, check test coverage, and update EXTENSION-CHECKLIST.md for framework symmetry
-disable-model-invocation: true
-context: fork
-agent: Explore
----
-
 # Review Tests (New/Modified Only)
 
-This skill reviews **ONLY new or modified test files** and performs four major tasks:
+This command reviews **ONLY new or modified test files** and performs four major tasks:
 
 1. **Review test file format**: Check new/modified test files for correct comment and header format
 2. **Review test code quality**: Check for magic numbers, proper constants, and code quality

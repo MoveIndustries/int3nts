@@ -130,6 +130,14 @@ pub const DUMMY_PUBLIC_KEY: [u8; 4] = [1, 2, 3, 4];
 #[allow(dead_code)]
 pub const DUMMY_SOLVER_REGISTRY_ADDR: &str = "0x1";
 
+/// Test MVM chain ID (Movement mainnet)
+#[allow(dead_code)]
+pub const TEST_MVM_CHAIN_ID: u32 = 30817;
+
+/// Test SVM chain ID (Solana)
+#[allow(dead_code)]
+pub const TEST_SVM_CHAIN_ID: u32 = 30168;
+
 // ============================================================================
 // CONFIGURATION BUILDERS
 // ============================================================================

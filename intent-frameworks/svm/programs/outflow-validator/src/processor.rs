@@ -78,7 +78,7 @@ fn process_initialize(
         Pubkey::find_program_address(&[seeds::CONFIG_SEED], program_id);
 
     if config_account.key != &config_pda {
-        return Err(OutflowError::E_INVALID_PDA.into());
+        return Err(OutflowError::InvalidPda.into());
     }
 
     // Check if already initialized
@@ -136,11 +136,11 @@ fn process_lz_receive(
     // Load and verify config
     let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], program_id);
     if config_account.key != &config_pda {
-        return Err(OutflowError::E_INVALID_PDA.into());
+        return Err(OutflowError::InvalidPda.into());
     }
 
     let config = ConfigAccount::try_from_slice(&config_account.data.borrow())
-        .map_err(|_| OutflowError::E_INVALID_ACCOUNT_OWNER)?;
+        .map_err(|_| OutflowError::InvalidAccountOwner)?;
 
     // Verify source chain and address match trusted hub
     if src_chain_id != config.hub_chain_id {
@@ -149,17 +149,17 @@ fn process_lz_receive(
             config.hub_chain_id,
             src_chain_id
         );
-        return Err(OutflowError::E_INVALID_GMP_MESSAGE.into());
+        return Err(OutflowError::InvalidGmpMessage.into());
     }
 
     if src_addr != config.trusted_hub_addr {
         msg!("Invalid source address: not trusted hub");
-        return Err(OutflowError::E_INVALID_GMP_MESSAGE.into());
+        return Err(OutflowError::InvalidGmpMessage.into());
     }
 
     // Decode IntentRequirements from payload
     let requirements = IntentRequirements::decode(payload)
-        .map_err(|_| OutflowError::E_INVALID_GMP_MESSAGE)?;
+        .map_err(|_| OutflowError::InvalidGmpMessage)?;
 
     // Derive requirements PDA
     let (requirements_pda, requirements_bump) = Pubkey::find_program_address(
@@ -168,7 +168,7 @@ fn process_lz_receive(
     );
 
     if requirements_account.key != &requirements_pda {
-        return Err(OutflowError::E_INVALID_PDA.into());
+        return Err(OutflowError::InvalidPda.into());
     }
 
     // Idempotency check: if account already exists, emit duplicate event and return success
@@ -204,11 +204,11 @@ fn process_lz_receive(
 
     // Convert addresses from GMP format (32 bytes) to Pubkey
     let recipient_addr = Pubkey::try_from(&requirements.requester_addr[..])
-        .map_err(|_| OutflowError::E_INVALID_GMP_MESSAGE)?;
+        .map_err(|_| OutflowError::InvalidGmpMessage)?;
     let token_mint = Pubkey::try_from(&requirements.token_addr[..])
-        .map_err(|_| OutflowError::E_INVALID_GMP_MESSAGE)?;
+        .map_err(|_| OutflowError::InvalidGmpMessage)?;
     let authorized_solver = Pubkey::try_from(&requirements.solver_addr[..])
-        .map_err(|_| OutflowError::E_INVALID_GMP_MESSAGE)?;
+        .map_err(|_| OutflowError::InvalidGmpMessage)?;
 
     // Store requirements
     let requirements_data = IntentRequirementsAccount::new(
@@ -252,16 +252,16 @@ fn process_fulfill_intent(
     // Load and verify config
     let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], program_id);
     if config_account.key != &config_pda {
-        return Err(OutflowError::E_INVALID_PDA.into());
+        return Err(OutflowError::InvalidPda.into());
     }
 
     let config = ConfigAccount::try_from_slice(&config_account.data.borrow())
-        .map_err(|_| OutflowError::E_INVALID_ACCOUNT_OWNER)?;
+        .map_err(|_| OutflowError::InvalidAccountOwner)?;
 
     // Verify GMP endpoint matches config
     if gmp_endpoint_program.key != &config.gmp_endpoint {
         msg!("Invalid GMP endpoint program");
-        return Err(OutflowError::E_INVALID_ACCOUNT_OWNER.into());
+        return Err(OutflowError::InvalidAccountOwner.into());
     }
 
     // Load and verify requirements
@@ -270,38 +270,38 @@ fn process_fulfill_intent(
         program_id,
     );
     if requirements_account.key != &requirements_pda {
-        return Err(OutflowError::E_INVALID_PDA.into());
+        return Err(OutflowError::InvalidPda.into());
     }
 
     let mut requirements = IntentRequirementsAccount::try_from_slice(&requirements_account.data.borrow())
-        .map_err(|_| OutflowError::E_REQUIREMENTS_NOT_FOUND)?;
+        .map_err(|_| OutflowError::RequirementsNotFound)?;
 
     // Verify intent_id matches
     if requirements.intent_id != intent_id {
-        return Err(OutflowError::E_REQUIREMENTS_NOT_FOUND.into());
+        return Err(OutflowError::RequirementsNotFound.into());
     }
 
     // Verify intent not already fulfilled
     if requirements.fulfilled {
-        return Err(OutflowError::E_ALREADY_FULFILLED.into());
+        return Err(OutflowError::AlreadyFulfilled.into());
     }
 
     // Verify intent not expired
     let clock = Clock::get()?;
     let current_timestamp = clock.unix_timestamp as u64;
     if current_timestamp > requirements.expiry {
-        return Err(OutflowError::E_INTENT_EXPIRED.into());
+        return Err(OutflowError::IntentExpired.into());
     }
 
     // Verify solver is authorized (zero address = any solver allowed)
     let zero_pubkey = Pubkey::default();
     if requirements.authorized_solver != zero_pubkey && requirements.authorized_solver != *solver.key {
-        return Err(OutflowError::E_UNAUTHORIZED_SOLVER.into());
+        return Err(OutflowError::UnauthorizedSolver.into());
     }
 
     // Verify token mint matches
     if token_mint.key != &requirements.token_mint {
-        return Err(OutflowError::E_TOKEN_MISMATCH.into());
+        return Err(OutflowError::TokenMismatch.into());
     }
 
     // Verify recipient token account belongs to the intended recipient
@@ -312,17 +312,17 @@ fn process_fulfill_intent(
         let recipient_data = recipient_token_account.try_borrow_data()?;
         if recipient_data.len() < 64 {
             msg!("Invalid recipient token account data");
-            return Err(OutflowError::E_INVALID_ACCOUNT_OWNER.into());
+            return Err(OutflowError::InvalidAccountOwner.into());
         }
         let recipient_owner = Pubkey::try_from(&recipient_data[32..64])
-            .map_err(|_| OutflowError::E_INVALID_ACCOUNT_OWNER)?;
+            .map_err(|_| OutflowError::InvalidAccountOwner)?;
         if recipient_owner != requirements.recipient_addr {
             msg!(
                 "Recipient mismatch: token account owner {} != required recipient {}",
                 recipient_owner,
                 requirements.recipient_addr
             );
-            return Err(OutflowError::E_RECIPIENT_MISMATCH.into());
+            return Err(OutflowError::RecipientMismatch.into());
         }
     }
 

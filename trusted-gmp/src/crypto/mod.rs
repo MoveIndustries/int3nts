@@ -18,7 +18,7 @@ use k256::ecdsa::{
     Signature as EcdsaSignature, SigningKey as EcdsaSigningKey, VerifyingKey as EcdsaVerifyingKey,
 };
 use serde::{Deserialize, Serialize};
-use sha3::{Digest, Keccak256};
+use sha3::{Digest, Keccak256, Sha3_256};
 use tracing::info;
 
 use crate::config::Config;
@@ -473,6 +473,32 @@ impl CryptoService {
         // Ethereum address is the last 20 bytes of the hash
         let address_bytes = &hash[12..32];
         let address_hex = format!("0x{}", hex::encode(address_bytes));
+
+        Ok(address_hex)
+    }
+
+    /// Derives the Move VM (Aptos) address from the Ed25519 public key.
+    ///
+    /// The Move address is computed as:
+    /// sha3_256(public_key || 0x00) for Ed25519 single-key accounts
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Move address as hex string (with 0x prefix)
+    /// * `Err(anyhow::Error)` - Failed to derive address
+    #[allow(dead_code)]
+    pub fn get_move_address(&self) -> Result<String> {
+        let public_key_bytes = self.verifying_key.as_bytes();
+
+        // Aptos Ed25519 address derivation: sha3_256(public_key || 0x00)
+        // The 0x00 suffix is the authentication key scheme identifier for Ed25519
+        let mut hasher = Sha3_256::new();
+        hasher.update(public_key_bytes);
+        hasher.update(&[0x00u8]); // Ed25519 single-key scheme identifier
+        let hash = hasher.finalize();
+
+        // The full 32-byte hash is the address
+        let address_hex = format!("0x{}", hex::encode(hash));
 
         Ok(address_hex)
     }

@@ -48,6 +48,10 @@ sha3 = "0.10"
 base64 = "0.21"
 elliptic-curve = "0.13"
 solana-program = "2.1"
+solana-sdk = "2.3"
+solana-client = "2.3"
+solana-sdk-ids = "2.2"
+bs58 = "0.5"
 
 # Random number generation
 rand = "0.8"

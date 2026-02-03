@@ -238,16 +238,16 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 
 **Tasks:**
 
-- [ ] Update `fa_intent_inflow::create_inflow_intent()` to call `intent_gmp_hub::send_intent_requirements()`
-- [ ] Update `fa_intent_inflow::fulfill_inflow_intent()` to:
+- [x] Update `fa_intent_inflow::create_inflow_intent()` to call `intent_gmp_hub::send_intent_requirements()`
+- [x] Update `fa_intent_inflow::fulfill_inflow_intent()` to:
   - Check for escrow confirmation receipt before allowing fulfillment
   - Call `intent_gmp_hub::send_fulfillment_proof()` after fulfillment
-- [ ] Update `fa_intent_outflow::create_outflow_intent()` to call `intent_gmp_hub::send_intent_requirements()`
-- [ ] Add GMP receive handler in `fa_intent_outflow` to process fulfillment proofs and trigger token release
-- [ ] Add intent state tracking (escrow_confirmed, fulfillment_proof_received) in intent storage
-- [ ] Test intent creation sends GMP requirements
-- [ ] Test fulfillment blocked without escrow confirmation
-- [ ] Test fulfillment proof triggers token release
+- [x] Update `fa_intent_outflow::create_outflow_intent()` to call `intent_gmp_hub::send_intent_requirements()`
+- [x] Add GMP receive handler in `fa_intent_outflow` to process fulfillment proofs and trigger token release
+- [x] Add intent state tracking (escrow_confirmed, fulfillment_proof_received) in intent storage
+- [x] Test intent creation sends GMP requirements
+- [x] Test fulfillment blocked without escrow confirmation
+- [x] Test fulfillment proof triggers token release
 
 **Test:**
 
@@ -286,18 +286,49 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 
 ---
 
-### Commit 10: Fix existing E2E tests for GMP: MVM ↔ MVM
+### Commit 10: Implement native GMP relay with MVM connected chain support
 
 **Files:**
 
-- `testing-infra/ci-e2e/e2e-tests-mvm/` (update existing)
-- `trusted-gmp/src/native_gmp_relay.rs` (implement actual tx submission)
+- `trusted-gmp/src/native_gmp_relay.rs` (implement tx submission and MVM connected chain)
+- `trusted-gmp/src/main.rs` (simplify to only run native GMP relay)
+- `trusted-gmp/tests/native_gmp_relay_tests.rs` (add relay config tests)
+- `testing-infra/ci-e2e/chain-hub/deploy-contracts.sh` (GMP initialization)
+- `testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh` (GMP initialization)
+- `intent-frameworks/svm/programs/*/src/error.rs` (fix naming)
 
 **Tasks:**
 
-- [ ] Implement actual transaction submission in `deliver_to_mvm()` and `deliver_to_svm()`
-- [ ] Update MVM e2e test environment to use native GMP endpoints
-- [ ] Start native GMP relay in background during tests
+- [x] Implement actual transaction submission in `deliver_to_mvm()` and `deliver_to_svm()`
+- [x] Add Move address derivation utilities to `generate_keys` and `util.sh`
+- [x] Update deployment scripts to initialize GMP modules with trusted remotes
+- [x] Fix SVM error variant naming (E_SCREAMING_CASE → UpperCamelCase)
+- [x] Update MVM e2e test environment to use native GMP endpoints (deploy scripts initialize GMP)
+- [x] Add MVM connected chain support to native GMP relay (bidirectional MVM ↔ MVM messaging)
+- [x] Simplify main.rs to only run native GMP relay (removed legacy mode)
+- [x] Add relay config tests for MVM connected chain extraction
+
+**Test:**
+
+```bash
+./testing-infra/run-all-unit-tests.sh
+```
+
+> ⚠️ **Unit tests must pass before proceeding to Commit 11.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+
+---
+
+### Commit 11: Update solver and MVM E2E tests to use GMP flow
+
+**Files:**
+
+- `solver/src/service/outflow.rs` (update to use outflow_validator)
+- `testing-infra/ci-e2e/e2e-tests-mvm/` (update existing)
+
+**Tasks:**
+
+- [ ] Update solver outflow service to call `outflow_validator::fulfill_intent` on connected chain
+- [ ] Start native GMP relay in background during tests (run-tests scripts)
 - [ ] Update `run-tests-outflow.sh` to use GMP flow
 - [ ] Update `run-tests-inflow.sh` to use GMP flow
 - [ ] Verify GMP messages are sent and received correctly (MVM hub ↔ MVM connected)
@@ -313,11 +344,11 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 ./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 11.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 12.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 11: Fix existing E2E tests for GMP: MVM ↔ SVM outflow
+### Commit 12: Fix existing E2E tests for GMP: MVM ↔ SVM outflow
 
 **Files:**
 
@@ -340,11 +371,11 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 ./testing-infra/ci-e2e/e2e-tests-svm/run-tests-outflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 12.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 13.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 12: Fix existing E2E tests for GMP: MVM ↔ SVM inflow
+### Commit 13: Fix existing E2E tests for GMP: MVM ↔ SVM inflow
 
 **Files:**
 
@@ -367,11 +398,11 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 ./testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 13.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 14.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 13: Update existing deployment scripts for GMP
+### Commit 14: Update existing deployment scripts for GMP
 
 **Files:**
 
@@ -412,7 +443,7 @@ solana program show <OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
 
 ## Exit Criteria
 
-- [ ] All 13 commits merged to feature branch
+- [ ] All 14 commits merged to feature branch
 - [ ] SVM programs build and pass unit tests
 - [ ] MVM modules build and pass unit tests
 - [ ] Native GMP relay works for MVM ↔ SVM
