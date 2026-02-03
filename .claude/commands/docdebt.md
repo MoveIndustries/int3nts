@@ -1,14 +1,10 @@
 ---
-name: fix-md-lint
-description: Go through markdown files in the repo and fix linting errors (MD031, MD032, etc.)
-disable-model-invocation: true
-context: fork
-agent: general-purpose
+description: Find and fix documentation debt including markdown linting errors, missing docs, and outdated content
 ---
 
-# Fix Markdown Linting Errors
+# Documentation Debt Analysis and Fix
 
-This skill goes through markdown files in the repo one by one and fixes common linting errors.
+This command finds and fixes documentation debt including markdown linting errors, missing documentation, and outdated content.
 
 ## Common Linting Rules to Fix
 
@@ -72,30 +68,63 @@ Ensure file ends with exactly one newline.
 
 ## Steps
 
-1. Find all markdown files in the repo:
+**CRITICAL: You MUST find and check ALL markdown files. Do not check "several" or "representative" files.**
+
+1. **Find ALL markdown files in the repo:**
 
    ```bash
    find . -name "*.md" -type f | grep -v node_modules | grep -v build | grep -v target
    ```
 
-2. For each markdown file:
+   Count the total number of files found and report this number.
+
+2. **Scan ALL files for violations before fixing:**
+
+   Use the markdown linting checker script:
+
+   ```bash
+   # Check for all violations with detailed output
+   python3 .claude/scripts/check-md-lint.py
+
+   # Check only for MD040 (missing language specifiers)
+   python3 .claude/scripts/check-md-lint.py --check md040
+
+   # List files with violations (no line numbers)
+   python3 .claude/scripts/check-md-lint.py --list-files
+   ```
+
+   The script accurately detects:
+   - MD040: Code blocks without language specifiers (opening ``` without language)
+   - MD012: Multiple consecutive blank lines (3+ blank lines in a row)
+
+   Count how many files have each type of violation from the summary output.
+
+3. **For each file with violations:**
 
    - Read the file
-   - Check for linting issues (look for patterns that violate the rules above)
-   - Fix the issues
+   - Identify all linting issues (look for patterns that violate the rules above)
+   - Fix ALL issues in the file
    - Move to the next file
 
-3. Focus on these patterns:
+4. **Focus on these patterns:**
 
    - Code blocks not surrounded by blank lines → add blank lines
-   - Code blocks without language specifier → add appropriate language
+   - Code blocks without language specifier (bare ``` on a line) → add appropriate language
    - Lists not surrounded by blank lines → add blank lines
    - Headings not surrounded by blank lines → add blank lines
    - Multiple consecutive blank lines → reduce to single
    - Trailing whitespace → remove
    - Missing final newline → add
 
-4. Process files one at a time to avoid overwhelming context
+5. **Process files systematically:**
+
+   - Work through files in a logical order (e.g., alphabetically)
+   - Track progress: "Fixed X of Y files"
+   - Report all changes made to each file
+
+6. **Final verification:**
+
+   After fixing all files, re-run the grep searches to verify no violations remain.
 
 ## Important Notes
 

@@ -95,7 +95,7 @@ After each answer:
 
 Start with:
 
-```
+```text
 🔍 REVIEWING YOUR CHANGES
 
 I found changes to:
@@ -108,13 +108,13 @@ Then ask questions one category at a time, wait for answers.
 
 End with either:
 
-```
+```text
 ✅ PASS - These changes look good. Ready to commit.
 ```
 
 or:
 
-```
+```text
 ❌ FAIL - Fix these issues before committing:
 - [list issues]
 ```

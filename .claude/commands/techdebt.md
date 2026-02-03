@@ -100,6 +100,54 @@ Find weak error handling:
 - Generic error messages without context
 - Ignored errors (especially in Rust with `let _ = ...`)
 
+### Fallback patterns (CRITICAL)
+
+**Per "No Fallbacks Policy" from CLAUDE.md, fallback patterns violate project principles.**
+
+Search for fallback patterns in code:
+
+```bash
+# Common fallback patterns
+grep -r "fallback\|default\|or_else\|unwrap_or\|unwrap_or_default\|unwrap_or_else" --include="*.rs" --include="*.move" --include="*.sol" --include="*.js" --include="*.ts" --include="*.tsx"
+
+# Silent error swallowing
+grep -r "catch.*{.*}" --include="*.js" --include="*.ts" --include="*.tsx"
+grep -r "\.ok()" --include="*.rs"
+
+# Optional chaining that might hide errors
+grep -r "\?\." --include="*.ts" --include="*.tsx" --include="*.js"
+```
+
+**Analyze each fallback:**
+
+For every fallback found, ask:
+
+1. **Is this hiding a failure?** If yes, make it fail explicitly
+2. **Should this use a default?** If no, error instead
+3. **Is this in a test?** Tests MUST fail hard, never fallback
+4. **Does this swallow errors?** Replace with explicit error propagation
+
+**Acceptable fallback cases (rare):**
+
+- User-facing defaults with explicit documentation (e.g., UI preferences)
+- Well-documented configuration with safe defaults
+- Feature flags where disabled is a valid state
+
+**Unacceptable fallback cases:**
+
+- Tests using default values instead of failing
+- Silent error swallowing with `catch (e) {}` or `.ok()`
+- `unwrap_or_default()` hiding missing data
+- Optional chaining (`?.`) masking null/undefined errors in critical paths
+- Default values hiding validation failures
+
+**What to do:**
+
+1. **Remove fallback** - Make the code fail explicitly
+2. **Add validation** - Check preconditions and error if not met
+3. **Propagate errors** - Use `Result`/`Option` properly, don't hide failures
+4. **Fix tests** - Tests must use explicit assertions, no fallbacks
+
 ## Task 4: Framework Symmetry Violations
 
 Check if implementations are out of sync:
@@ -157,6 +205,15 @@ Provide a structured report:
 - **Issue**: What the problem is
 - **Location**: Where it occurs
 - **Fix**: Suggested remediation
+
+### Section 3a: Fallback Patterns (CRITICAL)
+
+- **Location**: File path and line number
+- **Pattern**: What fallback is used (unwrap_or, catch, optional chaining, etc.)
+- **Context**: What it's hiding (error, validation failure, missing data)
+- **Analysis**: Is this acceptable? (almost always NO)
+- **Action**: How to remove the fallback and fail explicitly
+- **Priority**: HIGH for tests, HIGH for critical paths, MEDIUM for edge cases
 
 ### Section 4: Framework Symmetry
 

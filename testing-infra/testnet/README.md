@@ -83,7 +83,7 @@ cd frontend && npm install --legacy-peer-deps && npm run dev
 
 Create `frontend/.env.local` with testnet values:
 
-```
+```bash
 NEXT_PUBLIC_COORDINATOR_URL=http://localhost:3333
 NEXT_PUBLIC_TRUSTED_GMP_URL=http://localhost:3334
 ```

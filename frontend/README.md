@@ -33,7 +33,7 @@ npm start
 
 Create a `.env.local` file:
 
-```
+```bash
 NEXT_PUBLIC_COORDINATOR_URL=http://localhost:3333
 NEXT_PUBLIC_TRUSTED_GMP_URL=http://localhost:3334
 NEXT_PUBLIC_INTENT_CONTRACT_ADDRESS=0x<your-movement-module-address>
@@ -42,7 +42,7 @@ NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS=0x<your-base-escrow-address>
 
 Optional RPC and program ID overrides (defaults are in `src/config/chains.ts`):
 
-```
+```bash
 NEXT_PUBLIC_HUB_RPC=https://testnet.movementnetwork.xyz
 NEXT_PUBLIC_EVM_RPC=https://...
 NEXT_PUBLIC_SVM_RPC_URL=https://api.devnet.solana.com

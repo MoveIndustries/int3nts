@@ -59,7 +59,7 @@ On EVM, an OApp inherits from `OApp.sol` and overrides `_lzSend()` and `_lzRecei
 
 The LayerZero V2 Aptos SDK provides a set of Move modules that your application interacts with. The key pattern is:
 
-```
+```text
 your_oapp/
 ├── Move.toml                    # Dependencies include LayerZero packages
 ├── sources/
@@ -335,7 +335,7 @@ The endpoint:
 
 The options parameter encodes execution parameters for the destination chain. For Aptos:
 
-```
+```text
 // Options encoding (LZ V2 options format):
 // TYPE_3 options format:
 // [0x0003]                    -- options type (2 bytes)
@@ -601,7 +601,7 @@ let dst_eid: u32 = 30101; // Ethereum mainnet
 
 LayerZero wraps your application payload in a **Packet** structure:
 
-```
+```text
 LZ V2 Packet (internal format, handled by LZ):
 ┌─────────────────────────────────────────────────┐
 │ nonce     : u64    (8 bytes)                     │
@@ -622,7 +622,7 @@ Your payload (`message` field) is raw bytes that you encode/decode. LZ does not 
 
 For int3nts, the recommended encoding (from the wire format spec in phase 1):
 
-```
+```text
 Application Payload Format:
 ┌─────────────────────────────────────────────────┐
 │ message_type  : u8     (1 byte) - discriminator  │
@@ -804,7 +804,7 @@ LZ V2 tracks nonces per **pathway**: `(srcEid, sender, dstEid, receiver)`.
 
 On Aptos, the LZ endpoint module manages nonces internally:
 
-```
+```text
 Nonce Storage (conceptual):
 messaging_channel.move stores:
   - outbound_nonce: Table<PathwayKey, u64>  -- next nonce to assign on send
@@ -1100,7 +1100,7 @@ module your_addr::cross_chain_intent {
 
 Based on this research, here is how the GMP integration should work:
 
-```
+```text
 Production (Movement mainnet as hub):
   - LZ endpoint on Movement (EID 30325)
   - LZ endpoint on EVM chains (EID 30101, 30184, etc.)
@@ -1121,7 +1121,7 @@ Testnet:
 
 ### 10.2 MVM Module Structure
 
-```
+```text
 intent-frameworks/mvm/sources/
 ├── gmp/
 │   ├── gmp_messages.move        # Message encoding/decoding (wire format)
@@ -1190,7 +1190,7 @@ Before implementation, the following must be verified against current LayerZero 
 
 ## Appendix A: LayerZero V2 Architecture Quick Reference
 
-```
+```text
 LayerZero V2 Message Lifecycle:
 
 1. Source Chain:
@@ -1214,7 +1214,7 @@ LayerZero V2 Message Lifecycle:
 
 ## Appendix B: LZ V2 Security Model
 
-```
+```text
 Trust Assumptions:
 
 1. DVN Security:
