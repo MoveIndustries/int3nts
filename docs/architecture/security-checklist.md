@@ -74,7 +74,7 @@ Frontend checks are for UX, not security. All security checks must be server-sid
 
 ### Anti-Patterns to Eliminate
 
-```
+```text
 ❌ "The button is hidden" - not a security strategy
 ❌ "Frontend validates the input" - bots ignore this
 ❌ "Only authorized users see this page" - URL is guessable
@@ -132,7 +132,7 @@ No logs means no answers. Not for bugs, not for breaches, not for refunds.
 
 - [ ] **Structured Logging**: Use consistent log format
 
-  ```
+  ```json
   {
     "timestamp": "2026-01-13T10:00:00Z",
     "level": "INFO",
@@ -176,7 +176,7 @@ Third-party services will fail. Design for it.
 
 - [ ] **Retries with Limits**: Implement exponential backoff
 
-  ```
+  ```text
   Max retries: 3-5
   Initial delay: 100ms
   Max delay: 10s
@@ -218,7 +218,7 @@ API keys in code will leak. Not maybe. Will.
 
 - [ ] **Proper .gitignore**: Exclude sensitive files
 
-  ```
+  ```text
   .env
   .env.local
   .env.*.local

@@ -80,17 +80,24 @@ Ensure file ends with exactly one newline.
 
 2. **Scan ALL files for violations before fixing:**
 
-   Use grep to find files with common violations:
+   Use the markdown linting checker script:
 
    ```bash
-   # Find files with code blocks missing language specifiers (MD040)
-   find . -name "*.md" -type f -exec grep -l '^```$' {} \;
+   # Check for all violations with detailed output
+   python3 .claude/scripts/check-md-lint.py
 
-   # Find files with multiple blank lines (MD012)
-   find . -name "*.md" -type f -exec grep -l $'\n\n\n' {} \;
+   # Check only for MD040 (missing language specifiers)
+   python3 .claude/scripts/check-md-lint.py --check md040
+
+   # List files with violations (no line numbers)
+   python3 .claude/scripts/check-md-lint.py --list-files
    ```
 
-   Count how many files have each type of violation.
+   The script accurately detects:
+   - MD040: Code blocks without language specifiers (opening ``` without language)
+   - MD012: Multiple consecutive blank lines (3+ blank lines in a row)
+
+   Count how many files have each type of violation from the summary output.
 
 3. **For each file with violations:**
 
