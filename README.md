@@ -54,6 +54,12 @@ nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-svm/run-tests-out
 nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-rust-integration.sh"
 ```
 
+Pass `--no-build` to skip Rust binary compilation (uses previously built binaries):
+
+```bash
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh --no-build"
+```
+
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.

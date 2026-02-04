@@ -661,22 +661,25 @@ stop_trusted_gmp() {
 }
 
 # Check trusted-gmp health
-# Usage: check_trusted_gmp_health [port]
-# Checks if trusted-gmp health endpoint responds
+# Usage: check_trusted_gmp_health
+# Checks if trusted-gmp process is running and has initialized
+# The native GMP relay has no HTTP server; we check the log for init message
 # Returns 0 if healthy, 1 if not
 check_trusted_gmp_health() {
-    local port="${1:-3334}"
-
-    if curl -s -f "http://127.0.0.1:${port}/health" > /dev/null 2>&1; then
-        return 0
-    else
-        return 1
+    # Check process is alive
+    if [ -n "$TRUSTED_GMP_PID" ] && ps -p "$TRUSTED_GMP_PID" > /dev/null 2>&1; then
+        # Check log for successful initialization
+        local log_file="${TRUSTED_GMP_LOG:-${LOG_DIR:-/dev/null}/trusted-gmp.log}"
+        if [ -f "$log_file" ] && grep -q "Native GMP relay initialized successfully" "$log_file" 2>/dev/null; then
+            return 0
+        fi
     fi
+    return 1
 }
 
 # Verify trusted-gmp is running
 # Usage: verify_trusted_gmp_running
-# Checks trusted-gmp process, port, and health endpoint
+# Checks trusted-gmp process is alive and initialized
 # Exits with error if trusted-gmp is not running
 verify_trusted_gmp_running() {
     # Ensure LOG_DIR is set (for reading PID files)
@@ -693,6 +696,11 @@ verify_trusted_gmp_running() {
         export TRUSTED_GMP_PID
     fi
 
+    # Load log path if not set
+    if [ -z "$TRUSTED_GMP_LOG" ] && [ -n "$LOG_DIR" ]; then
+        TRUSTED_GMP_LOG="$LOG_DIR/trusted-gmp.log"
+    fi
+
     # Check trusted-gmp process
     if [ -z "$TRUSTED_GMP_PID" ] || ! ps -p "$TRUSTED_GMP_PID" > /dev/null 2>&1; then
         log_and_echo "❌ ERROR: Trusted-GMP process is not running"
@@ -701,25 +709,15 @@ verify_trusted_gmp_running() {
         exit 1
     fi
 
-    # Check if trusted-gmp port is listening
-    TRUSTED_GMP_PORT="${TRUSTED_GMP_PORT:-3334}"
-    if ! check_port_listening "$TRUSTED_GMP_PORT"; then
-        log_and_echo "❌ ERROR: Trusted-GMP is not listening on port $TRUSTED_GMP_PORT"
-        log_and_echo "   Trusted-GMP PID: $TRUSTED_GMP_PID"
-        log_and_echo "   Process exists but port is not accessible"
-        log_and_echo "   Check logs: ${TRUSTED_GMP_LOG:-<not set>}"
-        exit 1
-    fi
-
-    # Check trusted-gmp health endpoint
-    if ! check_trusted_gmp_health "$TRUSTED_GMP_PORT"; then
+    # Check trusted-gmp initialized (native GMP relay has no HTTP server)
+    if ! check_trusted_gmp_health; then
         log_and_echo "❌ ERROR: Trusted-GMP health check failed"
         log_and_echo "   Trusted-GMP PID: $TRUSTED_GMP_PID"
-        log_and_echo "   Port $TRUSTED_GMP_PORT is listening but /health endpoint failed"
+        log_and_echo "   Process is running but initialization not confirmed in log"
         log_and_echo "   Check logs: ${TRUSTED_GMP_LOG:-<not set>}"
         exit 1
     fi
-    log "   ✅ Trusted-GMP is running and healthy (PID: $TRUSTED_GMP_PID, port: $TRUSTED_GMP_PORT)"
+    log "   ✅ Trusted-GMP is running and healthy (PID: $TRUSTED_GMP_PID)"
 }
 
 # Generate trusted-gmp keys for E2E/CI testing
@@ -863,8 +861,10 @@ start_trusted_gmp() {
 
     # Wait for trusted-gmp to be ready
     log "   - Waiting for trusted-gmp to initialize..."
+    TRUSTED_GMP_LOG="$log_file"
+    export TRUSTED_GMP_PID TRUSTED_GMP_LOG
     RETRY_COUNT=0
-    MAX_RETRIES=180
+    MAX_RETRIES=30
 
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         # Check if process is still running
@@ -881,16 +881,14 @@ start_trusted_gmp() {
             exit 1
         fi
 
-        # Check health endpoint
+        # Check health (process running + init log message present)
         if check_trusted_gmp_health; then
             log "   ✅ Trusted-GMP is ready!"
 
             # Give trusted-gmp time to start polling and collect initial events
-            log "   - Waiting for trusted-gmp to poll and collect events (30 seconds)..."
-            sleep 30
+            log "   - Waiting for trusted-gmp to poll and collect events (10 seconds)..."
+            sleep 10
 
-            TRUSTED_GMP_LOG="$log_file"
-            export TRUSTED_GMP_PID TRUSTED_GMP_LOG
             return 0
         fi
 

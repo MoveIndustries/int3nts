@@ -1,23 +1,23 @@
-/// GMP Hub Tests (MVM as Hub Chain)
-///
-/// Tests GMP (General Message Passing) functionality for the intent_gmp_hub module
-/// when MVM acts as the hub chain in the cross-chain intent system.
-///
-/// ## Send Functions (Hub → Connected Chain)
-/// - `send_intent_requirements`: Hub broadcasts intent requirements to connected chain
-/// - `send_fulfillment_proof`: Hub sends fulfillment proof after solver completes
-///
-/// ## Receive Functions (Connected Chain → Hub)
-/// - `receive_escrow_confirmation`: Hub receives confirmation that escrow was created
-/// - `receive_fulfillment_proof`: Hub receives proof that solver fulfilled on connected chain
-///
-/// ## Helper Functions
-/// - `bytes_to_bytes32`: Utility for converting byte vectors to 32-byte format
-///
-/// ## Related Test Files (MVM as Connected Chain)
-/// - `interface_tests.move`: Tests outflow_validator interface (symmetric with SVM)
-/// - `outflow_validator_tests.move`: Tests outflow validator implementation
-/// - `inflow_escrow_gmp_tests.move`: Tests inflow escrow GMP functionality
+// GMP Hub Tests (MVM as Hub Chain)
+//
+// Tests GMP (General Message Passing) functionality for the intent_gmp_hub module
+// when MVM acts as the hub chain in the cross-chain intent system.
+//
+// ## Send Functions (Hub → Connected Chain)
+// - `send_intent_requirements`: Hub broadcasts intent requirements to connected chain
+// - `send_fulfillment_proof`: Hub sends fulfillment proof after solver completes
+//
+// ## Receive Functions (Connected Chain → Hub)
+// - `receive_escrow_confirmation`: Hub receives confirmation that escrow was created
+// - `receive_fulfillment_proof`: Hub receives proof that solver fulfilled on connected chain
+//
+// ## Helper Functions
+// - `bytes_to_bytes32`: Utility for converting byte vectors to 32-byte format
+//
+// ## Related Test Files (MVM as Connected Chain)
+// - `interface_tests.move`: Tests outflow_validator interface (symmetric with SVM)
+// - `outflow_validator_tests.move`: Tests outflow validator implementation
+// - `inflow_escrow_gmp_tests.move`: Tests inflow escrow GMP functionality
 #[test_only]
 module mvmt_intent::intent_gmp_tests {
     use std::vector;

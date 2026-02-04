@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Cryptographic Operations Module
 //!
 //! This module handles all cryptographic operations for the trusted-gmp service,

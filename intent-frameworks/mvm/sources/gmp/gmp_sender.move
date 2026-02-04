@@ -14,7 +14,6 @@
 /// creating import cycles with the receiver that routes messages to them.
 module mvmt_intent::gmp_sender {
     use std::signer;
-    use std::vector;
     use aptos_framework::event;
 
     // ============================================================================

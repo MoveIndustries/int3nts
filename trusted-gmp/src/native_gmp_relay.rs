@@ -166,6 +166,7 @@ struct RelayState {
     /// Processed nonces per source chain (chain_id -> set of processed nonces)
     processed_nonces: std::collections::HashMap<u32, HashSet<u64>>,
     /// Last processed MVM event sequence number
+    #[allow(dead_code)]
     mvm_last_seq: u64,
     /// Last processed SVM signature (for pagination)
     svm_last_signature: Option<String>,
@@ -184,6 +185,7 @@ pub struct NativeGmpRelay {
     mvm_client: MvmClient,
     mvm_connected_client: Option<MvmClient>,
     svm_client: Option<SvmClient>,
+    #[allow(dead_code)]
     http_client: Client,
     state: Arc<RwLock<RelayState>>,
 }
@@ -886,7 +888,8 @@ impl NativeGmpRelay {
         }
 
         // Create Solana keypair from Ed25519 seed
-        let keypair = Keypair::from_bytes(&ed25519_seed_to_keypair_bytes(&seed_bytes)?)
+        let keypair_bytes = ed25519_seed_to_keypair_bytes(&seed_bytes)?;
+        let keypair = Keypair::try_from(keypair_bytes.as_slice())
             .context("Failed to create Solana keypair")?;
 
         Ok(keypair)

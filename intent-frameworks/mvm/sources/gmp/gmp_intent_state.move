@@ -10,7 +10,6 @@
 module mvmt_intent::gmp_intent_state {
     use std::error;
     use std::signer;
-    use std::vector;
     use aptos_framework::event;
     use aptos_std::table::{Self, Table};
 

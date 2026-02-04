@@ -188,22 +188,18 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     log "   SVM GMP endpoint address (hex): $SVM_GMP_ADDR_HEX"
 
     # Set trusted remote on hub for SVM chain (chain_id=4)
-    aptos move run --profile intent-account-chain1 --assume-yes \
+    if aptos move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::native_gmp_endpoint::set_trusted_remote \
-        --args u32:$SVM_CHAIN_ID "hex:${SVM_GMP_ADDR_HEX}" >> "$LOG_FILE" 2>&1
-
-    if [ $? -eq 0 ]; then
+        --args u32:$SVM_CHAIN_ID "hex:${SVM_GMP_ADDR_HEX}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub now trusts SVM connected chain (chain_id=$SVM_CHAIN_ID)"
     else
         log "   ️ Could not set trusted remote on hub (ignoring)"
     fi
 
     # Also set trusted remote in intent_gmp_hub
-    aptos move run --profile intent-account-chain1 --assume-yes \
+    if aptos move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_trusted_remote \
-        --args u32:$SVM_CHAIN_ID "hex:${SVM_GMP_ADDR_HEX}" >> "$LOG_FILE" 2>&1
-
-    if [ $? -eq 0 ]; then
+        --args u32:$SVM_CHAIN_ID "hex:${SVM_GMP_ADDR_HEX}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub intent_gmp_hub now trusts SVM connected chain"
     else
         log "   ️ Could not set trusted remote in intent_gmp_hub (ignoring)"

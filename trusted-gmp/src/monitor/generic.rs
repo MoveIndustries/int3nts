@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Generic monitor structures and EventMonitor definition
 //!
 //! This module contains shared event structures and the EventMonitor struct definition

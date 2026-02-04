@@ -38,9 +38,7 @@ CHAIN2_ADDR=$(get_profile_address "intent-account-chain2")
 
 log "   - Deploying to Chain 2 with address: $CHAIN2_ADDR"
 cd intent-frameworks/mvm
-aptos move publish --dev --profile intent-account-chain2 --named-addresses mvmt_intent=$CHAIN2_ADDR --assume-yes --chunked-publish >> "$LOG_FILE" 2>&1
-
-if [ $? -eq 0 ]; then
+if aptos move publish --dev --profile intent-account-chain2 --named-addresses mvmt_intent=$CHAIN2_ADDR --assume-yes --chunked-publish --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
     log "   ✅ Chain 2 deployment successful!"
     log_and_echo "✅ Connected chain contracts deployed"
 else
@@ -57,11 +55,9 @@ cd "$PROJECT_ROOT"
 # Initialize fa_intent chain info (required for cross-chain intent detection)
 log ""
 log " Initializing fa_intent chain info (chain_id=2)..."
-aptos move run --profile intent-account-chain2 --assume-yes \
+if aptos move run --profile intent-account-chain2 --assume-yes \
     --function-id ${CHAIN2_ADDR}::fa_intent::initialize \
-    --args u64:2 >> "$LOG_FILE" 2>&1
-
-if [ $? -eq 0 ]; then
+    --args u64:2 >> "$LOG_FILE" 2>&1; then
     log "   ✅ fa_intent chain info initialized (chain_id=2)"
 else
     log "   ️  fa_intent chain info may already be initialized (ignoring)"
@@ -80,13 +76,31 @@ initialize_intent_registry "intent-account-chain2" "$CHAIN2_ADDR" "$LOG_FILE"
 # Initialize native GMP endpoint for cross-chain messaging
 log ""
 log " Initializing native GMP endpoint..."
-aptos move run --profile intent-account-chain2 --assume-yes \
-    --function-id ${CHAIN2_ADDR}::native_gmp_endpoint::initialize >> "$LOG_FILE" 2>&1
-
-if [ $? -eq 0 ]; then
+if aptos move run --profile intent-account-chain2 --assume-yes \
+    --function-id ${CHAIN2_ADDR}::native_gmp_endpoint::initialize >> "$LOG_FILE" 2>&1; then
     log "   ✅ Native GMP endpoint initialized"
 else
     log "   ️ Native GMP endpoint may already be initialized (ignoring)"
+fi
+
+# Initialize GMP intent state for cross-chain intent tracking
+log ""
+log " Initializing GMP intent state..."
+if aptos move run --profile intent-account-chain2 --assume-yes \
+    --function-id ${CHAIN2_ADDR}::gmp_intent_state::initialize >> "$LOG_FILE" 2>&1; then
+    log "   ✅ GMP intent state initialized"
+else
+    log "   ️ GMP intent state may already be initialized (ignoring)"
+fi
+
+# Initialize GMP sender for outbound cross-chain messaging
+log ""
+log " Initializing GMP sender..."
+if aptos move run --profile intent-account-chain2 --assume-yes \
+    --function-id ${CHAIN2_ADDR}::gmp_sender::initialize >> "$LOG_FILE" 2>&1; then
+    log "   ✅ GMP sender initialized"
+else
+    log "   ️ GMP sender may already be initialized (ignoring)"
 fi
 
 # Load hub module address for trusted remote configuration
@@ -101,11 +115,9 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     # Initialize outflow_validator with hub chain config
     log ""
     log " Initializing outflow validator with hub config..."
-    aptos move run --profile intent-account-chain2 --assume-yes \
+    if aptos move run --profile intent-account-chain2 --assume-yes \
         --function-id ${CHAIN2_ADDR}::outflow_validator::initialize \
-        --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1
-
-    if [ $? -eq 0 ]; then
+        --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Outflow validator initialized (hub_chain_id=1)"
     else
         log "   ️ Outflow validator may already be initialized (ignoring)"
@@ -114,11 +126,9 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     # Initialize inflow_escrow_gmp with hub chain config
     log ""
     log " Initializing inflow escrow GMP with hub config..."
-    aptos move run --profile intent-account-chain2 --assume-yes \
+    if aptos move run --profile intent-account-chain2 --assume-yes \
         --function-id ${CHAIN2_ADDR}::inflow_escrow_gmp::initialize \
-        --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1
-
-    if [ $? -eq 0 ]; then
+        --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Inflow escrow GMP initialized (hub_chain_id=1)"
     else
         log "   ️ Inflow escrow GMP may already be initialized (ignoring)"
@@ -127,11 +137,9 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     # Set trusted remote in native_gmp_endpoint (trust hub chain)
     log ""
     log " Setting trusted remote for hub chain..."
-    aptos move run --profile intent-account-chain2 --assume-yes \
+    if aptos move run --profile intent-account-chain2 --assume-yes \
         --function-id ${CHAIN2_ADDR}::native_gmp_endpoint::set_trusted_remote \
-        --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1
-
-    if [ $? -eq 0 ]; then
+        --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Trusted remote set for hub chain"
     else
         log "   ️ Could not set trusted remote (ignoring)"
@@ -153,9 +161,7 @@ if [ -n "$E2E_TRUSTED_GMP_MOVE_ADDRESS" ]; then
 
     # Fund the relay address (transfer APT from deployer)
     log "   - Funding relay address with APT..."
-    aptos account fund-with-faucet --profile intent-account-chain2 --account "$RELAY_ADDRESS" >> "$LOG_FILE" 2>&1
-
-    if [ $? -eq 0 ]; then
+    if aptos account fund-with-faucet --profile intent-account-chain2 --account "$RELAY_ADDRESS" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Relay address funded"
     else
         log "   ️ Could not fund relay (may need manual funding)"
@@ -163,11 +169,9 @@ if [ -n "$E2E_TRUSTED_GMP_MOVE_ADDRESS" ]; then
 
     # Add relay as authorized relay in native_gmp_endpoint
     log "   - Adding relay as authorized in native_gmp_endpoint..."
-    aptos move run --profile intent-account-chain2 --assume-yes \
+    if aptos move run --profile intent-account-chain2 --assume-yes \
         --function-id ${CHAIN2_ADDR}::native_gmp_endpoint::add_authorized_relay \
-        --args address:${RELAY_ADDRESS} >> "$LOG_FILE" 2>&1
-
-    if [ $? -eq 0 ]; then
+        --args address:${RELAY_ADDRESS} >> "$LOG_FILE" 2>&1; then
         log "   ✅ Relay added as authorized"
     else
         log "   ️ Could not add relay (may already be authorized)"
@@ -184,9 +188,7 @@ USD_MVMCON_MODULE_ADDR=$(get_profile_address "test-tokens-chain2")
 
 log "   - Deploying USDcon with address: $USD_MVMCON_MODULE_ADDR"
 cd "$PROJECT_ROOT/testing-infra/ci-e2e/test-tokens"
-aptos move publish --profile test-tokens-chain2 --named-addresses test_tokens=$USD_MVMCON_MODULE_ADDR --assume-yes >> "$LOG_FILE" 2>&1
-
-if [ $? -eq 0 ]; then
+if aptos move publish --profile test-tokens-chain2 --named-addresses test_tokens=$USD_MVMCON_MODULE_ADDR --assume-yes >> "$LOG_FILE" 2>&1; then
     log "   ✅ USDcon deployment successful on Chain 2!"
     log_and_echo "✅ USDcon test token deployed on connected chain"
 else
@@ -209,11 +211,9 @@ SOLVER_MVMCON_ADDR=$(get_profile_address "solver-chain2")
 USDCON_MINT_AMOUNT="1000000"  # 1 USDcon (6 decimals = 1_000_000)
 
 log "   - Minting $USDCON_MINT_AMOUNT 10e-6.USDcon to Requester ($REQUESTER_MVMCON_ADDR)..."
-aptos move run --profile test-tokens-chain2 --assume-yes \
+if aptos move run --profile test-tokens-chain2 --assume-yes \
     --function-id ${USD_MVMCON_MODULE_ADDR}::usdxyz::mint \
-    --args address:$REQUESTER_MVMCON_ADDR u64:$USDCON_MINT_AMOUNT >> "$LOG_FILE" 2>&1
-
-if [ $? -eq 0 ]; then
+    --args address:$REQUESTER_MVMCON_ADDR u64:$USDCON_MINT_AMOUNT >> "$LOG_FILE" 2>&1; then
     log "   ✅ Minted USDcon to Requester"
 else
     log_and_echo "   ❌ Failed to mint USDcon to Requester"
@@ -221,11 +221,9 @@ else
 fi
 
 log "   - Minting $USDCON_MINT_AMOUNT 10e-6.USDcon to Solver ($SOLVER_MVMCON_ADDR)..."
-aptos move run --profile test-tokens-chain2 --assume-yes \
+if aptos move run --profile test-tokens-chain2 --assume-yes \
     --function-id ${USD_MVMCON_MODULE_ADDR}::usdxyz::mint \
-    --args address:$SOLVER_MVMCON_ADDR u64:$USDCON_MINT_AMOUNT >> "$LOG_FILE" 2>&1
-
-if [ $? -eq 0 ]; then
+    --args address:$SOLVER_MVMCON_ADDR u64:$USDCON_MINT_AMOUNT >> "$LOG_FILE" 2>&1; then
     log "   ✅ Minted USDcon to Solver"
 else
     log_and_echo "   ❌ Failed to mint USDcon to Solver"
@@ -252,22 +250,18 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     CHAIN2_ADDR_PADDED=$(printf "%064s" "$CHAIN2_ADDR_CLEAN" | tr ' ' '0')
 
     # Set trusted remote on hub for connected chain (chain_id=2)
-    aptos move run --profile intent-account-chain1 --assume-yes \
+    if aptos move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::native_gmp_endpoint::set_trusted_remote \
-        --args u32:2 "hex:${CHAIN2_ADDR_PADDED}" >> "$LOG_FILE" 2>&1
-
-    if [ $? -eq 0 ]; then
+        --args u32:2 "hex:${CHAIN2_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub now trusts connected chain (chain_id=2)"
     else
         log "   ️ Could not set trusted remote on hub (ignoring)"
     fi
 
     # Also set trusted remote in intent_gmp_hub
-    aptos move run --profile intent-account-chain1 --assume-yes \
+    if aptos move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_trusted_remote \
-        --args u32:2 "hex:${CHAIN2_ADDR_PADDED}" >> "$LOG_FILE" 2>&1
-
-    if [ $? -eq 0 ]; then
+        --args u32:2 "hex:${CHAIN2_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub intent_gmp_hub now trusts connected chain"
     else
         log "   ️ Could not set trusted remote in intent_gmp_hub (ignoring)"

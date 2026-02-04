@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Generic validator structures and CrossChainValidator definition
 //!
 //! This module contains shared validation structures and the CrossChainValidator struct definition

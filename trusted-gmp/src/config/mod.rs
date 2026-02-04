@@ -138,6 +138,7 @@ impl TrustedGmpConfig {
     ///
     /// * `Ok(String)` - The public key (base64 encoded)
     /// * `Err(anyhow::Error)` - Failed to load from environment
+    #[allow(dead_code)]
     pub fn get_public_key(&self) -> anyhow::Result<String> {
         std::env::var(&self.public_key_env)
             .map_err(|_| anyhow::anyhow!(

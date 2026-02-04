@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Outflow-specific monitor helpers (chain-agnostic)
 //!
 //! Handles hub chain intent monitoring for outflow intents.

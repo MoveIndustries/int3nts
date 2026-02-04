@@ -9,6 +9,14 @@
 
 set -e
 
+# Parse flags
+SKIP_BUILD=false
+for arg in "$@"; do
+    case "$arg" in
+        --no-build) SKIP_BUILD=true ;;
+    esac
+done
+
 # Source common utilities
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
@@ -30,22 +38,27 @@ log_and_echo "=========================================================="
 ./testing-infra/ci-e2e/chain-connected-evm/cleanup.sh
 
 log_and_echo ""
-log_and_echo " Step 1: Build bins and pre-pull docker images"
-log_and_echo "========================================"
-pushd "$PROJECT_ROOT/coordinator" > /dev/null
-cargo build --bin coordinator 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ Coordinator: coordinator"
+if [ "$SKIP_BUILD" = "true" ]; then
+    log_and_echo " Step 1: Skipping build (--no-build)"
+    log_and_echo "========================================"
+else
+    log_and_echo " Step 1: Build bins and pre-pull docker images"
+    log_and_echo "========================================"
+    pushd "$PROJECT_ROOT/coordinator" > /dev/null
+    cargo build --bin coordinator 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ Coordinator: coordinator"
 
-pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
-cargo build --bin trusted-gmp --bin generate_keys --bin get_approver_eth_address 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys, get_approver_eth_address"
+    pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
+    cargo build --bin trusted-gmp --bin generate_keys --bin get_approver_eth_address 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys, get_approver_eth_address"
 
-pushd "$PROJECT_ROOT/solver" > /dev/null
-cargo build --bin solver --bin sign_intent 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ Solver: solver, sign_intent"
+    pushd "$PROJECT_ROOT/solver" > /dev/null
+    cargo build --bin solver --bin sign_intent 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ Solver: solver, sign_intent"
+fi
 
 log_and_echo ""
 docker pull "$APTOS_DOCKER_IMAGE"

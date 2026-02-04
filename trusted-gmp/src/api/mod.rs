@@ -26,6 +26,7 @@ mod outflow_mvm;
 mod outflow_svm;
 
 // Re-export ApiServer for convenience
+#[allow(unused_imports)]
 pub use generic::ApiServer;
 // Re-export ApiResponse for testing
 #[allow(unused_imports)]

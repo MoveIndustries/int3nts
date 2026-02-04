@@ -4,6 +4,14 @@
 
 set -e
 
+# Parse flags
+SKIP_BUILD=false
+for arg in "$@"; do
+    case "$arg" in
+        --no-build) SKIP_BUILD=true ;;
+    esac
+done
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
 source "$SCRIPT_DIR/../util_svm.sh"
@@ -23,27 +31,32 @@ log_and_echo "=========================================================="
 ./testing-infra/ci-e2e/chain-hub/stop-chain.sh || true
 
 log_and_echo ""
-log_and_echo " Step 1: Build bins and pre-pull docker images"
-log_and_echo "========================================"
-pushd "$PROJECT_ROOT/coordinator" > /dev/null
-cargo build --bin coordinator 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ Coordinator: coordinator"
+if [ "$SKIP_BUILD" = "true" ]; then
+    log_and_echo " Step 1: Skipping build (--no-build)"
+    log_and_echo "========================================"
+else
+    log_and_echo " Step 1: Build bins and pre-pull docker images"
+    log_and_echo "========================================"
+    pushd "$PROJECT_ROOT/coordinator" > /dev/null
+    cargo build --bin coordinator 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ Coordinator: coordinator"
 
-pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
-cargo build --bin trusted-gmp --bin generate_keys 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys"
+    pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
+    cargo build --bin trusted-gmp --bin generate_keys 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys"
 
-pushd "$PROJECT_ROOT/solver" > /dev/null
-cargo build --bin solver 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ Solver: solver"
+    pushd "$PROJECT_ROOT/solver" > /dev/null
+    cargo build --bin solver 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ Solver: solver"
 
-pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
-cargo build -p intent_escrow_cli 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ SVM: intent_escrow_cli"
+    pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
+    cargo build -p intent_escrow_cli 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ SVM: intent_escrow_cli"
+fi
 
 docker pull "$APTOS_DOCKER_IMAGE"
 

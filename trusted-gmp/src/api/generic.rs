@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Generic API structures and handlers
 //!
 //! This module contains shared structures, helper functions, and generic API handlers

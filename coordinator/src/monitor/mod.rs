@@ -28,6 +28,7 @@ pub use generic::{
 };
 
 // Re-export utility functions (used in tests and API handlers)
+#[allow(unused_imports)] // Used by integration tests (monitor_tests.rs)
 pub use generic::normalize_intent_id;
 
 // Re-export poll_hub_events for testing

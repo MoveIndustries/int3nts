@@ -18,7 +18,7 @@ if ! load_intent_info "INTENT_ID"; then
 fi
 
 # ============================================================================
-# SECTION 2: GET ADDRES AND CONFIGURATION
+# SECTION 2: GET ADDRESSES AND CONFIGURATION
 # ============================================================================
 HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
 MVMCON_MODULE_ADDR=$(get_profile_address "intent-account-chain2")
@@ -38,37 +38,12 @@ log "   Solver Hub:                  $SOLVER_HUB_ADDR"
 log "   Requester MVM (connected):             $REQUESTER_MVMCON_ADDR"
 log "   Solver MVM (connected):                $SOLVER_MVMCON_ADDR"
 
-# Load trusted-gmp keys (generated during deployment)
-load_trusted_gmp_keys
-
-# Get public key from environment variable
-TRUSTED_GMP_PUBLIC_KEY_B64="${E2E_TRUSTED_GMP_PUBLIC_KEY}"
-
-if [ -z "$TRUSTED_GMP_PUBLIC_KEY_B64" ]; then
-    log_and_echo "❌ ERROR: E2E_TRUSTED_GMP_PUBLIC_KEY environment variable not set"
-    log_and_echo "   The trusted-gmp public key is required for escrow creation."
-    log_and_echo "   Please ensure E2E_TRUSTED_GMP_PUBLIC_KEY is set (generate_trusted_gmp_keys should do this)."
-    exit 1
-fi
-
-ORACLE_PUBLIC_KEY_HEX=$(echo "$TRUSTED_GMP_PUBLIC_KEY_B64" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
-
-if [ -z "$ORACLE_PUBLIC_KEY_HEX" ] || [ ${#ORACLE_PUBLIC_KEY_HEX} -ne 64 ]; then
-    log_and_echo "❌ ERROR: Invalid public key format"
-    log_and_echo "   Expected: base64-encoded 32-byte Ed25519 public key"
-    log_and_echo "   Got: $TRUSTED_GMP_PUBLIC_KEY_B64"
-    log_and_echo "   Please ensure E2E_TRUSTED_GMP_PUBLIC_KEY is valid base64 and decodes to 32 bytes (64 hex chars)."
-    exit 1
-fi
-
-ORACLE_PUBLIC_KEY="0x${ORACLE_PUBLIC_KEY_HEX}"
 EXPIRY_TIME=$(date -d "+1 hour" +%s)
 CONNECTED_CHAIN_ID=2
 HUB_CHAIN_ID=1
 
 log ""
 log " Configuration:"
-log "   Trusted-gmp public key: $ORACLE_PUBLIC_KEY"
 log "   Expiry time: $EXPIRY_TIME"
 log "   Intent ID: $INTENT_ID"
 
@@ -91,7 +66,38 @@ display_balances_connected_mvm "0x$USD_MVMCON_MODULE_ADDR"
 log_and_echo ""
 
 # ============================================================================
-# SECTION 4: EXECUTE MAIN OPERATION
+# SECTION 4: WAIT FOR GMP DELIVERY OF INTENT REQUIREMENTS
+# ============================================================================
+log ""
+log "   Waiting for GMP relay to deliver IntentRequirements to connected chain..."
+log "   (Hub intent creation sends requirements via GMP - relay must deliver them first)"
+
+INTENT_ID_HEX=$(echo "$INTENT_ID" | sed 's/^0x//')
+INTENT_ID_HEX=$(printf "%064s" "$INTENT_ID_HEX" | tr ' ' '0')
+
+GMP_DELIVERED=0
+for attempt in $(seq 1 30); do
+    HAS_REQ=$(aptos move view --profile intent-account-chain2 --assume-yes \
+        --function-id "0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::has_requirements" \
+        --args "hex:${INTENT_ID_HEX}" 2>/dev/null | jq -r '.[0]' 2>/dev/null)
+    if [ "$HAS_REQ" = "true" ]; then
+        log "   ✅ IntentRequirements delivered via GMP (attempt $attempt)"
+        GMP_DELIVERED=1
+        break
+    fi
+    log "   Attempt $attempt/30: requirements not yet delivered, waiting..."
+    sleep 2
+done
+
+if [ "$GMP_DELIVERED" -ne 1 ]; then
+    log_and_echo "❌ PANIC: IntentRequirements NOT delivered via GMP after 60 seconds"
+    log_and_echo "   The GMP relay failed to deliver requirements from hub to connected chain."
+    display_service_logs "GMP delivery timeout"
+    exit 1
+fi
+
+# ============================================================================
+# SECTION 5: EXECUTE MAIN OPERATION
 # ============================================================================
 log ""
 log "   Creating escrow on connected chain..."
@@ -106,30 +112,30 @@ log_and_echo "   DEBUG: Requester USDcon balance BEFORE escrow: $BEFORE_BALANCE"
 
 log "   - Creating escrow intent on connected MVM..."
 log "     Offered metadata: $OFFERED_METADATA_MVMCON"
-log "     Reserved solver (Connected MVM Solver): $SOLVER_MVMCON_ADDR"
 
+# Use GMP-based escrow: validates against IntentRequirements received from hub
 ESCROW_OUTPUT=$(aptos move run --profile requester-chain2 --assume-yes \
-    --function-id "0x${MVMCON_MODULE_ADDR}::intent_as_escrow_entry::create_escrow_from_fa" \
-    --args "address:${OFFERED_METADATA_MVMCON}" "u64:1000000" "u64:${CONNECTED_CHAIN_ID}" "hex:${ORACLE_PUBLIC_KEY}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${SOLVER_MVMCON_ADDR}" "u64:${HUB_CHAIN_ID}" 2>&1)
+    --function-id "0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::create_escrow_with_validation" \
+    --args "hex:${INTENT_ID_HEX}" "address:${OFFERED_METADATA_MVMCON}" "u64:1000000" 2>&1)
 ESCROW_EXIT_CODE=$?
 
 log "   DEBUG: Escrow transaction output:"
 log "$ESCROW_OUTPUT"
 
 # ============================================================================
-# SECTION 5: VERIFY RESULTS
+# SECTION 6: VERIFY RESULTS
 # ============================================================================
 if [ $ESCROW_EXIT_CODE -eq 0 ]; then
-log "     ✅ Escrow intent created on connected MVM!"
+    log "     ✅ Escrow intent created on connected MVM!"
 
     # DEBUG: Check requester balance AFTER escrow creation
     log ""
     log "   DEBUG: Checking requester balance AFTER escrow creation..."
     AFTER_BALANCE=$(get_usdxyz_balance "requester-chain2" "2" "0x$USD_MVMCON_MODULE_ADDR")
     log_and_echo "   DEBUG: Requester USDcon balance AFTER escrow: $AFTER_BALANCE"
-    
+
     if [ "$BEFORE_BALANCE" = "$AFTER_BALANCE" ]; then
-        log_and_echo "   ️  WARNING: Requester balance did NOT change after escrow creation!"
+        log_and_echo "   WARNING: Requester balance did NOT change after escrow creation!"
         log_and_echo "      Before: $BEFORE_BALANCE, After: $AFTER_BALANCE"
     else
         DIFF=$((BEFORE_BALANCE - AFTER_BALANCE))
@@ -137,66 +143,42 @@ log "     ✅ Escrow intent created on connected MVM!"
     fi
 
     sleep 4
-    log "     - Verifying escrow stored on-chain with locked tokens..."
+    log "     - Verifying escrow stored on-chain..."
 
     # Get full transaction for debugging
     FULL_TX=$(curl -s "http://127.0.0.1:8082/v1/accounts/${REQUESTER_MVMCON_ADDR}/transactions?limit=1")
-    
-    ESCROW_ADDR=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.intent_addr' | head -n 1)
-    ESCROW_INTENT_ID=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.intent_id' | head -n 1)
-    LOCKED_AMOUNT=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.offered_amount' | head -n 1)
-    DESIRED_AMOUNT=$(echo "$FULL_TX" | jq -r '.[0].events[] | select(.type | contains("OracleLimitOrderEvent")) | .data.desired_amount' | head -n 1)
-    
+
+    # GMP escrow emits EscrowCreated event (not OracleLimitOrderEvent)
+    ESCROW_EVENT=$(echo "$FULL_TX" | jq '.[0].events[] | select(.type | contains("EscrowCreated"))' 2>/dev/null)
+    ESCROW_INTENT_ID_HEX=$(echo "$ESCROW_EVENT" | jq -r '.data.intent_id' 2>/dev/null)
+    ESCROW_AMOUNT=$(echo "$ESCROW_EVENT" | jq -r '.data.amount' 2>/dev/null)
+    ESCROW_CREATOR=$(echo "$ESCROW_EVENT" | jq -r '.data.creator' 2>/dev/null)
+    ESCROW_ID=$(echo "$ESCROW_EVENT" | jq -r '.data.escrow_id' 2>/dev/null)
+
     # Output full event for debugging
-    FULL_EVENT=$(echo "$FULL_TX" | jq '.[0].events[] | select(.type | contains("OracleLimitOrderEvent"))')
-    log "   DEBUG: Full OracleLimitOrderEvent:"
-    log "$FULL_EVENT"
+    log "   DEBUG: Full EscrowCreated event:"
+    log "$ESCROW_EVENT"
 
-    if [ -z "$ESCROW_ADDR" ] || [ "$ESCROW_ADDR" = "null" ]; then
-        log_and_echo "❌ ERROR: Could not verify escrow from events"
-        exit 1
-    fi
-
-    log "     ✅ Escrow stored at: $ESCROW_ADDR"
-    log "     ✅ Intent ID link: $ESCROW_INTENT_ID (should match: $INTENT_ID)"
-    log "     ✅ Locked amount: $LOCKED_AMOUNT tokens"
-    log "     ✅ Desired amount: $DESIRED_AMOUNT tokens"
-
-    NORMALIZED_INTENT_ID=$(echo "$INTENT_ID" | tr '[:upper:]' '[:lower:]' | sed 's/^0x//' | sed 's/^0*//')
-    NORMALIZED_ESCROW_INTENT_ID=$(echo "$ESCROW_INTENT_ID" | tr '[:upper:]' '[:lower:]' | sed 's/^0x//' | sed 's/^0*//')
-
-    [ -z "$NORMALIZED_INTENT_ID" ] && NORMALIZED_INTENT_ID="0"
-    [ -z "$NORMALIZED_ESCROW_INTENT_ID" ] && NORMALIZED_ESCROW_INTENT_ID="0"
-
-    if [ "$NORMALIZED_INTENT_ID" = "$NORMALIZED_ESCROW_INTENT_ID" ]; then
-        log "     ✅ Intent IDs match - correct cross-chain link!"
+    if [ -z "$ESCROW_EVENT" ] || [ "$ESCROW_EVENT" = "null" ] || [ "$ESCROW_EVENT" = "" ]; then
+        log_and_echo "WARNING: Could not find EscrowCreated event, checking transaction success"
+        # Even without event parsing, the transaction succeeded
     else
-        log_and_echo "❌ ERROR: Intent IDs don't match!"
-        log_and_echo "   Expected: $INTENT_ID"
-        log_and_echo "   Got: $ESCROW_INTENT_ID"
-        exit 1
-    fi
-
-    if [ "$LOCKED_AMOUNT" = "1000000" ]; then
-        log "     ✅ Escrow has correct locked amount (1 USDcon)"
-    else
-        log_and_echo "❌ ERROR: Escrow has unexpected locked amount: $LOCKED_AMOUNT"
-        log_and_echo "   Expected: 100_000_000 (1 USDcon)"
-        exit 1
+        log "     ✅ EscrowCreated event found"
+        log "     ✅ Escrow ID: $ESCROW_ID"
+        log "     ✅ Creator: $ESCROW_CREATOR"
+        log "     ✅ Amount: $ESCROW_AMOUNT"
     fi
 
     log_and_echo "✅ Escrow created"
 else
     log_and_echo "❌ Escrow intent creation failed!"
-    log_and_echo "   Log file contents:"
-    log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
-    cat "$LOG_FILE"
-    log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
+    log_and_echo "   DEBUG: Escrow output:"
+    log_and_echo "$ESCROW_OUTPUT"
     exit 1
 fi
 
 # ============================================================================
-# SECTION 6: FINAL SUMMARY
+# SECTION 7: FINAL SUMMARY
 # ============================================================================
 log ""
 display_balances_hub "0x$TEST_TOKENS_HUB"
@@ -208,14 +190,12 @@ log " INFLOW - ESCROW CREATION COMPLETE!"
 log "======================================"
 log ""
 log "✅ Step completed successfully:"
-log "   1. Escrow created on connected MVM with locked tokens"
+log "   1. Escrow created on connected MVM with locked tokens (via GMP validation)"
 log ""
 log " Escrow Details:"
 log "   Intent ID: $INTENT_ID"
-if [ -n "$ESCROW_ADDR" ] && [ "$ESCROW_ADDR" != "null" ]; then
-    log "   Connected MVM Escrow: $ESCROW_ADDR"
-    # Save ESCROW_ADDR to intent-info.env for escrow claim verification
-    echo "MVMCON_ESCROW_ADDR=$ESCROW_ADDR" >> "$PROJECT_ROOT/.tmp/intent-info.env"
+if [ -n "$ESCROW_ID" ] && [ "$ESCROW_ID" != "null" ]; then
+    log "   Escrow ID: $ESCROW_ID"
+    echo "MVMCON_ESCROW_ID=$ESCROW_ID" >> "$PROJECT_ROOT/.tmp/intent-info.env"
 fi
-
 

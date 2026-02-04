@@ -32,6 +32,7 @@ pub struct EscrowAccount {
 
 #[derive(Debug, Clone)]
 pub struct EscrowWithPubkey {
+    #[allow(dead_code)]
     pub pubkey: Pubkey,
     pub escrow: EscrowAccount,
 }
@@ -61,7 +62,9 @@ struct JsonRpcError {
 
 #[derive(Debug, Deserialize)]
 struct ProgramAccountResult {
+    #[allow(dead_code)]
     pubkey: String,
+    #[allow(dead_code)]
     account: RpcAccount,
 }
 
@@ -163,6 +166,7 @@ impl SvmClient {
         Ok(result.map(|account| account.escrow))
     }
 
+    #[allow(dead_code)]
     pub async fn get_all_escrows(&self) -> Result<Vec<EscrowWithPubkey>> {
         let params = serde_json::json!([
             self.program_id.to_string(),
@@ -329,6 +333,7 @@ impl SvmClient {
     }
 }
 
+#[allow(dead_code)]
 pub fn pubkey_to_hex(pubkey: &Pubkey) -> String {
     format!("0x{}", hex::encode(pubkey.to_bytes()))
 }
