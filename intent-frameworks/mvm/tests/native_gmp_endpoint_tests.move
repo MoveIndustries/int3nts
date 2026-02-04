@@ -2,15 +2,20 @@
 module mvmt_intent::native_gmp_endpoint_tests {
     use std::vector;
     use aptos_framework::account;
+    use aptos_framework::timestamp;
     use mvmt_intent::native_gmp_endpoint;
     use mvmt_intent::gmp_sender;
     use mvmt_intent::gmp_common;
     use mvmt_intent::intent_gmp_hub;
+    use mvmt_intent::outflow_validator_impl;
+    use mvmt_intent::inflow_escrow_gmp;
+    use mvmt_intent::gmp_intent_state;
 
     // Test addresses
     const ADMIN_ADDR: address = @0x123;
     const RELAY_ADDR: address = @0x456;
     const SOLANA_CHAIN_ID: u32 = 30168;
+    const HUB_CHAIN_ID: u32 = 1;
 
     // ============================================================================
     // HELPER FUNCTIONS
@@ -18,15 +23,26 @@ module mvmt_intent::native_gmp_endpoint_tests {
 
     fun setup_test(): signer {
         let admin = account::create_account_for_test(ADMIN_ADDR);
+        // Initialize timestamp (needed by lz_send for outbox message timestamps)
+        let framework = account::create_account_for_test(@aptos_framework);
+        timestamp::set_time_has_started_for_testing(&framework);
         // Initialize sender (for lz_send) and receiver (for deliver_message) separately
         gmp_sender::initialize(&admin);
         native_gmp_endpoint::initialize(&admin);
         intent_gmp_hub::initialize(&admin);
+        gmp_intent_state::init_for_test(&admin);
 
         // Set trusted remote for hub (needed for receive_escrow_confirmation validation)
         intent_gmp_hub::set_trusted_remote(&admin, SOLANA_CHAIN_ID, create_test_trusted_remote());
 
         admin
+    }
+
+    /// Register the test intent (intent_id = 0x11 * 32) in gmp_intent_state
+    /// so that EscrowConfirmation delivery can call confirm_escrow.
+    fun register_test_escrow_intent() {
+        let intent_id = create_test_32bytes(0x11);
+        gmp_intent_state::register_inflow_intent(intent_id, @0x0, SOLANA_CHAIN_ID);
     }
 
     fun create_test_trusted_remote(): vector<u8> {
@@ -199,6 +215,7 @@ module mvmt_intent::native_gmp_endpoint_tests {
     #[test]
     fun test_deliver_message_calls_receiver() {
         let admin = setup_test();
+        register_test_escrow_intent();
 
         // Setup trusted remote
         let trusted_addr = create_test_trusted_remote();
@@ -237,6 +254,7 @@ module mvmt_intent::native_gmp_endpoint_tests {
     #[expected_failure(abort_code = 2)] // ENONCE_ALREADY_USED
     fun test_deliver_message_rejects_replay() {
         let admin = setup_test();
+        register_test_escrow_intent();
 
         // Setup trusted remote
         let trusted_addr = create_test_trusted_remote();
@@ -306,6 +324,7 @@ module mvmt_intent::native_gmp_endpoint_tests {
     #[test]
     fun test_deliver_message_authorized_relay() {
         let admin = setup_test();
+        register_test_escrow_intent();
         let relay = account::create_account_for_test(RELAY_ADDR);
 
         // Add relay as authorized
@@ -424,6 +443,7 @@ module mvmt_intent::native_gmp_endpoint_tests {
     #[expected_failure(abort_code = 2)] // ENONCE_ALREADY_USED
     fun test_deliver_message_rejects_lower_nonce() {
         let admin = setup_test();
+        register_test_escrow_intent();
 
         let trusted_addr = create_test_trusted_remote();
         native_gmp_endpoint::set_trusted_remote(
@@ -450,6 +470,119 @@ module mvmt_intent::native_gmp_endpoint_tests {
             trusted_addr,
             payload,
             3, // lower than 5 - should fail
+        );
+    }
+
+    // ============================================================================
+    // CONNECTED CHAIN ROUTING INTEGRATION TESTS
+    // ============================================================================
+
+    /// Setup for connected chain tests: initializes ALL modules that route_message
+    /// dispatches to, simulating a fully configured connected chain deployment.
+    fun setup_test_connected_chain(): signer {
+        let admin = account::create_account_for_test(ADMIN_ADDR);
+        let framework = account::create_account_for_test(@aptos_framework);
+        timestamp::set_time_has_started_for_testing(&framework);
+
+        // Core GMP infrastructure
+        gmp_sender::initialize(&admin);
+        native_gmp_endpoint::initialize(&admin);
+
+        // Hub module (always initialized on both hub and connected chains)
+        intent_gmp_hub::initialize(&admin);
+
+        // Connected chain modules (the ones that receive IntentRequirements)
+        let trusted_hub_addr = create_test_trusted_remote();
+        outflow_validator_impl::initialize(&admin, HUB_CHAIN_ID, copy trusted_hub_addr);
+        inflow_escrow_gmp::initialize(&admin, HUB_CHAIN_ID, copy trusted_hub_addr);
+
+        // Configure native_gmp_endpoint to trust the hub chain
+        native_gmp_endpoint::set_trusted_remote(&admin, HUB_CHAIN_ID, trusted_hub_addr);
+
+        admin
+    }
+
+    fun create_test_32bytes(fill: u8): vector<u8> {
+        let v = vector::empty<u8>();
+        let i = 0;
+        while (i < 32) {
+            vector::push_back(&mut v, fill);
+            i = i + 1;
+        };
+        v
+    }
+
+    fun create_test_intent_requirements_payload(): vector<u8> {
+        let msg = gmp_common::new_intent_requirements(
+            create_test_32bytes(0xAA), // intent_id
+            create_test_32bytes(0xBB), // requester_addr
+            1000000,                   // amount_required
+            create_test_32bytes(0xCC), // token_addr
+            create_test_32bytes(0xDD), // solver_addr
+            999999,                    // expiry
+        );
+        gmp_common::encode_intent_requirements(&msg)
+    }
+
+    // 22. Test: IntentRequirements delivery stores requirements in both handlers
+    // Verifies the full connected chain delivery flow:
+    //   deliver_message → route_message → outflow_validator_impl + inflow_escrow_gmp
+    // Then asserts has_requirements() returns true on both stores.
+    // Why: This integration test catches missing module initialization or routing errors
+    // that unit tests on individual modules cannot detect.
+    #[test]
+    fun test_deliver_intent_requirements_stores_in_both_handlers() {
+        let admin = setup_test_connected_chain();
+
+        let payload = create_test_intent_requirements_payload();
+        let trusted_addr = create_test_trusted_remote();
+        let intent_id = create_test_32bytes(0xAA);
+
+        // Deliver IntentRequirements through native_gmp_endpoint (simulating relay)
+        native_gmp_endpoint::deliver_message(
+            &admin,
+            HUB_CHAIN_ID,
+            trusted_addr,
+            payload,
+            1, // nonce
+        );
+
+        // Verify requirements stored in BOTH connected chain handlers
+        assert!(outflow_validator_impl::has_requirements(copy intent_id), 1);
+        assert!(inflow_escrow_gmp::has_requirements(intent_id), 2);
+    }
+
+    // 23. Test: IntentRequirements delivery aborts if outflow_validator_impl not initialized
+    // Verifies that deliver_message aborts when a required handler module is not initialized.
+    // Why: All modules in the routing path must be initialized before message delivery.
+    // A missing config must cause a hard failure, not silent data loss.
+    #[test]
+    #[expected_failure(abort_code = 0xa, location = mvmt_intent::outflow_validator_impl)]
+    fun test_deliver_intent_requirements_fails_without_outflow_init() {
+        let admin = account::create_account_for_test(ADMIN_ADDR);
+        let framework = account::create_account_for_test(@aptos_framework);
+        timestamp::set_time_has_started_for_testing(&framework);
+
+        // Initialize everything EXCEPT outflow_validator_impl
+        gmp_sender::initialize(&admin);
+        native_gmp_endpoint::initialize(&admin);
+        intent_gmp_hub::initialize(&admin);
+
+        let trusted_hub_addr = create_test_trusted_remote();
+        // Skip: outflow_validator_impl::initialize (intentionally omitted)
+        inflow_escrow_gmp::initialize(&admin, HUB_CHAIN_ID, copy trusted_hub_addr);
+        native_gmp_endpoint::set_trusted_remote(&admin, HUB_CHAIN_ID, trusted_hub_addr);
+
+        let payload = create_test_intent_requirements_payload();
+        let trusted_addr = create_test_trusted_remote();
+
+        // This should abort with E_CONFIG_NOT_INITIALIZED (0xa) from outflow_validator_impl
+        native_gmp_endpoint::deliver_message(
+            &admin,
+            HUB_CHAIN_ID,
+            trusted_addr,
+            payload,
+            1,
         );
     }
 }

@@ -21,9 +21,12 @@
 #[test_only]
 module mvmt_intent::intent_gmp_tests {
     use std::vector;
+    use aptos_framework::account;
+    use aptos_framework::timestamp;
     use mvmt_intent::intent_gmp_hub;
     use mvmt_intent::gmp_common;
     use mvmt_intent::gmp_sender;
+    use mvmt_intent::gmp_intent_state;
 
     // ============================================================================
     // TEST CONSTANTS
@@ -105,6 +108,10 @@ module mvmt_intent::intent_gmp_tests {
     // Verifies that the function sends a properly encoded IntentRequirements message via GMP.
     #[test(admin = @mvmt_intent)]
     fun test_send_intent_requirements_sends_message(admin: &signer) {
+        // Initialize timestamp for lz_send
+        let framework = account::create_account_for_test(@aptos_framework);
+        timestamp::set_time_has_started_for_testing(&framework);
+
         // Initialize configs
         intent_gmp_hub::initialize(admin);
         gmp_sender::initialize(admin);
@@ -190,6 +197,10 @@ module mvmt_intent::intent_gmp_tests {
     // Verifies that the function sends a properly encoded FulfillmentProof message via GMP.
     #[test(admin = @mvmt_intent)]
     fun test_send_fulfillment_proof_sends_message(admin: &signer) {
+        // Initialize timestamp for lz_send
+        let framework = account::create_account_for_test(@aptos_framework);
+        timestamp::set_time_has_started_for_testing(&framework);
+
         // Initialize configs
         intent_gmp_hub::initialize(admin);
         gmp_sender::initialize(admin);
@@ -265,6 +276,10 @@ module mvmt_intent::intent_gmp_tests {
     fun test_receive_escrow_confirmation_decodes_payload(admin: &signer) {
         // Initialize config
         intent_gmp_hub::initialize(admin);
+        gmp_intent_state::init_for_test(admin);
+
+        // Register the intent so confirm_escrow can find it
+        gmp_intent_state::register_inflow_intent(test_intent_id(), @0x0, DUMMY_CHAIN_ID);
 
         // Set trusted remote
         let src_address = test_src_address();
@@ -295,7 +310,44 @@ module mvmt_intent::intent_gmp_tests {
         assert!(*gmp_common::escrow_confirmation_creator_addr(&decoded) == test_creator_addr(), 5);
     }
 
-    // 6. Test: receive_escrow_confirmation rejects untrusted source
+    // 6. Test: receive_escrow_confirmation updates gmp_intent_state
+    // Verifies that escrow_confirmed transitions from false to true after receiving EscrowConfirmation.
+    // Why: Without this state update, the solver's fulfillment call aborts with E_ESCROW_NOT_CONFIRMED.
+    #[test(admin = @mvmt_intent)]
+    fun test_receive_escrow_confirmation_updates_state(admin: &signer) {
+        intent_gmp_hub::initialize(admin);
+        gmp_intent_state::init_for_test(admin);
+
+        let intent_id = test_intent_id();
+        gmp_intent_state::register_inflow_intent(copy intent_id, @0x0, DUMMY_CHAIN_ID);
+
+        // Before: escrow is NOT confirmed
+        assert!(!gmp_intent_state::is_escrow_confirmed(copy intent_id), 1);
+
+        // Set trusted remote and receive EscrowConfirmation
+        let src_address = test_src_address();
+        intent_gmp_hub::set_trusted_remote(admin, DUMMY_CHAIN_ID, src_address);
+
+        let msg = gmp_common::new_escrow_confirmation(
+            copy intent_id,
+            test_escrow_id(),
+            DUMMY_AMOUNT,
+            test_token_addr(),
+            test_creator_addr(),
+        );
+        let payload = gmp_common::encode_escrow_confirmation(&msg);
+
+        intent_gmp_hub::receive_escrow_confirmation(
+            DUMMY_CHAIN_ID,
+            src_address,
+            payload,
+        );
+
+        // After: escrow IS confirmed
+        assert!(gmp_intent_state::is_escrow_confirmed(intent_id), 2);
+    }
+
+    // 7. Test: receive_escrow_confirmation rejects untrusted source
     // Verifies that messages from untrusted sources are rejected.
     #[test(admin = @mvmt_intent)]
     #[expected_failure(abort_code = 0x50003, location = mvmt_intent::intent_gmp_hub)]
@@ -328,7 +380,7 @@ module mvmt_intent::intent_gmp_tests {
     // RECEIVE FULFILLMENT PROOF TESTS
     // ============================================================================
 
-    // 7. Test: receive_fulfillment_proof decodes valid payload from trusted source
+    // 8. Test: receive_fulfillment_proof decodes valid payload from trusted source
     // Verifies that the function correctly decodes a FulfillmentProof message with source validation.
     #[test(admin = @mvmt_intent)]
     fun test_receive_fulfillment_proof_decodes_payload(admin: &signer) {
@@ -362,7 +414,7 @@ module mvmt_intent::intent_gmp_tests {
         assert!(gmp_common::fulfillment_proof_timestamp(&decoded) == DUMMY_TIMESTAMP, 4);
     }
 
-    // 8. Test: receive_fulfillment_proof rejects untrusted source
+    // 9. Test: receive_fulfillment_proof rejects untrusted source
     // Verifies that messages from untrusted sources are rejected.
     #[test(admin = @mvmt_intent)]
     #[expected_failure(abort_code = 0x50003, location = mvmt_intent::intent_gmp_hub)]
@@ -394,7 +446,7 @@ module mvmt_intent::intent_gmp_tests {
     // HELPER FUNCTION TESTS
     // ============================================================================
 
-    // 9. Test: bytes_to_bytes32 pads short input
+    // 10. Test: bytes_to_bytes32 pads short input
     // Verifies that inputs shorter than 32 bytes are left-padded with zeros.
     #[test]
     fun test_bytes_to_bytes32_pads_short_input() {
@@ -417,7 +469,7 @@ module mvmt_intent::intent_gmp_tests {
         assert!(*vector::borrow(&result, 31) == 0xCD, 4);
     }
 
-    // 10. Test: bytes_to_bytes32 truncates long input
+    // 11. Test: bytes_to_bytes32 truncates long input
     // Verifies that inputs longer than 32 bytes are truncated to first 32.
     #[test]
     fun test_bytes_to_bytes32_truncates_long_input() {
@@ -440,7 +492,7 @@ module mvmt_intent::intent_gmp_tests {
         };
     }
 
-    // 11. Test: bytes_to_bytes32 returns exact 32 bytes unchanged
+    // 12. Test: bytes_to_bytes32 returns exact 32 bytes unchanged
     // Verifies that 32-byte inputs are returned unchanged.
     #[test]
     fun test_bytes_to_bytes32_exact_length() {
@@ -452,7 +504,7 @@ module mvmt_intent::intent_gmp_tests {
         assert!(result == test_intent_id(), 2);
     }
 
-    // 12. Test: bytes_to_bytes32 handles empty input
+    // 13. Test: bytes_to_bytes32 handles empty input
     // Verifies that empty input results in 32 zero bytes.
     #[test]
     fun test_bytes_to_bytes32_empty_input() {
@@ -472,10 +524,14 @@ module mvmt_intent::intent_gmp_tests {
     // INTEGRATION TESTS
     // ============================================================================
 
-    // 13. Test: Full send-receive roundtrip for IntentRequirements
+    // 14. Test: Full send-receive roundtrip for IntentRequirements
     // Simulates the full flow: hub sends requirements via GMP, connected chain receives.
     #[test(admin = @mvmt_intent)]
     fun test_intent_requirements_full_flow(admin: &signer) {
+        // Initialize timestamp for lz_send
+        let framework = account::create_account_for_test(@aptos_framework);
+        timestamp::set_time_has_started_for_testing(&framework);
+
         // Initialize configs
         intent_gmp_hub::initialize(admin);
         gmp_sender::initialize(admin);
@@ -521,10 +577,14 @@ module mvmt_intent::intent_gmp_tests {
         assert!(gmp_common::intent_requirements_expiry(&decoded) == DUMMY_EXPIRY, 6);
     }
 
-    // 14. Test: Full send-receive roundtrip for FulfillmentProof
+    // 15. Test: Full send-receive roundtrip for FulfillmentProof
     // Simulates the full flow: hub sends proof via GMP, connected chain receives and decodes.
     #[test(admin = @mvmt_intent)]
     fun test_fulfillment_proof_full_flow(admin: &signer) {
+        // Initialize timestamp for lz_send
+        let framework = account::create_account_for_test(@aptos_framework);
+        timestamp::set_time_has_started_for_testing(&framework);
+
         // Initialize configs
         intent_gmp_hub::initialize(admin);
         gmp_sender::initialize(admin);

@@ -30,10 +30,10 @@ SVM: `solver/tests/svm/chain_client_tests.rs`
 | --- | ------ | ----- | ----- | ----- |
 | 1 | client_new | ✅ | ✅ | ✅ |
 | 2 | client_new_rejects_invalid | N/A | N/A | ✅ |
-| 3 | get_escrow_events_success | ✅ | ✅ | ⚠️ |
-| 4 | get_escrow_events_empty | ⚠️ | ✅ | ⚠️ |
-| 5 | get_escrow_events_error | ⚠️ | ✅ | ⚠️ |
-| 6 | escrow_event_deserialization | ✅ | N/A | N/A |
+| 3 | get_escrow_events_success | N/A | ✅ | ⚠️ |
+| 4 | get_escrow_events_empty | N/A | ✅ | ⚠️ |
+| 5 | get_escrow_events_error | N/A | ✅ | ⚠️ |
+| 6 | escrow_event_deserialization | N/A | N/A | N/A |
 | 7 | fulfillment_id_formatting | ✅ | ✅ | ⚠️ |
 | 8 | fulfillment_signature_encoding | N/A | ✅ | N/A |
 | 9 | fulfillment_command_building | ✅ | ✅ | ⚠️ |
@@ -41,3 +41,8 @@ SVM: `solver/tests/svm/chain_client_tests.rs`
 | 11 | fulfillment_error_handling | ⚠️ | ✅ | ✅ |
 | 12 | pubkey_from_hex_with_leading_zeros | N/A | N/A | ✅ |
 | 13 | pubkey_from_hex_no_leading_zeros | N/A | N/A | ✅ |
+| 14 | is_escrow_fulfilled_success | ✅ | ⚠️ | ⚠️ |
+| 15 | is_escrow_fulfilled_false | ✅ | ⚠️ | ⚠️ |
+| 16 | is_escrow_fulfilled_error | ✅ | ⚠️ | ⚠️ |
+| 17 | release_gmp_escrow_id_formatting | ✅ | ⚠️ | ⚠️ |
+| 18 | release_gmp_escrow_command_building | ✅ | ⚠️ | ⚠️ |

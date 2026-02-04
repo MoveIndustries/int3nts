@@ -82,24 +82,17 @@ module mvmt_intent::fa_intent_outflow {
         src_address: vector<u8>,
         payload: vector<u8>,
     ): bool {
-        // 1. Validate and decode the FulfillmentProof via intent_gmp_hub
+        // 1. Validate, decode, and record the FulfillmentProof via intent_gmp_hub.
+        //    intent_gmp_hub::receive_fulfillment_proof handles state recording internally.
         let proof = intent_gmp_hub::receive_fulfillment_proof(
             src_chain_id,
             src_address,
             payload,
         );
 
-        // 2. Extract intent_id from proof
+        // 2. Return whether the proof was recorded in state
         let intent_id_bytes = *gmp_common::fulfillment_proof_intent_id(&proof);
-
-        // 3. Check if intent exists
-        if (!gmp_intent_state::intent_exists(intent_id_bytes)) {
-            // Intent not found - might have been processed already
-            return false
-        };
-
-        // 4. Record the fulfillment proof (idempotent)
-        gmp_intent_state::record_fulfillment_proof(intent_id_bytes)
+        gmp_intent_state::is_fulfillment_proof_received(intent_id_bytes)
     }
 
     /// Entry function for solver to fulfill an outflow intent.

@@ -249,6 +249,7 @@ module mvmt_intent::gmp_intent_state {
         true
     }
 
+    #[view]
     /// Check if escrow is confirmed for an intent.
     ///
     /// # Arguments

@@ -77,9 +77,15 @@ INTENT_ID_HEX=$(printf "%064s" "$INTENT_ID_HEX" | tr ' ' '0')
 
 GMP_DELIVERED=0
 for attempt in $(seq 1 30); do
-    HAS_REQ=$(aptos move view --profile intent-account-chain2 --assume-yes \
-        --function-id "0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::has_requirements" \
-        --args "hex:${INTENT_ID_HEX}" 2>/dev/null | jq -r '.[0]' 2>/dev/null)
+    # Use REST API (not CLI) to query view function — CLI wraps result in {"Result": [...]}
+    # which breaks jq '.[0]' parsing. REST API returns bare array like [true].
+    HAS_REQ=$(curl -s "http://127.0.0.1:8082/v1/view" \
+        -H 'Content-Type: application/json' \
+        -d "{
+            \"function\": \"0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::has_requirements\",
+            \"type_arguments\": [],
+            \"arguments\": [\"0x${INTENT_ID_HEX}\"]
+        }" 2>/dev/null | jq -r '.[0]' 2>/dev/null)
     if [ "$HAS_REQ" = "true" ]; then
         log "   ✅ IntentRequirements delivered via GMP (attempt $attempt)"
         GMP_DELIVERED=1

@@ -690,9 +690,8 @@ module mvmt_intent::inflow_escrow_gmp {
             vector::push_back(&mut combined, *vector::borrow(&creator_bytes, i));
             i = i + 1;
         };
-        // For simplicity, use the combined bytes as escrow_id
-        // In production, could use aptos_std::hash::sha3_256
-        combined
+        // Hash to 32 bytes — gmp_common wire format requires fixed 32-byte fields
+        aptos_std::hash::sha3_256(combined)
     }
 
     /// Create a 32-byte zero vector.

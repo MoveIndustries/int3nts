@@ -21,6 +21,7 @@ module mvmt_intent::intent_gmp_hub {
         FulfillmentProof,
     };
     use mvmt_intent::gmp_sender;
+    use mvmt_intent::gmp_intent_state;
 
     // ============================================================================
     // ERROR CODES
@@ -142,6 +143,11 @@ module mvmt_intent::intent_gmp_hub {
         } else {
             simple_map::add(&mut config.trusted_remotes, chain_id, remote_addr);
         }
+    }
+
+    /// Check if the GMP hub is initialized on this chain.
+    public fun is_initialized(): bool {
+        exists<GmpHubConfig>(@mvmt_intent)
     }
 
     /// Check if a source chain and address are trusted.
@@ -319,9 +325,11 @@ module mvmt_intent::intent_gmp_hub {
         // Decode the message
         let msg = gmp_common::decode_escrow_confirmation(&payload);
 
+        let intent_id = *gmp_common::escrow_confirmation_intent_id(&msg);
+
         // Emit event for tracking
         event::emit(EscrowConfirmationReceived {
-            intent_id: *gmp_common::escrow_confirmation_intent_id(&msg),
+            intent_id: copy intent_id,
             src_chain_id,
             escrow_id: *gmp_common::escrow_confirmation_escrow_id(&msg),
             amount_escrowed: gmp_common::escrow_confirmation_amount_escrowed(&msg),
@@ -329,9 +337,8 @@ module mvmt_intent::intent_gmp_hub {
             creator_addr: *gmp_common::escrow_confirmation_creator_addr(&msg),
         });
 
-        // Note: Intent validation and state updates should be done by the caller
-        // (e.g., fa_intent_inflow module) based on their specific requirements.
-        // This function only handles GMP message validation and decoding.
+        // Update GMP state: mark escrow as confirmed so fulfillment can proceed
+        gmp_intent_state::confirm_escrow(intent_id);
 
         msg
     }
@@ -366,18 +373,23 @@ module mvmt_intent::intent_gmp_hub {
         // Decode the message
         let msg = gmp_common::decode_fulfillment_proof(&payload);
 
+        let intent_id = *gmp_common::fulfillment_proof_intent_id(&msg);
+
         // Emit event for tracking
         event::emit(FulfillmentProofReceived {
-            intent_id: *gmp_common::fulfillment_proof_intent_id(&msg),
+            intent_id: copy intent_id,
             src_chain_id,
             solver_addr: *gmp_common::fulfillment_proof_solver_addr(&msg),
             amount_fulfilled: gmp_common::fulfillment_proof_amount_fulfilled(&msg),
             timestamp: gmp_common::fulfillment_proof_timestamp(&msg),
         });
 
-        // Note: Intent validation and token release should be done by the caller
-        // (e.g., fa_intent_outflow module) based on their specific requirements.
-        // This function only handles GMP message validation and decoding.
+        // Update GMP state if the intent is tracked on this chain.
+        // On the hub, outflow intents are registered and need fulfillment proof recorded.
+        // On connected chains, the intent may not be registered — skip gracefully.
+        if (gmp_intent_state::is_initialized() && gmp_intent_state::intent_exists(intent_id)) {
+            gmp_intent_state::record_fulfillment_proof(intent_id);
+        };
 
         msg
     }

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Wait for escrow claim script for MVM E2E tests
-# Checks if escrow object was deleted (claimed) by querying the REST API
-# When an escrow is claimed, the intent object is deleted from the chain
+# Polls the inflow_escrow_gmp::is_released view function on connected MVM chain
+# to verify the solver has claimed the escrow after fulfillment.
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
@@ -10,55 +10,42 @@ source "$SCRIPT_DIR/../util_mvm.sh"
 
 setup_project_root
 
-# Load chain info and intent info
-source "$PROJECT_ROOT/.tmp/chain-info.env" 2>/dev/null || true
-
-# Load ESCROW_ADDR
-if [ ! -f "$PROJECT_ROOT/.tmp/intent-info.env" ]; then
-    log_and_echo "❌ PANIC: intent-info.env not found"
+# Load intent info
+if ! load_intent_info "INTENT_ID"; then
     exit 1
 fi
-source "$PROJECT_ROOT/.tmp/intent-info.env"
 
-ESCROW_ADDR="${MVMCON_ESCROW_ADDR:-}"
+MVMCON_MODULE_ADDR=$(get_profile_address "intent-account-chain2")
 
-if [ -z "$ESCROW_ADDR" ]; then
-    log_and_echo "❌ PANIC: MVMCON_ESCROW_ADDR not set in intent-info.env"
-    exit 1
-fi
+# Format intent_id for view function call: strip 0x prefix, zero-pad to 64 hex chars
+INTENT_ID_HEX=$(echo "$INTENT_ID" | sed 's/^0x//')
+INTENT_ID_HEX=$(printf "%064s" "$INTENT_ID_HEX" | tr ' ' '0')
 
 log_and_echo "⏳ Waiting for solver to claim escrow..."
-log "   Escrow: $ESCROW_ADDR"
+log "   Intent ID: $INTENT_ID"
+log "   Module: 0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::is_released"
 
-# Poll for escrow claim (max 30 seconds, every 2 seconds)
+# Poll for escrow release (max 30 seconds, every 2 seconds)
 MAX_ATTEMPTS=15
 ATTEMPT=1
 ESCROW_CLAIMED=false
 
-# Strip 0x prefix if present for API call
-ESCROW_ADDR_CLEAN=$(printf '%s' "$ESCROW_ADDR" | sed 's/^0x//')
-
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-    # Check if escrow object still exists - if deleted, returns 404 or error
-    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:8082/v1/accounts/${ESCROW_ADDR_CLEAN}/resources" 2>/dev/null || printf "000")
-    
-    if [ "$HTTP_STATUS" = "404" ] || [ "$HTTP_STATUS" = "400" ]; then
-        log_and_echo "   ✅ Escrow claimed! (object deleted, HTTP $HTTP_STATUS)"
+    IS_RELEASED=$(curl -s "http://127.0.0.1:8082/v1/view" \
+        -H 'Content-Type: application/json' \
+        -d "{
+            \"function\": \"0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::is_released\",
+            \"type_arguments\": [],
+            \"arguments\": [\"0x${INTENT_ID_HEX}\"]
+        }" 2>/dev/null | jq -r '.[0]' 2>/dev/null)
+
+    if [ "$IS_RELEASED" = "true" ]; then
+        log_and_echo "   ✅ Escrow claimed! (is_released=true)"
         ESCROW_CLAIMED=true
         break
     fi
-    
-    # Also check if Intent resource is missing from the resources
-    INTENT_RESOURCE=$(curl -s "http://127.0.0.1:8082/v1/accounts/${ESCROW_ADDR_CLEAN}/resources" 2>/dev/null | \
-        jq -r '.[] | select(.type | contains("Intent")) | .type' 2>/dev/null || printf "")
-    
-    if [ -z "$INTENT_RESOURCE" ]; then
-        log_and_echo "   ✅ Escrow claimed! (Intent resource not found)"
-        ESCROW_CLAIMED=true
-        break
-    fi
-    
-    log "   Attempt $ATTEMPT/$MAX_ATTEMPTS: Escrow still exists, waiting..."
+
+    log "   Attempt $ATTEMPT/$MAX_ATTEMPTS: Escrow not yet released, waiting..."
     if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
         sleep 2
     fi
@@ -67,10 +54,9 @@ done
 
 if [ "$ESCROW_CLAIMED" = "false" ]; then
     log_and_echo "❌ PANIC: Escrow not claimed after ${MAX_ATTEMPTS} attempts ($((MAX_ATTEMPTS * 2))s)"
-    log_and_echo "   Escrow object still exists at: $ESCROW_ADDR"
+    log_and_echo "   Intent ID: $INTENT_ID"
     display_service_logs "Escrow claim timeout"
     exit 1
 fi
 
 log_and_echo "✅ Escrow claim verified!"
-

@@ -303,7 +303,30 @@ display_service_logs() {
         log_and_echo ""
         log_and_echo "️  Solver log not found: $solver_log"
     fi
-    
+
+    # Show coordinator events summary
+    local coordinator_url="${COORDINATOR_URL:-http://127.0.0.1:3333}"
+    local events_response
+    events_response=$(curl -s "${coordinator_url}/events" 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        local escrow_count fulfillment_count intent_count
+        escrow_count=$(echo "$events_response" | jq -r '.data.escrow_events | length' 2>/dev/null || echo "0")
+        fulfillment_count=$(echo "$events_response" | jq -r '.data.fulfillment_events | length' 2>/dev/null || echo "0")
+        intent_count=$(echo "$events_response" | jq -r '.data.intent_events | length' 2>/dev/null || echo "0")
+
+        log_and_echo ""
+        log_and_echo " Coordinator events:"
+        log_and_echo "   Intent events: $intent_count"
+        log_and_echo "   Escrow events: $escrow_count"
+        log_and_echo "   Fulfillment events: $fulfillment_count"
+
+        if [ "$escrow_count" != "0" ]; then
+            log_and_echo ""
+            log_and_echo "   Escrow details:"
+            echo "$events_response" | jq -r '.data.escrow_events[] | "      \(.intent_id) - amount: \(.offered_amount)"' 2>/dev/null || log_and_echo "      (parse error)"
+        fi
+    fi
+
     log_and_echo ""
 }
 
@@ -1321,65 +1344,10 @@ wait_for_solver_fulfillment() {
         elapsed=$((elapsed + poll_interval))
     done
     
-    # Timeout - show diagnostic info
+    # Timeout - callers handle detailed log display via display_service_logs
     log ""
     log_and_echo "⏰ Timeout waiting for solver fulfillment after ${timeout_seconds}s"
-    log ""
-    log " Diagnostic Information:"
-    log "========================================"
-    
-    # Show solver logs (solver_log_file already declared above)
-    if [ -f "$solver_log_file" ]; then
-        log ""
-        log "   Solver logs (last 100 lines):"
-        log "   + + + + + + + + + + + + + + + + + + + +"
-        tail -100 "$solver_log_file" | while IFS= read -r line; do log "   $line"; done
-        log "   + + + + + + + + + + + + + + + + + + + +"
-    else
-        log "   Solver log file not found at: $solver_log_file"
-    fi
-    
-    # Show coordinator and trusted-gmp logs
-    local coordinator_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/coordinator.log"
-    local trusted_gmp_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/trusted-gmp.log"
-    for log_label in "Coordinator" "Trusted-GMP"; do
-        local f; [ "$log_label" = "Coordinator" ] && f="$coordinator_log_file" || f="$trusted_gmp_log_file"
-        if [ -f "$f" ]; then
-            log ""
-            log "   $log_label logs (last 100 lines):"
-            log "   + + + + + + + + + + + + + + + + + + + +"
-            tail -100 "$f" | while IFS= read -r line; do log "   $line"; done
-            log "   + + + + + + + + + + + + + + + + + + + +"
-        else
-            log ""
-            log "   $log_label log file not found (checked: $f)"
-        fi
-    done
-    
-    # Show coordinator events
-    log ""
-    log "   Coordinator events:"
-    local events_response
-    events_response=$(curl -s "${coordinator_url}/events" 2>/dev/null)
-    if [ $? -eq 0 ]; then
-        local escrow_count fulfillment_count intent_count
-        escrow_count=$(echo "$events_response" | jq -r '.data.escrow_events | length' 2>/dev/null || echo "0")
-        fulfillment_count=$(echo "$events_response" | jq -r '.data.fulfillment_events | length' 2>/dev/null || echo "0")
-        intent_count=$(echo "$events_response" | jq -r '.data.intent_events | length' 2>/dev/null || echo "0")
-        
-        log "      Intent events: $intent_count"
-        log "      Escrow events: $escrow_count"
-        log "      Fulfillment events: $fulfillment_count"
-        
-        if [ "$escrow_count" != "0" ]; then
-            log ""
-            log "      Escrow details:"
-            echo "$events_response" | jq -r '.data.escrow_events[] | "         \(.intent_id) - amount: \(.offered_amount)"' 2>/dev/null || log "         (parse error)"
-        fi
-    else
-        log "      Failed to query coordinator events"
-    fi
-    
+
     return 1
 }
 

@@ -1244,4 +1244,71 @@ module mvmt_intent::inflow_escrow_gmp_tests {
             token_metadata,
         );
     }
+
+    // ============================================================================
+    // ESCROW CONFIRMATION WIRE FORMAT TESTS
+    // ============================================================================
+
+    // 18. Test: EscrowConfirmation payload produced by create_escrow_with_validation
+    // decodes without error on the hub side.
+    // Verifies the full encode → outbox → decode round-trip for EscrowConfirmation.
+    // Why: The escrow_id and all other fields must be exactly 32 bytes so the
+    // gmp_common wire format remains fixed-width. A mismatch causes E_INVALID_LENGTH
+    // on the receiving chain, silently breaking the cross-chain flow.
+    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
+    fun test_escrow_confirmation_payload_decodes_correctly(
+        aptos_framework: &signer,
+        admin: &signer,
+        token_creator: &signer,
+        requester: &signer,
+    ) {
+        // Setup FA token
+        let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
+            aptos_framework,
+            token_creator,
+            100,
+        );
+        timestamp::update_global_time_for_test_secs(1000);
+
+        // Transfer tokens to requester
+        primary_fungible_store::transfer(token_creator, token_metadata, REQUESTER_ADDR, 100);
+
+        // Initialize modules
+        init_modules(admin);
+
+        let intent_id = create_test_intent_id();
+        let token_addr = address_to_bytes32(object::object_address(&token_metadata));
+        let amount = 50u64;
+        let expiry = 2000u64;
+
+        // Store requirements
+        store_requirements(
+            copy intent_id,
+            address_to_bytes32(REQUESTER_ADDR),
+            amount,
+            token_addr,
+            address_to_bytes32(SOLVER_ADDR),
+            expiry,
+        );
+
+        // Create escrow — this writes EscrowConfirmation to the outbox
+        inflow_escrow_gmp::create_escrow_with_validation(
+            requester,
+            copy intent_id,
+            token_metadata,
+            amount,
+        );
+
+        // Read the payload from the outbox (nonce 1)
+        let (_dst_chain_id, _dst_addr, payload, _sender) = gmp_sender::get_message(1);
+
+        // This MUST NOT abort. If escrow_id were not 32 bytes the decode would
+        // fail with E_INVALID_LENGTH, catching the bug at test time.
+        let confirmation = gmp_common::decode_escrow_confirmation(&payload);
+
+        // Verify the decoded fields match what was escrowed
+        assert!(*gmp_common::escrow_confirmation_intent_id(&confirmation) == intent_id, 1);
+        assert!(gmp_common::escrow_confirmation_amount_escrowed(&confirmation) == amount, 2);
+        assert!(vector::length(gmp_common::escrow_confirmation_escrow_id(&confirmation)) == 32, 3);
+    }
 }

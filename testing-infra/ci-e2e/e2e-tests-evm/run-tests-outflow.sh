@@ -119,7 +119,7 @@ log_and_echo "   3. Call trusted-gmp to validate and get approval signature"
 log_and_echo "   4. Fulfill the hub intent with approval"
 log_and_echo ""
 
-if ! wait_for_solver_fulfillment "$INTENT_ID" "outflow" 60; then
+if ! wait_for_solver_fulfillment "$INTENT_ID" "outflow" 30; then
     log_and_echo "❌ ERROR: Solver did not fulfill the intent automatically"
     display_service_logs "Solver fulfillment timeout"
     exit 1

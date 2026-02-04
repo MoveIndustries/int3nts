@@ -165,9 +165,10 @@ pub struct MvmMessageSentEvent {
 struct RelayState {
     /// Processed nonces per source chain (chain_id -> set of processed nonces)
     processed_nonces: std::collections::HashMap<u32, HashSet<u64>>,
-    /// Last processed MVM event sequence number
-    #[allow(dead_code)]
-    mvm_last_seq: u64,
+    /// Last polled nonce for MVM hub outbox (view function based)
+    mvm_hub_last_nonce: u64,
+    /// Last polled nonce for MVM connected chain outbox (view function based)
+    mvm_connected_last_nonce: u64,
     /// Last processed SVM signature (for pagination)
     svm_last_signature: Option<String>,
     /// Processed SVM signatures to avoid reprocessing
@@ -268,77 +269,30 @@ impl NativeGmpRelay {
         }
     }
 
-    /// Poll MVM for MessageSent events from gmp_sender module.
+    /// Poll MVM hub outbox for new messages via view functions.
     async fn poll_mvm_events(&self) -> Result<()> {
-        // Query transactions from the module account to find MessageSent events
-        let events = self
-            .mvm_client
-            .get_account_events(&self.config.mvm_module_addr, None, None, Some(100))
-            .await
-            .context("Failed to query MVM events")?;
+        let last_nonce = {
+            self.state.read().await.mvm_hub_last_nonce
+        };
 
-        let message_sent_type = format!(
-            "{}::gmp_sender::MessageSent",
-            self.config.mvm_module_addr
-        );
+        let new_last = self
+            .poll_mvm_outbox(
+                &self.mvm_client,
+                &self.config.mvm_module_addr,
+                self.config.mvm_chain_id,
+                last_nonce,
+                "hub",
+            )
+            .await?;
 
-        for event in events {
-            // Filter for MessageSent events
-            if !event.r#type.contains("MessageSent") && event.r#type != message_sent_type {
-                continue;
-            }
-
-            // Parse event data
-            let event_data: MvmMessageSentEvent = match serde_json::from_value(event.data.clone()) {
-                Ok(data) => data,
-                Err(e) => {
-                    warn!("Failed to parse MessageSent event: {}", e);
-                    continue;
-                }
-            };
-
-            // Parse nonce
-            let nonce: u64 = event_data.nonce.parse().unwrap_or(0);
-
-            // Check if already processed
-            {
-                let state = self.state.read().await;
-                if let Some(processed) = state.processed_nonces.get(&self.config.mvm_chain_id) {
-                    if processed.contains(&nonce) {
-                        continue;
-                    }
-                }
-            }
-
-            // Convert to GmpMessage
-            let message = self.parse_mvm_message_sent(&event_data, self.config.mvm_chain_id)?;
-
-            info!(
-                "Found MVM MessageSent: src={}, dst_chain={}, nonce={}",
-                message.src_addr, message.dst_chain_id, message.nonce
-            );
-
-            // Deliver message to destination
-            if let Err(e) = self.deliver_message(&message).await {
-                error!("Failed to deliver message: {}", e);
-                continue;
-            }
-
-            // Mark as processed
-            {
-                let mut state = self.state.write().await;
-                state
-                    .processed_nonces
-                    .entry(self.config.mvm_chain_id)
-                    .or_default()
-                    .insert(nonce);
-            }
+        if new_last > last_nonce {
+            self.state.write().await.mvm_hub_last_nonce = new_last;
         }
 
         Ok(())
     }
 
-    /// Poll MVM connected chain for MessageSent events from gmp_sender module.
+    /// Poll MVM connected chain outbox for new messages via view functions.
     async fn poll_mvm_connected_events(&self) -> Result<()> {
         let Some(ref mvm_connected_client) = self.mvm_connected_client else {
             return Ok(());
@@ -352,68 +306,152 @@ impl NativeGmpRelay {
             return Ok(());
         };
 
-        // Query transactions from the module account to find MessageSent events
-        let events = mvm_connected_client
-            .get_account_events(mvm_connected_module_addr, None, None, Some(100))
+        let last_nonce = {
+            self.state.read().await.mvm_connected_last_nonce
+        };
+
+        let new_last = self
+            .poll_mvm_outbox(
+                mvm_connected_client,
+                mvm_connected_module_addr,
+                mvm_connected_chain_id,
+                last_nonce,
+                "connected",
+            )
+            .await?;
+
+        if new_last > last_nonce {
+            self.state.write().await.mvm_connected_last_nonce = new_last;
+        }
+
+        Ok(())
+    }
+
+    /// Shared outbox polling logic for any MVM chain.
+    ///
+    /// Calls `gmp_sender::get_next_nonce()` to detect new messages, then
+    /// reads each new message via `gmp_sender::get_message(nonce)`.
+    ///
+    /// Returns the new last_nonce value (highest nonce successfully delivered).
+    async fn poll_mvm_outbox(
+        &self,
+        client: &MvmClient,
+        module_addr: &str,
+        src_chain_id: u32,
+        last_nonce: u64,
+        chain_name: &str,
+    ) -> Result<u64> {
+        // Call get_next_nonce() view function
+        let next_nonce_result = client
+            .call_view_function(
+                module_addr,
+                "gmp_sender",
+                "get_next_nonce",
+                vec![],
+                vec![],
+            )
             .await
-            .context("Failed to query MVM connected chain events")?;
+            .context("Failed to call get_next_nonce")?;
 
-        let message_sent_type = format!("{}::gmp_sender::MessageSent", mvm_connected_module_addr);
+        // Parse: response is [\"<number>\"] or [<number>]
+        let next_nonce: u64 = next_nonce_result
+            .as_array()
+            .and_then(|arr| arr.first())
+            .and_then(|v| {
+                v.as_str()
+                    .and_then(|s| s.parse().ok())
+                    .or_else(|| v.as_u64())
+            })
+            .unwrap_or(1);
 
-        for event in events {
-            // Filter for MessageSent events
-            if !event.r#type.contains("MessageSent") && event.r#type != message_sent_type {
-                continue;
-            }
+        // Determine start nonce: if we haven't polled yet, start from 1
+        let start = if last_nonce == 0 { 1 } else { last_nonce + 1 };
 
-            // Parse event data
-            let event_data: MvmMessageSentEvent = match serde_json::from_value(event.data.clone()) {
-                Ok(data) => data,
+        if start >= next_nonce {
+            return Ok(last_nonce); // No new messages
+        }
+
+        debug!(
+            "MVM {} outbox: polling nonces {}..{} (next_nonce={})",
+            chain_name, start, next_nonce - 1, next_nonce
+        );
+
+        let mut new_last = last_nonce;
+
+        for nonce in start..next_nonce {
+            // Call get_message(nonce) view function
+            let msg_result = client
+                .call_view_function(
+                    module_addr,
+                    "gmp_sender",
+                    "get_message",
+                    vec![],
+                    vec![serde_json::json!(nonce.to_string())],
+                )
+                .await;
+
+            let msg_value = match msg_result {
+                Ok(v) => v,
                 Err(e) => {
-                    warn!("Failed to parse MVM connected MessageSent event: {}", e);
+                    // Message may have been cleaned up (expired). Skip it.
+                    warn!(
+                        "MVM {} outbox: failed to read nonce {}: {}. Skipping (may be expired).",
+                        chain_name, nonce, e
+                    );
+                    new_last = nonce;
                     continue;
                 }
             };
 
-            // Parse nonce
-            let nonce: u64 = event_data.nonce.parse().unwrap_or(0);
-
-            // Check if already processed
-            {
-                let state = self.state.read().await;
-                if let Some(processed) = state.processed_nonces.get(&mvm_connected_chain_id) {
-                    if processed.contains(&nonce) {
-                        continue;
-                    }
-                }
-            }
-
-            // Convert to GmpMessage
-            let message = self.parse_mvm_message_sent(&event_data, mvm_connected_chain_id)?;
-
-            info!(
-                "Found MVM connected MessageSent: src={}, dst_chain={}, nonce={}",
-                message.src_addr, message.dst_chain_id, message.nonce
-            );
-
-            // Deliver message to destination
-            if let Err(e) = self.deliver_message(&message).await {
-                error!("Failed to deliver MVM connected message: {}", e);
+            // Parse view function result: [dst_chain_id, dst_addr_hex, payload_hex, sender]
+            let arr = msg_value.as_array().context("get_message result is not an array")?;
+            if arr.len() < 4 {
+                warn!("MVM {} outbox: get_message({}) returned {} elements, expected 4", chain_name, nonce, arr.len());
+                new_last = nonce;
                 continue;
             }
 
-            // Mark as processed
-            {
-                let mut state = self.state.write().await;
-                state
-                    .processed_nonces
-                    .entry(mvm_connected_chain_id)
-                    .or_default()
-                    .insert(nonce);
+            let dst_chain_id: u32 = arr[0]
+                .as_str()
+                .and_then(|s| s.parse().ok())
+                .or_else(|| arr[0].as_u64().map(|n| n as u32))
+                .context("Failed to parse dst_chain_id")?;
+
+            let dst_addr_hex = parse_view_bytes(&arr[1])?;
+            let payload_hex = parse_view_bytes(&arr[2])?;
+
+            let _sender_addr = arr[3]
+                .as_str()
+                .unwrap_or("0x0")
+                .to_string();
+
+            let message = GmpMessage {
+                src_chain_id,
+                // Use the module address (where GMP contracts are deployed) as src_addr,
+                // not the individual sender. The destination chain's native_gmp_endpoint
+                // trusts the source chain's module address, not individual senders.
+                src_addr: normalize_address(module_addr),
+                dst_chain_id,
+                dst_addr: format!("0x{}", dst_addr_hex),
+                payload: format!("0x{}", payload_hex),
+                nonce,
+            };
+
+            info!(
+                "MVM {} outbox: nonce={}, src={}, dst_chain={}",
+                chain_name, nonce, message.src_addr, message.dst_chain_id
+            );
+
+            if let Err(e) = self.deliver_message(&message).await {
+                error!("Failed to deliver MVM {} message nonce={}: {}", chain_name, nonce, e);
+                // Don't advance past failed delivery
+                break;
             }
+
+            new_last = nonce;
         }
 
-        Ok(())
+        Ok(new_last)
     }
 
     /// Poll SVM for MessageSent events from native-gmp-endpoint program.
@@ -743,9 +781,10 @@ impl NativeGmpRelay {
             .output()
             .context("Failed to execute aptos move run")?;
 
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
         if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
             error!(
                 "MVM {} deliver_message failed: stderr={}, stdout={}",
                 chain_name, stderr, stdout
@@ -759,8 +798,23 @@ impl NativeGmpRelay {
         }
 
         // Extract transaction hash from output for logging
-        let output_str = String::from_utf8_lossy(&output.stdout);
-        let tx_hash = extract_transaction_hash(&output_str);
+        let output_str = stdout.as_ref();
+        let tx_hash = extract_transaction_hash(output_str);
+
+        // Verify VM execution succeeded (CLI exit code 0 doesn't guarantee VM success)
+        let vm_success = check_vm_status_success(output_str);
+        if !vm_success {
+            error!(
+                "MVM {} deliver_message VM execution failed: nonce={}, tx_hash={:?}, stdout={}",
+                chain_name, message.nonce, tx_hash, stdout
+            );
+            anyhow::bail!(
+                "deliver_message_entry VM execution failed on {}: tx_hash={:?}, stdout={}",
+                chain_name,
+                tx_hash,
+                stdout
+            );
+        }
 
         info!(
             "MVM {} deliver_message submitted successfully: nonce={}, tx_hash={:?}",
@@ -926,6 +980,32 @@ impl SvmDeliverMessageInstruction {
 // HELPER FUNCTIONS
 // ============================================================================
 
+/// Parse Move `vector<u8>` from a view function result into a hex string (no 0x prefix).
+///
+/// Handles two formats returned by Aptos view functions:
+/// - Hex string: `"0x3c44cddd..."` -> `"3c44cddd..."`
+/// - JSON byte array: `["60", "68", ...]` -> hex encoded
+pub fn parse_view_bytes(value: &serde_json::Value) -> Result<String> {
+    if let Some(hex_str) = value.as_str() {
+        // Hex string format: "0x..."
+        Ok(hex_str.strip_prefix("0x").unwrap_or(hex_str).to_string())
+    } else if let Some(arr) = value.as_array() {
+        // JSON byte array format: ["60", "68", ...]
+        let mut bytes = Vec::with_capacity(arr.len());
+        for elem in arr {
+            let byte: u8 = elem
+                .as_str()
+                .and_then(|s| s.parse().ok())
+                .or_else(|| elem.as_u64().map(|n| n as u8))
+                .context("Invalid byte in view function result")?;
+            bytes.push(byte);
+        }
+        Ok(hex::encode(bytes))
+    } else {
+        anyhow::bail!("Unexpected view function bytes format: {:?}", value)
+    }
+}
+
 /// Convert array of byte strings (e.g., ["60", "68"]) to hex string with 0x prefix.
 pub fn bytes_array_to_hex(bytes: &[String]) -> Result<String> {
     let mut result = Vec::with_capacity(bytes.len());
@@ -949,6 +1029,38 @@ pub fn normalize_address(addr: &str) -> String {
     } else {
         format!("0x{}", addr)
     }
+}
+
+/// Check if the VM execution succeeded by parsing the CLI JSON output.
+///
+/// The Aptos CLI returns JSON with `"success": true/false` and `"vm_status"` fields.
+/// CLI exit code 0 alone doesn't guarantee VM execution success on all networks.
+pub fn check_vm_status_success(output: &str) -> bool {
+    // Try to parse as JSON
+    if let Ok(json) = serde_json::from_str::<serde_json::Value>(output) {
+        // Check "Result"."success" (standard Aptos CLI format)
+        if let Some(result) = json.get("Result") {
+            if let Some(success) = result.get("success") {
+                return success.as_bool().unwrap_or(false);
+            }
+        }
+        // Check top-level "success"
+        if let Some(success) = json.get("success") {
+            return success.as_bool().unwrap_or(false);
+        }
+    }
+
+    // If we can't parse JSON, check for string indicators
+    if output.contains("\"success\": true") || output.contains("\"success\":true") {
+        return true;
+    }
+    if output.contains("\"success\": false") || output.contains("\"success\":false") {
+        return false;
+    }
+
+    // If no success field found at all, assume CLI exit code was sufficient
+    // (conservative: don't break on unknown output formats)
+    true
 }
 
 /// Extract transaction hash from CLI output (handles both traditional and JSON formats).

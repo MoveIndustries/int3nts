@@ -63,16 +63,19 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
   - **`mvmt_intent_gmp`** - GMP infrastructure (deploy to both hub and connected chains)
     - gmp_common (message encoding/decoding)
     - gmp_sender (outbound message sending)
-    - native_gmp_endpoint (inbound message receiving)
+    - native_gmp_endpoint (inbound message receiving — currently shared, see note below)
   - **`mvmt_intent_hub`** - Hub-only modules (deploy to hub chain only)
     - fa_intent, fa_intent_with_oracle
     - fa_intent_inflow, fa_intent_outflow
     - intent_gmp_hub, solver_registry, intent_registry
+    - Hub-specific native_gmp_endpoint route_message (routes to intent_gmp_hub only)
     - Depends on: mvmt_intent_gmp
   - **`mvmt_intent_connected`** - Connected chain modules (deploy to connected MVM chains only)
     - outflow_validator, outflow_validator_impl
     - inflow_escrow_gmp
+    - Connected-chain-specific native_gmp_endpoint route_message (routes to outflow_validator_impl + inflow_escrow_gmp)
     - Depends on: mvmt_intent_gmp
+  - **NOTE:** Once split, remove the `is_initialized()` conditional routing in `native_gmp_endpoint::route_message`. Currently the hub and connected chain share one `native_gmp_endpoint` with conditional checks because both deploy the same code. After the split, each package gets its own routing with unconditional calls — no fallbacks, missing init is a hard failure.
   - Update deployment scripts:
     - Hub chain: deploy mvmt_intent_gmp first, then mvmt_intent_hub
     - Connected chain: deploy mvmt_intent_gmp first, then mvmt_intent_connected
@@ -83,6 +86,19 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
   - Remove any hub-only dependencies from connected chain modules
   - Ensure connected chain modules only import what they need
   - Update tests to verify isolation
+  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
+
+- [ ] **Commit 4: Auto-release escrow on FulfillmentProof receipt (GMP flow)**
+  - Currently escrow release is two steps: (1) `receive_fulfillment_proof` marks `fulfilled=true`, (2) solver calls `release_escrow` separately
+  - Collapse into single step: `receive_fulfillment_proof` also transfers tokens to the solver
+  - The solver address is already in the GMP FulfillmentProof payload — no extra data needed
+  - Changes:
+    - `inflow_escrow_gmp.move`: `receive_fulfillment_proof` calls release logic internally after marking fulfilled
+    - `inflow_escrow_gmp.move`: `release_escrow` entry function can be removed (or kept as manual fallback)
+    - `solver/src/service/inflow.rs`: remove `release_mvm_gmp_escrow` polling loop and `release_escrow` call for MVM
+    - `solver/src/chains/connected_mvm.rs`: remove `release_gmp_escrow` and `is_escrow_fulfilled` if no longer needed
+    - Update E2E `wait-for-escrow-claim.sh` timeout if needed (release happens faster now)
+    - Update all affected Move and Rust tests
   - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
 
 **Files to analyze:**
@@ -184,21 +200,21 @@ struct GenericLimitOrder<V: store + drop> has store, drop {
 
 ### Tasks
 
-- [ ] **Commit 4: Document current intent type differences**
+- [ ] **Commit 5: Document current intent type differences**
   - List all fields in `FungibleAssetLimitOrder`
   - List all fields in `OracleGuardedLimitOrder`
   - Identify overlap and differences
   - Document security implications of each field
   - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
 
-- [ ] **Commit 5: Prototype conditional oracle approach**
+- [ ] **Commit 6: Prototype conditional oracle approach**
   - Create test branch with `oracle_required` flag
   - Implement conditional check in finish functions
   - Write security tests (attempt bypass without flag)
   - Document findings
   - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
 
-- [ ] **Commit 6: Write recommendation document**
+- [ ] **Commit 7: Write recommendation document**
   - Compare approaches with concrete code examples
   - Security analysis of each approach
   - Recommendation with rationale

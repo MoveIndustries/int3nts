@@ -116,7 +116,7 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     log ""
     log " Initializing outflow validator with hub config..."
     if aptos move run --profile intent-account-chain2 --assume-yes \
-        --function-id ${CHAIN2_ADDR}::outflow_validator::initialize \
+        --function-id ${CHAIN2_ADDR}::outflow_validator_impl::initialize \
         --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Outflow validator initialized (hub_chain_id=1)"
     else

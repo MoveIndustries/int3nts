@@ -1,64 +1,22 @@
 //! Connected Move VM Chain Client
 //!
-//! Client for interacting with connected Move VM chains to query escrow events
-//! and execute transfers.
+//! Client for interacting with connected Move VM chains to query escrow state
+//! and execute transfers via GMP flow.
 
 use anyhow::{Context, Result};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::time::Duration;
-use tracing::{debug, warn};
 
 use crate::config::MvmChainConfig;
-
-/// Move VM Optional wrapper: {"vec": [value]} or {"vec": []}
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MoveOption<T> {
-    pub vec: Vec<T>,
-}
-
-impl<T> MoveOption<T> {
-    pub fn into_option(mut self) -> Option<T> {
-        self.vec.pop()
-    }
-}
-
-/// Escrow event emitted when an escrow is created on the connected chain
-/// This matches the OracleLimitOrderEvent structure from Move
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EscrowEvent {
-    /// Escrow object address (called intent_addr in Move OracleLimitOrderEvent)
-    #[serde(rename = "intent_addr")]
-    pub escrow_id: String,
-    /// Intent ID for cross-chain linking
-    pub intent_id: String,
-    /// Requester address (the account that created the escrow and locked funds)
-    pub requester_addr: String,
-    /// Offered token metadata
-    pub offered_metadata: serde_json::Value,
-    /// Offered amount
-    pub offered_amount: String,
-    /// Desired token metadata
-    pub desired_metadata: serde_json::Value,
-    /// Desired amount
-    pub desired_amount: String,
-    /// Expiry timestamp
-    pub expiry_time: String,
-    /// Whether the escrow is revocable
-    pub revocable: bool,
-    /// Reserved solver address (wrapped in Move Option: {"vec": [...]})
-    #[serde(default)]
-    pub reserved_solver: Option<MoveOption<String>>,
-}
 
 /// Client for interacting with a connected Move VM chain
 pub struct ConnectedMvmClient {
     /// HTTP client for RPC calls
     client: Client,
-    /// Base RPC URL
+    /// Base RPC URL (includes /v1, e.g., http://127.0.0.1:8082/v1)
     base_url: String,
-    /// Module address (for utils module)
+    /// Module address
     module_addr: String,
     /// CLI profile name
     profile: String,
@@ -90,96 +48,151 @@ impl ConnectedMvmClient {
         })
     }
 
-    /// Queries the connected chain for escrow creation events
+    /// Checks if an inflow escrow has been fulfilled (FulfillmentProof received via GMP).
     ///
-    /// This queries known accounts for OracleLimitOrderEvent to detect when
-    /// new escrows are created (for inflow intents).
+    /// Calls the `inflow_escrow_gmp::is_fulfilled` view function on the connected chain.
     ///
     /// # Arguments
     ///
-    /// * `known_accounts` - List of account addresses to query
-    /// * `since_version` - Optional transaction version to start from (for pagination)
+    /// * `intent_id` - Intent ID as hex string (e.g., "0x4b1e...")
     ///
     /// # Returns
     ///
-    /// * `Ok(Vec<EscrowEvent>)` - List of escrow events
-    /// * `Err(anyhow::Error)` - Failed to query events
-    pub async fn get_escrow_events(
+    /// * `Ok(bool)` - True if FulfillmentProof was received
+    /// * `Err(anyhow::Error)` - Failed to query
+    pub async fn is_escrow_fulfilled(&self, intent_id: &str) -> Result<bool> {
+        let intent_id_hex = if intent_id.starts_with("0x") {
+            intent_id.to_string()
+        } else {
+            format!("0x{}", intent_id)
+        };
+
+        // base_url already includes /v1
+        let view_url = format!("{}/view", self.base_url);
+        let request_body = serde_json::json!({
+            "function": format!("{}::inflow_escrow_gmp::is_fulfilled", self.module_addr),
+            "type_arguments": [],
+            "arguments": [intent_id_hex]
+        });
+
+        let response = self
+            .client
+            .post(&view_url)
+            .json(&request_body)
+            .send()
+            .await
+            .context("Failed to query escrow fulfillment")?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_body = response.text().await.unwrap_or_default();
+            anyhow::bail!(
+                "Failed to query escrow fulfillment: HTTP {} - {}",
+                status,
+                error_body
+            );
+        }
+
+        let result: Vec<serde_json::Value> = response
+            .json()
+            .await
+            .context("Failed to parse escrow fulfillment response")?;
+
+        if let Some(first_result) = result.first() {
+            if let Some(is_fulfilled) = first_result.as_bool() {
+                return Ok(is_fulfilled);
+            }
+        }
+
+        anyhow::bail!("Unexpected response format from is_fulfilled view function")
+    }
+
+    /// Releases an inflow escrow on the connected chain via GMP flow.
+    ///
+    /// Calls `inflow_escrow_gmp::release_escrow` which transfers locked tokens to the solver.
+    /// No signature needed — the function checks that FulfillmentProof was received via GMP.
+    ///
+    /// # Arguments
+    ///
+    /// * `intent_id` - Intent ID as hex string (e.g., "0x4b1e...")
+    /// * `token_metadata` - Token metadata object address
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Transaction hash
+    /// * `Err(anyhow::Error)` - Failed to release escrow
+    pub fn release_gmp_escrow(
         &self,
-        known_accounts: &[String],
-        since_version: Option<u64>,
-    ) -> Result<Vec<EscrowEvent>> {
-        let mut events = Vec::new();
+        intent_id: &str,
+        token_metadata: &str,
+    ) -> Result<String> {
+        use tracing::info;
 
-        for account in known_accounts {
-            let account_address = account.strip_prefix("0x").unwrap_or(account);
-            // Note: base_url already includes /v1 (e.g., http://127.0.0.1:8082/v1)
-            let url = format!("{}/accounts/{}/transactions", self.base_url, account_address);
+        info!(
+            "Calling inflow_escrow_gmp::release_escrow - intent_id: {}, token_metadata: {}",
+            intent_id, token_metadata
+        );
 
-            let mut query_params = vec![("limit", "100".to_string())];
-            if let Some(version) = since_version {
-                query_params.push(("start", version.to_string()));
+        // Function signature: release_escrow(solver: &signer, intent_id: vector<u8>, token_metadata: Object<Metadata>)
+        let output = Command::new("aptos")
+            .args(&[
+                "move",
+                "run",
+                "--profile",
+                &self.profile,
+                "--assume-yes",
+                "--function-id",
+                &format!("{}::inflow_escrow_gmp::release_escrow", self.module_addr),
+                "--args",
+                &format!("hex:{}", intent_id.strip_prefix("0x").unwrap_or(intent_id)),
+                &format!("address:{}", token_metadata),
+            ])
+            .output()
+            .context("Failed to execute aptos move run")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            anyhow::bail!(
+                "inflow_escrow_gmp::release_escrow failed:\nstderr: {}\nstdout: {}",
+                stderr,
+                stdout
+            );
+        }
+
+        let output_str = String::from_utf8_lossy(&output.stdout);
+
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&output_str) {
+            if let Some(hash) = json
+                .get("Result")
+                .and_then(|r| r.get("transaction_hash"))
+                .and_then(|h| h.as_str())
+            {
+                return Ok(hash.to_string());
             }
+        }
 
-            debug!("Querying escrow events from URL: {}", url);
-
-            let response = self
-                .client
-                .get(&url)
-                .query(&query_params)
-                .send()
-                .await
-                .context(format!("Failed to query transactions for account {} (URL: {})", account, url))?;
-
-            if !response.status().is_success() {
-                let status = response.status();
-                let body = response.text().await.unwrap_or_else(|_| "<failed to read body>".to_string());
-                warn!(
-                    "Failed to query transactions for account {} (URL: {}): HTTP {} - {}",
-                    account, url, status, body
-                );
-                continue;
+        if let Some(hash_line) = output_str
+            .lines()
+            .find(|l| l.contains("hash") || l.contains("Hash"))
+        {
+            if let Some(hash) = hash_line
+                .split_whitespace()
+                .find(|s| s.starts_with("0x"))
+            {
+                return Ok(hash.to_string());
             }
-
-            let transactions: Vec<serde_json::Value> = response
-                .json()
-                .await
-                .context(format!("Failed to parse transactions response for account {}", account))?;
-
-            debug!("Found {} transactions for account {}", transactions.len(), account);
-
-            // Extract escrow events from transactions
-            for tx in transactions {
-                if let Some(tx_events) = tx.get("events").and_then(|e| e.as_array()) {
-                    for event_json in tx_events {
-                        let event_type = event_json
-                            .get("type")
-                            .and_then(|t| t.as_str())
-                            .unwrap_or("");
-
-                        // Escrows use oracle-guarded intents, so we look for OracleLimitOrderEvent
-                        if event_type.contains("OracleLimitOrderEvent") {
-                            match serde_json::from_value::<EscrowEvent>(
-                                event_json.get("data").cloned().unwrap_or(serde_json::Value::Null),
-                            ) {
-                                Ok(event_data) => {
-                                    debug!("Found escrow event: intent_id={}, escrow_id={}", 
-                                           event_data.intent_id, event_data.escrow_id);
-                                    events.push(event_data);
-                                }
-                                Err(e) => {
-                                    warn!("Failed to parse OracleLimitOrderEvent: {} - data: {:?}", 
-                                          e, event_json.get("data"));
-                                }
-                            }
-                        }
-                    }
+            if let Some(start) = hash_line.find("\"0x") {
+                if let Some(end) = hash_line[start + 1..].find('"') {
+                    return Ok(hash_line[start + 1..start + 1 + end].to_string());
                 }
             }
         }
 
-        debug!("Total escrow events found: {}", events.len());
-        Ok(events)
+        anyhow::bail!(
+            "Could not extract transaction hash from output: {}",
+            output_str
+        )
     }
 
     /// Executes a transfer with intent ID on the connected chain
@@ -206,31 +219,39 @@ impl ConnectedMvmClient {
         intent_id: &str,
     ) -> Result<String> {
         use tracing::{info, warn};
-        
+
         // Debug: Get solver's address from profile
         let address_check = Command::new("aptos")
             .args(&["config", "show-profiles"])
             .output();
-        
+
         if let Ok(address_output) = address_check {
             let address_str = String::from_utf8_lossy(&address_output.stdout);
-            info!("Transfer attempt - profile: {}, recipient: {}, amount: {}, metadata: {}", 
-                  self.profile, recipient, amount, metadata);
+            info!(
+                "Transfer attempt - profile: {}, recipient: {}, amount: {}, metadata: {}",
+                self.profile, recipient, amount, metadata
+            );
             info!("Aptos profiles: {}", address_str);
         }
-        
+
         // Debug: Check solver's balance before transfer
         let balance_check = Command::new("aptos")
             .args(&["account", "balance", "--profile", &self.profile])
             .output();
-        
+
         if let Ok(balance_output) = balance_check {
             let balance_str = String::from_utf8_lossy(&balance_output.stdout);
-            info!("Solver balance check (profile: {}): {}", self.profile, balance_str);
+            info!(
+                "Solver balance check (profile: {}): {}",
+                self.profile, balance_str
+            );
         } else {
-            warn!("Failed to check solver balance for profile: {}", self.profile);
+            warn!(
+                "Failed to check solver balance for profile: {}",
+                self.profile
+            );
         }
-        
+
         // Use aptos CLI for compatibility with E2E tests which create aptos profiles
         let output = Command::new("aptos")
             .args(&[
@@ -276,9 +297,15 @@ impl ConnectedMvmClient {
         }
 
         // Fallback: line-based parsing for "Transaction hash: 0x..." format
-        if let Some(hash_line) = output_str.lines().find(|l| l.contains("hash") || l.contains("Hash")) {
+        if let Some(hash_line) = output_str
+            .lines()
+            .find(|l| l.contains("hash") || l.contains("Hash"))
+        {
             // Try finding 0x directly or quoted "0x
-            if let Some(hash) = hash_line.split_whitespace().find(|s| s.starts_with("0x")) {
+            if let Some(hash) = hash_line
+                .split_whitespace()
+                .find(|s| s.starts_with("0x"))
+            {
                 return Ok(hash.to_string());
             }
             // Handle quoted hash like "0x..."
@@ -289,7 +316,10 @@ impl ConnectedMvmClient {
             }
         }
 
-        anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
+        anyhow::bail!(
+            "Could not extract transaction hash from output: {}",
+            output_str
+        )
     }
 
     /// Fulfills an outflow intent via the GMP flow on the connected chain.
@@ -332,9 +362,15 @@ impl ConnectedMvmClient {
                 &self.profile,
                 "--assume-yes",
                 "--function-id",
-                &format!("{}::outflow_validator_impl::fulfill_intent", self.module_addr),
+                &format!(
+                    "{}::outflow_validator_impl::fulfill_intent",
+                    self.module_addr
+                ),
                 "--args",
-                &format!("hex:{}", intent_id.strip_prefix("0x").unwrap_or(intent_id)),
+                &format!(
+                    "hex:{}",
+                    intent_id.strip_prefix("0x").unwrap_or(intent_id)
+                ),
                 &format!("address:{}", token_metadata),
             ])
             .output()
@@ -365,97 +401,16 @@ impl ConnectedMvmClient {
         }
 
         // Fallback: line-based parsing
-        if let Some(hash_line) = output_str.lines().find(|l| l.contains("hash") || l.contains("Hash")) {
-            if let Some(hash) = hash_line.split_whitespace().find(|s| s.starts_with("0x")) {
-                return Ok(hash.to_string());
-            }
-            if let Some(start) = hash_line.find("\"0x") {
-                if let Some(end) = hash_line[start + 1..].find('"') {
-                    return Ok(hash_line[start + 1..start + 1 + end].to_string());
-                }
-            }
-        }
-
-        anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
-    }
-
-    /// Completes an escrow by releasing funds to the solver with trusted-gmp approval
-    ///
-    /// Calls the `complete_escrow_from_fa` entry function which:
-    /// 1. Starts the escrow session (gets locked assets)
-    /// 2. Deposits locked assets to solver
-    /// 3. Withdraws payment from solver
-    /// 4. Completes escrow with trusted-gmp signature
-    ///
-    /// # Arguments
-    ///
-    /// * `escrow_intent_addr` - Object address of the escrow intent
-    /// * `payment_amount` - Amount of tokens to provide as payment (typically matches desired_amount)
-    /// * `approval_signature_bytes` - Trusted-gmp's Ed25519 signature as bytes (base64 decoded)
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(String)` - Transaction hash
-    /// * `Err(anyhow::Error)` - Failed to complete escrow
-    pub fn complete_escrow_from_fa(
-        &self,
-        escrow_intent_addr: &str,
-        payment_amount: u64,
-        approval_signature_bytes: &[u8],
-    ) -> Result<String> {
-        // Convert signature bytes to hex string
-        let signature_hex = hex::encode(approval_signature_bytes);
-
-        // Use aptos CLI for compatibility with E2E tests which create aptos profiles
-        let output = Command::new("aptos")
-            .args(&[
-                "move",
-                "run",
-                "--profile",
-                &self.profile,
-                "--assume-yes",
-                "--function-id",
-                &format!("{}::intent_as_escrow_entry::complete_escrow_from_fa", self.module_addr),
-                "--args",
-                &format!("address:{}", escrow_intent_addr),
-                &format!("u64:{}", payment_amount),
-                &format!("hex:{}", signature_hex),
-            ])
-            .output()
-            .context("Failed to execute aptos move run")?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            anyhow::bail!(
-                "movement move run failed:\nstderr: {}\nstdout: {}",
-                stderr,
-                stdout
-            );
-        }
-
-        // Extract transaction hash from output
-        let output_str = String::from_utf8_lossy(&output.stdout);
-
-        // Try to parse as JSON first (aptos CLI outputs JSON with Result wrapper)
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&output_str) {
-            // Handle {"Result": {"transaction_hash": "0x...", ...}}
-            if let Some(hash) = json
-                .get("Result")
-                .and_then(|r| r.get("transaction_hash"))
-                .and_then(|h| h.as_str())
+        if let Some(hash_line) = output_str
+            .lines()
+            .find(|l| l.contains("hash") || l.contains("Hash"))
+        {
+            if let Some(hash) = hash_line
+                .split_whitespace()
+                .find(|s| s.starts_with("0x"))
             {
                 return Ok(hash.to_string());
             }
-        }
-
-        // Fallback: line-based parsing for "Transaction hash: 0x..." format
-        if let Some(hash_line) = output_str.lines().find(|l| l.contains("hash") || l.contains("Hash")) {
-            // Try finding 0x directly or quoted "0x
-            if let Some(hash) = hash_line.split_whitespace().find(|s| s.starts_with("0x")) {
-                return Ok(hash.to_string());
-            }
-            // Handle quoted hash like "0x..."
             if let Some(start) = hash_line.find("\"0x") {
                 if let Some(end) = hash_line[start + 1..].find('"') {
                     return Ok(hash_line[start + 1..start + 1 + end].to_string());
@@ -463,7 +418,9 @@ impl ConnectedMvmClient {
             }
         }
 
-        anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
+        anyhow::bail!(
+            "Could not extract transaction hash from output: {}",
+            output_str
+        )
     }
 }
-

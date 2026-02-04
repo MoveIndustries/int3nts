@@ -511,6 +511,65 @@ impl HubChainClient {
         anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
     }
 
+    /// Checks if escrow is confirmed for an intent on the hub chain.
+    ///
+    /// Calls the `gmp_intent_state::is_escrow_confirmed` view function.
+    /// Returns true if the EscrowConfirmation GMP message was received and processed.
+    ///
+    /// # Arguments
+    ///
+    /// * `intent_id` - Intent ID as hex string (e.g., "0x4b1e...")
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(bool)` - True if escrow is confirmed
+    /// * `Err(anyhow::Error)` - Failed to query
+    pub async fn is_escrow_confirmed(&self, intent_id: &str) -> Result<bool> {
+        let intent_id_hex = if intent_id.starts_with("0x") {
+            intent_id.to_string()
+        } else {
+            format!("0x{}", intent_id)
+        };
+
+        let view_url = format!("{}/v1/view", self.base_url);
+        let request_body = serde_json::json!({
+            "function": format!("{}::gmp_intent_state::is_escrow_confirmed", self.module_addr),
+            "type_arguments": [],
+            "arguments": [intent_id_hex]
+        });
+
+        let response = self
+            .client
+            .post(&view_url)
+            .json(&request_body)
+            .send()
+            .await
+            .context("Failed to query escrow confirmation")?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_body = response.text().await.unwrap_or_default();
+            anyhow::bail!(
+                "Failed to query escrow confirmation: HTTP {} - {}",
+                status,
+                error_body
+            );
+        }
+
+        let result: Vec<serde_json::Value> = response
+            .json()
+            .await
+            .context("Failed to parse escrow confirmation response")?;
+
+        if let Some(first_result) = result.first() {
+            if let Some(is_confirmed) = first_result.as_bool() {
+                return Ok(is_confirmed);
+            }
+        }
+
+        anyhow::bail!("Unexpected response format from is_escrow_confirmed view function")
+    }
+
     /// Checks if a solver is registered in the solver registry
     ///
     /// # Arguments

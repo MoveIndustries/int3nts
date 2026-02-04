@@ -2,15 +2,21 @@
 //!
 //! Monitors escrow deposits on connected chains and fulfills inflow intents on the hub chain.
 //!
-//! Flow:
-//! 1. **Monitor Escrows**: Poll connected chain for escrow deposits matching tracked inflow intents
+//! Flow (GMP for MVM):
+//! 1. **Monitor Escrows**: Poll hub chain for `is_escrow_confirmed` (GMP EscrowConfirmation received)
+//! 2. **Fulfill Intent**: Call hub chain `fulfill_inflow_intent` when escrow is confirmed
+//! 3. **Release Escrow**: Poll connected chain for `is_fulfilled` (GMP FulfillmentProof received),
+//!    then call `release_gmp_escrow` on connected chain
+//!
+//! Flow (EVM/SVM):
+//! 1. **Monitor Escrows**: Poll connected chain for escrow creation events
 //! 2. **Fulfill Intent**: Call hub chain `fulfill_inflow_intent` when escrow is detected
 //! 3. **Release Escrow**: Poll trusted-gmp for approval signature, then release escrow on connected chain
 
-use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient};
+use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient, HubChainClient};
 use crate::config::SolverConfig;
-use crate::service::tracker::{IntentTracker, TrackedIntent};
 use crate::coordinator_gmp_client::CoordinatorGmpClient;
+use crate::service::tracker::{IntentTracker, TrackedIntent};
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use std::sync::Arc;
@@ -23,7 +29,9 @@ pub struct InflowService {
     config: SolverConfig,
     /// Intent tracker for tracking signed intents (shared with other services)
     tracker: Arc<IntentTracker>,
-    /// Trusted GMP base URL for approval polling
+    /// Hub chain client for querying escrow confirmation state
+    hub_client: HubChainClient,
+    /// Trusted GMP base URL for approval polling (used by EVM/SVM)
     trusted_gmp_url: String,
     /// Optional connected MVM chain client
     mvm_client: Option<ConnectedMvmClient>,
@@ -53,30 +61,35 @@ impl InflowService {
     /// * `Err(anyhow::Error)` - Failed to create service
     pub fn new(config: SolverConfig, tracker: Arc<IntentTracker>) -> Result<Self> {
         let trusted_gmp_url = config.service.trusted_gmp_url.clone();
+        let hub_client = HubChainClient::new(&config.hub_chain)?;
 
         // Create connected chain clients for all configured chains
-        let mvm_client = config.get_mvm_config()
+        let mvm_client = config
+            .get_mvm_config()
             .map(|cfg| ConnectedMvmClient::new(cfg))
             .transpose()?;
 
-        let evm_client = config.get_evm_config()
+        let evm_client = config
+            .get_evm_config()
             .map(|cfg| ConnectedEvmClient::new(cfg))
             .transpose()?;
 
-        let svm_client = config.get_svm_config()
+        let svm_client = config
+            .get_svm_config()
             .map(|cfg| ConnectedSvmClient::new(cfg))
             .transpose()?;
 
         Ok(Self {
             config,
             tracker,
+            hub_client,
             trusted_gmp_url,
             mvm_client,
             evm_client,
             svm_client,
         })
     }
-    
+
     /// Gets the chain ID for a connected chain type
     fn get_chain_id(&self, chain_type: &str) -> Option<u64> {
         match chain_type {
@@ -86,12 +99,12 @@ impl InflowService {
             _ => None,
         }
     }
-    
+
     /// Determines which connected chain to use for an inflow intent (based on offered_chain_id)
     /// Returns ("mvm"|"evm"|"svm", chain_id) or None if no matching chain
     fn get_source_chain_for_intent(&self, intent: &TrackedIntent) -> Option<(&'static str, u64)> {
         let offered_chain_id = intent.draft_data.offered_chain_id;
-        
+
         if let Some(chain_id) = self.get_chain_id("mvm") {
             if chain_id == offered_chain_id {
                 return Some(("mvm", chain_id));
@@ -110,15 +123,14 @@ impl InflowService {
         None
     }
 
-    /// Polls the connected chain for escrow deposits matching tracked inflow intents
+    /// Polls for confirmed escrows matching tracked inflow intents.
     ///
-    /// This function queries the connected chain for escrow creation events and matches
-    /// them to tracked inflow intents by intent_id. When a match is found, the intent
-    /// is ready for fulfillment.
+    /// For MVM: checks hub chain `gmp_intent_state::is_escrow_confirmed` (GMP flow).
+    /// For EVM/SVM: queries connected chain for escrow creation events.
     ///
     /// # Returns
     ///
-    /// * `Ok(Vec<(TrackedIntent, String)>)` - List of (intent, escrow_id) pairs with matching escrows
+    /// * `Ok(Vec<(TrackedIntent, String)>)` - List of (intent, escrow_id) pairs with confirmed escrows
     /// * `Err(anyhow::Error)` - Failed to poll escrows
     pub async fn poll_for_escrows(&self) -> Result<Vec<(TrackedIntent, String)>> {
         // Get pending inflow intents (Created state, desired_chain_id == hub_chain_id)
@@ -144,38 +156,40 @@ impl InflowService {
             return Ok(Vec::new());
         }
 
-        // Collect requester_addr_connected_chain from pending intents (for inflow escrow lookup)
-        // Inflow intents have escrows created on the connected chain by the connected chain requester,
-        // not the hub chain requester.
-        let connected_chain_requester_addresses: Vec<String> = pending_intents
-            .iter()
-            .filter_map(|intent| intent.requester_addr_connected_chain.clone())
-            .collect();
+        let mut matched_intents = Vec::new();
 
-        // Query all configured connected chains for escrow events
-        let mut escrow_events: Vec<EscrowMatch> = Vec::new();
-        
-        // Query MVM chain if configured
-        if let Some(client) = &self.mvm_client {
-            if !connected_chain_requester_addresses.is_empty() {
-                match client.get_escrow_events(&connected_chain_requester_addresses, None).await {
-                    Ok(events) => {
-                        if !events.is_empty() {
-                            info!("Found {} MVM escrow events", events.len());
-                        }
-                        escrow_events.extend(events.into_iter().map(|e| EscrowMatch {
-                            intent_id: e.intent_id,
-                            escrow_id: e.escrow_id,
-                        }));
+        // Check MVM intents via hub chain is_escrow_confirmed (GMP flow)
+        if self.mvm_client.is_some() {
+            let mvm_chain_id = self.get_chain_id("mvm");
+            for intent in &pending_intents {
+                if Some(intent.draft_data.offered_chain_id) != mvm_chain_id {
+                    continue;
+                }
+                match self.hub_client.is_escrow_confirmed(&intent.intent_id).await {
+                    Ok(true) => {
+                        info!(
+                            "Escrow confirmed on hub for MVM inflow intent {}",
+                            intent.intent_id
+                        );
+                        // Use intent_id as escrow_id for GMP flow
+                        matched_intents.push((intent.clone(), intent.intent_id.clone()));
+                    }
+                    Ok(false) => {
+                        // Not yet confirmed, skip
                     }
                     Err(e) => {
-                        error!("Failed to query MVM escrow events: {}", e);
+                        warn!(
+                            "Failed to check escrow confirmation for intent {}: {}",
+                            intent.intent_id, e
+                        );
                     }
                 }
             }
         }
-        
-        // Query EVM chain if configured
+
+        // Query EVM chain for escrow events if configured
+        let mut evm_svm_escrow_events: Vec<EscrowMatch> = Vec::new();
+
         if let Some(client) = &self.evm_client {
             match client.get_block_number().await {
                 Ok(current_block) => {
@@ -185,16 +199,21 @@ impl InflowService {
                     } else {
                         0
                     };
-                    
-                    info!("Querying EVM chain for escrow events (from_block={}, current_block={})", from_block, current_block);
+
+                    info!(
+                        "Querying EVM chain for escrow events (from_block={}, current_block={})",
+                        from_block, current_block
+                    );
                     match client.get_escrow_events(Some(from_block), None).await {
                         Ok(events) => {
                             if !events.is_empty() {
                                 info!("Found {} EVM escrow events", events.len());
                             }
-                            escrow_events.extend(events.into_iter().map(|e| EscrowMatch {
-                                intent_id: e.intent_id,
-                                escrow_id: e.escrow_addr,
+                            evm_svm_escrow_events.extend(events.into_iter().map(|e| {
+                                EscrowMatch {
+                                    intent_id: e.intent_id,
+                                    escrow_id: e.escrow_addr,
+                                }
                             }));
                         }
                         Err(e) => {
@@ -207,15 +226,15 @@ impl InflowService {
                 }
             }
         }
-        
-        // Query SVM chain if configured
+
+        // Query SVM chain for escrow events if configured
         if let Some(client) = &self.svm_client {
             match client.get_escrow_events().await {
                 Ok(events) => {
                     if !events.is_empty() {
                         info!("Found {} SVM escrow events", events.len());
                     }
-                    escrow_events.extend(events.into_iter().map(|e| EscrowMatch {
+                    evm_svm_escrow_events.extend(events.into_iter().map(|e| EscrowMatch {
                         intent_id: e.intent_id,
                         escrow_id: e.escrow_id,
                     }));
@@ -226,23 +245,25 @@ impl InflowService {
             }
         }
 
-        // Only log matching details if there are escrow events to match against
-        if !escrow_events.is_empty() {
-            info!("Matching {} pending intents against {} escrow events", pending_intents.len(), escrow_events.len());
-        }
-
-        // Match escrow events to tracked intents by intent_id
-        let mut matched_intents = Vec::new();
-        for intent in pending_intents {
-            // Normalize intent_id for comparison
-            let intent_id_normalized = normalize_intent_id(&intent.intent_id);
-
-            for escrow in escrow_events.iter() {
-                let escrow_intent_id_normalized = normalize_intent_id(&escrow.intent_id);
-                if escrow_intent_id_normalized == intent_id_normalized {
-                    info!("✅ Match found: intent {} matches escrow {}", intent.intent_id, escrow.escrow_id);
-                    matched_intents.push((intent.clone(), escrow.escrow_id.clone()));
-                    break;
+        // Match EVM/SVM escrow events to pending intents by intent_id
+        if !evm_svm_escrow_events.is_empty() {
+            info!(
+                "Matching {} pending intents against {} EVM/SVM escrow events",
+                pending_intents.len(),
+                evm_svm_escrow_events.len()
+            );
+            for intent in &pending_intents {
+                let intent_id_normalized = normalize_intent_id(&intent.intent_id);
+                for escrow in evm_svm_escrow_events.iter() {
+                    let escrow_intent_id_normalized = normalize_intent_id(&escrow.intent_id);
+                    if escrow_intent_id_normalized == intent_id_normalized {
+                        info!(
+                            "Match found: intent {} matches escrow {}",
+                            intent.intent_id, escrow.escrow_id
+                        );
+                        matched_intents.push((intent.clone(), escrow.escrow_id.clone()));
+                        break;
+                    }
                 }
             }
         }
@@ -269,30 +290,34 @@ impl InflowService {
     ///
     /// * `Ok(String)` - Transaction hash
     /// * `Err(anyhow::Error)` - Failed to fulfill intent
-    pub fn fulfill_inflow_intent(&self, intent: &TrackedIntent, payment_amount: u64) -> Result<String> {
+    pub fn fulfill_inflow_intent(
+        &self,
+        intent: &TrackedIntent,
+        payment_amount: u64,
+    ) -> Result<String> {
         let intent_addr = intent
             .intent_addr
             .as_ref()
             .context("Intent address not set (intent not yet created on-chain)")?;
 
-        let hub_client = crate::chains::HubChainClient::new(&self.config.hub_chain)?;
-        hub_client.fulfill_inflow_intent(intent_addr, payment_amount)
+        self.hub_client
+            .fulfill_inflow_intent(intent_addr, payment_amount)
     }
 
-    /// Releases an escrow on the connected chain after getting trusted-gmp approval
+    /// Releases an escrow on the connected chain after fulfillment.
     ///
-    /// This function:
-    /// 1. Polls the trusted-gmp for an approval signature matching the intent_id (with retries)
-    /// 2. Converts the signature to the appropriate format (Ed25519 for MVM, ECDSA for EVM)
-    /// 3. Calls the escrow release function on the connected chain
+    /// For MVM (GMP flow):
+    ///   1. Polls connected chain `is_fulfilled` until FulfillmentProof is received via GMP
+    ///   2. Calls `inflow_escrow_gmp::release_escrow` (no signature needed)
     ///
-    /// For inflow escrows, the payment_amount is always 0 because the solver already
-    /// fulfilled on the hub chain. The escrow just releases the locked tokens to the solver.
+    /// For EVM/SVM (trusted-gmp flow):
+    ///   1. Polls trusted-gmp for approval signature
+    ///   2. Calls escrow claim function with signature
     ///
     /// # Arguments
     ///
     /// * `intent` - Tracked intent with matching escrow
-    /// * `escrow_id` - Escrow object/contract address
+    /// * `escrow_id` - Escrow identifier (intent_id for MVM, contract address for EVM/SVM)
     ///
     /// # Returns
     ///
@@ -303,7 +328,16 @@ impl InflowService {
         intent: &TrackedIntent,
         escrow_id: &str,
     ) -> Result<String> {
-        // Poll trusted-gmp for approval until escrow expiry
+        let (chain_type, _) = self
+            .get_source_chain_for_intent(intent)
+            .context("No configured connected chain matches intent's offered_chain_id")?;
+
+        // MVM uses GMP flow: poll connected chain for fulfillment, then release directly
+        if chain_type == "mvm" {
+            return self.release_mvm_gmp_escrow(intent).await;
+        }
+
+        // EVM/SVM use trusted-gmp approval flow
         let trusted_gmp_url = self.trusted_gmp_url.clone();
         let intent_id_normalized = normalize_intent_id(&intent.intent_id);
         let poll_interval = Duration::from_secs(2);
@@ -316,7 +350,10 @@ impl InflowService {
                 .as_secs();
 
             if current_time >= expiry_time {
-                anyhow::bail!("Escrow expired while waiting for approval (expiry: {})", expiry_time);
+                anyhow::bail!(
+                    "Escrow expired while waiting for approval (expiry: {})",
+                    expiry_time
+                );
             }
 
             let approvals = tokio::task::spawn_blocking({
@@ -348,29 +385,75 @@ impl InflowService {
             .decode(&approval.signature)
             .context("Failed to decode base64 signature")?;
 
-        // Release escrow based on intent's source chain (offered_chain_id for inflow)
-        // For inflow: payment_amount = 0 (solver already fulfilled on hub chain)
-        let (chain_type, _) = self.get_source_chain_for_intent(intent)
-            .context("No configured connected chain matches intent's offered_chain_id")?;
-        
         match chain_type {
-            "mvm" => {
-                let client = self.mvm_client.as_ref()
-                    .context("MVM client not configured")?;
-                client.complete_escrow_from_fa(escrow_id, 0, &signature_bytes)
-            }
             "evm" => {
-                let client = self.evm_client.as_ref()
-                    .context("EVM client not configured")?;
-                client.claim_escrow(escrow_id, &intent.intent_id, &signature_bytes).await
+                let client = self.evm_client.as_ref().context("EVM client not configured")?;
+                client
+                    .claim_escrow(escrow_id, &intent.intent_id, &signature_bytes)
+                    .await
             }
             "svm" => {
-                let client = self.svm_client.as_ref()
-                    .context("SVM client not configured")?;
-                client.claim_escrow(escrow_id, &intent.intent_id, &signature_bytes).await
+                let client = self.svm_client.as_ref().context("SVM client not configured")?;
+                client
+                    .claim_escrow(escrow_id, &intent.intent_id, &signature_bytes)
+                    .await
             }
             _ => anyhow::bail!("Unknown chain type: {}", chain_type),
         }
+    }
+
+    /// Releases an MVM inflow escrow via GMP flow.
+    ///
+    /// Polls the connected chain `inflow_escrow_gmp::is_fulfilled` until the hub's
+    /// FulfillmentProof GMP message is received, then calls `release_escrow` on the
+    /// connected chain to transfer locked tokens to the solver.
+    async fn release_mvm_gmp_escrow(&self, intent: &TrackedIntent) -> Result<String> {
+        let client = self
+            .mvm_client
+            .as_ref()
+            .context("MVM client not configured")?;
+        let poll_interval = Duration::from_secs(2);
+        let expiry_time = intent.expiry_time;
+
+        // Poll connected chain until FulfillmentProof is received via GMP
+        loop {
+            let current_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+
+            if current_time >= expiry_time {
+                anyhow::bail!(
+                    "Escrow expired while waiting for fulfillment proof (expiry: {})",
+                    expiry_time
+                );
+            }
+
+            match client.is_escrow_fulfilled(&intent.intent_id).await {
+                Ok(true) => {
+                    info!(
+                        "FulfillmentProof received on connected chain for intent {}, releasing escrow",
+                        intent.intent_id
+                    );
+                    break;
+                }
+                Ok(false) => {
+                    // Not yet fulfilled, wait and retry
+                }
+                Err(e) => {
+                    warn!(
+                        "Error checking escrow fulfillment for intent {}: {}",
+                        intent.intent_id, e
+                    );
+                }
+            }
+
+            tokio::time::sleep(poll_interval).await;
+        }
+
+        // Release escrow - no signature needed in GMP flow
+        // offered_token is the token escrowed on the connected chain for inflow
+        client.release_gmp_escrow(&intent.intent_id, &intent.draft_data.offered_token)
     }
 
     /// Runs the inflow fulfillment service loop
@@ -378,12 +461,15 @@ impl InflowService {
     /// This function continuously:
     /// 1. Polls for escrows matching tracked inflow intents
     /// 2. Fulfills intents on hub chain when escrows are detected
-    /// 3. Releases escrows after getting trusted-gmp approval
+    /// 3. Releases escrows after getting fulfillment confirmation
     ///
     /// The loop runs at the configured polling interval.
     pub async fn run(&self) -> Result<()> {
         let polling_interval = Duration::from_millis(self.config.service.polling_interval_ms);
-        info!("Inflow fulfillment service started (polling every {:?})", polling_interval);
+        info!(
+            "Inflow fulfillment service started (polling every {:?})",
+            polling_interval
+        );
 
         loop {
             match self.poll_for_escrows().await {
@@ -395,31 +481,35 @@ impl InflowService {
                         );
 
                         // Fulfill intent on hub chain
-                        match self.fulfill_inflow_intent(&intent, intent.draft_data.desired_amount) {
+                        match self
+                            .fulfill_inflow_intent(&intent, intent.draft_data.desired_amount)
+                        {
                             Ok(tx_hash) => {
                                 info!(
-                                    "Fulfilled inflow intent {} on hub chain: {}",
+                                    "Successfully fulfilled inflow intent {} on hub chain: {}",
                                     intent.intent_id, tx_hash
                                 );
                                 // Mark intent as fulfilled IMMEDIATELY after successful fulfillment
                                 // This prevents retrying fulfillment on next poll
-                                if let Err(e) = self.tracker.mark_fulfilled(&intent.draft_id).await {
+                                if let Err(e) =
+                                    self.tracker.mark_fulfilled(&intent.draft_id).await
+                                {
                                     warn!("Failed to mark intent as fulfilled: {}", e);
                                 }
                             }
                             Err(e) => {
-                                error!("Failed to fulfill inflow intent {}: {}", intent.intent_id, e);
+                                error!(
+                                    "Failed to fulfill inflow intent {}: {}",
+                                    intent.intent_id, e
+                                );
                                 continue;
                             }
                         }
 
-                        // Release escrow after a delay (wait for trusted-gmp to generate approval)
+                        // Release escrow after a delay (wait for GMP/trusted-gmp processing)
                         tokio::time::sleep(Duration::from_secs(2)).await;
 
-                        match self
-                            .release_escrow(&intent, &escrow_id)
-                            .await
-                        {
+                        match self.release_escrow(&intent, &escrow_id).await {
                             Ok(tx_hash) => {
                                 info!(
                                     "Released escrow {} for intent {}: {}",
@@ -454,4 +544,3 @@ fn normalize_intent_id(intent_id: &str) -> String {
     let hex_part = if trimmed.is_empty() { "0" } else { trimmed };
     format!("0x{}", hex_part.to_lowercase())
 }
-
