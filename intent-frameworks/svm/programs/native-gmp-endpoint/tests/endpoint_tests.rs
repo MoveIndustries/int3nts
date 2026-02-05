@@ -52,11 +52,13 @@ fn dummy_payload() -> Vec<u8> {
 fn test_send_instruction_serialization() {
     let original_dst_chain_id = DUMMY_CHAIN_ID_MVM;
     let original_dst_addr = dummy_dst_addr();
+    let original_src_addr = dummy_src_addr();
     let original_payload = dummy_payload();
 
     let instruction = NativeGmpInstruction::Send {
         dst_chain_id: original_dst_chain_id,
         dst_addr: original_dst_addr,
+        src_addr: original_src_addr,
         payload: original_payload.clone(),
     };
 
@@ -67,10 +69,12 @@ fn test_send_instruction_serialization() {
         NativeGmpInstruction::Send {
             dst_chain_id,
             dst_addr,
+            src_addr,
             payload,
         } => {
             assert_eq!(dst_chain_id, original_dst_chain_id);
             assert_eq!(dst_addr, original_dst_addr);
+            assert_eq!(src_addr, original_src_addr);
             assert_eq!(payload, original_payload);
         }
         _ => panic!("Wrong instruction variant"),
@@ -517,6 +521,7 @@ mod integration {
         payer: Pubkey,
         dst_chain_id: u32,
         dst_addr: [u8; 32],
+        src_addr: [u8; 32],
         payload: Vec<u8>,
     ) -> Instruction {
         let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
@@ -534,7 +539,7 @@ mod integration {
                 AccountMeta::new(payer, true),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
-            data: NativeGmpInstruction::Send { dst_chain_id, dst_addr, payload }.try_to_vec().unwrap(),
+            data: NativeGmpInstruction::Send { dst_chain_id, dst_addr, src_addr, payload }.try_to_vec().unwrap(),
         }
     }
 
@@ -602,8 +607,9 @@ mod integration {
 
         // Send first message
         let dst_addr = [0xab; 32];
+        let src_addr = program_id.to_bytes(); // Use program ID as src_addr (typical for on-chain callers)
         let payload1 = vec![0x01, 0x02, 0x03];
-        let send_ix = create_send_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, dst_addr, payload1);
+        let send_ix = create_send_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, dst_addr, src_addr, payload1);
         send_tx(&mut context, &admin, &[send_ix], &[]).await.unwrap();
 
         // Verify nonce account created with nonce = 1 (after first send)
@@ -618,7 +624,7 @@ mod integration {
 
         // Send second message (different payload for unique transaction)
         let payload2 = vec![0x04, 0x05, 0x06];
-        let send_ix2 = create_send_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, dst_addr, payload2);
+        let send_ix2 = create_send_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, dst_addr, src_addr, payload2);
         send_tx(&mut context, &admin, &[send_ix2], &[]).await.unwrap();
 
         // Verify nonce incremented

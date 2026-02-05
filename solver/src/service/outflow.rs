@@ -150,22 +150,25 @@ impl OutflowService {
                 }
             };
 
-            if let Err(e) = self.tracker.mark_outflow_attempted(&intent.intent_id).await {
-                error!(
-                    "Failed to mark outflow intent {} as attempted: {}",
-                    intent.intent_id, e
-                );
-                continue;
-            }
-
             // Execute fulfillment on connected chain
             let (tx_hash, uses_gmp) = match self.execute_connected_transfer(&intent, &requester_addr_connected_chain).await {
                 Ok(result) => result,
                 Err(e) => {
                     error!("Failed to execute fulfillment for intent {}: {}", intent.intent_id, e);
+                    // Don't mark as attempted - allow retry on next poll
                     continue;
                 }
             };
+
+            // Mark as attempted only AFTER successful transfer to prevent duplicate transfers
+            // but allow retries if the transfer failed (e.g., requirements not yet delivered via GMP)
+            if let Err(e) = self.tracker.mark_outflow_attempted(&intent.intent_id).await {
+                error!(
+                    "Failed to mark outflow intent {} as attempted: {}",
+                    intent.intent_id, e
+                );
+                // Continue anyway - transfer already succeeded
+            }
 
             if uses_gmp {
                 info!("Executed GMP outflow fulfillment for intent {}: tx_hash={}", intent.intent_id, tx_hash);
@@ -232,6 +235,60 @@ impl OutflowService {
 
         // Requirements are available, execute fulfillment
         client.fulfill_outflow_via_gmp(&intent.intent_id, desired_token)
+    }
+
+    /// Waits for GMP IntentRequirements to arrive on the SVM connected chain,
+    /// then executes `outflow_validator::fulfill_intent`.
+    ///
+    /// Same pattern as `execute_mvm_gmp_fulfillment` but for SVM connected chains.
+    async fn execute_svm_gmp_fulfillment(
+        &self,
+        intent: &TrackedIntent,
+    ) -> Result<String> {
+        let client = self.svm_client.as_ref()
+            .context("SVM client not configured")?;
+        let desired_token = &intent.draft_data.desired_token;
+        let poll_interval = Duration::from_secs(2);
+        let expiry_time = intent.expiry_time;
+
+        // Poll until requirements are available on connected chain
+        loop {
+            let current_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+
+            if current_time >= expiry_time {
+                anyhow::bail!(
+                    "Intent expired while waiting for GMP requirements delivery (expiry: {})",
+                    expiry_time
+                );
+            }
+
+            match client.has_outflow_requirements(&intent.intent_id) {
+                Ok(true) => {
+                    info!(
+                        "GMP requirements delivered for outflow intent {}, fulfilling on SVM connected chain",
+                        intent.intent_id
+                    );
+                    break;
+                }
+                Ok(false) => {
+                    // Requirements not yet delivered, wait and retry
+                }
+                Err(e) => {
+                    return Err(e.context(format!(
+                        "Failed to check outflow requirements for intent {}",
+                        intent.intent_id
+                    )));
+                }
+            }
+
+            tokio::time::sleep(poll_interval).await;
+        }
+
+        // Requirements are available, execute fulfillment
+        client.fulfill_outflow_via_gmp(&intent.intent_id, desired_token).await
     }
 
     /// Waits for FulfillmentProof to be delivered to the hub via GMP, then calls
@@ -337,10 +394,8 @@ impl OutflowService {
                 Ok((tx_hash, false)) // false = not using GMP yet
             }
             "svm" => {
-                // GMP Flow: Call outflow_validator::fulfill_intent
-                let client = self.svm_client.as_ref()
-                    .context("SVM client not configured")?;
-                let tx_hash = client.fulfill_outflow_via_gmp(&intent.intent_id, desired_token).await?;
+                // GMP Flow: Wait for requirements, then call outflow_validator::fulfill_intent
+                let tx_hash = self.execute_svm_gmp_fulfillment(intent).await?;
                 Ok((tx_hash, true)) // true = uses GMP flow
             }
             _ => anyhow::bail!("Unknown chain type: {}", chain_type),

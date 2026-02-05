@@ -4,6 +4,14 @@ version = "0.1.0"
 description = "CLI utilities for the SVM intent escrow program"
 edition = "2021"
 
+[lib]
+name = "intent_escrow_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "intent_escrow_cli"
+path = "src/main.rs"
+
 [dependencies]
 borsh = "0.10"
 hex = "0.4"
@@ -12,3 +20,5 @@ solana-sdk = "2.1"
 solana-program = "2.1"
 spl-token = "6.0"
 intent_escrow = { path = "../../programs/intent_escrow", features = ["no-entrypoint"] }
+native_gmp_endpoint = { path = "../../programs/native-gmp-endpoint", features = ["no-entrypoint"] }
+outflow_validator = { path = "../../programs/outflow-validator", features = ["no-entrypoint"] }

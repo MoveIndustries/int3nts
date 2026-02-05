@@ -5,7 +5,7 @@
 # This script runs the Rust integration tests for coordinator and solver.
 # It sets up chains, deploys contracts, starts services, then runs Rust tests.
 
-set -e
+set -eo pipefail
 
 # Source common utilities
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"

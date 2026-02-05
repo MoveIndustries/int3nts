@@ -2,7 +2,7 @@
 
 # E2E Integration Test Runner - INFLOW (SVM)
 
-set -e
+set -eo pipefail
 
 # Parse flags
 SKIP_BUILD=false
@@ -37,6 +37,11 @@ if [ "$SKIP_BUILD" = "true" ]; then
 else
     log_and_echo " Step 1: Build bins and pre-pull docker images"
     log_and_echo "========================================"
+    pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
+    ./scripts/build-with-docker.sh 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ SVM: on-chain programs (intent_escrow, native_gmp_endpoint, outflow_validator)"
+
     pushd "$PROJECT_ROOT/coordinator" > /dev/null
     cargo build --bin coordinator 2>&1 | tail -5
     popd > /dev/null
@@ -67,12 +72,12 @@ log_and_echo ""
 
 log_and_echo " Step 3: Setting up chains and deploying contracts..."
 log_and_echo "======================================================"
-./testing-infra/ci-e2e/chain-connected-svm/setup-chain.sh
-./testing-infra/ci-e2e/chain-connected-svm/setup-requester-solver.sh
-./testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh
 ./testing-infra/ci-e2e/chain-hub/setup-chain.sh
 ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
 ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
+./testing-infra/ci-e2e/chain-connected-svm/setup-chain.sh
+./testing-infra/ci-e2e/chain-connected-svm/setup-requester-solver.sh
+./testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh
 
 log_and_echo ""
 log_and_echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
@@ -86,6 +91,7 @@ log_and_echo "======================================="
 ./testing-infra/ci-e2e/e2e-tests-svm/start-solver.sh
 
 ./testing-infra/ci-e2e/verify-solver-running.sh
+./testing-infra/ci-e2e/verify-trusted-gmp-running.sh
 
 log_and_echo ""
 log_and_echo " Step 5: Submitting cross-chain intents via coordinator negotiation routing..."

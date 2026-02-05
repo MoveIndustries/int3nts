@@ -290,6 +290,38 @@ impl ConnectedSvmClient {
         Ok(sig.to_string())
     }
 
+    /// Checks if GMP outflow requirements have been delivered for an intent.
+    ///
+    /// This polls the outflow_validator's requirements PDA account to see if it exists.
+    /// The requirements are created when the native GMP relay delivers IntentRequirements.
+    ///
+    /// # Arguments
+    ///
+    /// * `intent_id` - Intent ID (0x-prefixed hex string)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - Requirements exist (intent can be fulfilled)
+    /// * `Ok(false)` - Requirements not yet delivered
+    /// * `Err` - Failed to check
+    pub fn has_outflow_requirements(&self, intent_id: &str) -> Result<bool> {
+        let outflow_program_id_str = self.outflow_validator_program_id.as_ref()
+            .context("outflow_validator_program_id not configured")?;
+        let outflow_program_id = Pubkey::from_str(outflow_program_id_str)
+            .context("Invalid outflow_validator_program_id")?;
+        let intent_bytes = parse_intent_id(intent_id)?;
+
+        let (requirements_pda, _) = Pubkey::find_program_address(
+            &[b"requirements", &intent_bytes],
+            &outflow_program_id,
+        );
+
+        match self.rpc_client.get_account(&requirements_pda) {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
+        }
+    }
+
     /// Fulfills an outflow intent via the GMP flow on SVM.
     ///
     /// Builds and submits the `outflow_validator::FulfillIntent` instruction which:

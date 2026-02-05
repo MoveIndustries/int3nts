@@ -35,8 +35,8 @@ generate_solver_config_svm() {
         log_and_echo "❌ ERROR: Missing SVM chain info. Run chain-connected-svm/setup-requester-solver.sh first."
         exit 1
     fi
-    if [ -z "$SVM_PROGRAM_ID" ]; then
-        log_and_echo "❌ ERROR: SVM_PROGRAM_ID not found. Run chain-connected-svm/deploy-contract.sh first."
+    if [ -z "$SVM_PROGRAM_ID" ] || [ -z "$SVM_GMP_ENDPOINT_ID" ] || [ -z "$SVM_OUTFLOW_VALIDATOR_ID" ]; then
+        log_and_echo "❌ ERROR: SVM program IDs not found. Run chain-connected-svm/deploy-contract.sh first."
         exit 1
     fi
 
@@ -92,6 +92,8 @@ name = "SVM Connected Chain (E2E Test)"
 rpc_url = "$svm_rpc"
 chain_id = $svm_chain_id
 escrow_program_id = "$SVM_PROGRAM_ID"
+gmp_endpoint_program_id = "$SVM_GMP_ENDPOINT_ID"
+outflow_validator_program_id = "$SVM_OUTFLOW_VALIDATOR_ID"
 private_key_env = "SOLANA_SOLVER_PRIVATE_KEY"
 
 [acceptance]

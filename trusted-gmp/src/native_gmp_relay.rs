@@ -97,7 +97,7 @@ impl NativeGmpRelayConfig {
             if let Some(ref svm_config) = config.connected_chain_svm {
                 (
                     Some(svm_config.rpc_url.clone()),
-                    Some(svm_config.escrow_program_id.clone()),
+                    svm_config.gmp_endpoint_program_id.clone(),
                     Some(svm_config.chain_id as u32),
                 )
             } else {
@@ -169,8 +169,6 @@ struct RelayState {
     mvm_hub_last_nonce: u64,
     /// Last polled nonce for MVM connected chain outbox (view function based)
     mvm_connected_last_nonce: u64,
-    /// Last processed SVM signature (for pagination)
-    svm_last_signature: Option<String>,
     /// Processed SVM signatures to avoid reprocessing
     svm_processed_signatures: HashSet<String>,
 }
@@ -464,20 +462,16 @@ impl NativeGmpRelay {
             return Ok(());
         };
 
-        // Get the last processed signature for pagination
-        let before_sig = {
-            let state = self.state.read().await;
-            state.svm_last_signature.clone()
-        };
-
-        // Query recent signatures for the GMP program
+        // Query recent signatures for the GMP program.
+        // NOTE: Always fetch most recent signatures (before=None) to catch new transactions.
+        // The svm_processed_signatures HashSet prevents duplicate processing.
         let program_id = solana_program::pubkey::Pubkey::from_str(
             self.config.svm_gmp_program_id.as_ref().unwrap(),
         )
         .context("Invalid SVM GMP program ID")?;
 
         let signatures = svm_client
-            .get_signatures_for_address(&program_id, Some(50), before_sig.as_deref())
+            .get_signatures_for_address(&program_id, Some(50), None)
             .await
             .context("Failed to get SVM signatures")?;
 
@@ -554,12 +548,6 @@ impl NativeGmpRelay {
                     .svm_processed_signatures
                     .insert(sig_info.signature.clone());
             }
-        }
-
-        // Update last processed signature (newest one, which is first in the list)
-        if let Some(newest) = signatures.first() {
-            let mut state = self.state.write().await;
-            state.svm_last_signature = Some(newest.signature.clone());
         }
 
         Ok(())
@@ -827,6 +815,8 @@ impl NativeGmpRelay {
     /// Deliver message to SVM chain via native-gmp-endpoint DeliverMessage instruction.
     ///
     /// Builds and submits a DeliverMessage transaction to the SVM native-gmp-endpoint program.
+    /// For IntentRequirements messages (0x01), also derives and passes the outflow-validator
+    /// accounts needed for LzReceive CPI.
     async fn deliver_to_svm(&self, message: &GmpMessage) -> Result<()> {
         let Some(ref rpc_url) = self.config.svm_rpc_url else {
             return Err(anyhow::anyhow!("SVM not configured"));
@@ -841,7 +831,7 @@ impl NativeGmpRelay {
             message.dst_chain_id, message.nonce
         );
 
-        // Parse program ID
+        // Parse program ID (native-gmp-endpoint)
         let program_id = Pubkey::from_str(program_id_str)
             .context("Invalid SVM GMP program ID")?;
 
@@ -852,13 +842,13 @@ impl NativeGmpRelay {
         // Parse source address (32 bytes)
         let src_addr = parse_32_byte_address(&message.src_addr)?;
 
-        // Parse destination address (the receiving program on SVM)
+        // Parse destination address (the receiving program on SVM - e.g., outflow-validator)
         let dst_program = parse_svm_pubkey(&message.dst_addr)?;
 
         // Parse payload
         let payload = hex_to_bytes(&message.payload)?;
 
-        // Derive PDAs
+        // Derive GMP endpoint PDAs
         let (config_pda, _) = Pubkey::find_program_address(&[b"config"], &program_id);
         let (relay_pda, _) =
             Pubkey::find_program_address(&[b"relay", relay_pubkey.as_ref()], &program_id);
@@ -871,6 +861,50 @@ impl NativeGmpRelay {
             &program_id,
         );
 
+        // Build base accounts for DeliverMessage
+        let mut accounts = vec![
+            AccountMeta::new_readonly(config_pda, false),
+            AccountMeta::new_readonly(relay_pda, false),
+            AccountMeta::new_readonly(trusted_remote_pda, false),
+            AccountMeta::new(nonce_in_pda, false),
+            AccountMeta::new_readonly(relay_pubkey, true), // signer
+            AccountMeta::new(relay_pubkey, true),          // payer (signer)
+            AccountMeta::new_readonly(dst_program, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ];
+
+        // For IntentRequirements (0x01), add accounts for outflow-validator's LzReceive CPI.
+        // The GMP endpoint passes remaining accounts to the destination program.
+        if !payload.is_empty() && payload[0] == 0x01 {
+            // IntentRequirements format: [type(1)] [intent_id(32)] [...]
+            if payload.len() >= 33 {
+                let mut intent_id = [0u8; 32];
+                intent_id.copy_from_slice(&payload[1..33]);
+
+                // Derive outflow-validator PDAs (dst_program is the outflow-validator)
+                let (requirements_pda, _) = Pubkey::find_program_address(
+                    &[b"requirements", &intent_id],
+                    &dst_program,
+                );
+                let (outflow_config_pda, _) = Pubkey::find_program_address(
+                    &[b"config"],
+                    &dst_program,
+                );
+
+                debug!(
+                    "Adding outflow-validator accounts for LzReceive CPI: requirements={}, config={}",
+                    requirements_pda, outflow_config_pda
+                );
+
+                // LzReceive expects: requirements(w), config(r), authority(s), payer(s,w), system_program
+                accounts.push(AccountMeta::new(requirements_pda, false));
+                accounts.push(AccountMeta::new_readonly(outflow_config_pda, false));
+                accounts.push(AccountMeta::new_readonly(relay_pubkey, true));  // authority (signer)
+                accounts.push(AccountMeta::new(relay_pubkey, true));           // payer (signer)
+                accounts.push(AccountMeta::new_readonly(system_program::id(), false));
+            }
+        }
+
         // Build DeliverMessage instruction
         let instruction_data = SvmDeliverMessageInstruction {
             src_chain_id: message.src_chain_id,
@@ -881,16 +915,7 @@ impl NativeGmpRelay {
 
         let instruction = Instruction {
             program_id,
-            accounts: vec![
-                AccountMeta::new_readonly(config_pda, false),
-                AccountMeta::new_readonly(relay_pda, false),
-                AccountMeta::new_readonly(trusted_remote_pda, false),
-                AccountMeta::new(nonce_in_pda, false),
-                AccountMeta::new_readonly(relay_pubkey, true), // signer
-                AccountMeta::new(relay_pubkey, true),          // payer (signer)
-                AccountMeta::new_readonly(dst_program, false),
-                AccountMeta::new_readonly(system_program::id(), false),
-            ],
+            accounts,
             data: instruction_data
                 .try_to_vec()
                 .context("Failed to serialize DeliverMessage instruction")?,
@@ -915,6 +940,13 @@ impl NativeGmpRelay {
 
         let signature = rpc_client
             .send_and_confirm_transaction(&transaction)
+            .map_err(|e| {
+                error!(
+                    "SVM DeliverMessage failed: {}. Accounts: config={}, relay={}, trusted_remote={}, nonce_in={}, dst_program={}",
+                    e, config_pda, relay_pda, trusted_remote_pda, nonce_in_pda, dst_program
+                );
+                e
+            })
             .context("Failed to submit SVM DeliverMessage transaction")?;
 
         info!(
@@ -956,7 +988,7 @@ impl NativeGmpRelay {
 
 /// SVM DeliverMessage instruction data (matches native-gmp-endpoint program).
 ///
-/// This is the 4th variant (index 4) in the NativeGmpInstruction enum.
+/// This is the 6th variant (index 5) in the NativeGmpInstruction enum.
 #[derive(BorshSerialize)]
 struct SvmDeliverMessageInstruction {
     src_chain_id: u32,
@@ -967,8 +999,9 @@ struct SvmDeliverMessageInstruction {
 
 impl SvmDeliverMessageInstruction {
     fn try_to_vec(&self) -> Result<Vec<u8>> {
-        // Instruction discriminator: DeliverMessage is variant 4 in the enum
-        let mut data = vec![4u8];
+        // Instruction discriminator: DeliverMessage is variant 5 in the enum
+        // (Initialize=0, AddRelay=1, RemoveRelay=2, SetTrustedRemote=3, Send=4, DeliverMessage=5)
+        let mut data = vec![5u8];
         data.extend(
             borsh::to_vec(self).context("Failed to serialize instruction data")?,
         );

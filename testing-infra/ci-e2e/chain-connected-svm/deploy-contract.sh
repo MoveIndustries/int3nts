@@ -30,10 +30,6 @@ fi
 
 PROGRAM_DIR="$PROJECT_ROOT/intent-frameworks/svm"
 
-# Build all programs
-log "   Building all SVM programs..."
-nix develop "$PROJECT_ROOT/nix" -c bash -c "cd \"$PROGRAM_DIR\" && ./scripts/build.sh" >> "$LOG_FILE" 2>&1
-
 # ============================================================================
 # Deploy intent_escrow program
 # ============================================================================
@@ -131,19 +127,76 @@ log " Initializing native-gmp-endpoint (chain_id=$SVM_CHAIN_ID)..."
 SVM_RELAY_PUBKEY=$(svm_base64_to_base58 "$E2E_TRUSTED_GMP_PUBLIC_KEY")
 log "   Relay pubkey: $SVM_RELAY_PUBKEY"
 
-# Initialize GMP endpoint using intent_escrow_cli (we'll add GMP commands to it)
-# For now, use a custom initialization script
-nix develop "$PROJECT_ROOT/nix" -c bash -c "
+# Get hub module address as 32-byte hex for trusted remote
+HUB_MODULE_ADDR_HEX=""
+if [ -n "$HUB_MODULE_ADDR" ]; then
+    HUB_MODULE_ADDR_CLEAN=$(echo "$HUB_MODULE_ADDR" | sed 's/^0x//')
+    HUB_MODULE_ADDR_HEX=$(printf "%064s" "$HUB_MODULE_ADDR_CLEAN" | tr ' ' '0')
+fi
+
+# Initialize GMP endpoint
+set +e
+gmp_init_success=0
+for attempt in 1 2 3; do
+    nix develop "$PROJECT_ROOT/nix" -c bash -c "
 cd \"$PROGRAM_DIR\"
 cargo run -p intent_escrow_cli --quiet -- \
     gmp-init \
-    --rpc-url \"$SVM_RPC_URL\" \
-    --payer-keypair \"$SVM_PAYER_KEYPAIR\" \
     --gmp-program-id \"$SVM_GMP_ENDPOINT_ID\" \
-    --chain-id $SVM_CHAIN_ID
+    --payer \"$SVM_PAYER_KEYPAIR\" \
+    --chain-id $SVM_CHAIN_ID \
+    --rpc \"$SVM_RPC_URL\"
+" >> "$LOG_FILE" 2>&1
+    status=$?
+    if [ "$status" -eq 0 ]; then
+        log "   ✅ native-gmp-endpoint initialized"
+        gmp_init_success=1
+        break
+    fi
+    log "   GMP init failed (attempt $attempt), retrying..."
+    sleep 2
+done
+set -e
+
+if [ "$gmp_init_success" -ne 1 ]; then
+    log_and_echo "❌ PANIC: native-gmp-endpoint initialization failed"
+    exit 1
+fi
+
+# Add trusted-gmp relay as authorized relay
+log " Adding trusted-GMP relay to GMP endpoint..."
+nix develop "$PROJECT_ROOT/nix" -c bash -c "
+cd \"$PROGRAM_DIR\"
+cargo run -p intent_escrow_cli --quiet -- \
+    gmp-add-relay \
+    --gmp-program-id \"$SVM_GMP_ENDPOINT_ID\" \
+    --payer \"$SVM_PAYER_KEYPAIR\" \
+    --relay \"$SVM_RELAY_PUBKEY\" \
+    --rpc \"$SVM_RPC_URL\"
 " >> "$LOG_FILE" 2>&1 || {
-    log "   ️ GMP endpoint init via CLI not available, skipping (will be initialized on first use)"
+    log_and_echo "❌ PANIC: Failed to add relay to GMP endpoint"
+    exit 1
 }
+log "   ✅ Trusted-GMP relay added to GMP endpoint"
+
+# Set hub as trusted remote (if hub module address available)
+if [ -n "$HUB_MODULE_ADDR_HEX" ]; then
+    log " Setting hub (chain_id=1) as trusted remote on GMP endpoint..."
+    nix develop "$PROJECT_ROOT/nix" -c bash -c "
+cd \"$PROGRAM_DIR\"
+cargo run -p intent_escrow_cli --quiet -- \
+    gmp-set-trusted-remote \
+    --gmp-program-id \"$SVM_GMP_ENDPOINT_ID\" \
+    --payer \"$SVM_PAYER_KEYPAIR\" \
+    --src-chain-id 1 \
+    --trusted-addr \"$HUB_MODULE_ADDR_HEX\" \
+    --rpc \"$SVM_RPC_URL\"
+" >> "$LOG_FILE" 2>&1 || {
+        log_and_echo "❌ PANIC: Failed to set trusted remote on GMP endpoint"
+        exit 1
+    }
+    log "   ✅ Hub set as trusted remote on GMP endpoint"
+fi
 
 # ============================================================================
 # Initialize outflow-validator with hub config
@@ -158,21 +211,38 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     HUB_ADDR_PADDED=$(printf "%064s" "$HUB_ADDR_CLEAN" | tr ' ' '0')
     log "   Hub address (padded): 0x$HUB_ADDR_PADDED"
 
-    nix develop "$PROJECT_ROOT/nix" -c bash -c "
+    set +e
+    outflow_init_success=0
+    for attempt in 1 2 3; do
+        nix develop "$PROJECT_ROOT/nix" -c bash -c "
 cd \"$PROGRAM_DIR\"
 cargo run -p intent_escrow_cli --quiet -- \
     outflow-init \
-    --rpc-url \"$SVM_RPC_URL\" \
-    --payer-keypair \"$SVM_PAYER_KEYPAIR\" \
     --outflow-program-id \"$SVM_OUTFLOW_VALIDATOR_ID\" \
+    --payer \"$SVM_PAYER_KEYPAIR\" \
     --gmp-endpoint \"$SVM_GMP_ENDPOINT_ID\" \
     --hub-chain-id 1 \
-    --hub-address \"$HUB_ADDR_PADDED\"
-" >> "$LOG_FILE" 2>&1 || {
-        log "   ️ Outflow validator init via CLI not available, skipping (will be initialized on first use)"
-    }
+    --hub-address \"$HUB_ADDR_PADDED\" \
+    --rpc \"$SVM_RPC_URL\"
+" >> "$LOG_FILE" 2>&1
+        status=$?
+        if [ "$status" -eq 0 ]; then
+            log "   ✅ outflow-validator initialized"
+            outflow_init_success=1
+            break
+        fi
+        log "   Outflow init failed (attempt $attempt), retrying..."
+        sleep 2
+    done
+    set -e
+
+    if [ "$outflow_init_success" -ne 1 ]; then
+        log_and_echo "❌ PANIC: outflow-validator initialization failed"
+        exit 1
+    fi
 else
-    log "   ️ WARNING: HUB_MODULE_ADDR not found, skipping outflow-validator hub config"
+    log_and_echo "❌ PANIC: HUB_MODULE_ADDR not found, cannot initialize outflow-validator"
+    exit 1
 fi
 
 # ============================================================================
@@ -182,31 +252,48 @@ log ""
 log " Configuring hub chain to trust SVM connected chain..."
 
 if [ -n "$HUB_MODULE_ADDR" ]; then
-    # Convert SVM GMP endpoint pubkey to 32-byte hex for GMP addressing
-    # Solana pubkeys are already 32 bytes, but we need hex format
-    SVM_GMP_ADDR_HEX=$(svm_pubkey_to_hex "$SVM_GMP_ENDPOINT_ID")
-    log "   SVM GMP endpoint address (hex): $SVM_GMP_ADDR_HEX"
+    # Convert SVM outflow-validator pubkey to 32-byte hex for GMP addressing.
+    # FulfillmentProof messages from SVM have src_addr = outflow-validator program ID.
+    # Both transport layer (native_gmp_endpoint) and application layer (intent_gmp_hub)
+    # must trust the same address.
+    SVM_OUTFLOW_ADDR_HEX=$(svm_pubkey_to_hex "$SVM_OUTFLOW_VALIDATOR_ID")
+    log "   SVM outflow-validator address (hex): $SVM_OUTFLOW_ADDR_HEX"
 
-    # Set trusted remote on hub for SVM chain (chain_id=4)
+    # Set trusted remote on hub's native_gmp_endpoint (transport layer)
     if aptos move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::native_gmp_endpoint::set_trusted_remote \
-        --args u32:$SVM_CHAIN_ID "hex:${SVM_GMP_ADDR_HEX}" >> "$LOG_FILE" 2>&1; then
-        log "   ✅ Hub now trusts SVM connected chain (chain_id=$SVM_CHAIN_ID)"
+        --args u32:$SVM_CHAIN_ID "hex:${SVM_OUTFLOW_ADDR_HEX}" >> "$LOG_FILE" 2>&1; then
+        log "   ✅ Hub native_gmp_endpoint now trusts SVM outflow-validator"
     else
         log "   ️ Could not set trusted remote on hub (ignoring)"
     fi
 
-    # Also set trusted remote in intent_gmp_hub
+    # Set trusted remote on hub's intent_gmp_hub (application layer)
     if aptos move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_trusted_remote \
-        --args u32:$SVM_CHAIN_ID "hex:${SVM_GMP_ADDR_HEX}" >> "$LOG_FILE" 2>&1; then
-        log "   ✅ Hub intent_gmp_hub now trusts SVM connected chain"
+        --args u32:$SVM_CHAIN_ID "hex:${SVM_OUTFLOW_ADDR_HEX}" >> "$LOG_FILE" 2>&1; then
+        log "   ✅ Hub intent_gmp_hub now trusts SVM outflow-validator"
     else
         log "   ️ Could not set trusted remote in intent_gmp_hub (ignoring)"
     fi
 else
     log "   ️ WARNING: HUB_MODULE_ADDR not found, skipping hub trust config for SVM"
 fi
+
+# ============================================================================
+# Fund trusted-GMP relay on SVM
+# ============================================================================
+log ""
+log " Funding trusted-GMP relay on SVM..."
+load_trusted_gmp_keys
+if [ -z "$E2E_TRUSTED_GMP_PUBLIC_KEY" ]; then
+    log_and_echo "❌ PANIC: E2E_TRUSTED_GMP_PUBLIC_KEY not set"
+    exit 1
+fi
+RELAY_PUBKEY_BASE58=$(svm_base64_to_base58 "$E2E_TRUSTED_GMP_PUBLIC_KEY")
+log "   Relay address: $RELAY_PUBKEY_BASE58"
+airdrop_svm "$RELAY_PUBKEY_BASE58" 10 "$SVM_RPC_URL"
+log "   ✅ Trusted-GMP relay funded on SVM"
 
 # ============================================================================
 # Save chain info

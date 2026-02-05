@@ -84,6 +84,9 @@ pub struct SvmChainConfig {
     pub chain_id: u64,
     /// Program ID of the intent escrow program
     pub escrow_program_id: String,
+    /// Program ID of the native GMP endpoint (for polling outbound messages)
+    #[serde(default)]
+    pub gmp_endpoint_program_id: Option<String>,
 }
 
 /// Trusted GMP configuration including cryptographic keys and timing parameters.

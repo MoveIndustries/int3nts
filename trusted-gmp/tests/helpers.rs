@@ -221,6 +221,7 @@ pub fn build_test_config_with_svm() -> Config {
         rpc_url: "http://127.0.0.1:8899".to_string(),
         chain_id: 4,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
+        gmp_endpoint_program_id: Some(DUMMY_SVM_ESCROW_PROGRAM_ID.to_string()),
     });
     config
 }

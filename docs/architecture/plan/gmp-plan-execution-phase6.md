@@ -230,6 +230,43 @@ struct GenericLimitOrder<V: store + drop> has store, drop {
 
 ---
 
+## Part C: SVM Build Performance
+
+### Objective
+
+The SVM Docker build is slow. Research bottlenecks and identify optimization opportunities.
+
+### Current Bottlenecks (Suspected)
+
+1. **Solana CLI downloaded fresh every Docker run** (~200MB+)
+2. **Platform-tools downloaded for each cargo build-sbf call**
+3. **Toolchain re-registration happening 3 times** due to cargo-build-sbf bug workaround
+4. **No cargo cache between Docker runs**
+
+### Tasks
+
+- [ ] **Commit 8: Profile SVM Docker build and document bottlenecks**
+  - Time each phase (Solana install, platform-tools download, compilation)
+  - Measure download sizes
+  - Identify what's re-downloaded vs cached
+  - Document findings
+  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
+
+- [ ] **Commit 9: Implement SVM build optimizations**
+  - Based on profiling results, implement improvements:
+    - Pre-built Docker image with Solana CLI?
+    - Volume mounts for caches (~/.cache/solana, cargo registry)?
+    - Single cargo build for all programs?
+    - Fix root cause of toolchain bug instead of workaround?
+  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
+
+**Files to analyze:**
+
+- `intent-frameworks/svm/scripts/build-with-docker.sh`
+- `intent-frameworks/svm/scripts/build.sh`
+
+---
+
 ## Run All Tests
 
 ```bash

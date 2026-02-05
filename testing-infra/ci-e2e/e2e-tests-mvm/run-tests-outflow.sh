@@ -6,7 +6,7 @@
 # It sets up chains, deploys contracts, starts coordinator and trusted-gmp for negotiation routing,
 # submits outflow intents via coordinator, then runs the tests.
 
-set -e
+set -eo pipefail
 
 # Parse flags
 SKIP_BUILD=false
@@ -92,8 +92,9 @@ echo " Step 4b: Starting solver service..."
 echo "======================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-solver.sh
 
-# Verify solver started successfully
+# Verify solver and trusted-gmp started successfully
 ./testing-infra/ci-e2e/verify-solver-running.sh
+./testing-infra/ci-e2e/verify-trusted-gmp-running.sh
 
 echo ""
 echo " Step 5: Testing OUTFLOW intents (hub chain → connected chain)..."

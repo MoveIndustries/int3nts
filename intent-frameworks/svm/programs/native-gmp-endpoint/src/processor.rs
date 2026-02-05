@@ -52,10 +52,11 @@ pub fn process_instruction(
         NativeGmpInstruction::Send {
             dst_chain_id,
             dst_addr,
+            src_addr,
             payload,
         } => {
             msg!("Instruction: Send");
-            process_send(program_id, accounts, dst_chain_id, dst_addr, payload)
+            process_send(program_id, accounts, dst_chain_id, dst_addr, src_addr, payload)
         }
         NativeGmpInstruction::DeliverMessage {
             src_chain_id,
@@ -322,6 +323,7 @@ fn process_send(
     accounts: &[AccountInfo],
     dst_chain_id: u32,
     dst_addr: [u8; 32],
+    src_addr: [u8; 32],
     payload: Vec<u8>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -381,11 +383,15 @@ fn process_send(
 
     // Emit MessageSent event for GMP relay
     // Format: structured for easy parsing by the relay
+    // Note: Use src_addr provided by caller (e.g., outflow-validator program ID) so destination
+    // can verify trusted remote. The sender account is only used for authorization.
+    // src_addr is emitted as base58 Pubkey for relay compatibility.
+    let src_addr_pubkey = Pubkey::new_from_array(src_addr);
     msg!(
         "MessageSent: src_chain_id={}, dst_chain_id={}, src_addr={}, dst_addr={}, nonce={}, payload_len={}, payload_hex={}",
         config.chain_id,
         dst_chain_id,
-        sender.key,
+        src_addr_pubkey,
         hex_encode(&dst_addr),
         nonce,
         payload.len(),

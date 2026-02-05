@@ -3,6 +3,18 @@ use intent_escrow::{
     instruction::EscrowInstruction,
     state::{seeds, Escrow, EscrowState},
 };
+use intent_escrow_cli::{
+    parse_32_byte_hex, parse_i64, parse_intent_id, parse_options, parse_signature, parse_u32,
+    parse_u64, required_option,
+};
+use native_gmp_endpoint::{
+    instruction::NativeGmpInstruction,
+    state::seeds as gmp_seeds,
+};
+use outflow_validator::{
+    instruction::OutflowInstruction,
+    state::seeds as outflow_seeds,
+};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     ed25519_instruction::new_ed25519_instruction_with_signature,
@@ -46,6 +58,56 @@ fn run() -> Result<(), Box<dyn Error>> {
     // Commands that don't require program-id
     if command == "get-token-balance" {
         return handle_get_token_balance(&client, &options);
+    }
+
+    // GMP commands use --gmp-program-id
+    if command == "gmp-init" {
+        let gmp_program_id = match options.get("gmp-program-id") {
+            Some(value) => parse_pubkey(value)?,
+            None => {
+                eprintln!("Error: --gmp-program-id is required for '{}'", command);
+                print_usage();
+                std::process::exit(1);
+            }
+        };
+        return handle_gmp_init(&client, &options, gmp_program_id);
+    }
+
+    if command == "gmp-add-relay" {
+        let gmp_program_id = match options.get("gmp-program-id") {
+            Some(value) => parse_pubkey(value)?,
+            None => {
+                eprintln!("Error: --gmp-program-id is required for '{}'", command);
+                print_usage();
+                std::process::exit(1);
+            }
+        };
+        return handle_gmp_add_relay(&client, &options, gmp_program_id);
+    }
+
+    if command == "gmp-set-trusted-remote" {
+        let gmp_program_id = match options.get("gmp-program-id") {
+            Some(value) => parse_pubkey(value)?,
+            None => {
+                eprintln!("Error: --gmp-program-id is required for '{}'", command);
+                print_usage();
+                std::process::exit(1);
+            }
+        };
+        return handle_gmp_set_trusted_remote(&client, &options, gmp_program_id);
+    }
+
+    // Outflow commands use --outflow-program-id
+    if command == "outflow-init" {
+        let outflow_program_id = match options.get("outflow-program-id") {
+            Some(value) => parse_pubkey(value)?,
+            None => {
+                eprintln!("Error: --outflow-program-id is required for '{}'", command);
+                print_usage();
+                std::process::exit(1);
+            }
+        };
+        return handle_outflow_init(&client, &options, outflow_program_id);
     }
 
     // All other commands require program-id
@@ -235,6 +297,139 @@ fn handle_get_token_balance(
 }
 
 // ============================================================================
+// GMP ENDPOINT COMMAND HANDLERS
+// ============================================================================
+
+fn handle_gmp_init(
+    client: &RpcClient,
+    options: &HashMap<String, String>,
+    gmp_program_id: Pubkey,
+) -> Result<(), Box<dyn Error>> {
+    let payer = read_keypair(options, "payer")?;
+    let chain_id = parse_u32(required_option(options, "chain-id")?)?;
+
+    let (config_pda, _config_bump) =
+        Pubkey::find_program_address(&[gmp_seeds::CONFIG_SEED], &gmp_program_id);
+
+    let ix = Instruction {
+        program_id: gmp_program_id,
+        accounts: vec![
+            AccountMeta::new(config_pda, false),
+            AccountMeta::new_readonly(payer.pubkey(), true), // admin
+            AccountMeta::new(payer.pubkey(), true),          // payer
+            AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        ],
+        data: NativeGmpInstruction::Initialize { chain_id }.try_to_vec()?,
+    };
+
+    let signature = send_tx(client, &[ix], &payer, &[])?;
+    println!("GMP Initialize signature: {signature}");
+    println!("Config PDA: {config_pda}");
+    Ok(())
+}
+
+fn handle_gmp_add_relay(
+    client: &RpcClient,
+    options: &HashMap<String, String>,
+    gmp_program_id: Pubkey,
+) -> Result<(), Box<dyn Error>> {
+    let payer = read_keypair(options, "payer")?;
+    let relay_pubkey = parse_pubkey(required_option(options, "relay")?)?;
+
+    let (config_pda, _) =
+        Pubkey::find_program_address(&[gmp_seeds::CONFIG_SEED], &gmp_program_id);
+    let (relay_pda, _) =
+        Pubkey::find_program_address(&[gmp_seeds::RELAY_SEED, relay_pubkey.as_ref()], &gmp_program_id);
+
+    let ix = Instruction {
+        program_id: gmp_program_id,
+        accounts: vec![
+            AccountMeta::new_readonly(config_pda, false),
+            AccountMeta::new(relay_pda, false),
+            AccountMeta::new_readonly(payer.pubkey(), true), // admin
+            AccountMeta::new(payer.pubkey(), true),          // payer
+            AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        ],
+        data: NativeGmpInstruction::AddRelay { relay: relay_pubkey }.try_to_vec()?,
+    };
+
+    let signature = send_tx(client, &[ix], &payer, &[])?;
+    println!("GMP AddRelay signature: {signature}");
+    println!("Relay PDA: {relay_pda}");
+    Ok(())
+}
+
+fn handle_gmp_set_trusted_remote(
+    client: &RpcClient,
+    options: &HashMap<String, String>,
+    gmp_program_id: Pubkey,
+) -> Result<(), Box<dyn Error>> {
+    let payer = read_keypair(options, "payer")?;
+    let src_chain_id = parse_u32(required_option(options, "src-chain-id")?)?;
+    let trusted_addr = parse_32_byte_hex(required_option(options, "trusted-addr")?)?;
+
+    let (config_pda, _) =
+        Pubkey::find_program_address(&[gmp_seeds::CONFIG_SEED], &gmp_program_id);
+    let (trusted_remote_pda, _) =
+        Pubkey::find_program_address(&[gmp_seeds::TRUSTED_REMOTE_SEED, &src_chain_id.to_le_bytes()], &gmp_program_id);
+
+    let ix = Instruction {
+        program_id: gmp_program_id,
+        accounts: vec![
+            AccountMeta::new_readonly(config_pda, false),
+            AccountMeta::new(trusted_remote_pda, false),
+            AccountMeta::new_readonly(payer.pubkey(), true), // admin
+            AccountMeta::new(payer.pubkey(), true),          // payer
+            AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        ],
+        data: NativeGmpInstruction::SetTrustedRemote { src_chain_id, trusted_addr }.try_to_vec()?,
+    };
+
+    let signature = send_tx(client, &[ix], &payer, &[])?;
+    println!("GMP SetTrustedRemote signature: {signature}");
+    println!("Trusted remote PDA: {trusted_remote_pda}");
+    Ok(())
+}
+
+// ============================================================================
+// OUTFLOW VALIDATOR COMMAND HANDLERS
+// ============================================================================
+
+fn handle_outflow_init(
+    client: &RpcClient,
+    options: &HashMap<String, String>,
+    outflow_program_id: Pubkey,
+) -> Result<(), Box<dyn Error>> {
+    let payer = read_keypair(options, "payer")?;
+    let gmp_endpoint = parse_pubkey(required_option(options, "gmp-endpoint")?)?;
+    let hub_chain_id = parse_u32(required_option(options, "hub-chain-id")?)?;
+    let trusted_hub_addr = parse_32_byte_hex(required_option(options, "hub-address")?)?;
+
+    let (config_pda, _config_bump) =
+        Pubkey::find_program_address(&[outflow_seeds::CONFIG_SEED], &outflow_program_id);
+
+    let ix = Instruction {
+        program_id: outflow_program_id,
+        accounts: vec![
+            AccountMeta::new(config_pda, false),
+            AccountMeta::new(payer.pubkey(), true), // admin/payer
+            AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        ],
+        data: OutflowInstruction::Initialize {
+            gmp_endpoint,
+            hub_chain_id,
+            trusted_hub_addr,
+        }
+        .try_to_vec()?,
+    };
+
+    let signature = send_tx(client, &[ix], &payer, &[])?;
+    println!("Outflow Initialize signature: {signature}");
+    println!("Config PDA: {config_pda}");
+    Ok(())
+}
+
+// ============================================================================
 // INSTRUCTION BUILDERS
 // ============================================================================
 
@@ -355,35 +550,8 @@ fn send_tx(
 }
 
 // ============================================================================
-// OPTION PARSING
+// LOCAL HELPERS
 // ============================================================================
-
-fn parse_options(args: &[String]) -> Result<HashMap<String, String>, Box<dyn Error>> {
-    let mut options = HashMap::new();
-    let mut index = 0;
-    while index < args.len() {
-        let key = args[index]
-            .strip_prefix("--")
-            .ok_or("Expected option in --key format")?;
-        let value = args
-            .get(index + 1)
-            .ok_or("Missing value for option")?
-            .to_string();
-        options.insert(key.to_string(), value);
-        index += 2;
-    }
-    Ok(options)
-}
-
-fn required_option<'a>(
-    options: &'a HashMap<String, String>,
-    key: &str,
-) -> Result<&'a str, Box<dyn Error>> {
-    options
-        .get(key)
-        .map(String::as_str)
-        .ok_or_else(|| format!("Missing required option: --{key}").into())
-}
 
 fn read_keypair(
     options: &HashMap<String, String>,
@@ -393,54 +561,8 @@ fn read_keypair(
     Ok(read_keypair_file(path)?)
 }
 
-// ============================================================================
-// VALUE PARSING
-// ============================================================================
-
 fn parse_pubkey(value: &str) -> Result<Pubkey, Box<dyn Error>> {
     Ok(Pubkey::from_str(value)?)
-}
-
-fn parse_u64(value: &str) -> Result<u64, Box<dyn Error>> {
-    Ok(value.parse::<u64>()?)
-}
-
-fn parse_i64(value: &str) -> Result<i64, Box<dyn Error>> {
-    Ok(value.parse::<i64>()?)
-}
-
-fn parse_intent_id(value: &str) -> Result<[u8; 32], Box<dyn Error>> {
-    Ok(hex_to_bytes32(value))
-}
-
-fn parse_signature(value: &str) -> Result<[u8; 64], Box<dyn Error>> {
-    let hex = value.strip_prefix("0x").unwrap_or(value);
-    let bytes = hex::decode(hex)?;
-    if bytes.len() != 64 {
-        return Err("Signature must be 64 bytes (128 hex chars)".into());
-    }
-    let mut signature = [0u8; 64];
-    signature.copy_from_slice(&bytes);
-    Ok(signature)
-}
-
-fn hex_to_bytes32(hex_string: &str) -> [u8; 32] {
-    let hex = hex_string.strip_prefix("0x").unwrap_or(hex_string);
-    let hex = if hex.len() % 2 == 1 {
-        format!("0{}", hex)
-    } else {
-        hex.to_string()
-    };
-    let mut bytes = [0u8; 32];
-    if let Ok(hex_bytes) = hex::decode(&hex) {
-        let start = 32usize.saturating_sub(hex_bytes.len());
-        if start < 32 {
-            bytes[start..].copy_from_slice(&hex_bytes);
-        }
-    } else {
-        panic!("Invalid hex string: {}", hex_string);
-    }
-    bytes
 }
 
 // ============================================================================
@@ -452,9 +574,9 @@ fn print_usage() {
         r#"SVM Intent Escrow CLI
 
 Usage:
-  intent_escrow_cli <command> --program-id <pubkey> [--option value]...
+  intent_escrow_cli <command> [--option value]...
 
-Commands:
+Escrow Commands:
   initialize         --program-id <pubkey> --payer <keypair> --approver <pubkey> [--rpc <url>]
   create-escrow      --program-id <pubkey> --payer <keypair> --requester <keypair> --token-mint <pubkey>
                      --requester-token <pubkey> --solver <pubkey> --intent-id <hex> --amount <u64>
@@ -465,6 +587,16 @@ Commands:
                      --intent-id <hex> [--rpc <url>]
   get-escrow         --program-id <pubkey> --intent-id <hex> [--rpc <url>]
   get-token-balance  --token-account <pubkey> [--rpc <url>]
+
+GMP Endpoint Commands:
+  gmp-init           --gmp-program-id <pubkey> --payer <keypair> --chain-id <u32> [--rpc <url>]
+  gmp-add-relay      --gmp-program-id <pubkey> --payer <keypair> --relay <pubkey> [--rpc <url>]
+  gmp-set-trusted-remote  --gmp-program-id <pubkey> --payer <keypair> --src-chain-id <u32>
+                          --trusted-addr <hex> [--rpc <url>]
+
+Outflow Validator Commands:
+  outflow-init       --outflow-program-id <pubkey> --payer <keypair> --gmp-endpoint <pubkey>
+                     --hub-chain-id <u32> --hub-address <hex> [--rpc <url>]
         "#
     );
 }

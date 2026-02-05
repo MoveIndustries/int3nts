@@ -14,6 +14,8 @@ echo "[build-with-docker.sh] Building SVM program in Docker container..."
 docker run --rm \
   -v "$PROJECT_DIR:/workspace" \
   -w /workspace \
+  --user "$(id -u):$(id -g)" \
+  -e HOME=/tmp \
   rust:1.84 \
   bash -c 'sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)" && ./scripts/build.sh'
 

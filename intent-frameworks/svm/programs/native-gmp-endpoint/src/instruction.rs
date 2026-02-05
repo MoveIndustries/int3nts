@@ -65,7 +65,7 @@ pub enum NativeGmpInstruction {
     /// Accounts expected:
     /// 0. `[]` Config account (PDA: ["config"])
     /// 1. `[writable]` Outbound nonce account (PDA: ["nonce_out", dst_chain_id])
-    /// 2. `[signer]` Sender (the program/user sending the message)
+    /// 2. `[signer]` Sender (the program/user sending the message, for authorization)
     /// 3. `[signer]` Payer (pays for nonce account creation if needed)
     /// 4. `[]` System program
     Send {
@@ -73,6 +73,10 @@ pub enum NativeGmpInstruction {
         dst_chain_id: u32,
         /// Destination address (32 bytes, the receiving program/module)
         dst_addr: [u8; 32],
+        /// Source address to include in the message (32 bytes).
+        /// This is the application-level sender (e.g., outflow-validator program ID).
+        /// The sender account is still required for authorization.
+        src_addr: [u8; 32],
         /// Message payload (encoded GMP message)
         payload: Vec<u8>,
     },
