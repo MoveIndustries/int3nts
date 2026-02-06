@@ -8,11 +8,11 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use gmp_common::messages::IntentRequirements;
-use native_gmp_endpoint::{
+use intent_gmp::{
     instruction::NativeGmpInstruction,
     state::seeds as gmp_seeds,
 };
-use outflow_validator::{
+use intent_outflow_validator::{
     instruction::OutflowInstruction,
     seeds,
     state::{ConfigAccount, IntentRequirementsAccount},
@@ -82,7 +82,7 @@ fn program_test() -> ProgramTest {
     let mut pt = ProgramTest::new(
         "outflow_validator",
         program_id,
-        processor!(outflow_validator::processor::process_instruction),
+        processor!(intent_outflow_validator::processor::process_instruction),
     );
     pt.prefer_bpf(false);
     pt
@@ -193,7 +193,7 @@ fn program_test_with_spl() -> ProgramTest {
     let mut pt = ProgramTest::new(
         "outflow_validator",
         program_id,
-        processor!(outflow_validator::processor::process_instruction),
+        processor!(intent_outflow_validator::processor::process_instruction),
     );
     pt.add_program(
         "spl_token",
@@ -396,7 +396,7 @@ fn program_test_with_spl_and_gmp() -> ProgramTest {
     let mut pt = ProgramTest::new(
         "outflow_validator",
         program_id,
-        processor!(outflow_validator::processor::process_instruction),
+        processor!(intent_outflow_validator::processor::process_instruction),
     );
     pt.add_program(
         "spl_token",
@@ -406,7 +406,7 @@ fn program_test_with_spl_and_gmp() -> ProgramTest {
     pt.add_program(
         "native_gmp_endpoint",
         gmp_endpoint_id(),
-        processor!(native_gmp_endpoint::processor::process_instruction),
+        processor!(intent_gmp::processor::process_instruction),
     );
     pt.prefer_bpf(false);
     pt

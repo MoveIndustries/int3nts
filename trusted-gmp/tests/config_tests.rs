@@ -8,7 +8,7 @@ use trusted_gmp::monitor::ChainType;
 use trusted_gmp::validator::{get_chain_type_from_chain_id, normalize_address};
 #[path = "mod.rs"]
 mod test_helpers;
-use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_INTENT_ID_FULL, DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_TOKEN_ADDR_FANTOM, DUMMY_APPROVER_EVM_PUBKEY_HASH};
+use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_INTENT_ID_FULL, DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_APPROVER_EVM_PUBKEY_HASH};
 
 /// Test that default configuration creates valid structure
 /// Why: Verify default config is valid and doesn't panic

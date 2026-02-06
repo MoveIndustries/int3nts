@@ -5,7 +5,7 @@
 //! in Phase 2 when the implementation is complete.
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use outflow_validator::{
+use intent_outflow_validator::{
     instruction::OutflowInstruction,
     state::{ConfigAccount, IntentRequirementsAccount},
     OutflowError,

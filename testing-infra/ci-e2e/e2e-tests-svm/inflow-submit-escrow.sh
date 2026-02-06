@@ -51,7 +51,7 @@ export SVM_AMOUNT="$SVM_AMOUNT"
 export SVM_EXPIRY="$SVM_EXPIRY"
 # Deployed intent_escrow program ID on SVM
 export SVM_PROGRAM_ID="$SVM_PROGRAM_ID"
-# Native GMP endpoint program ID for cross-chain messaging
+# intent-gmp program ID for cross-chain messaging
 export SVM_GMP_ENDPOINT_ID="$SVM_GMP_ENDPOINT_ID"
 # Chain ID of the hub (Movement) for GMP routing
 export HUB_CHAIN_ID="1"

@@ -4,7 +4,7 @@
 //! and that the nonce tracking logic works correctly for replay protection.
 
 use borsh::BorshDeserialize;
-use native_gmp_endpoint::{
+use intent_gmp::{
     instruction::NativeGmpInstruction,
     state::{
         ConfigAccount, InboundNonceAccount, OutboundNonceAccount, RelayAccount,
@@ -432,7 +432,7 @@ fn test_error_codes_unique() {
 
 mod integration {
     use borsh::{BorshDeserialize, BorshSerialize};
-    use native_gmp_endpoint::{
+    use intent_gmp::{
         instruction::NativeGmpInstruction,
         state::{seeds, ConfigAccount, OutboundNonceAccount, RelayAccount, RoutingConfig, TrustedRemoteAccount, InboundNonceAccount},
     };
@@ -485,12 +485,12 @@ mod integration {
         Ok(())
     }
 
-    /// Build ProgramTest with native-gmp-endpoint and mock receivers
+    /// Build ProgramTest with intent-gmp and mock receivers
     fn program_test() -> ProgramTest {
         let mut pt = ProgramTest::new(
-            "native_gmp_endpoint",
+            "intent_gmp",
             gmp_program_id(),
-            processor!(native_gmp_endpoint::processor::process_instruction),
+            processor!(intent_gmp::processor::process_instruction),
         );
         // Add mock receiver for DeliverMessage CPI tests (simulates outflow_validator)
         pt.add_program("mock_receiver", mock_receiver_id(), processor!(mock_receiver_process));

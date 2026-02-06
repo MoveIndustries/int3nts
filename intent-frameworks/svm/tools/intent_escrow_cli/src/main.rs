@@ -7,11 +7,11 @@ use intent_escrow_cli::{
     parse_32_byte_hex, parse_i64, parse_intent_id, parse_options, parse_signature, parse_u32,
     parse_u64, required_option,
 };
-use native_gmp_endpoint::{
+use intent_gmp::{
     instruction::NativeGmpInstruction,
     state::seeds as gmp_seeds,
 };
-use outflow_validator::{
+use intent_outflow_validator::{
     instruction::OutflowInstruction,
     state::seeds as outflow_seeds,
 };

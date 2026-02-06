@@ -44,7 +44,7 @@ else
     pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
     ./scripts/build-with-docker.sh 2>&1 | tail -5
     popd > /dev/null
-    log_and_echo "   ✅ SVM: on-chain programs (intent_escrow, native_gmp_endpoint, outflow_validator)"
+    log_and_echo "   ✅ SVM: on-chain programs (intent_escrow, intent_gmp, intent_outflow_validator)"
 
     pushd "$PROJECT_ROOT/coordinator" > /dev/null
     cargo build --bin coordinator 2>&1 | tail -5

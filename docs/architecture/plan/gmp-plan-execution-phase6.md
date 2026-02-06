@@ -65,21 +65,16 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
   - **Note:** intent-hub still exceeds 60KB (75KB) and requires `--chunked-publish`
   - All 164 MVM tests passing across 3 packages
 
-- [ ] **Commit 3: Rename SVM and EVM programs for consistency**
-  - **SVM renames:**
-    - Rename `native-gmp-endpoint` → `intent-gmp`
-    - Rename `outflow-validator` → `intent-outflow-validator`
+- [x] **Commit 3: Rename SVM programs for consistency** ✅
+  - **SVM renames completed:**
+    - Renamed `native-gmp-endpoint` → `intent-gmp`
+    - Renamed `outflow-validator` → `intent-outflow-validator`
     - Final SVM structure (2 logical groups, 3 programs):
       - **`intent-gmp`** - GMP infrastructure
       - **`intent-connected`** = `intent-escrow` + `intent-outflow-validator` (2 programs, logically grouped)
     - Note: Unlike Move, Solana cannot bundle programs into packages - each is deployed separately
-  - **EVM renames:**
-    - Rename `NativeGmpEndpoint.sol` → `IntentGmp.sol`
-    - Rename `OutflowValidator.sol` → `IntentOutflowValidator.sol`
-  - Update all references in code, scripts, and tests
-  - Verify each program/contract can be deployed independently
-  - Document deployment order in scripts
-  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
+  - **EVM:** NativeGmpEndpoint.sol and OutflowValidator.sol do not exist yet (skipped)
+  - Updated Cargo.toml, Rust imports, build.sh, test.sh
 
 - [ ] **Commit 4: Minimize connected chain module dependencies**
   - Remove any hub-only dependencies from connected chain modules (MVM + SVM)
@@ -106,11 +101,9 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
 - `intent-frameworks/mvm/sources/gmp/outflow_validator.move` (rename to `intent_outflow_validator.move`)
 - `intent-frameworks/mvm/sources/gmp/gmp_common.move`
 - `intent-frameworks/mvm/sources/gmp/native_gmp_endpoint.move`
-- `intent-frameworks/svm/programs/native-gmp-endpoint/` (rename to `intent-gmp/`)
+- `intent-frameworks/svm/programs/intent-gmp/` (renamed from native-gmp-endpoint)
 - `intent-frameworks/svm/programs/intent_escrow/`
-- `intent-frameworks/svm/programs/outflow-validator/` (rename to `intent-outflow-validator/`)
-- `intent-frameworks/evm/contracts/gmp/NativeGmpEndpoint.sol` (rename to `IntentGmp.sol`)
-- `intent-frameworks/evm/contracts/OutflowValidator.sol` (rename to `IntentOutflowValidator.sol`)
+- `intent-frameworks/svm/programs/intent-outflow-validator/` (renamed from outflow-validator)
 
 ---
 
@@ -301,7 +294,7 @@ The SVM Docker build is slow. Research bottlenecks and identify optimization opp
 
 - [x] Part A: MVM and SVM connected chain modules audited and documented
 - [x] Part A: MVM package split into 3 packages (intent-gmp, intent-hub, intent-connected)
-- [ ] Part A: SVM program structure documented (gmp + connected logical grouping)
+- [x] Part A: SVM program structure documented (intent-gmp + intent-outflow-validator renamed)
 - [ ] Part A: Recommendation on package structure documented
 - [ ] Part B: All three approaches analyzed with security implications
 - [ ] Part B: Prototype of conditional oracle approach (test branch)

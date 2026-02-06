@@ -146,6 +146,7 @@ pub struct GmpMessage {
 }
 
 /// MVM MessageSent event data structure.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize)]
 pub struct MvmMessageSentEvent {
     /// Destination chain endpoint ID
@@ -627,6 +628,7 @@ impl NativeGmpRelay {
     }
 
     /// Parse MVM MessageSent event into GmpMessage.
+    #[allow(dead_code)]
     fn parse_mvm_message_sent(
         &self,
         event: &MvmMessageSentEvent,
@@ -1201,6 +1203,7 @@ pub fn parse_view_bytes(value: &serde_json::Value) -> Result<String> {
 }
 
 /// Convert array of byte strings (e.g., ["60", "68"]) to hex string with 0x prefix.
+#[allow(dead_code)]
 pub fn bytes_array_to_hex(bytes: &[String]) -> Result<String> {
     let mut result = Vec::with_capacity(bytes.len());
     for byte_str in bytes {

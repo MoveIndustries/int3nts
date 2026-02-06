@@ -1,12 +1,12 @@
 [package]
-name = "native_gmp_endpoint"
+name = "intent_gmp"
 version = "0.1.0"
 description = "Native GMP endpoint for cross-chain message passing"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "native_gmp_endpoint"
+name = "intent_gmp"
 
 [features]
 no-entrypoint = []

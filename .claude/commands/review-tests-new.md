@@ -88,6 +88,40 @@ Check for proper use of constants instead of magic numbers:
   - MVM addresses: 32 bytes (66 chars with 0x)
   - Transaction hashes: 32 bytes (66 chars with 0x)
 
+### Magic numbers in production/source code (CRITICAL)
+
+**All numeric and hex literals in new/modified source code must be named constants. No exceptions.**
+
+Scan ALL new/modified lines (from `git diff`) in **both test AND source files** for magic numbers:
+
+#### What counts as a magic number
+
+- ❌ Hardcoded numeric literals: `sleep(5000)`, `timeout: 30`, `max_retries: 3`, `capacity: 1024`
+- ❌ Hardcoded hex strings: `"0x7a3b..."`, `[0xDE, 0xAD]`
+- ❌ Hardcoded sizes/limits: `if len > 256`, `buffer[..32]`, `max_size: 1048576`
+- ❌ Hardcoded timeouts/durations: `Duration::from_secs(60)`, `3600`, `86400`
+- ❌ Hardcoded port numbers: `8080`, `3000`, `8545`
+- ❌ Hardcoded chain IDs or protocol constants without names
+- ❌ Hardcoded array indices beyond 0/1 without explanation
+
+#### What is NOT a magic number (acceptable)
+
+- ✅ 0, 1, 2 used as trivial values (loop starts, boolean-like, increment)
+- ✅ Named constants: `const MAX_RETRIES: u32 = 3;` (the definition site is fine)
+- ✅ Enum variants and pattern matching
+- ✅ String literals (URLs, paths, error messages)
+- ✅ Values in const/static definitions (that's where they SHOULD be)
+- ✅ Math with well-known values (e.g., `* 2`, `/ 100` for percentages — but prefer named constants even here)
+- ✅ Test-specific values following DUMMY_* conventions (covered by Rules 1-9 above)
+
+#### How to check
+
+1. From `git diff`, extract all added lines (`+` prefix) in source files
+2. Search for numeric literals, hex literals, and byte arrays
+3. For each one, ask: "Would a reader understand what this number means without context?"
+4. If NO → it must be a named constant
+5. Report each violation with file path, line number, the magic number, and what it should be named
+
 ### Variable naming (Rule 4)
 
 Check variable and parameter naming:
@@ -238,6 +272,24 @@ Provide a clear report with:
 - Unnecessary variable bindings
 - Missing struct update syntax opportunities
 - Suggested improvements
+
+### Part 2a: Magic Numbers in Source Code (New/Modified Only)
+
+**Every magic number found here is a violation. No exceptions.**
+
+For each violation report:
+
+- File path and line number
+- The magic number value
+- What it represents (inferred from context)
+- Suggested constant name and where to define it
+
+Example:
+
+| File | Line | Value | Meaning | Suggested Constant |
+|------|------|-------|---------|--------------------|
+| `coordinator/src/config.rs` | 42 | `30` | polling interval seconds | `const POLLING_INTERVAL_SECS: u64 = 30;` |
+| `trusted-gmp/src/relay.rs` | 118 | `0x7a3b...` | contract address | `const GMP_CONTRACT_ADDR: &str = "0x7a3b...";` |
 
 ### Part 3: Test Coverage Analysis (New/Modified Code Only)
 

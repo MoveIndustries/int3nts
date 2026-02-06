@@ -129,7 +129,7 @@ fn test_ed25519_seed_to_keypair_bytes_produces_valid_keypair() {
     );
 
     // Verify the result can create a valid Solana Keypair
-    let keypair = Keypair::from_bytes(&keypair_bytes).expect("Should create valid Keypair");
+    let keypair = Keypair::try_from(keypair_bytes.as_slice()).expect("Should create valid Keypair");
     assert_eq!(keypair.to_bytes(), keypair_bytes);
 }
 
@@ -502,7 +502,7 @@ fn test_ata_derivation_formula() {
         .expect("Invalid mint pubkey");
 
     // Derive ATA using the same formula as in deliver_to_svm
-    let (derived_ata, bump) = Pubkey::find_program_address(
+    let (derived_ata, _bump) = Pubkey::find_program_address(
         &[
             owner.as_ref(),
             token_program_id.as_ref(),
@@ -511,8 +511,7 @@ fn test_ata_derivation_formula() {
         &associated_token_program_id,
     );
 
-    // Verify the derivation produces a valid pubkey and bump
-    assert!(bump <= 255, "Bump should be <= 255");
+    // Verify the derivation produces a valid pubkey
     assert_ne!(derived_ata, Pubkey::default(), "Derived ATA should not be default");
 
     // Verify the formula matches expected ATA format

@@ -58,16 +58,16 @@ echo "[build.sh] Running cargo build-sbf for intent_escrow..."
 clear_stale_toolchain
 cargo build-sbf --manifest-path programs/intent_escrow/Cargo.toml -- --locked
 
-echo "[build.sh] Running cargo build-sbf for native-gmp-endpoint..."
+echo "[build.sh] Running cargo build-sbf for intent-gmp..."
 clear_stale_toolchain
-cargo build-sbf --manifest-path programs/native-gmp-endpoint/Cargo.toml -- --locked
+cargo build-sbf --manifest-path programs/intent-gmp/Cargo.toml -- --locked
 
-echo "[build.sh] Running cargo build-sbf for outflow-validator..."
+echo "[build.sh] Running cargo build-sbf for intent-outflow-validator..."
 clear_stale_toolchain
-cargo build-sbf --manifest-path programs/outflow-validator/Cargo.toml -- --locked
+cargo build-sbf --manifest-path programs/intent-outflow-validator/Cargo.toml -- --locked
 
 echo "[build.sh] Build complete!"
 echo "[build.sh] Output:"
 echo "  - target/deploy/intent_escrow.so"
-echo "  - target/deploy/native_gmp_endpoint.so"
-echo "  - target/deploy/outflow_validator.so"
+echo "  - target/deploy/intent_gmp.so"
+echo "  - target/deploy/intent_outflow_validator.so"
