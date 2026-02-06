@@ -132,8 +132,8 @@ fi
 log_and_echo "✅ Solver fulfilled the intent automatically!"
 log_and_echo ""
 
-# Wait for solver to claim escrow (it does this automatically after fulfillment)
-./testing-infra/ci-e2e/e2e-tests-evm/wait-for-escrow-claim.sh
+# Wait for escrow release (happens automatically when fulfillment proof arrives)
+./testing-infra/ci-e2e/e2e-tests-evm/wait-for-escrow-release.sh
 
 log_and_echo ""
 log_and_echo " Final Balance Validation"

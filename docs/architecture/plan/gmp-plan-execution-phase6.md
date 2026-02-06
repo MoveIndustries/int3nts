@@ -76,24 +76,24 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
   - **EVM:** NativeGmpEndpoint.sol and OutflowValidator.sol do not exist yet (skipped)
   - Updated Cargo.toml, Rust imports, build.sh, test.sh
 
-- [ ] **Commit 4: Minimize connected chain module dependencies**
-  - Remove any hub-only dependencies from connected chain modules (MVM + SVM)
-  - Ensure connected chain modules only import what they need
-  - Update tests to verify isolation
+- [ ] **Commit 4: Align EVM architecture with MVM/SVM patterns**
+  - Create EVM contracts following the same structure as MVM and SVM:
+    - `IntentGmp.sol` - GMP infrastructure (like MVM intent-gmp, SVM intent-gmp)
+    - `IntentEscrow.sol` - Escrow for inflow (like SVM intent-escrow)
+    - `IntentOutflowValidator.sol` - Outflow validation (like MVM/SVM intent-outflow-validator)
+  - Ensure consistent naming conventions across all three VMs
+  - Update EVM tests and deployment scripts
   - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
 
-- [ ] **Commit 5: Auto-release escrow on FulfillmentProof receipt (GMP flow)**
-  - Currently escrow release is two steps: (1) `receive_fulfillment_proof` marks `fulfilled=true`, (2) solver calls `release_escrow` separately
-  - Collapse into single step: `receive_fulfillment_proof` also transfers tokens to the solver
-  - The solver address is already in the GMP FulfillmentProof payload — no extra data needed
-  - Changes:
-    - `inflow_escrow_gmp.move`: `receive_fulfillment_proof` calls release logic internally after marking fulfilled
-    - `inflow_escrow_gmp.move`: `release_escrow` entry function can be removed (or kept as manual fallback)
-    - `solver/src/service/inflow.rs`: remove `release_mvm_gmp_escrow` polling loop and `release_escrow` call for MVM
-    - `solver/src/chains/connected_mvm.rs`: remove `release_gmp_escrow` and `is_escrow_fulfilled` if no longer needed
-    - Update E2E `wait-for-escrow-claim.sh` timeout if needed (release happens faster now)
-    - Update all affected Move and Rust tests
-  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
+- [x] **Commit 5: Auto-release escrow on FulfillmentProof receipt (GMP flow)** ✅
+  - Collapsed two-step release into single step matching SVM behavior
+  - Changes made:
+    - `inflow_escrow_gmp.move`: `receive_fulfillment_proof` now transfers tokens to solver and marks both fulfilled+released
+    - `inflow_escrow_gmp.move`: `release_escrow` kept as manual fallback
+    - `solver/src/service/inflow.rs`: `release_mvm_gmp_escrow` now polls `is_escrow_released` (no manual release call)
+    - `solver/src/chains/connected_mvm.rs`: replaced `is_escrow_fulfilled` with `is_escrow_released`, marked `release_gmp_escrow` as dead code
+    - Updated 5 Move tests to reflect auto-release behavior
+    - E2E tests already poll `is_released` - no changes needed (release happens faster now)
 
 **Files to analyze:**
 

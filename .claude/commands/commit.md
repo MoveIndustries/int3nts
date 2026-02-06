@@ -33,7 +33,18 @@ git diff --cached
 - Blank lines around lists (MD032)
 - No multiple blank lines (MD012)
 
-## Step 3: Determine Test Requirements
+## Step 3: Check Extension Checklists for Test Changes
+
+If staged changes include new, modified, or removed tests:
+
+1. Check if tests should be in `solver/tests/EXTENSION-CHECKLIST.md`
+2. If tests are in an extension checklist: verify if equivalent tests exist for other VM frameworks (MVM, EVM, SVM)
+3. If tests were removed: update checklists to remove or mark as N/A
+4. **STOP and inform user**: If checklist updates are needed, update the checklist then STOP. Do NOT proceed to commit. User must assess whether other VMs need equivalent tests first.
+
+See `docs/intent-frameworks/framework-extension-guide.md` for the full test alignment reference.
+
+## Step 4: Determine Test Requirements
 
 Based on what you read in `.claude/rules.md`:
 
@@ -41,7 +52,7 @@ Based on what you read in `.claude/rules.md`:
 - If yes, which test commands should be run?
 - If no, proceed without tests
 
-## Step 4: Create Commit Message
+## Step 5: Create Commit Message
 
 Follow the exact format specified in `.claude/rules.md`:
 
@@ -51,11 +62,11 @@ Follow the exact format specified in `.claude/rules.md`:
 - Add "Tests pass:" line ONLY if tests were run
 - Follow all commit rules (no AI mentions, no git add, etc.)
 
-## Step 5: Execute Commit
+## Step 6: Execute Commit
 
 Use heredoc format for multi-line commit messages as shown in `.claude/rules.md`.
 
-## Step 6: Verify
+## Step 7: Verify
 
 ```bash
 git status

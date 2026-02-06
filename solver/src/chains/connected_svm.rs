@@ -1,7 +1,7 @@
 //! Connected SVM Chain Client
 //!
 //! Client for interacting with connected SVM chains to query escrow accounts
-//! and release escrows after trusted-gmp approval.
+//! and check escrow release status via GMP flow.
 
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -12,10 +12,8 @@ use solana_client::rpc_client::RpcClient;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
-    ed25519_instruction::new_ed25519_instruction_with_signature,
     instruction::{AccountMeta, Instruction},
     signature::{Keypair, Signer},
-    sysvar,
     transaction::Transaction,
 };
 use solana_sdk_ids::system_program;
@@ -40,12 +38,6 @@ pub struct EscrowAccount {
     pub bump: u8,
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
-pub struct EscrowState {
-    pub discriminator: [u8; 8],
-    pub approver: Pubkey,
-}
-
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub enum EscrowInstruction {
     Initialize { approver: Pubkey },
@@ -54,6 +46,9 @@ pub enum EscrowInstruction {
         amount: u64,
         expiry_duration: Option<i64>,
     },
+    // Note: Claim variant kept for Borsh enum index compatibility (index 2)
+    // GMP flow uses auto-release via FulfillmentProof delivery
+    #[allow(dead_code)]
     Claim {
         intent_id: [u8; 32],
         signature: [u8; 64],
@@ -183,113 +178,6 @@ impl ConnectedSvmClient {
         Ok(events)
     }
 
-    /// Claims an escrow using a trusted-gmp signature (not yet implemented).
-    ///
-    /// # Arguments
-    ///
-    /// * `escrow_id` - Escrow PDA address
-    /// * `intent_id` - Intent id
-    /// * `signature` - Approver (Trusted GMP) signature bytes
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(String)` - Transaction signature
-    /// * `Err(anyhow::Error)` - Unimplemented or RPC failure
-    pub async fn claim_escrow(
-        &self,
-        escrow_id: &str,
-        intent_id: &str,
-        signature: &[u8],
-    ) -> Result<String> {
-        let intent_bytes = parse_intent_id(intent_id)?;
-        let signature_bytes = parse_signature(signature)?;
-        let escrow_pubkey = pubkey_from_hex(escrow_id)?;
-
-        let escrow_account = self
-            .rpc_client
-            .get_account(&escrow_pubkey)
-            .context("Failed to fetch escrow account")?;
-        let escrow = EscrowAccount::try_from_slice(&escrow_account.data)
-            .context("Failed to parse escrow account")?;
-
-        let state_pda =
-            Pubkey::find_program_address(&[b"state"], &self.program_id).0;
-        let vault_pda =
-            Pubkey::find_program_address(&[b"vault", &intent_bytes], &self.program_id).0;
-
-        let solver_token =
-            get_associated_token_address(&escrow.reserved_solver, &escrow.token_mint)?;
-
-        let payer = self.load_solver_keypair()?;
-        if self.rpc_client.get_account(&solver_token).is_err() {
-            let create_ata_ix = create_associated_token_account_instruction(
-                &payer.pubkey(),
-                &escrow.reserved_solver,
-                &escrow.token_mint,
-            )?;
-            let blockhash = self
-                .rpc_client
-                .get_latest_blockhash()
-                .context("Failed to get latest blockhash")?;
-            let tx = Transaction::new_signed_with_payer(
-                &[create_ata_ix],
-                Some(&payer.pubkey()),
-                &[&payer],
-                blockhash,
-            );
-            self.rpc_client
-                .send_and_confirm_transaction(&tx)
-                .context("Failed to create solver ATA")?;
-        }
-
-        let state_account = self
-            .rpc_client
-            .get_account(&state_pda)
-            .context("Failed to fetch state account")?;
-        let state = EscrowState::try_from_slice(&state_account.data)
-            .context("Failed to parse state account")?;
-
-        let ed25519_ix = new_ed25519_instruction_with_signature(
-            &intent_bytes,
-            &signature_bytes,
-            &state.approver.to_bytes(),
-        );
-
-        let claim_ix = Instruction {
-            program_id: self.program_id,
-            accounts: vec![
-                AccountMeta::new(escrow_pubkey, false),
-                AccountMeta::new_readonly(state_pda, false),
-                AccountMeta::new(vault_pda, false),
-                AccountMeta::new(solver_token, false),
-                AccountMeta::new_readonly(sysvar::instructions::id(), false),
-                AccountMeta::new_readonly(spl_token::id(), false),
-            ],
-            data: EscrowInstruction::Claim {
-                intent_id: intent_bytes,
-                signature: signature_bytes,
-            }
-            .try_to_vec()
-            .context("Failed to serialize claim instruction")?,
-        };
-
-        let blockhash = self
-            .rpc_client
-            .get_latest_blockhash()
-            .context("Failed to get latest blockhash")?;
-        let tx = Transaction::new_signed_with_payer(
-            &[ed25519_ix, claim_ix],
-            Some(&payer.pubkey()),
-            &[&payer],
-            blockhash,
-        );
-        let sig = self
-            .rpc_client
-            .send_and_confirm_transaction(&tx)
-            .context("Failed to send claim transaction")?;
-        Ok(sig.to_string())
-    }
-
     /// Checks if GMP outflow requirements have been delivered for an intent.
     ///
     /// This polls the outflow_validator's requirements PDA account to see if it exists.
@@ -320,6 +208,40 @@ impl ConnectedSvmClient {
             Ok(_) => Ok(true),
             Err(_) => Ok(false),
         }
+    }
+
+    /// Checks if an inflow escrow has been released (auto-released when FulfillmentProof received).
+    ///
+    /// Reads the escrow PDA account and checks the `is_claimed` field.
+    /// With GMP auto-release, when this returns true, tokens have already been transferred to solver.
+    ///
+    /// # Arguments
+    ///
+    /// * `intent_id` - Intent ID (0x-prefixed hex string)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(true)` - Escrow has been released to solver
+    /// * `Ok(false)` - Escrow not yet released
+    /// * `Err` - Failed to query (escrow doesn't exist or parse error)
+    pub fn is_escrow_released(&self, intent_id: &str) -> Result<bool> {
+        let intent_bytes = parse_intent_id(intent_id)?;
+
+        // Derive escrow PDA using same seeds as intent_escrow program
+        let (escrow_pda, _) = Pubkey::find_program_address(
+            &[b"escrow", &intent_bytes],
+            &self.program_id,
+        );
+
+        let account_data = self
+            .rpc_client
+            .get_account_data(&escrow_pda)
+            .context("Failed to fetch escrow account - escrow may not exist")?;
+
+        let escrow = EscrowAccount::try_from_slice(&account_data)
+            .context("Failed to parse escrow account data")?;
+
+        Ok(escrow.is_claimed)
     }
 
     /// Fulfills an outflow intent via the GMP flow on SVM.
@@ -531,6 +453,7 @@ fn pubkey_to_hex(pubkey_str: &str) -> Result<String> {
 
 /// Parses a 0x-prefixed hex pubkey into a Pubkey.
 /// Move addresses strip leading zeros, so we left-pad to 64 hex chars (32 bytes).
+#[cfg(test)]
 fn pubkey_from_hex(value: &str) -> Result<Pubkey> {
     let stripped = value.strip_prefix("0x").unwrap_or(value);
     if stripped.len() > 64 {
@@ -554,15 +477,6 @@ fn parse_intent_id(value: &str) -> Result<[u8; 32]> {
     let bytes = hex::decode(padded).context("Invalid intent id hex")?;
     let mut out = [0u8; 32];
     out.copy_from_slice(&bytes);
-    Ok(out)
-}
-
-fn parse_signature(signature: &[u8]) -> Result<[u8; 64]> {
-    if signature.len() != 64 {
-        anyhow::bail!("Invalid signature length: {}", signature.len());
-    }
-    let mut out = [0u8; 64];
-    out.copy_from_slice(signature);
     Ok(out)
 }
 
@@ -622,41 +536,6 @@ fn get_associated_token_address_with_program_id(
         program_id,
     )
     .0
-}
-
-/// Builds a CreateAssociatedTokenAccount instruction.
-///
-/// # Arguments
-///
-/// * `payer` - Fee payer
-/// * `owner` - Token account owner
-/// * `mint` - SPL token mint
-///
-/// # Returns
-///
-/// * `Ok(Instruction)` - ATA creation instruction
-/// * `Err(anyhow::Error)` - Invalid associated token program id
-fn create_associated_token_account_instruction(
-    payer: &Pubkey,
-    owner: &Pubkey,
-    mint: &Pubkey,
-) -> Result<Instruction> {
-    let program_id = associated_token_program_id()?;
-    let ata = get_associated_token_address_with_program_id(owner, mint, &program_id);
-
-    Ok(Instruction {
-        program_id,
-        accounts: vec![
-            AccountMeta::new(*payer, true),
-            AccountMeta::new(ata, false),
-            AccountMeta::new_readonly(*owner, false),
-            AccountMeta::new_readonly(*mint, false),
-            AccountMeta::new_readonly(system_program::id(), false),
-            AccountMeta::new_readonly(spl_token::id(), false),
-            AccountMeta::new_readonly(sysvar::rent::id(), false),
-        ],
-        data: vec![],
-    })
 }
 
 /// Returns the associated token program id as a Pubkey.

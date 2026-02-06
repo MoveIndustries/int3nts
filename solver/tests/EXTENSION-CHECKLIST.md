@@ -41,8 +41,6 @@ SVM: `solver/tests/svm/chain_client_tests.rs`
 | 11 | fulfillment_error_handling | ⚠️ | ✅ | ✅ |
 | 12 | pubkey_from_hex_with_leading_zeros | N/A | N/A | ✅ |
 | 13 | pubkey_from_hex_no_leading_zeros | N/A | N/A | ✅ |
-| 14 | is_escrow_fulfilled_success | ✅ | ⚠️ | ⚠️ |
-| 15 | is_escrow_fulfilled_false | ✅ | ⚠️ | ⚠️ |
-| 16 | is_escrow_fulfilled_error | ✅ | ⚠️ | ⚠️ |
-| 17 | release_gmp_escrow_id_formatting | ✅ | ⚠️ | ⚠️ |
-| 18 | release_gmp_escrow_command_building | ✅ | ⚠️ | ⚠️ |
+| 14 | is_escrow_released_success | ✅ | ⚠️ | ✅ |
+| 15 | is_escrow_released_false | ✅ | ⚠️ | ✅ |
+| 16 | is_escrow_released_error | ✅ | ⚠️ | ✅ |

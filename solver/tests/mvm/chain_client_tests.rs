@@ -111,12 +111,12 @@ fn test_fulfill_outflow_via_gmp_command_building() {
 // GMP ESCROW STATE QUERYING (MVM-specific)
 // ============================================================================
 
-/// 14. Test: is_escrow_fulfilled returns true when FulfillmentProof received
-/// Verifies that is_escrow_fulfilled() calls the inflow_escrow_gmp::is_fulfilled
+/// 14. Test: is_escrow_released returns true when escrow has been auto-released
+/// Verifies that is_escrow_released() calls the inflow_escrow_gmp::is_released
 /// view function and parses the boolean response.
-/// Why: The solver needs to check fulfillment state before calling release_escrow.
+/// Why: With auto-release, the solver polls this to confirm release happened.
 #[tokio::test]
-async fn test_is_escrow_fulfilled_success() {
+async fn test_is_escrow_released_success() {
     let mock_server = MockServer::start().await;
     // Note: base_url simulates the full RPC URL including /v1 suffix
     let base_url = format!("{}/v1", mock_server.uri());
@@ -131,15 +131,15 @@ async fn test_is_escrow_fulfilled_success() {
     config.rpc_url = base_url;
     let client = ConnectedMvmClient::new(&config).unwrap();
 
-    let result = client.is_escrow_fulfilled(DUMMY_INTENT_ID).await.unwrap();
+    let result = client.is_escrow_released(DUMMY_INTENT_ID).await.unwrap();
     assert!(result);
 }
 
-/// 15. Test: is_escrow_fulfilled returns false when not yet fulfilled
-/// Verifies that is_escrow_fulfilled() correctly parses a false response.
+/// 15. Test: is_escrow_released returns false when not yet released
+/// Verifies that is_escrow_released() correctly parses a false response.
 /// Why: The solver polls this function repeatedly; false must not be misinterpreted.
 #[tokio::test]
-async fn test_is_escrow_fulfilled_returns_false() {
+async fn test_is_escrow_released_returns_false() {
     let mock_server = MockServer::start().await;
     let base_url = format!("{}/v1", mock_server.uri());
 
@@ -153,15 +153,15 @@ async fn test_is_escrow_fulfilled_returns_false() {
     config.rpc_url = base_url;
     let client = ConnectedMvmClient::new(&config).unwrap();
 
-    let result = client.is_escrow_fulfilled(DUMMY_INTENT_ID).await.unwrap();
+    let result = client.is_escrow_released(DUMMY_INTENT_ID).await.unwrap();
     assert!(!result);
 }
 
-/// 16. Test: is_escrow_fulfilled handles HTTP error
-/// Verifies that is_escrow_fulfilled() propagates errors from failed HTTP requests.
+/// 16. Test: is_escrow_released handles HTTP error
+/// Verifies that is_escrow_released() propagates errors from failed HTTP requests.
 /// Why: Network errors must not be silently swallowed; the solver needs to retry.
 #[tokio::test]
-async fn test_is_escrow_fulfilled_http_error() {
+async fn test_is_escrow_released_http_error() {
     let mock_server = MockServer::start().await;
     let base_url = format!("{}/v1", mock_server.uri());
 
@@ -175,62 +175,8 @@ async fn test_is_escrow_fulfilled_http_error() {
     config.rpc_url = base_url;
     let client = ConnectedMvmClient::new(&config).unwrap();
 
-    let result = client.is_escrow_fulfilled(DUMMY_INTENT_ID).await;
+    let result = client.is_escrow_released(DUMMY_INTENT_ID).await;
     assert!(result.is_err());
-}
-
-// ============================================================================
-// GMP ESCROW RELEASE (MVM-specific)
-// ============================================================================
-
-/// 17. Test: release_gmp_escrow intent ID formatting
-/// Verifies that intent_id is correctly formatted for aptos CLI hex: argument.
-/// Why: The aptos CLI expects hex arguments without the 0x prefix. Wrong formatting
-/// would cause the transaction to fail with a parse error.
-#[test]
-fn test_release_gmp_escrow_intent_id_formatting() {
-    // Test that intent_id with 0x prefix has it stripped for hex: arg
-    let intent_id_with_prefix = "0x1234567890abcdef";
-    let formatted = intent_id_with_prefix
-        .strip_prefix("0x")
-        .unwrap_or(intent_id_with_prefix);
-    assert_eq!(formatted, "1234567890abcdef");
-
-    // Test that intent_id without 0x prefix is passed through
-    let intent_id_no_prefix = "1234567890abcdef";
-    let formatted = intent_id_no_prefix
-        .strip_prefix("0x")
-        .unwrap_or(intent_id_no_prefix);
-    assert_eq!(formatted, "1234567890abcdef");
-}
-
-/// 18. Test: release_gmp_escrow command building
-/// Verifies that the aptos CLI command is built correctly for inflow_escrow_gmp::release_escrow.
-/// Why: The release_escrow function is called via aptos CLI. Wrong argument formatting
-/// would cause the transaction to fail.
-#[test]
-fn test_release_gmp_escrow_command_building() {
-    let module_addr = DUMMY_MODULE_ADDR_CON;
-    let intent_id = DUMMY_INTENT_ID;
-    let token_metadata = DUMMY_TOKEN_ADDR_MVMCON;
-
-    // Build the function ID
-    let function_id = format!("{}::inflow_escrow_gmp::release_escrow", module_addr);
-
-    // Build the args as the CLI would
-    let intent_id_hex = intent_id.strip_prefix("0x").unwrap_or(intent_id);
-    let arg1 = format!("hex:{}", intent_id_hex);
-    let arg2 = format!("address:{}", token_metadata);
-
-    // Verify function ID format
-    assert!(function_id.contains("inflow_escrow_gmp::release_escrow"));
-    assert!(function_id.starts_with("0x"));
-
-    // Verify args format
-    assert!(arg1.starts_with("hex:"));
-    assert!(!arg1.contains("0x")); // 0x prefix should be stripped
-    assert!(arg2.starts_with("address:"));
-    assert!(arg2.contains("0x")); // address should keep 0x prefix
 }
 
 // ============================================================================

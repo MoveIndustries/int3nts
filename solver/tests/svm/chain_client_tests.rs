@@ -3,12 +3,17 @@
 //! Test ordering matches EXTENSION-CHECKLIST.md for cross-VM synchronization.
 //! Tests marked N/A in the checklist are skipped in this file.
 
-use solver::chains::ConnectedSvmClient;
+use base64::Engine;
+use borsh::BorshSerialize;
+use solver::chains::{ConnectedSvmClient, EscrowAccount};
 use solver::config::SvmChainConfig;
+use solana_program::pubkey::Pubkey;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[path = "../helpers.rs"]
 mod test_helpers;
-use test_helpers::DUMMY_SVM_ESCROW_PROGRAM_ID;
+use test_helpers::{DUMMY_INTENT_ID, DUMMY_SVM_ESCROW_PROGRAM_ID};
 
 // ============================================================================
 // CLIENT INITIALIZATION
@@ -138,4 +143,139 @@ fn test_pubkey_from_hex_no_leading_zeros() {
 
     // Verify it doesn't start with zeros
     assert!(!hex_no_prefix.starts_with("0000"));
+}
+
+// ============================================================================
+// GMP ESCROW STATE QUERYING
+// ============================================================================
+
+/// Helper: Creates a mock Solana RPC response for getAccountInfo with escrow data.
+fn create_mock_escrow_response(is_claimed: bool) -> serde_json::Value {
+    // Create an EscrowAccount with the specified is_claimed state
+    let escrow = EscrowAccount {
+        discriminator: [0u8; 8],
+        requester: Pubkey::default(),
+        token_mint: Pubkey::default(),
+        amount: 1_000_000,
+        is_claimed,
+        expiry: 9999999999,
+        reserved_solver: Pubkey::default(),
+        intent_id: [0u8; 32],
+        bump: 255,
+    };
+
+    // Serialize to borsh and base64-encode
+    let serialized = escrow.try_to_vec().expect("Failed to serialize escrow");
+    let base64_data = base64::engine::general_purpose::STANDARD.encode(&serialized);
+
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "result": {
+            "context": { "slot": 123 },
+            "value": {
+                "data": [base64_data, "base64"],
+                "executable": false,
+                "lamports": 1_000_000,
+                "owner": DUMMY_SVM_ESCROW_PROGRAM_ID,
+                "rentEpoch": 0
+            }
+        },
+        "id": 1
+    })
+}
+
+/// 14. Test: is_escrow_released returns true when escrow has been released
+/// Verifies that is_escrow_released() correctly parses escrow account data
+/// and returns true when is_claimed flag is set.
+/// Why: With auto-release, the solver polls this to confirm release happened.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_is_escrow_released_success() {
+    let mock_server = MockServer::start().await;
+    let rpc_url = mock_server.uri();
+
+    Mock::given(method("POST"))
+        .and(path("/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(create_mock_escrow_response(true)))
+        .mount(&mock_server)
+        .await;
+
+    let config = SvmChainConfig {
+        name: "svm".to_string(),
+        rpc_url,
+        chain_id: 4,
+        escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
+        private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
+        gmp_endpoint_program_id: None,
+        outflow_validator_program_id: None,
+    };
+
+    let client = ConnectedSvmClient::new(&config).unwrap();
+    let result = client.is_escrow_released(DUMMY_INTENT_ID).unwrap();
+    assert!(result, "Expected is_escrow_released to return true");
+}
+
+/// 15. Test: is_escrow_released returns false when escrow not yet released
+/// Verifies that is_escrow_released() correctly parses a false is_claimed value.
+/// Why: The solver polls this function repeatedly; false must not be misinterpreted.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_is_escrow_released_returns_false() {
+    let mock_server = MockServer::start().await;
+    let rpc_url = mock_server.uri();
+
+    Mock::given(method("POST"))
+        .and(path("/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(create_mock_escrow_response(false)))
+        .mount(&mock_server)
+        .await;
+
+    let config = SvmChainConfig {
+        name: "svm".to_string(),
+        rpc_url,
+        chain_id: 4,
+        escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
+        private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
+        gmp_endpoint_program_id: None,
+        outflow_validator_program_id: None,
+    };
+
+    let client = ConnectedSvmClient::new(&config).unwrap();
+    let result = client.is_escrow_released(DUMMY_INTENT_ID).unwrap();
+    assert!(!result, "Expected is_escrow_released to return false");
+}
+
+/// 16. Test: is_escrow_released handles RPC error
+/// Verifies that is_escrow_released() propagates errors from failed RPC requests.
+/// Why: Network errors must not be silently swallowed; the solver needs to retry.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_is_escrow_released_rpc_error() {
+    let mock_server = MockServer::start().await;
+    let rpc_url = mock_server.uri();
+
+    // Return an RPC error response (account not found)
+    Mock::given(method("POST"))
+        .and(path("/"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32602,
+                "message": "Invalid param: could not find account"
+            },
+            "id": 1
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let config = SvmChainConfig {
+        name: "svm".to_string(),
+        rpc_url,
+        chain_id: 4,
+        escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
+        private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
+        gmp_endpoint_program_id: None,
+        outflow_validator_program_id: None,
+    };
+
+    let client = ConnectedSvmClient::new(&config).unwrap();
+    let result = client.is_escrow_released(DUMMY_INTENT_ID);
+    assert!(result.is_err(), "Expected RPC error to propagate");
 }

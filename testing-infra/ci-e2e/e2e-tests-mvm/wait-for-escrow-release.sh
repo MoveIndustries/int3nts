@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Wait for escrow claim script for MVM E2E tests
+# Wait for escrow auto-release for MVM E2E tests
 # Polls the inflow_escrow_gmp::is_released view function on connected MVM chain
-# to verify the solver has claimed the escrow after fulfillment.
+# to verify the escrow was auto-released to the solver when FulfillmentProof arrived.
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
@@ -21,7 +21,7 @@ MVMCON_MODULE_ADDR=$(get_profile_address "intent-account-chain2")
 INTENT_ID_HEX=$(echo "$INTENT_ID" | sed 's/^0x//')
 INTENT_ID_HEX=$(printf "%064s" "$INTENT_ID_HEX" | tr ' ' '0')
 
-log_and_echo "⏳ Waiting for solver to claim escrow..."
+log_and_echo "⏳ Waiting for escrow auto-release..."
 log "   Intent ID: $INTENT_ID"
 log "   Module: 0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::is_released"
 
@@ -40,12 +40,12 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
         }" 2>/dev/null | jq -r '.[0]' 2>/dev/null)
 
     if [ "$IS_RELEASED" = "true" ]; then
-        log_and_echo "   ✅ Escrow claimed! (is_released=true)"
+        log_and_echo "   ✅ Escrow auto-released to solver! (is_released=true)"
         ESCROW_CLAIMED=true
         break
     fi
 
-    log "   Attempt $ATTEMPT/$MAX_ATTEMPTS: Escrow not yet released, waiting..."
+    log "   Attempt $ATTEMPT/$MAX_ATTEMPTS: Escrow not yet auto-released, waiting..."
     if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
         sleep 2
     fi
@@ -53,10 +53,10 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
 done
 
 if [ "$ESCROW_CLAIMED" = "false" ]; then
-    log_and_echo "❌ PANIC: Escrow not claimed after ${MAX_ATTEMPTS} attempts ($((MAX_ATTEMPTS * 2))s)"
+    log_and_echo "❌ PANIC: Escrow not auto-released after ${MAX_ATTEMPTS} attempts ($((MAX_ATTEMPTS * 2))s)"
     log_and_echo "   Intent ID: $INTENT_ID"
-    display_service_logs "Escrow claim timeout"
+    display_service_logs "Escrow release timeout"
     exit 1
 fi
 
-log_and_echo "✅ Escrow claim verified!"
+log_and_echo "✅ Escrow auto-release verified!"

@@ -12,5 +12,5 @@ pub mod connected_svm;
 pub use hub::{HubChainClient, IntentCreatedEvent};
 pub use connected_mvm::ConnectedMvmClient;
 pub use connected_evm::{ConnectedEvmClient, EscrowInitializedEvent};
-pub use connected_svm::{ConnectedSvmClient, EscrowEvent as SvmEscrowEvent};
+pub use connected_svm::{ConnectedSvmClient, EscrowAccount, EscrowEvent as SvmEscrowEvent};
 

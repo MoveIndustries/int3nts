@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Wait for escrow claim script for SVM E2E tests
-# Polls escrow state until claimed or times out
+# Wait for escrow auto-release for SVM E2E tests
+# Polls escrow state until released (auto-released when FulfillmentProof arrives)
 
 set -e
 
@@ -29,7 +29,7 @@ fi
 
 SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:8899}"
 
-log_and_echo "⏳ Waiting for solver to claim escrow..."
+log_and_echo "⏳ Waiting for escrow auto-release..."
 log "   Intent ID: $INTENT_ID"
 log "   Program ID: $SVM_PROGRAM_ID"
 
@@ -43,7 +43,7 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
         | grep -Eo 'Claimed: (true|false)' | awk '{print $2}' | tail -1 | tr -d '\n')
 
     if [ "$CLAIM_STATUS" = "true" ]; then
-        log_and_echo "   ✅ Escrow claimed!"
+        log_and_echo "   ✅ Escrow auto-released to solver!"
         ESCROW_CLAIMED=true
         break
     fi
@@ -55,9 +55,9 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
 done
 
 if [ "$ESCROW_CLAIMED" = "false" ]; then
-    log_and_echo "❌ PANIC: Escrow not claimed after ${MAX_ATTEMPTS} attempts ($((MAX_ATTEMPTS * 2))s)"
-    display_service_logs "Escrow claim timeout"
+    log_and_echo "❌ PANIC: Escrow not auto-released after ${MAX_ATTEMPTS} attempts ($((MAX_ATTEMPTS * 2))s)"
+    display_service_logs "Escrow release timeout"
     exit 1
 fi
 
-log_and_echo "✅ Escrow claim verified!"
+log_and_echo "✅ Escrow auto-release verified!"

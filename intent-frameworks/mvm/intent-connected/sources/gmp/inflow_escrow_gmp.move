@@ -2,8 +2,8 @@
 ///
 /// Handles inflow intent escrows when MVM acts as a connected chain.
 /// Receives intent requirements from the hub via GMP, validates escrow creation,
-/// and sends escrow confirmation back to the hub. Later receives fulfillment
-/// proofs to release escrowed funds.
+/// and sends escrow confirmation back to the hub. When fulfillment proof is
+/// received, automatically releases escrowed funds to the solver (single-step).
 ///
 /// ## Inflow Definition
 /// Inflow = tokens locked on connected chain (MVM), desired on hub
@@ -19,8 +19,8 @@
 /// 4. Hub receives confirmation → solver fulfills on hub
 /// 5. Hub sends FulfillmentProof via GMP
 /// 6. This module receives proof via `receive_fulfillment_proof`:
-///    - Marks escrow as releasable
-///    - Solver can then claim the escrowed funds
+///    - Auto-releases escrowed funds to the solver (single-step)
+///    - Emits both FulfillmentProofReceived and EscrowReleased events
 module mvmt_intent::inflow_escrow_gmp {
     use std::signer;
     use std::vector;
@@ -64,8 +64,6 @@ module mvmt_intent::inflow_escrow_gmp {
     const E_NOT_FULFILLED: u64 = 13;
     /// Unauthorized solver (not the authorized solver for this escrow)
     const E_UNAUTHORIZED_SOLVER: u64 = 14;
-    /// Escrow already released
-    const E_ESCROW_ALREADY_RELEASED: u64 = 15;
     /// Requester mismatch
     const E_REQUESTER_MISMATCH: u64 = 16;
 
@@ -464,10 +462,11 @@ module mvmt_intent::inflow_escrow_gmp {
     // INBOUND: Hub -> Connected Chain (FulfillmentProof)
     // ============================================================================
 
-    /// Receive FulfillmentProof from the hub.
+    /// Receive FulfillmentProof from the hub and auto-release escrow to solver.
     ///
     /// Called by the native GMP endpoint when the hub reports that a solver
-    /// has fulfilled the intent on the hub. This marks the escrow as releasable.
+    /// has fulfilled the intent on the hub. This marks the escrow as fulfilled
+    /// AND immediately transfers tokens to the solver (single-step release).
     ///
     /// # Arguments
     /// - `src_chain_id`: Source chain endpoint ID (must match trusted hub)
@@ -477,7 +476,7 @@ module mvmt_intent::inflow_escrow_gmp {
         src_chain_id: u32,
         src_addr: vector<u8>,
         payload: vector<u8>,
-    ) acquires InflowEscrowConfig, EscrowStore {
+    ) acquires InflowEscrowConfig, EscrowStore, EscrowVault {
         // Verify config exists
         assert!(exists<InflowEscrowConfig>(@mvmt_intent), E_CONFIG_NOT_INITIALIZED);
 
@@ -493,6 +492,9 @@ module mvmt_intent::inflow_escrow_gmp {
         let msg = gmp_common::decode_fulfillment_proof(&payload);
 
         let intent_id = *gmp_common::fulfillment_proof_intent_id(&msg);
+        let solver_addr_bytes = *gmp_common::fulfillment_proof_solver_addr(&msg);
+        let amount_fulfilled = gmp_common::fulfillment_proof_amount_fulfilled(&msg);
+        let timestamp = gmp_common::fulfillment_proof_timestamp(&msg);
 
         // Load escrow
         let escrow_store = borrow_global_mut<EscrowStore>(@mvmt_intent);
@@ -503,61 +505,18 @@ module mvmt_intent::inflow_escrow_gmp {
         // Verify not already fulfilled
         assert!(!escrow.fulfilled, E_ALREADY_FULFILLED);
 
-        // Mark as fulfilled (solver can now release)
+        // Mark as fulfilled and released
         escrow.fulfilled = true;
-
-        // Emit event for tracking
-        event::emit(FulfillmentProofReceived {
-            intent_id,
-            src_chain_id,
-            solver_addr: *gmp_common::fulfillment_proof_solver_addr(&msg),
-            amount_fulfilled: gmp_common::fulfillment_proof_amount_fulfilled(&msg),
-            timestamp: gmp_common::fulfillment_proof_timestamp(&msg),
-        });
-    }
-
-    // ============================================================================
-    // ESCROW RELEASE
-    // ============================================================================
-
-    /// Release escrowed funds to the solver after fulfillment proof is received.
-    ///
-    /// Only the authorized solver can call this. The escrow must have received
-    /// a fulfillment proof from the hub.
-    ///
-    /// # Arguments
-    /// - `solver`: The solver signer
-    /// - `intent_id`: 32-byte intent identifier
-    /// - `token_metadata`: The fungible asset metadata object
-    public entry fun release_escrow(
-        solver: &signer,
-        intent_id: vector<u8>,
-        token_metadata: Object<Metadata>,
-    ) acquires EscrowStore, EscrowVault {
-        let solver_addr = signer::address_of(solver);
-
-        // Load escrow
-        let escrow_store = borrow_global_mut<EscrowStore>(@mvmt_intent);
-        assert!(table::contains(&escrow_store.escrows, intent_id), E_ESCROW_NOT_FOUND);
-
-        let escrow = table::borrow_mut(&mut escrow_store.escrows, intent_id);
-
-        // Verify fulfillment proof received
-        assert!(escrow.fulfilled, E_NOT_FULFILLED);
-
-        // Verify not already released
-        assert!(!escrow.released, E_ESCROW_ALREADY_RELEASED);
-
-        // Verify solver is authorized (zero address = any solver allowed)
-        let zero_addr = create_zero_bytes32();
-        if (escrow.solver_addr != zero_addr) {
-            let solver_bytes = address_to_bytes32(solver_addr);
-            assert!(solver_bytes == escrow.solver_addr, E_UNAUTHORIZED_SOLVER);
-        };
-
-        // Mark as released
         escrow.released = true;
         let amount = escrow.amount;
+        let token_addr_bytes = escrow.token_addr;
+
+        // Convert solver address from bytes32 to address
+        let solver_addr = bytes32_to_address(&solver_addr_bytes);
+
+        // Get token metadata from stored token address
+        let token_addr = bytes32_to_address(&token_addr_bytes);
+        let token_metadata = object::address_to_object<Metadata>(token_addr);
 
         // Transfer tokens from vault to solver
         let vault_signer = get_vault_signer();
@@ -568,6 +527,15 @@ module mvmt_intent::inflow_escrow_gmp {
             amount,
         );
 
+        // Emit fulfillment proof received event
+        event::emit(FulfillmentProofReceived {
+            intent_id: copy intent_id,
+            src_chain_id,
+            solver_addr: solver_addr_bytes,
+            amount_fulfilled,
+            timestamp,
+        });
+
         // Emit release event
         event::emit(EscrowReleased {
             intent_id,
@@ -575,6 +543,7 @@ module mvmt_intent::inflow_escrow_gmp {
             amount,
         });
     }
+
 
     // ============================================================================
     // VIEW FUNCTIONS

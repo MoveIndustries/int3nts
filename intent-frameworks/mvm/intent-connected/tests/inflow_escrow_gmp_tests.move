@@ -433,14 +433,14 @@ module mvmt_intent::inflow_escrow_gmp_tests {
     // 8. Test: Receive fulfillment proof rejects already fulfilled
     // Verifies that receiving a fulfillment proof twice is rejected.
     // Why: Prevents replay attacks and double-spending.
-    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789, solver = @0x456)]
-    #[expected_failure(abort_code = 12, location = mvmt_intent::inflow_escrow_gmp)] // EALREADY_FULFILLED
+    // Note: With auto-release, the first proof also releases, so no manual release_escrow call needed.
+    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
+    #[expected_failure(abort_code = 12, location = mvmt_intent::inflow_escrow_gmp)] // E_ALREADY_FULFILLED
     fun test_receive_fulfillment_proof_rejects_already_fulfilled(
         aptos_framework: &signer,
         admin: &signer,
         token_creator: &signer,
         requester: &signer,
-        solver: &signer,
     ) {
         // Setup FA token
         let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
@@ -482,7 +482,7 @@ module mvmt_intent::inflow_escrow_gmp_tests {
             amount,
         );
 
-        // First fulfillment proof (should succeed and mark fulfilled)
+        // First fulfillment proof (should succeed, auto-release to solver)
         let payload = create_test_fulfillment_proof_payload(
             copy intent_id,
             address_to_bytes32(SOLVER_ADDR),
@@ -496,13 +496,6 @@ module mvmt_intent::inflow_escrow_gmp_tests {
             HUB_CHAIN_ID,
             copy src_addr,
             copy payload,
-        );
-
-        // Release escrow (so solver gets tokens)
-        inflow_escrow_gmp::release_escrow(
-            solver,
-            copy intent_id,
-            token_metadata,
         );
 
         // Second fulfillment proof (should fail - already fulfilled)
@@ -736,16 +729,16 @@ module mvmt_intent::inflow_escrow_gmp_tests {
         assert!(inflow_escrow_gmp::has_escrow(intent_id), 3);
     }
 
-    // 13. Test: Full inflow GMP workflow
-    // Verifies complete flow: requirements → escrow → fulfillment proof → release.
+    // 13. Test: Full inflow GMP workflow (with auto-release)
+    // Verifies complete flow: requirements → escrow → fulfillment proof (auto-release).
     // Why: Integration test for the entire inflow GMP flow.
-    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789, solver = @0x456)]
+    // Note: With auto-release, step 4 (manual release_escrow) is no longer needed.
+    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
     fun test_full_inflow_gmp_workflow(
         aptos_framework: &signer,
         admin: &signer,
         token_creator: &signer,
         requester: &signer,
-        solver: &signer,
     ) {
         // Setup FA token
         let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
@@ -809,6 +802,7 @@ module mvmt_intent::inflow_escrow_gmp_tests {
 
         // ========================================
         // Step 3: Solver fulfills on hub, hub sends proof via GMP
+        // (Auto-release happens here - tokens transferred to solver)
         // ========================================
         let payload = create_test_fulfillment_proof_payload(
             copy intent_id,
@@ -824,23 +818,13 @@ module mvmt_intent::inflow_escrow_gmp_tests {
             payload,
         );
 
-        // Verify: Marked as fulfilled
+        // Verify: Marked as fulfilled AND released (auto-release)
         assert!(inflow_escrow_gmp::is_fulfilled(copy intent_id), 6);
-        assert!(!inflow_escrow_gmp::is_released(copy intent_id), 7);
+        assert!(inflow_escrow_gmp::is_released(intent_id), 7);
 
-        // ========================================
-        // Step 4: Solver releases escrow (MVM manual release)
-        // ========================================
-        inflow_escrow_gmp::release_escrow(
-            solver,
-            copy intent_id,
-            token_metadata,
-        );
-
-        // Verify: Escrow released to solver
-        assert!(inflow_escrow_gmp::is_released(intent_id), 8);
+        // Verify: Solver received tokens (auto-released, no manual release_escrow needed)
         let solver_balance = primary_fungible_store::balance(SOLVER_ADDR, token_metadata);
-        assert!(solver_balance == initial_solver_balance + amount, 9);
+        assert!(solver_balance == initial_solver_balance + amount, 8);
     }
 
     // 14. Test: Create escrow rejects no requirements (MVM-specific)
@@ -938,20 +922,19 @@ module mvmt_intent::inflow_escrow_gmp_tests {
     }
 
     // ============================================================================
-    // RELEASE ESCROW TESTS (MVM-specific manual release)
+    // AUTO-RELEASE ESCROW TESTS (single-step release on FulfillmentProof)
     // ============================================================================
 
-    // 16. Test: Release escrow succeeds after fulfillment (MVM-specific)
-    // Verifies that the solver can successfully claim escrowed tokens after receiving a fulfillment proof from the hub.
-    // Why: This is the final step in the inflow intent lifecycle. The solver must receive payment after fulfilling the intent on the hub.
-    // Note: MVM requires manual release call. SVM auto-releases in test 6.
-    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789, solver = @0x456)]
-    fun test_release_escrow_succeeds_after_fulfillment(
+    // 16. Test: Auto-release on fulfillment proof receipt
+    // Verifies that receive_fulfillment_proof automatically transfers escrowed tokens to the solver.
+    // Why: This is the final step in the inflow intent lifecycle. Auto-release eliminates the need for a separate release call.
+    // Note: MVM now auto-releases like SVM (see test 6). No manual release_escrow call needed.
+    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
+    fun test_auto_release_on_fulfillment_proof(
         aptos_framework: &signer,
         admin: &signer,
         token_creator: &signer,
         requester: &signer,
-        solver: &signer,
     ) {
         // Setup FA token
         let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
@@ -993,7 +976,10 @@ module mvmt_intent::inflow_escrow_gmp_tests {
             amount,
         );
 
-        // Send fulfillment proof from hub
+        // Get solver balance before fulfillment proof
+        let solver_balance_before = primary_fungible_store::balance(SOLVER_ADDR, token_metadata);
+
+        // Send fulfillment proof from hub - this should auto-release to solver
         let payload = create_test_fulfillment_proof_payload(
             copy intent_id,
             address_to_bytes32(SOLVER_ADDR),
@@ -1009,170 +995,27 @@ module mvmt_intent::inflow_escrow_gmp_tests {
             payload,
         );
 
-        // Get solver balance before release
-        let solver_balance_before = primary_fungible_store::balance(SOLVER_ADDR, token_metadata);
-
-        // Release escrow
-        inflow_escrow_gmp::release_escrow(
-            solver,
-            copy intent_id,
-            token_metadata,
-        );
-
-        // Verify solver received tokens
+        // Verify solver received tokens (auto-released, no manual release_escrow call needed)
         let solver_balance_after = primary_fungible_store::balance(SOLVER_ADDR, token_metadata);
         assert!(solver_balance_after == solver_balance_before + amount, 1);
 
         // Verify escrow marked as released
         assert!(inflow_escrow_gmp::is_released(intent_id), 2);
+
+        // Verify escrow also marked as fulfilled
+        assert!(inflow_escrow_gmp::is_fulfilled(intent_id), 3);
     }
 
-    // 17. Test: Release escrow rejects without fulfillment (MVM-specific)
-    // Verifies that attempting to release an escrow before receiving a fulfillment proof is rejected.
-    // Why: Tokens must not be released until the hub confirms the solver fulfilled the intent. Early release allows theft without fulfillment.
-    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789, solver = @0x456)]
-    #[expected_failure(abort_code = 13, location = mvmt_intent::inflow_escrow_gmp)] // ENOT_FULFILLED
-    fun test_release_escrow_rejects_without_fulfillment(
+    // 17. Test: Duplicate fulfillment proof is rejected
+    // Verifies that receiving the same FulfillmentProof twice fails.
+    // Why: Prevents replay attacks where a duplicate GMP message could cause double-release.
+    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
+    #[expected_failure(abort_code = 12, location = mvmt_intent::inflow_escrow_gmp)] // E_ALREADY_FULFILLED
+    fun test_duplicate_fulfillment_proof_rejected(
         aptos_framework: &signer,
         admin: &signer,
         token_creator: &signer,
         requester: &signer,
-        solver: &signer,
-    ) {
-        // Setup FA token
-        let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
-            aptos_framework,
-            token_creator,
-            100,
-        );
-        timestamp::update_global_time_for_test_secs(1000);
-
-        // Transfer tokens to requester
-        primary_fungible_store::transfer(token_creator, token_metadata, REQUESTER_ADDR, 100);
-
-        // Create solver account
-        account::create_account_for_test(SOLVER_ADDR);
-
-        // Initialize modules
-        init_modules(admin);
-
-        let intent_id = create_test_intent_id();
-        let token_addr = address_to_bytes32(object::object_address(&token_metadata));
-        let amount = 50u64;
-        let expiry = 2000u64;
-
-        // Store requirements and create escrow
-        store_requirements(
-            copy intent_id,
-            address_to_bytes32(REQUESTER_ADDR),
-            amount,
-            token_addr,
-            create_zero_bytes32(),
-            expiry,
-        );
-
-        inflow_escrow_gmp::create_escrow_with_validation(
-            requester,
-            copy intent_id,
-            token_metadata,
-            amount,
-        );
-
-        // Try to release without fulfillment proof - should fail
-        inflow_escrow_gmp::release_escrow(
-            solver,
-            intent_id,
-            token_metadata,
-        );
-    }
-
-    // 18. Test: Release escrow rejects unauthorized solver (MVM-specific)
-    // Verifies that only the solver specified in requirements can release the escrow.
-    // Why: Prevents unauthorized actors from stealing escrowed funds intended for a specific solver.
-    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789, unauthorized = @0xDEAD)]
-    #[expected_failure(abort_code = 14, location = mvmt_intent::inflow_escrow_gmp)] // EUNAUTHORIZED_SOLVER
-    fun test_release_escrow_rejects_unauthorized_solver(
-        aptos_framework: &signer,
-        admin: &signer,
-        token_creator: &signer,
-        requester: &signer,
-        unauthorized: &signer,
-    ) {
-        // Setup FA token
-        let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
-            aptos_framework,
-            token_creator,
-            100,
-        );
-        timestamp::update_global_time_for_test_secs(1000);
-
-        // Transfer tokens to requester
-        primary_fungible_store::transfer(token_creator, token_metadata, REQUESTER_ADDR, 100);
-
-        // Create unauthorized account
-        account::create_account_for_test(@0xDEAD);
-
-        // Initialize modules
-        init_modules(admin);
-
-        let intent_id = create_test_intent_id();
-        let token_addr = address_to_bytes32(object::object_address(&token_metadata));
-        let amount = 50u64;
-        let expiry = 2000u64;
-
-        // Store requirements with specific solver (not @0xDEAD)
-        store_requirements(
-            copy intent_id,
-            address_to_bytes32(REQUESTER_ADDR),
-            amount,
-            token_addr,
-            address_to_bytes32(SOLVER_ADDR), // Specific solver required
-            expiry,
-        );
-
-        // Create escrow
-        inflow_escrow_gmp::create_escrow_with_validation(
-            requester,
-            copy intent_id,
-            token_metadata,
-            amount,
-        );
-
-        // Send fulfillment proof
-        let payload = create_test_fulfillment_proof_payload(
-            copy intent_id,
-            address_to_bytes32(SOLVER_ADDR),
-            amount,
-            1500u64,
-        );
-
-        let src_addr = create_test_hub_addr();
-
-        inflow_escrow_gmp::receive_fulfillment_proof(
-            HUB_CHAIN_ID,
-            src_addr,
-            payload,
-        );
-
-        // Try to release with unauthorized solver - should fail
-        inflow_escrow_gmp::release_escrow(
-            unauthorized,
-            intent_id,
-            token_metadata,
-        );
-    }
-
-    // 19. Test: Release escrow rejects double release (MVM-specific)
-    // Verifies that attempting to release the same escrow twice is rejected.
-    // Why: Prevents double-spending where the solver could claim the same escrowed tokens multiple times.
-    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789, solver = @0x456)]
-    #[expected_failure(abort_code = 15, location = mvmt_intent::inflow_escrow_gmp)] // EESCROW_ALREADY_RELEASED
-    fun test_release_escrow_rejects_double_release(
-        aptos_framework: &signer,
-        admin: &signer,
-        token_creator: &signer,
-        requester: &signer,
-        solver: &signer,
     ) {
         // Setup FA token
         let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
@@ -1214,7 +1057,7 @@ module mvmt_intent::inflow_escrow_gmp_tests {
             amount,
         );
 
-        // Send fulfillment proof
+        // First fulfillment proof - should succeed and auto-release
         let payload = create_test_fulfillment_proof_payload(
             copy intent_id,
             address_to_bytes32(SOLVER_ADDR),
@@ -1226,22 +1069,15 @@ module mvmt_intent::inflow_escrow_gmp_tests {
 
         inflow_escrow_gmp::receive_fulfillment_proof(
             HUB_CHAIN_ID,
+            copy src_addr,
+            copy payload,
+        );
+
+        // Second fulfillment proof (duplicate) - should fail with E_ALREADY_FULFILLED
+        inflow_escrow_gmp::receive_fulfillment_proof(
+            HUB_CHAIN_ID,
             src_addr,
             payload,
-        );
-
-        // First release should succeed
-        inflow_escrow_gmp::release_escrow(
-            solver,
-            copy intent_id,
-            token_metadata,
-        );
-
-        // Second release should fail
-        inflow_escrow_gmp::release_escrow(
-            solver,
-            intent_id,
-            token_metadata,
         );
     }
 

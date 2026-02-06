@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Wait for escrow claim script for EVM E2E tests
-# Polls for escrow claim status and exits with error if not claimed within timeout
+# Wait for escrow release for EVM E2E tests
+# Polls for escrow release status and exits with error if not released within timeout
 
 set -e
 
@@ -54,7 +54,7 @@ if [ -z "$ESCROW_ADDR" ] || [ -z "$INTENT_ID_EVM" ]; then
     exit 1
 fi
 
-log_and_echo "⏳ Waiting for solver to claim escrow..."
+log_and_echo "⏳ Waiting for escrow release..."
 log_and_echo "   Escrow: $ESCROW_ADDR"
 log_and_echo "   Intent ID (EVM): $INTENT_ID_EVM"
 
@@ -66,7 +66,7 @@ ESCROW_CLAIMED=false
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     CLAIM_STATUS=$(is_escrow_claimed "$ESCROW_ADDR" "$INTENT_ID_EVM" 2>/dev/null || echo "false")
     if [ "$CLAIM_STATUS" = "true" ]; then
-        log_and_echo "   ✅ Escrow claimed!"
+        log_and_echo "   ✅ Escrow released!"
         ESCROW_CLAIMED=true
         break
     fi
@@ -77,8 +77,8 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
 done
 
 if [ "$ESCROW_CLAIMED" = "false" ]; then
-    log_and_echo "❌ PANIC: Escrow not claimed after ${MAX_ATTEMPTS} attempts (${MAX_ATTEMPTS}s)"
-    display_service_logs "Escrow claim timeout"
+    log_and_echo "❌ PANIC: Escrow not released after ${MAX_ATTEMPTS} attempts (${MAX_ATTEMPTS}s)"
+    display_service_logs "Escrow release timeout"
     exit 1
 fi
 

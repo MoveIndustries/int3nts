@@ -126,7 +126,7 @@ fi
 log_and_echo "✅ Solver fulfilled the intent automatically!"
 log_and_echo ""
 
-./testing-infra/ci-e2e/e2e-tests-svm/wait-for-escrow-claim.sh
+./testing-infra/ci-e2e/e2e-tests-svm/wait-for-escrow-release.sh
 
 log_and_echo ""
 log_and_echo " Final Balance Validation"

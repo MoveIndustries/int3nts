@@ -130,8 +130,8 @@ fi
 echo "✅ Solver fulfilled the intent automatically!"
 echo ""
 
-# Wait for solver to claim escrow (verifies escrow object was deleted)
-./testing-infra/ci-e2e/e2e-tests-mvm/wait-for-escrow-claim.sh
+# Wait for escrow auto-release (verifies FulfillmentProof triggered release)
+./testing-infra/ci-e2e/e2e-tests-mvm/wait-for-escrow-release.sh
 
 echo ""
 echo " Final Balance Validation"
