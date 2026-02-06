@@ -18,9 +18,9 @@ The trusted-gmp service holds private keys (Ed25519 + ECDSA) and generates appro
 
 **Key contracts:**
 
-- **MVM Hub**: `fa_intent_outflow.move`, `fa_intent_inflow.move`, `intent_as_escrow.move`
+- **MVM Hub**: `fa_intent_outflow.move`, `fa_intent_inflow.move`, `intent_escrow.move`
 - **SVM Connected**: `intent_escrow` program (escrow with Ed25519 signature verification)
-- **EVM Connected**: `IntentEscrow.sol` (escrow with ECDSA signature verification)
+- **EVM Connected**: `IntentInflowEscrow.sol` (escrow with ECDSA signature verification)
 
 **Signature as approval:**
 
@@ -195,7 +195,7 @@ These apply to all `lzReceive()` handlers in both flows:
 - New: `receive_escrow_confirmation()`: Called by `lzReceive()`, marks intent as escrow-confirmed
 - `fulfill_inflow_intent()`: Gate on escrow confirmation before allowing fulfillment; after fulfillment, call `lzSend()` with `FulfillmentProof`
 
-**`intent_as_escrow.move`** (MVM as connected chain) - Needs GMP hooks:
+**`intent_inflow_escrow.move`** (MVM as connected chain) - Needs GMP hooks:
 
 - New: `receive_intent_requirements()`: Called by `lzReceive()`, stores requirements
 - `create_escrow()`: Validate against stored requirements before allowing creation
@@ -233,7 +233,7 @@ These apply to all `lzReceive()` handlers in both flows:
 
 ### EVM Connected Chain
 
-**`IntentEscrow.sol`** - Modify to use GMP (same approach as SVM)
+**`IntentInflowEscrow.sol`** - Modify to use GMP (same approach as SVM)
 
 **New: `OutflowValidator.sol`** - For outflow validation
 **New: `NativeGmpEndpoint.sol`** - Native GMP endpoint

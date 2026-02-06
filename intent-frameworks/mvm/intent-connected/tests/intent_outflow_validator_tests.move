@@ -1,11 +1,9 @@
 #[test_only]
 module mvmt_intent::intent_outflow_validator_tests {
     use std::vector;
-    use std::signer;
     use aptos_framework::account;
     use aptos_framework::timestamp;
-    use aptos_framework::fungible_asset::Metadata;
-    use aptos_framework::object::{Self, Object};
+    use aptos_framework::object;
     use aptos_framework::primary_fungible_store;
     use mvmt_intent::intent_outflow_validator_impl;
     use mvmt_intent::intent_gmp;

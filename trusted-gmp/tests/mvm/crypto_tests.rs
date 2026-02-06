@@ -8,8 +8,9 @@ use trusted_gmp::crypto::CryptoService;
 mod test_helpers;
 use test_helpers::{build_test_config_with_mvm, create_default_fulfillment};
 
-/// Test that crypto service creates different key pairs for each instance
-/// Why: Ensure each trusted-gmp instance has a unique cryptographic identity to prevent key collisions
+/// 1. Test: Unique Key Generation
+/// Verifies that each CryptoService instance creates a different Ed25519 key pair.
+/// Why: Each trusted-gmp instance must have a unique cryptographic identity to prevent key collisions.
 #[test]
 fn test_unique_key_generation() {
     let config1 = build_test_config_with_mvm();
@@ -24,8 +25,9 @@ fn test_unique_key_generation() {
     assert_ne!(public_key1, public_key2);
 }
 
-/// Test that signatures can be created and verified
-/// Why: Cryptographic signatures are the core security mechanism - must work correctly
+/// 2. Test: Signature Creation and Verification
+/// Verifies that an MVM approval signature can be created and verified against the original intent ID.
+/// Why: Cryptographic signatures are the core security mechanism and must round-trip correctly.
 #[test]
 fn test_signature_creation_and_verification() {
     let config = build_test_config_with_mvm();
@@ -48,8 +50,9 @@ fn test_signature_creation_and_verification() {
     assert!(is_valid, "Signature should be valid");
 }
 
-/// Test that incorrect signatures fail verification
-/// Why: Prevent signature replay attacks - signatures must be tied to specific intent_ids
+/// 4. Test: Signature Verification Fails for Wrong Message
+/// Verifies that a signature created for one intent ID fails verification against a different intent ID.
+/// Why: Signatures must be bound to specific intent IDs to prevent replay attacks.
 #[test]
 fn test_signature_verification_fails_for_wrong_message() {
     let config = build_test_config_with_mvm();
@@ -76,8 +79,9 @@ fn test_signature_verification_fails_for_wrong_message() {
     assert!(!is_valid, "Signature should fail for wrong intent_id");
 }
 
-/// Test that signatures for different intent_ids are different
-/// Why: Each intent_id must have a unique signature to prevent replay attacks
+/// 5. Test: Signatures Differ for Different Intent IDs
+/// Verifies that signing two distinct intent IDs produces two distinct signatures.
+/// Why: Each intent ID must yield a unique signature to prevent cross-intent replay attacks.
 #[test]
 fn test_signatures_differ_for_different_intent_ids() {
     let config = build_test_config_with_mvm();
@@ -92,8 +96,9 @@ fn test_signatures_differ_for_different_intent_ids() {
     assert_ne!(sig1.signature, sig2.signature);
 }
 
-/// Test that escrow approval signature works
-/// Why: Escrow operations require cryptographic authorization - signatures must be valid
+/// 6. Test: Escrow Approval Signature
+/// Verifies that an escrow approval signature is created and validates against the reconstructed message.
+/// Why: Escrow operations require cryptographic authorization and signatures must be valid on-chain.
 #[test]
 fn test_escrow_approval_signature() {
     let config = build_test_config_with_mvm();
@@ -116,8 +121,9 @@ fn test_escrow_approval_signature() {
     assert!(is_valid, "Escrow signature should be valid");
 }
 
-/// Test that public key is consistent
-/// Why: Public key must remain constant for the same instance for external verification
+/// 7. Test: Public Key Consistency
+/// Verifies that repeated calls to get_public_key on the same instance return the same key.
+/// Why: The public key must remain constant for a given instance so external verifiers can rely on it.
 #[test]
 fn test_public_key_consistency() {
     let config = build_test_config_with_mvm();
@@ -130,8 +136,9 @@ fn test_public_key_consistency() {
     assert_eq!(public_key1, public_key2);
 }
 
-/// Test that signature contains timestamp
-/// Why: Timestamps enable replay attack prevention and audit trail for approval decisions
+/// 8. Test: Signature Contains Timestamp
+/// Verifies that the signature data includes a non-zero, recent timestamp.
+/// Why: Timestamps enable replay attack prevention and provide an audit trail for approval decisions.
 #[test]
 fn test_signature_contains_timestamp() {
     let config = build_test_config_with_mvm();
@@ -154,8 +161,9 @@ fn test_signature_contains_timestamp() {
     );
 }
 
-/// Test intent ID validation for signature creation
-/// Why: Valid intent IDs should succeed, invalid intent IDs should be rejected with clear error messages
+/// 9. Test: MVM Signature Intent ID Validation
+/// Verifies that valid hex intent IDs are accepted and invalid hex strings are rejected with clear errors.
+/// Why: Intent ID validation must be strict to prevent malformed data from reaching on-chain operations.
 #[test]
 fn test_mvm_signature_intent_id_validation() {
     let config = build_test_config_with_mvm();

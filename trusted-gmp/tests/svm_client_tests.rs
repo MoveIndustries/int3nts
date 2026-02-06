@@ -26,8 +26,9 @@ fn build_escrow_base64() -> String {
     STANDARD.encode(escrow.try_to_vec().expect("borsh serialize escrow"))
 }
 
-/// What is tested: get_all_escrows() parses program account responses into EscrowAccount
-/// Why: Ensure base64 decoding + Borsh parsing stays wired correctly for SVM accounts
+/// 23. Test: Get All Escrows Parses Program Accounts
+/// Verifies that get_all_escrows() parses program account responses into EscrowAccount.
+/// Why: Base64 decoding and Borsh parsing must stay wired correctly for SVM escrow discovery.
 #[tokio::test]
 async fn test_get_all_escrows_parses_program_accounts() {
     let mock_server = MockServer::start().await;

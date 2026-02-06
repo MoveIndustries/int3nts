@@ -94,9 +94,11 @@ module mvmt_intent::intent_inflow_escrow {
     struct EscrowCreated has drop, store {
         intent_id: vector<u8>,
         escrow_id: vector<u8>,
-        creator: address,
+        requester: address,
         amount: u64,
         token_addr: vector<u8>,
+        reserved_solver: vector<u8>,
+        expiry: u64,
     }
 
     #[event]
@@ -423,9 +425,11 @@ module mvmt_intent::intent_inflow_escrow {
         event::emit(EscrowCreated {
             intent_id: copy intent_id,
             escrow_id: copy escrow_id,
-            creator: creator_addr,
+            requester: creator_addr,
             amount,
             token_addr: requirements.token_addr,
+            reserved_solver: requirements.solver_addr,
+            expiry: requirements.expiry,
         });
 
         // Send EscrowConfirmation to hub via GMP

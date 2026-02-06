@@ -129,7 +129,7 @@ The solver automatically fulfills **inflow intents** (tokens locked on connected
 ### Supported Chains (Inflow)
 
 - **MVM Chains**: Uses `complete_escrow_from_fa` entry function
-- **EVM Chains**: Uses Hardhat script `claim-escrow.js` (calls `IntentEscrow.claim()`)
+- **EVM Chains**: Uses `IntentInflowEscrow.claim()` via connected EVM chain client
 - **SVM Chains**: Uses Solana escrow program claim instruction
 
 **Note**: EVM escrow claiming currently uses Hardhat scripts. Future improvement: implement directly using Rust Ethereum libraries (`ethers-rs` or `alloy`) for better error handling and type safety.
@@ -260,7 +260,7 @@ The solver includes chain clients for interacting with different blockchain type
 ### Connected EVM Client (`chains/connected_evm.rs`)
 
 - **Query Escrow Events**: `get_escrow_events()` - Queries EVM chain for `EscrowInitialized` events via JSON-RPC
-- **Claim Escrow**: `claim_escrow()` - Claims escrow using Hardhat script (calls `IntentEscrow.claim()`)
+- **Claim Escrow**: `claim_escrow()` - Claims escrow (calls `IntentInflowEscrow.claim()`)
 - **Transfer with Intent ID**: `transfer_with_intent_id()` - Placeholder for ERC20 transfer with embedded `intent_id` (requires Ethereum signing library)
 
 **Note**: EVM operations currently use Hardhat scripts for transaction execution. Future improvement: implement directly using Rust Ethereum libraries (`ethers-rs` or `alloy`) for better integration and error handling.

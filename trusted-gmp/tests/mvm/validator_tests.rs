@@ -35,8 +35,9 @@ fn create_test_intent(solver_addr: Option<String>) -> IntentEvent {
 // TESTS
 // ============================================================================
 
-/// Test that validate_mvm_escrow_solver succeeds when escrow reserved_solver matches registered connected chain MVM address
-/// Why: Verify successful validation path when solver is registered and addresses match
+/// 1. Test: Successful MVM Solver Validation
+/// Verifies that validate_mvm_escrow_solver succeeds when escrow reserved_solver matches registered connected chain MVM address.
+/// Why: This is the happy path for solver validation; addresses must match for escrow approval.
 #[tokio::test]
 async fn test_successful_mvm_solver_validation() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -71,8 +72,9 @@ async fn test_successful_mvm_solver_validation() {
     );
 }
 
-/// Test that validate_mvm_escrow_solver rejects when solver is not found in registry
-/// Why: Verify error handling when solver is not registered
+/// 2. Test: Rejection When Solver Not Registered
+/// Verifies that validate_mvm_escrow_solver rejects when solver is not found in registry.
+/// Why: Unregistered solvers must be rejected to prevent unauthorized escrow claims.
 #[tokio::test]
 async fn test_rejection_when_solver_not_registered() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -109,8 +111,9 @@ async fn test_rejection_when_solver_not_registered() {
     );
 }
 
-/// Test that validate_mvm_escrow_solver rejects when registered connected chain MVM address doesn't match escrow reserved_solver
-/// Why: Verify validation fails when addresses don't match
+/// 3. Test: Rejection When MVM Addresses Don't Match
+/// Verifies that validate_mvm_escrow_solver rejects when registered connected chain MVM address doesn't match escrow reserved_solver.
+/// Why: Address mismatches indicate a different solver than intended, which must be rejected.
 #[tokio::test]
 async fn test_rejection_when_mvm_addresses_dont_match() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -146,8 +149,9 @@ async fn test_rejection_when_mvm_addresses_dont_match() {
     );
 }
 
-/// Test that MVM address comparison handles 0x prefix and padding correctly
-/// Why: Verify address normalization works correctly (MVM addresses are padded to 64 hex chars)
+/// 4. Test: MVM Address Normalization
+/// Verifies that MVM address comparison handles 0x prefix and padding correctly.
+/// Why: MVM addresses are padded to 64 hex chars; normalization prevents false rejections from format differences.
 #[tokio::test]
 async fn test_mvm_address_normalization() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -194,8 +198,9 @@ async fn test_mvm_address_normalization() {
     }
 }
 
-/// Test that validate_mvm_escrow_solver handles network errors and timeouts gracefully
-/// Why: Verify error handling for external service failures
+/// 5. Test: Error Handling for Registry Query Failures
+/// Verifies that validate_mvm_escrow_solver returns an error when the registry query fails.
+/// Why: Network errors must propagate as errors, not be silently treated as "not registered".
 #[tokio::test]
 async fn test_error_handling_for_registry_query_failures() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -229,8 +234,9 @@ async fn test_error_handling_for_registry_query_failures() {
     );
 }
 
-/// Test that validate_mvm_escrow_solver rejects when intent has no reserved solver
-/// Why: Verify error handling when intent doesn't have a solver
+/// 6. Test: Rejection When Intent Has No Solver
+/// Verifies that validate_mvm_escrow_solver rejects when intent has no reserved solver.
+/// Why: Intents without a solver cannot be matched to escrow solvers.
 #[tokio::test]
 async fn test_rejection_when_intent_has_no_solver() {
     let _ = tracing_subscriber::fmt::try_init();

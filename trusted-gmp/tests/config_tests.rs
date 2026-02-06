@@ -10,8 +10,9 @@ use trusted_gmp::validator::{get_chain_type_from_chain_id, normalize_address};
 mod test_helpers;
 use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_INTENT_ID_FULL, DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_APPROVER_EVM_PUBKEY_HASH};
 
-/// Test that default configuration creates valid structure
-/// Why: Verify default config is valid and doesn't panic
+/// 1. Test: Default Config Creation
+/// Verifies that default configuration creates a valid structure.
+/// Why: Default config must be valid and not panic.
 #[test]
 fn test_default_config_creation() {
     let config = Config::default();
@@ -28,8 +29,9 @@ fn test_default_config_creation() {
     );
 }
 
-/// Test that connected_chain_mvm can be set to Some(ChainConfig)
-/// Why: Verify connected_chain_mvm accepts actual values when configured
+/// 2. Test: Connected Chain MVM With Values
+/// Verifies that connected_chain_mvm can be set to Some(ChainConfig).
+/// Why: connected_chain_mvm must accept actual values when configured.
 #[test]
 fn test_connected_chain_mvm_with_values() {
     use trusted_gmp::config::ChainConfig;
@@ -49,8 +51,9 @@ fn test_connected_chain_mvm_with_values() {
     );
 }
 
-/// What is tested: Config::validate() accepts multiple connected chains
-/// Why: Ensure MVM, EVM, and SVM can all be configured at once
+/// 3. Test: Config Validation Multiple Connected Chains
+/// Verifies that Config::validate() accepts multiple connected chains.
+/// Why: MVM, EVM, and SVM must all be configurable at once.
 #[test]
 fn test_config_validation_multiple_connected_chains() {
     let mut config = Config::default();
@@ -83,8 +86,9 @@ fn test_config_validation_multiple_connected_chains() {
     assert!(result.is_ok(), "Should accept multiple connected chains");
 }
 
-/// Test that config can be serialized and deserialized
-/// Why: Verify TOML round-trip works correctly
+/// 4. Test: Config Serialization
+/// Verifies that config can be serialized to TOML and deserialized back.
+/// Why: TOML round-trip must preserve configuration values correctly.
 #[test]
 fn test_config_serialization() {
     let config = Config::default();
@@ -103,8 +107,9 @@ fn test_config_serialization() {
 // CHAIN TYPE UTILITIES TESTS
 // ============================================================================
 
-/// Test that get_chain_type_from_chain_id returns Evm for EVM chain ID
-/// Why: Verify the function correctly identifies EVM chains from chain ID
+/// 5. Test: Get Chain Type From Chain ID EVM
+/// Verifies that get_chain_type_from_chain_id returns Evm for an EVM chain ID.
+/// Why: The function must correctly identify EVM chains from their chain ID.
 #[test]
 fn test_get_chain_type_from_chain_id_evm() {
     let mut config = Config::default();
@@ -121,8 +126,9 @@ fn test_get_chain_type_from_chain_id_evm() {
     assert_eq!(result.unwrap(), ChainType::Evm);
 }
 
-/// Test that get_chain_type_from_chain_id returns Mvm for MVM chain ID
-/// Why: Verify the function correctly identifies MVM chains from chain ID
+/// 6. Test: Get Chain Type From Chain ID MVM
+/// Verifies that get_chain_type_from_chain_id returns Mvm for an MVM chain ID.
+/// Why: The function must correctly identify MVM chains from their chain ID.
 #[test]
 fn test_get_chain_type_from_chain_id_mvm() {
     let mut config = Config::default();
@@ -139,8 +145,9 @@ fn test_get_chain_type_from_chain_id_mvm() {
     assert_eq!(result.unwrap(), ChainType::Mvm);
 }
 
-/// Test that get_chain_type_from_chain_id returns error for unknown chain ID
-/// Why: Verify the function correctly rejects chain IDs that don't match any configured chain
+/// 7. Test: Get Chain Type From Chain ID Unknown
+/// Verifies that get_chain_type_from_chain_id returns an error for an unknown chain ID.
+/// Why: Chain IDs that do not match any configured chain must be rejected.
 #[test]
 fn test_get_chain_type_from_chain_id_unknown() {
     let config = Config::default();
@@ -150,8 +157,9 @@ fn test_get_chain_type_from_chain_id_unknown() {
     assert!(result.unwrap_err().to_string().contains("does not match any configured connected chain"));
 }
 
-/// Test that get_chain_type_from_chain_id returns error when EVM and MVM have same chain ID
-/// Why: Verify the function rejects invalid configurations with duplicate chain IDs
+/// 8. Test: Get Chain Type From Chain ID Duplicate Chain ID Error
+/// Verifies that get_chain_type_from_chain_id returns an error when EVM and MVM have the same chain ID.
+/// Why: Invalid configurations with duplicate chain IDs must be rejected.
 #[test]
 fn test_get_chain_type_from_chain_id_duplicate_chain_id_error() {
     let mut config = Config::default();
@@ -181,8 +189,9 @@ fn test_get_chain_type_from_chain_id_duplicate_chain_id_error() {
 // CONFIG VALIDATION TESTS
 // ============================================================================
 
-/// Test that config.validate() returns error when hub and MVM chains have same chain ID
-/// Why: Verify configuration validation catches duplicate chain IDs at load time
+/// 9. Test: Config Validate Hub MVM Duplicate Chain ID
+/// Verifies that config.validate() returns an error when hub and MVM chains have the same chain ID.
+/// Why: Configuration validation must catch duplicate chain IDs between hub and MVM at load time.
 #[test]
 fn test_config_validate_hub_mvm_duplicate_chain_id() {
     let mut config = Config::default();
@@ -200,8 +209,9 @@ fn test_config_validate_hub_mvm_duplicate_chain_id() {
     assert!(result.unwrap_err().to_string().contains("Hub chain and connected MVM chain have the same chain ID"), "Error message should mention hub and MVM duplicate");
 }
 
-/// Test that config.validate() returns error when hub and EVM chains have same chain ID
-/// Why: Verify configuration validation catches duplicate chain IDs at load time
+/// 10. Test: Config Validate Hub EVM Duplicate Chain ID
+/// Verifies that config.validate() returns an error when hub and EVM chains have the same chain ID.
+/// Why: Configuration validation must catch duplicate chain IDs between hub and EVM at load time.
 #[test]
 fn test_config_validate_hub_evm_duplicate_chain_id() {
     let mut config = Config::default();
@@ -219,8 +229,9 @@ fn test_config_validate_hub_evm_duplicate_chain_id() {
     assert!(result.unwrap_err().to_string().contains("Hub chain and connected EVM chain have the same chain ID"), "Error message should mention hub and EVM duplicate");
 }
 
-/// Test that config.validate() returns error when MVM and EVM chains have same chain ID
-/// Why: Verify configuration validation catches duplicate chain IDs at load time
+/// 11. Test: Config Validate MVM EVM Duplicate Chain ID
+/// Verifies that config.validate() returns an error when MVM and EVM chains have the same chain ID.
+/// Why: Configuration validation must catch duplicate chain IDs between MVM and EVM at load time.
 #[test]
 fn test_config_validate_mvm_evm_duplicate_chain_id() {
     let mut config = Config::default();
@@ -244,8 +255,9 @@ fn test_config_validate_mvm_evm_duplicate_chain_id() {
     assert!(result.unwrap_err().to_string().contains("Connected MVM chain and connected EVM chain have the same chain ID"), "Error message should mention MVM and EVM duplicate");
 }
 
-/// Test that config.validate() succeeds when all chain IDs are unique
-/// Why: Verify configuration validation passes for valid configurations
+/// 12. Test: Config Validate Unique Chain IDs
+/// Verifies that config.validate() succeeds when all chain IDs are unique.
+/// Why: Configuration validation must pass for valid configurations with distinct chain IDs.
 #[test]
 fn test_config_validate_unique_chain_ids() {
     let mut config = Config::default();
@@ -273,8 +285,9 @@ fn test_config_validate_unique_chain_ids() {
 // ADDR NORMALIZATION TESTS
 // ============================================================================
 
-/// Test that normalize_address pads Move VM addresses with leading zeros
-/// Why: Move VM addresses can be serialized without leading zeros (63 chars), need to pad to 64
+/// 13. Test: Normalize Address MVM Pads Short Address
+/// Verifies that normalize_address pads Move VM addresses with leading zeros.
+/// Why: Move VM addresses can be serialized without leading zeros (63 chars) and must be padded to 64.
 #[test]
 fn test_normalize_address_mvm_pads_short_address() {
     let address = "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"; // 63 chars
@@ -294,8 +307,9 @@ fn test_normalize_address_mvm_pads_short_address() {
     );
 }
 
-/// Test that normalize_address doesn't pad Move VM addresses that are already 64 chars
-/// Why: Addresses that are already correct length should not be modified
+/// 14. Test: Normalize Address MVM Keeps Full Address
+/// Verifies that normalize_address does not pad Move VM addresses that are already 64 chars.
+/// Why: Addresses that are already the correct length must not be modified.
 #[test]
 fn test_normalize_address_mvm_keeps_full_address() {
     let address = DUMMY_INTENT_ID_FULL; // 64 chars
@@ -304,8 +318,9 @@ fn test_normalize_address_mvm_keeps_full_address() {
     assert_eq!(normalized, address, "Should remain unchanged");
 }
 
-/// Test that normalize_address handles Move VM addresses without 0x prefix
-/// Why: Addresses may come without prefix, should add it
+/// 15. Test: Normalize Address MVM Adds Prefix
+/// Verifies that normalize_address adds the 0x prefix to Move VM addresses that lack it.
+/// Why: Addresses may arrive without a prefix and must have 0x prepended.
 #[test]
 fn test_normalize_address_mvm_adds_prefix() {
     let address = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"; // 63 chars, no prefix
@@ -320,8 +335,9 @@ fn test_normalize_address_mvm_adds_prefix() {
     assert_eq!(&normalized[2..3], "0", "Should be padded with leading zero");
 }
 
-/// Test that normalize_address pads EVM addresses correctly
-/// Why: EVM addresses should be padded to 40 hex chars (20 bytes)
+/// 16. Test: Normalize Address EVM Pads Short Address
+/// Verifies that normalize_address pads short EVM addresses to 40 hex chars.
+/// Why: EVM addresses must be padded to 40 hex chars (20 bytes).
 #[test]
 fn test_normalize_address_evm_pads_short_address() {
     let address = "0xccccccccccccccccccccccccccccccccccccccc"; // 39 chars
@@ -336,8 +352,9 @@ fn test_normalize_address_evm_pads_short_address() {
     assert_eq!(&normalized[2..3], "0", "Should be padded with leading zero");
 }
 
-/// Test that normalize_address handles EVM addresses correctly
-/// Why: EVM addresses are 40 hex chars, should not be padded if already correct
+/// 17. Test: Normalize Address EVM Keeps Full Address
+/// Verifies that normalize_address does not pad EVM addresses that are already 40 hex chars.
+/// Why: EVM addresses that are already the correct length must not be modified.
 #[test]
 fn test_normalize_address_evm_keeps_full_address() {
     let address = "0xdddddddddddddddddddddddddddddddddddddddd"; // 40 chars

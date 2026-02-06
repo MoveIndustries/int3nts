@@ -16,8 +16,9 @@ use test_helpers::{
 // MOVE VM ESCROW SOLVER VALIDATION TESTS
 // ============================================================================
 
-/// Test that trusted-gmp accepts escrows where reserved_solver matches hub intent solver for Move VM escrows
-/// Why: Verify that solver address matching validation works correctly for successful cases
+/// 1. Test: Escrow Solver Address Matching Success
+/// Verifies that trusted-gmp accepts escrows where reserved_solver matches the hub intent solver.
+/// Why: Solver address matching is the core validation for cross-chain escrow approval.
 #[tokio::test]
 async fn test_escrow_solver_address_matching_success() {
     // Setup mock server with solver registry
@@ -61,8 +62,9 @@ async fn test_escrow_solver_address_matching_success() {
     );
 }
 
-/// Test that trusted-gmp rejects escrows where reserved_solver doesn't match hub intent solver for Move VM escrows
-/// Why: Verify that solver address mismatch validation works correctly
+/// 2. Test: Escrow Solver Address Mismatch Rejection
+/// Verifies that trusted-gmp rejects escrows where reserved_solver doesn't match the hub intent solver.
+/// Why: Mismatched solver addresses indicate an unauthorized claim attempt.
 #[tokio::test]
 async fn test_escrow_solver_address_mismatch_rejection() {
     // Setup mock server with solver registry
@@ -106,8 +108,9 @@ async fn test_escrow_solver_address_mismatch_rejection() {
     );
 }
 
-/// Test that trusted-gmp rejects escrows when one has reserved_solver and the other doesn't for Move VM escrows
-/// Why: Verify that reservation mismatch validation works correctly
+/// 3. Test: Escrow Solver Reservation Mismatch Rejection
+/// Verifies that trusted-gmp rejects escrows when one side has a reserved_solver and the other doesn't.
+/// Why: Reservation mismatches indicate inconsistent state between hub intent and connected chain escrow.
 #[tokio::test]
 async fn test_escrow_solver_reservation_mismatch_rejection() {
     let config = build_test_config_with_mvm();

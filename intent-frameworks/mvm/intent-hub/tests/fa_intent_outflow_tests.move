@@ -19,7 +19,6 @@ module mvmt_intent::fa_intent_outflow_tests {
     use mvmt_intent::gmp_intent_state;
     use mvmt_intent::gmp_sender;
     use mvmt_intent::intent_gmp_hub;
-    use mvmt_intent::gmp_common;
 
     // ============================================================================
     // TEST HELPERS

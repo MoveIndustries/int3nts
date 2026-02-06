@@ -15,7 +15,7 @@ use wiremock::{Mock, MockServer, ResponseTemplate};
 mod test_helpers;
 use test_helpers::{
     DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_INTENT_ID, DUMMY_REQUESTER_ADDR_EVM,
-    DUMMY_SOLVER_ADDR_EVM, DUMMY_TOKEN_ADDR_EVM, DUMMY_TX_HASH,
+    DUMMY_TOKEN_ADDR_EVM, DUMMY_TX_HASH,
 };
 
 // ============================================================================
@@ -54,7 +54,7 @@ fn test_evm_client_new() {
 // ============================================================================
 
 /// 3. Test: Get Escrow Events Success
-/// Verifies that get_escrow_events() parses EscrowInitialized events correctly.
+/// Verifies that get_escrow_events() parses EscrowCreated events correctly.
 /// Why: The solver needs to parse escrow events from connected EVM chains to
 /// identify fulfillment opportunities. A parsing bug would cause missed escrows.
 #[tokio::test]
@@ -62,12 +62,19 @@ async fn test_get_escrow_events_evm_success() {
     let mock_server = MockServer::start().await;
     let base_url = mock_server.uri().to_string();
 
-    // EscrowInitialized event signature hash
-    // keccak256("EscrowInitialized(uint256,address,address,address,address,uint256,uint256)")
-    let event_signature = "EscrowInitialized(uint256,address,address,address,address,uint256,uint256)";
+    // EscrowCreated(bytes32,bytes32,address,uint64,address,bytes32,uint64)
+    let event_signature = "EscrowCreated(bytes32,bytes32,address,uint64,address,bytes32,uint64)";
     let mut hasher = Keccak256::new();
     hasher.update(event_signature.as_bytes());
     let event_topic = format!("0x{}", hex::encode(hasher.finalize()));
+
+    // Construct mock data matching the new event layout:
+    // topics: [sig, intentId(bytes32), requester(address padded), token(address padded)]
+    // data: escrowId(32B) + amount(32B) + reservedSolver(32B) + expiry(32B) = 256 hex chars
+    let escrow_id_hex = "0000000000000000000000000000000000000000000000000000000000000002";
+    let amount_hex = "00000000000000000000000000000000000000000000000000000000000f4240"; // 1000000
+    let solver_hex = "0000000000000000000000000000000000000000000000000000000000000009";
+    let expiry_hex = "0000000000000000000000000000000000000000000000000000000000000000"; // 0
 
     Mock::given(method("POST"))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!({
@@ -77,11 +84,11 @@ async fn test_get_escrow_events_evm_success() {
                     "address": DUMMY_ESCROW_CONTRACT_ADDR_EVM,
                     "topics": [
                         event_topic,
-                        format!("0x000000000000000000000000{}", DUMMY_INTENT_ID.strip_prefix("0x").unwrap()), // intent_id (padded to 32 bytes in EVM topic)
-                        format!("0x000000000000000000000000{}", DUMMY_ESCROW_CONTRACT_ADDR_EVM.strip_prefix("0x").unwrap()), // escrow
-                        format!("0x000000000000000000000000{}", DUMMY_REQUESTER_ADDR_EVM.strip_prefix("0x").unwrap())  // requester
+                        DUMMY_INTENT_ID, // intentId (bytes32, already 64 hex chars)
+                        format!("0x000000000000000000000000{}", DUMMY_REQUESTER_ADDR_EVM.strip_prefix("0x").unwrap()), // requester (address padded to 32 bytes)
+                        format!("0x000000000000000000000000{}", DUMMY_TOKEN_ADDR_EVM.strip_prefix("0x").unwrap())  // token (address padded to 32 bytes)
                     ],
-                    "data": format!("0x000000000000000000000000{}000000000000000000000000{}00000000000000000000000000000000000000000000000000000000000f42400000000000000000000000000000000000000000000000000000000000000000", DUMMY_TOKEN_ADDR_EVM.strip_prefix("0x").unwrap(), DUMMY_SOLVER_ADDR_EVM.strip_prefix("0x").unwrap()), // token (32 bytes) + reserved_solver (32 bytes) + amount (32 bytes, 1000000) + expiry (32 bytes, 0)
+                    "data": format!("0x{}{}{}{}", escrow_id_hex, amount_hex, solver_hex, expiry_hex),
                     "blockNumber": "0x1000",
                     "transactionHash": DUMMY_TX_HASH
                 }
@@ -98,17 +105,13 @@ async fn test_get_escrow_events_evm_success() {
     let events = client.get_escrow_events(None, None).await.unwrap();
 
     assert_eq!(events.len(), 1);
-    // Intent ID is extracted from topic (32 bytes), so it includes padding zeros
-    assert_eq!(
-        events[0].intent_id,
-        format!(
-            "0x000000000000000000000000{}",
-            DUMMY_INTENT_ID.strip_prefix("0x").unwrap()
-        )
-    );
+    assert_eq!(events[0].intent_id, DUMMY_INTENT_ID);
+    assert_eq!(events[0].escrow_id, format!("0x{}", escrow_id_hex));
     assert_eq!(events[0].requester_addr, DUMMY_REQUESTER_ADDR_EVM);
+    assert_eq!(events[0].amount, 1000000);
     assert_eq!(events[0].token_addr, DUMMY_TOKEN_ADDR_EVM);
-    assert_eq!(events[0].reserved_solver_addr, DUMMY_SOLVER_ADDR_EVM);
+    assert_eq!(events[0].reserved_solver, format!("0x{}", solver_hex));
+    assert_eq!(events[0].expiry, 0);
 }
 
 /// 4. Test: Get Escrow Events Empty

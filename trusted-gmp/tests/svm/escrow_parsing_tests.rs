@@ -7,8 +7,9 @@ use borsh::BorshSerialize;
 use solana_sdk::pubkey::Pubkey;
 use trusted_gmp::svm_client::EscrowAccount;
 
-/// Test that Borsh-encoded escrow data round-trips through base64 encoding
-/// Why: SVM RPC returns base64-encoded account data that must deserialize correctly
+/// 7. Test: Escrow Account Borsh Roundtrip
+/// Verifies that Borsh-encoded escrow data round-trips through base64 encoding.
+/// Why: SVM RPC returns base64-encoded account data that must deserialize correctly.
 #[test]
 fn test_escrow_account_borsh_roundtrip() {
     let escrow = EscrowAccount {
@@ -39,8 +40,9 @@ fn test_escrow_account_borsh_roundtrip() {
     assert_eq!(parsed.bump, escrow.bump);
 }
 
-/// Test that invalid base64 data fails to parse
-/// Why: Malformed RPC responses should not be accepted as valid escrow data
+/// 8. Test: Escrow Account Invalid Base64
+/// Verifies that invalid base64 data fails to parse.
+/// Why: Malformed RPC responses must not be accepted as valid escrow data.
 #[test]
 fn test_escrow_account_invalid_base64() {
     let bad_base64 = "not_base64";

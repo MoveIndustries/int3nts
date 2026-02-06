@@ -5,7 +5,7 @@ This document provides architectural guidance on how data structures relate acro
 For detailed field-by-field documentation, see:
 
 - [Move Intent Framework API Reference](../../docs/intent-frameworks/mvm/api-reference.md#type-definitions) - TradeIntent, TradeSession, FungibleAssetLimitOrder
-- [Move event structures](../../intent-frameworks/mvm/sources/fa_intent.move) - LimitOrderEvent, LimitOrderFulfillmentEvent
+- [Move event structures](../../intent-frameworks/mvm/intent-hub/sources/fa_intent.move) - LimitOrderEvent, LimitOrderFulfillmentEvent
 - [EVM Escrow documentation](../../docs/intent-frameworks/evm/README.md)
 - [SVM Escrow documentation](../../docs/intent-frameworks/svm/README.md)
 - [Rust coordinator structures](../../coordinator/src/monitor/mod.rs) - IntentEvent, EscrowEvent, FulfillmentEvent

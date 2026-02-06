@@ -7,6 +7,58 @@
 export APTOS_DOCKER_IMAGE="aptoslabs/tools@sha256:b6d7fc304963929ad89ef74da020ed995da22dc11fd6cb68cf5f17b6bfff0ccf"
 
 
+# Build only if any of the specified output files are missing.
+# Used by --no-build to skip builds when binaries already exist.
+# Usage: build_if_missing <build_dir> <build_command> <description> <check_paths...>
+#   build_dir: Directory to run the build in (pushd target)
+#   build_command: The build command to run (e.g., "cargo build --bin coordinator")
+#   description: Human-readable description for log output
+#   check_paths: One or more output file paths to check; rebuilds if ANY is missing
+build_if_missing() {
+    local build_dir="$1"
+    local build_command="$2"
+    local description="$3"
+    shift 3
+
+    local needs_build=false
+    for check_path in "$@"; do
+        if [ ! -f "$check_path" ]; then
+            needs_build=true
+            break
+        fi
+    done
+
+    if [ "$needs_build" = "true" ]; then
+        pushd "$build_dir" > /dev/null
+        eval "$build_command" 2>&1 | tail -5
+        popd > /dev/null
+        log_and_echo "   ✅ $description (built)"
+    else
+        log_and_echo "   ✅ $description (exists)"
+    fi
+}
+
+# Build the common set of binaries required by all E2E test scripts.
+# Checks each binary individually and only builds what's missing.
+# Usage: build_common_bins_if_missing
+# Requires PROJECT_ROOT to be set.
+build_common_bins_if_missing() {
+    # Order: coordinator first (fastest independent build ~57s),
+    # then generate_keys before trusted-gmp (same crate, warms dep cache)
+    build_if_missing "$PROJECT_ROOT/coordinator" "cargo build --bin coordinator" \
+        "Coordinator: coordinator" \
+        "$PROJECT_ROOT/coordinator/target/debug/coordinator"
+    build_if_missing "$PROJECT_ROOT/trusted-gmp" "cargo build --bin generate_keys" \
+        "Trusted-GMP: generate_keys" \
+        "$PROJECT_ROOT/trusted-gmp/target/debug/generate_keys"
+    build_if_missing "$PROJECT_ROOT/trusted-gmp" "cargo build --bin trusted-gmp" \
+        "Trusted-GMP: trusted-gmp" \
+        "$PROJECT_ROOT/trusted-gmp/target/debug/trusted-gmp"
+    build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin solver" \
+        "Solver: solver" \
+        "$PROJECT_ROOT/solver/target/debug/solver"
+}
+
 # Get project root - can be called from any script location
 # Usage: Call this function to set PROJECT_ROOT and optionally change to it
 # Note: If SCRIPT_DIR is already set by the calling script, use that; otherwise derive from BASH_SOURCE

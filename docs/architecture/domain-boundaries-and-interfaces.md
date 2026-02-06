@@ -163,17 +163,17 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 **Public Entry Functions** (Move):
 
 - `fulfill_cross_chain_request_intent()` - Fulfill cross-chain intent (in fa_intent.move)
-- `complete_escrow_from_fa()` - Complete escrow with trusted-gmp signature (in intent_as_escrow_entry.move) - signature itself is the approval
+- `complete_escrow_from_fa()` - Complete escrow with trusted-gmp signature (in intent_escrow_entry.move) - signature itself is the approval
 
 **Public Functions** (Move):
 
 - `finish_fa_intent_session()` - Complete FA intent session (in fa_intent.move)
-- `complete_escrow()` - Complete escrow with trusted-gmp signature (in intent_as_escrow.move) - signature itself is the approval
+- `complete_escrow()` - Complete escrow with trusted-gmp signature (in intent_escrow.move) - signature itself is the approval
 
 **Public Functions** (Solidity):
 
-- `claim(uint256 intentId, bytes signature)` - Claim escrow (in IntentEscrow.sol) - signature itself is the approval
-- `cancel(uint256 intentId)` - Cancel escrow after expiry (in IntentEscrow.sol)
+- `claim(uint256 intentId, bytes signature)` - Claim escrow (in IntentInflowEscrow.sol) - signature itself is the approval
+- `cancel(uint256 intentId)` - Cancel escrow after expiry (in IntentInflowEscrow.sol)
 
 ### Settlement: Internal Components
 

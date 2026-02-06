@@ -15,6 +15,7 @@ for arg in "$@"; do
         --no-build) SKIP_BUILD=true ;;
     esac
 done
+export SKIP_BUILD
 
 # Source common utilities
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -34,8 +35,12 @@ echo "================================================================"
 
 echo ""
 if [ "$SKIP_BUILD" = "true" ]; then
-    echo " Step 1: Skipping build (--no-build)"
+    echo " Step 1: Build if missing (--no-build)"
     echo "========================================"
+    build_common_bins_if_missing
+    build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin sign_intent" \
+        "Solver: sign_intent" \
+        "$PROJECT_ROOT/solver/target/debug/sign_intent"
 else
     echo " Step 1: Build bins and pre-pull docker images"
     echo "========================================"

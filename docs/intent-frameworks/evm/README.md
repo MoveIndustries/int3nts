@@ -4,7 +4,7 @@ Escrow contract for cross-chain intents that releases funds to solvers when trus
 
 ## Overview
 
-The `IntentEscrow` contract implements a secure escrow system:
+The `IntentInflowEscrow` contract implements a secure escrow system:
 
 - Requesters deposit ERC20 tokens into escrows tied to intent IDs
 - Solvers can claim funds after providing a valid trusted-gmp signature
@@ -73,8 +73,8 @@ See the [component README](../../intent-frameworks/evm/README.md) for quick star
 const { ethers } = require("hardhat");
 
 // Deploy escrow with approver address
-const IntentEscrow = await ethers.getContractFactory("IntentEscrow");
-const escrow = await IntentEscrow.deploy(approverAddress);
+const IntentInflowEscrow = await ethers.getContractFactory("IntentInflowEscrow");
+const escrow = await IntentInflowEscrow.deploy(approverAddress);
 
 // Requester creates escrow and deposits tokens atomically (expiry is contract-defined)
 // Must specify solver address that will receive funds:

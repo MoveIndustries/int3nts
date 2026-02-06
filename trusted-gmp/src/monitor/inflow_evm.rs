@@ -8,10 +8,10 @@ use crate::evm_client::EvmClient;
 use crate::monitor::generic::{ChainType, EscrowEvent};
 use anyhow::{Context, Result};
 
-/// Polls the EVM connected chain for new escrow initialization events.
+/// Polls the EVM connected chain for new EscrowCreated events.
 ///
-/// This function queries the EVM chain's event logs for EscrowInitialized events
-/// emitted by the IntentEscrow contract. It converts them to EscrowEvent format
+/// This function queries the EVM chain's event logs for EscrowCreated events
+/// emitted by the IntentInflowEscrow contract. It converts them to EscrowEvent format
 /// for consistent processing.
 ///
 /// # Arguments
@@ -52,9 +52,9 @@ pub async fn poll_evm_escrow_events(config: &Config) -> Result<Vec<EscrowEvent>>
         Some(0)
     };
 
-    // Query EVM chain for EscrowInitialized events
-    let evm_events = client.get_escrow_initialized_events(from_block, None).await
-        .with_context(|| format!("Failed to fetch EVM escrow events from chain {} (RPC: {}, contract: {}, from_block: {:?})", 
+    // Query EVM chain for EscrowCreated events
+    let evm_events = client.get_escrow_created_events(from_block, None).await
+        .with_context(|| format!("Failed to fetch EVM escrow events from chain {} (RPC: {}, contract: {}, from_block: {:?})",
             connected_chain_evm.chain_id, connected_chain_evm.rpc_url, connected_chain_evm.escrow_contract_addr, from_block))?;
 
     let mut escrow_events = Vec::new();
@@ -63,30 +63,19 @@ pub async fn poll_evm_escrow_events(config: &Config) -> Result<Vec<EscrowEvent>>
         .as_secs();
 
     for event in evm_events {
-        // Convert EVM event to EscrowEvent format
-        // Note: EVM escrows don't have all the same fields as Move VM escrows
-        // We'll use placeholder values for fields that don't exist in EVM
-
-        // Convert intent_id from hex string to address format
-        // EVM intent_id is uint256, we'll use it as-is (it's already hex)
-        let intent_id = event.intent_id.clone();
-
-        // For EVM, escrow_id is the intent_id (escrow is keyed by intent_id)
-        let escrow_id = intent_id.clone();
-
         escrow_events.push(EscrowEvent {
-            escrow_id,
-            intent_id,
-            offered_metadata: format!("{{\"inner\":\"{}\"}}", event.token_addr), // Store token address in metadata
-            offered_amount: event.amount, // Amount from event
-            desired_metadata: "{}".to_string(), // Not used for inflow escrows
-            desired_amount: 0, // Not used for inflow escrows
-            revocable: false, // EVM escrows are always non-revocable
-            requester_addr: event.requester_addr.clone(), // requester is the escrow creator
-            reserved_solver_addr: Some(event.reserved_solver_addr.clone()),
+            escrow_id: event.escrow_id.clone(),
+            intent_id: event.intent_id.clone(),
+            offered_metadata: format!("{{\"inner\":\"{}\"}}", event.token_addr),
+            offered_amount: event.amount,
+            desired_metadata: "{}".to_string(),
+            desired_amount: 0,
+            revocable: false,
+            requester_addr: event.requester_addr.clone(),
+            reserved_solver_addr: Some(event.reserved_solver.clone()),
             chain_id: connected_chain_evm.chain_id,
-            chain_type: ChainType::Evm, // This escrow came from EVM monitoring
-            expiry_time: event.expiry, // Expiry from event
+            chain_type: ChainType::Evm,
+            expiry_time: event.expiry,
             timestamp,
         });
     }

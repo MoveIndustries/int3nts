@@ -180,7 +180,7 @@ describe("IntentInflowEscrow - Integration Tests", function () {
       expiry
     );
 
-    // Test EscrowCreated event (5 args: intentId, escrowId, creator, amount, token)
+    // Test EscrowCreated event (7 args: intentId, escrowId, requester, amount, token, reservedSolver, expiry)
     const createTx = await escrow.connect(requester).createEscrowWithValidation(
       intentId,
       token.target,

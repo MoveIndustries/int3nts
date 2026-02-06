@@ -68,8 +68,9 @@ fn build_tx(memo_first: bool, memo: &str) -> serde_json::Value {
     })
 }
 
-/// What is tested: Successful parsing of memo + transferChecked
-/// Why: Ensure SVM outflow parsing returns normalized fulfillment parameters
+/// 1. Test: Extract SVM Fulfillment Params Success
+/// Verifies that memo + transferChecked instructions are parsed into normalized fulfillment parameters.
+/// Why: SVM outflow parsing must correctly extract intent_id, recipient, solver, token, and amount.
 #[test]
 fn test_extract_svm_fulfillment_params_success() {
     let intent_id = DUMMY_INTENT_ID_FULL;
@@ -83,8 +84,9 @@ fn test_extract_svm_fulfillment_params_success() {
     assert_eq!(params.amount, 1000);
 }
 
-/// What is tested: Memo must be the first instruction
-/// Why: Enforce strict memo + transfer ordering for outflow validation
+/// 2. Test: Extract SVM Fulfillment Params Requires Memo First
+/// Verifies that the memo instruction must be the first instruction in the transaction.
+/// Why: Strict memo + transfer ordering prevents ambiguous outflow transactions.
 #[test]
 fn test_extract_svm_fulfillment_params_requires_memo_first() {
     let intent_id = DUMMY_INTENT_ID_FULL;
@@ -96,8 +98,9 @@ fn test_extract_svm_fulfillment_params_requires_memo_first() {
         .contains("memo must be the first instruction"));
 }
 
-/// What is tested: Memo format validation for intent_id length
-/// Why: Prevent malformed memo values from being accepted
+/// 3. Test: Extract SVM Fulfillment Params Rejects Invalid Intent ID
+/// Verifies that intent_id values shorter than 32 bytes are rejected.
+/// Why: Intent IDs must be exactly 32 bytes to match hub chain format.
 #[test]
 fn test_extract_svm_fulfillment_params_rejects_invalid_intent_id() {
     let tx = build_tx(true, "intent_id=0x1234");

@@ -175,9 +175,9 @@ Each component can be tested independently:
 
 | File | Purpose |
 |------|---------|
-| [gmp_sender.move](../../intent-frameworks/mvm/sources/gmp/gmp_sender.move) | Outbound GMP send functionality |
-| [intent_gmp.move](../../intent-frameworks/mvm/sources/gmp/intent_gmp.move) | Inbound message delivery and routing |
-| [outflow_validator.move](../../intent-frameworks/mvm/sources/gmp/outflow_validator.move) | Example app that imports gmp_sender |
+| [gmp_sender.move](../../intent-frameworks/mvm/intent-gmp/sources/gmp/gmp_sender.move) | Outbound GMP send functionality |
+| [intent_gmp.move](../../intent-frameworks/mvm/intent-connected/sources/gmp/intent_gmp.move) | Inbound message delivery and routing |
+| [intent_outflow_validator.move](../../intent-frameworks/mvm/intent-connected/sources/gmp/intent_outflow_validator.move) | Example app that imports gmp_sender |
 
 ### SVM
 

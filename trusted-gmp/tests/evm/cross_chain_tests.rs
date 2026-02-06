@@ -8,8 +8,9 @@ use trusted_gmp::monitor::{EscrowEvent, IntentEvent};
 mod test_helpers;
 use test_helpers::{create_default_escrow_event_evm, create_default_intent_evm, DUMMY_EXPIRY, DUMMY_INTENT_ID};
 
-/// Test that EVM escrow can be matched to hub intent by intent_id
-/// Why: Verify cross-chain matching logic correctly links EVM escrow to hub intent
+/// 4. Test: EVM Escrow Cross-Chain Matching
+/// Verifies that EVM escrow can be matched to hub intent by intent_id.
+/// Why: Cross-chain matching by intent_id is the fundamental link between hub intents and connected chain escrows.
 #[test]
 fn test_evm_escrow_cross_chain_matching() {
     // Step 1: Create hub intent
@@ -56,8 +57,9 @@ fn test_evm_escrow_cross_chain_matching() {
     );
 }
 
-/// Test intent ID format conversion from Move VM hex to EVM format
-/// Why: Verify that Move VM hex intent IDs can be properly converted for EVM use
+/// 5. Test: Intent ID Conversion to EVM Format
+/// Verifies that Move VM hex intent IDs can be properly converted and padded for EVM use.
+/// Why: Intent IDs must be padded to 32 bytes for EVM uint256 compatibility.
 #[test]
 fn test_intent_id_conversion_to_evm_format() {
     // Move VM intent IDs are hex strings (e.g., "0xabc123")
@@ -127,8 +129,9 @@ fn test_intent_id_conversion_to_evm_format() {
     );
 }
 
-/// Test EVM escrow matching with Move VM hub intent in cross-chain scenario
-/// Why: Verify complete cross-chain matching workflow from Move VM hub to EVM escrow
+/// 6. Test: EVM Escrow Matching with Hub Intent
+/// Verifies the complete cross-chain matching workflow from Move VM hub intent to EVM escrow.
+/// Why: End-to-end matching validation ensures all fields align across chains.
 #[test]
 fn test_evm_escrow_matching_with_hub_intent() {
     // Step 1: Create hub intent

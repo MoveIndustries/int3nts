@@ -127,9 +127,25 @@ impl OutflowService {
             .await;
 
         if pending_intents.is_empty() {
+            // Log tracker state periodically at trace level for debugging
+            let all_intents = self.tracker.get_intents_ready_for_fulfillment(None).await;
+            if !all_intents.is_empty() {
+                tracing::debug!(
+                    "Outflow poll: 0 outflow intents found, but {} total intents in Created state (hub_chain_id={})",
+                    all_intents.len(),
+                    self.config.hub_chain.chain_id
+                );
+                for i in &all_intents {
+                    tracing::debug!(
+                        "  Intent {}: offered_chain_id={}, desired_chain_id={}, state={:?}",
+                        i.intent_id, i.draft_data.offered_chain_id, i.draft_data.desired_chain_id, i.state
+                    );
+                }
+            }
             return Ok(Vec::new());
         }
 
+        info!("Found {} pending outflow intent(s)", pending_intents.len());
         let mut executed_transfers = Vec::new();
 
         for intent in pending_intents {

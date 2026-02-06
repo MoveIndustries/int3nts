@@ -182,7 +182,7 @@ impl InflowService {
                             evm_svm_escrow_events.extend(events.into_iter().map(|e| {
                                 EscrowMatch {
                                     intent_id: e.intent_id,
-                                    escrow_id: e.escrow_addr,
+                                    escrow_id: e.escrow_id,
                                 }
                             }));
                         }

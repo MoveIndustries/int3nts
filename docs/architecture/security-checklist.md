@@ -116,7 +116,7 @@ Auth working once doesn't mean auth is safe. Test edge cases.
 
 | Component | File | Checks |
 |-----------|------|--------|
-| Solver Registry | `intent-frameworks/mvm/sources/solver_registry.move` | Public key management |
+| Solver Registry | `intent-frameworks/mvm/intent-hub/sources/solver_registry.move` | Public key management |
 | Signature Verification | `trusted-gmp/src/crypto/` | Ed25519/ECDSA validation |
 | Intent Creation | `create_inflow_intent`, `create_outflow_intent` | Solver signature verification |
 

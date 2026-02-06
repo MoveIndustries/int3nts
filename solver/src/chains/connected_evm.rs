@@ -12,19 +12,30 @@ use std::time::Duration;
 
 use crate::config::EvmChainConfig;
 
-/// EscrowInitialized event data parsed from EVM logs
+/// EscrowCreated event data parsed from EVM logs
+///
+/// Event signature: EscrowCreated(bytes32 indexed intentId, bytes32 escrowId, address indexed requester, uint64 amount, address indexed token, bytes32 reservedSolver, uint64 expiry)
+/// topics[0] = event signature hash
+/// topics[1] = intentId (bytes32)
+/// topics[2] = requester (address, padded to 32 bytes)
+/// topics[3] = token (address, padded to 32 bytes)
+/// data = abi.encode(escrowId, amount, reservedSolver, expiry) = 256 hex chars
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EscrowInitializedEvent {
-    /// Intent ID (indexed, first topic)
+pub struct EscrowCreatedEvent {
+    /// Intent ID (indexed topic[1], bytes32)
     pub intent_id: String,
-    /// Escrow contract address (indexed, second topic)
-    pub escrow_addr: String,
-    /// Requester address (indexed, third topic)
+    /// Escrow ID (from data, bytes32)
+    pub escrow_id: String,
+    /// Requester address (indexed topic[2], address)
     pub requester_addr: String,
-    /// Token contract address (from data)
+    /// Amount escrowed (from data, uint64)
+    pub amount: u64,
+    /// Token contract address (indexed topic[3], address)
     pub token_addr: String,
-    /// Reserved solver address (from data)
-    pub reserved_solver_addr: String,
+    /// Reserved solver address (from data, bytes32)
+    pub reserved_solver: String,
+    /// Expiry timestamp (from data, uint64)
+    pub expiry: u64,
     /// Block number
     pub block_number: String,
     /// Transaction hash
@@ -159,7 +170,7 @@ impl ConnectedEvmClient {
         Ok(block_number)
     }
 
-    /// Queries the connected chain for EscrowInitialized events
+    /// Queries the connected chain for EscrowCreated events
     ///
     /// Uses eth_getLogs to filter events by contract address and event signature.
     ///
@@ -170,19 +181,17 @@ impl ConnectedEvmClient {
     ///
     /// # Returns
     ///
-    /// * `Ok(Vec<EscrowInitializedEvent>)` - List of escrow events
+    /// * `Ok(Vec<EscrowCreatedEvent>)` - List of escrow events
     /// * `Err(anyhow::Error)` - Failed to query events
     pub async fn get_escrow_events(
         &self,
         from_block: Option<u64>,
         to_block: Option<u64>,
-    ) -> Result<Vec<EscrowInitializedEvent>> {
+    ) -> Result<Vec<EscrowCreatedEvent>> {
         use tracing::{info, warn};
-        
-        // EscrowInitialized event signature: keccak256("EscrowInitialized(uint256,address,address,address,address,uint256,uint256)")
-        // Event: EscrowInitialized(uint256 indexed intentId, address indexed escrow, address indexed requester, address token, address reservedSolver, uint256 amount, uint256 expiry)
-        // Note: indexed parameters don't affect the signature, only the types matter
-        let event_signature = "EscrowInitialized(uint256,address,address,address,address,uint256,uint256)";
+
+        // EscrowCreated(bytes32 indexed intentId, bytes32 escrowId, address indexed requester, uint64 amount, address indexed token, bytes32 reservedSolver, uint64 expiry)
+        let event_signature = "EscrowCreated(bytes32,bytes32,address,uint64,address,bytes32,uint64)";
         let mut hasher = Keccak256::new();
         hasher.update(event_signature.as_bytes());
         let event_topic = format!("0x{}", hex::encode(hasher.finalize()));
@@ -239,35 +248,39 @@ impl ConnectedEvmClient {
         let mut events = Vec::new();
 
         for log in logs {
-            // EscrowInitialized(uint256 indexed intentId, address indexed escrow, address indexed requester, address token, address reservedSolver, uint256 amount, uint256 expiry)
-            // topics[0] = event signature
-            // topics[1] = intentId (uint256, padded to 32 bytes)
-            // topics[2] = escrow (address, padded to 32 bytes)
-            // topics[3] = requester (address, padded to 32 bytes)
-            // data = abi.encode(token, reservedSolver, amount, expiry) - 4 fields (256 hex chars = 128 bytes)
+            // EscrowCreated(bytes32 indexed intentId, bytes32 escrowId, address indexed requester, uint64 amount, address indexed token, bytes32 reservedSolver, uint64 expiry)
+            // topics[0] = event signature hash
+            // topics[1] = intentId (bytes32)
+            // topics[2] = requester (address, padded to 32 bytes)
+            // topics[3] = token (address, padded to 32 bytes)
+            // data = abi.encode(escrowId, amount, reservedSolver, expiry) = 256 hex chars
             if log.topics.len() < 4 {
-                continue; // Invalid event format
+                continue;
             }
 
             let intent_id = format!("0x{}", log.topics[1].strip_prefix("0x").unwrap_or(&log.topics[1]));
-            let escrow_addr = format!("0x{}", &log.topics[2][26..]); // Extract last 20 bytes (40 hex chars)
-            let requester_addr = format!("0x{}", &log.topics[3][26..]);
+            let requester_addr = format!("0x{}", &log.topics[2][26..]); // Extract last 20 bytes (40 hex chars)
+            let token_addr = format!("0x{}", &log.topics[3][26..]);
 
-            // Parse data: token (32 bytes), reservedSolver (32 bytes), amount (32 bytes), expiry (32 bytes)
+            // Parse data: escrowId (32 bytes), amount (32 bytes), reservedSolver (32 bytes), expiry (32 bytes)
             let data = log.data.strip_prefix("0x").unwrap_or(&log.data);
             if data.len() < 256 {
-                continue; // Invalid data length (4 fields * 64 hex chars)
+                continue; // 4 fields * 64 hex chars = 256
             }
 
-            let token_addr = format!("0x{}", &data[24..64]); // Extract address from first 32-byte word (skip padding)
-            let reserved_solver_addr = format!("0x{}", &data[88..128]); // Extract address from second 32-byte word
+            let escrow_id = format!("0x{}", &data[0..64]);
+            let amount = u64::from_str_radix(&data[112..128], 16).unwrap_or(0); // uint64 in last 8 bytes of 32-byte word
+            let reserved_solver = format!("0x{}", &data[128..192]);
+            let expiry = u64::from_str_radix(&data[240..256], 16).unwrap_or(0); // uint64 in last 8 bytes of 32-byte word
 
-            events.push(EscrowInitializedEvent {
+            events.push(EscrowCreatedEvent {
                 intent_id,
-                escrow_addr,
+                escrow_id,
                 requester_addr,
+                amount,
                 token_addr,
-                reserved_solver_addr,
+                reserved_solver,
+                expiry,
                 block_number: log.block_number,
                 transaction_hash: log.transaction_hash,
             });

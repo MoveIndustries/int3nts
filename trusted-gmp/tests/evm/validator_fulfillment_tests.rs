@@ -23,13 +23,9 @@ use test_helpers::{
 // EVM TRANSACTION EXTRACTION TESTS
 // ============================================================================
 
-/// Test that extract_evm_fulfillment_params successfully extracts parameters from valid EVM transaction
-///
-/// What is tested: Extracting intent_id, recipient, amount, solver, and token_metadata from a valid
-/// EVM transaction that calls ERC20 transfer() with intent_id appended in calldata.
-///
-/// Why: Verify that the extraction function correctly parses EVM transaction calldata
-/// to extract all required parameters for validation.
+/// 7. Test: Extract EVM Fulfillment Params Success
+/// Verifies that all parameters are correctly extracted from a valid EVM ERC20 transfer transaction with appended intent_id.
+/// Why: The extraction function must correctly parse calldata to obtain intent_id, recipient, amount, solver, and token_metadata for downstream validation.
 #[test]
 fn test_extract_evm_fulfillment_params_success() {
     // ERC20 transfer selector: 0xa9059cbb
@@ -76,13 +72,9 @@ fn test_extract_evm_fulfillment_params_success() {
     );
 }
 
-/// Test that extract_evm_fulfillment_params fails when transaction is not an ERC20 transfer call
-///
-/// What is tested: Attempting to extract parameters from an EVM transaction that doesn't call
-/// ERC20 transfer() should fail with an appropriate error.
-///
-/// Why: Verify that the extraction function correctly identifies and rejects transactions
-/// that are not ERC20 transfer calls.
+/// 8. Test: Extract EVM Fulfillment Params Wrong Selector
+/// Verifies that extraction fails with an error when the transaction does not use the ERC20 transfer() selector.
+/// Why: Only ERC20 transfer calls are valid fulfillment transactions, so non-transfer selectors must be rejected.
 #[test]
 fn test_extract_evm_fulfillment_params_wrong_selector() {
     let tx = EvmTransaction {
@@ -97,12 +89,9 @@ fn test_extract_evm_fulfillment_params_wrong_selector() {
     assert!(error_msg.contains("ERC20 transfer") || error_msg.contains("not an ERC20 transfer"));
 }
 
-/// Test that extract_evm_fulfillment_params fails when calldata is too short
-///
-/// What is tested: Attempting to extract parameters from an EVM transaction with insufficient
-/// calldata length should fail with an appropriate error.
-///
-/// Why: Verify that the extraction function validates calldata length before parsing.
+/// 9. Test: Extract EVM Fulfillment Params Insufficient Calldata
+/// Verifies that extraction fails when the transaction calldata is too short to contain all required fields.
+/// Why: Calldata length must be validated before parsing to prevent out-of-bounds reads on truncated data.
 #[test]
 fn test_extract_evm_fulfillment_params_insufficient_calldata() {
     let tx = EvmTransaction {
@@ -121,13 +110,9 @@ fn test_extract_evm_fulfillment_params_insufficient_calldata() {
     assert!(error_msg.contains("Insufficient") || error_msg.contains("length"));
 }
 
-/// Test that extract_evm_fulfillment_params rejects amounts exceeding u64::MAX
-///
-/// What is tested: Attempting to extract parameters from an EVM transaction with an amount
-/// that exceeds u64::MAX should fail with a clear error about Move contract limitation.
-///
-/// Why: Move contracts only support u64 for amounts, so EVM amounts must not exceed u64::MAX.
-/// This test verifies the overflow validation we added.
+/// 10. Test: Extract EVM Fulfillment Params Amount Exceeds u64 Max
+/// Verifies that extraction fails with a clear error when the transaction amount exceeds u64::MAX.
+/// Why: Move contracts only support u64 for amounts, so EVM amounts exceeding this limit must be rejected to prevent overflow.
 #[test]
 fn test_extract_evm_fulfillment_params_amount_exceeds_u64_max() {
     // u64::MAX = 18446744073709551615 (0xffffffffffffffff)
@@ -167,12 +152,9 @@ fn test_extract_evm_fulfillment_params_amount_exceeds_u64_max() {
     );
 }
 
-/// Test that extract_evm_fulfillment_params accepts amounts equal to u64::MAX
-///
-/// What is tested: Extracting parameters from an EVM transaction with an amount
-/// exactly equal to u64::MAX should succeed.
-///
-/// Why: Verify that the maximum allowed value (u64::MAX) is accepted.
+/// 11. Test: Extract EVM Fulfillment Params Amount Equals u64 Max
+/// Verifies that extraction succeeds when the transaction amount is exactly u64::MAX.
+/// Why: The boundary value u64::MAX must be accepted as a valid amount since it is within the Move contract's supported range.
 #[test]
 fn test_extract_evm_fulfillment_params_amount_equals_u64_max() {
     // u64::MAX = 18446744073709551615 (0xffffffffffffffff)
@@ -205,12 +187,9 @@ fn test_extract_evm_fulfillment_params_amount_equals_u64_max() {
     );
 }
 
-/// Test that extract_evm_fulfillment_params accepts large but valid u64 amounts
-///
-/// What is tested: Extracting parameters from an EVM transaction with a large
-/// but valid u64 amount (close to but not exceeding u64::MAX) should succeed.
-///
-/// Why: Verify that large but valid amounts are handled correctly.
+/// 12. Test: Extract EVM Fulfillment Params Large Valid Amount
+/// Verifies that extraction succeeds for a large but valid u64 amount such as 1 ETH in wei (10^18).
+/// Why: Large amounts within the u64 range must be handled correctly without false overflow rejections.
 #[test]
 fn test_extract_evm_fulfillment_params_large_valid_amount() {
     // Use a large but valid u64 value: 1000000000000000000 (10^18, 1 ETH in wei)
@@ -243,13 +222,9 @@ fn test_extract_evm_fulfillment_params_large_valid_amount() {
     );
 }
 
-/// Test that extract_evm_fulfillment_params normalizes intent_id with leading zeros
-///
-/// What is tested: Extracting intent_id from EVM transaction calldata where the intent_id
-/// has leading zeros (padded format) should normalize it by removing leading zeros.
-///
-/// Why: EVM transactions pad intent_id to 32 bytes (64 hex chars), but intents
-/// may have the same intent_id without padding. Normalization ensures they match.
+/// 13. Test: Extract EVM Fulfillment Params Normalizes Intent ID With Leading Zeros
+/// Verifies that a padded intent_id with leading zeros is normalized by stripping those zeros during extraction.
+/// Why: EVM pads intent_id to 32 bytes, but intents may store the same ID without padding, so normalization is required for matching.
 #[test]
 fn test_extract_evm_fulfillment_params_normalizes_intent_id_with_leading_zeros() {
     // ERC20 transfer selector: 0xa9059cbb
@@ -286,14 +261,9 @@ fn test_extract_evm_fulfillment_params_normalizes_intent_id_with_leading_zeros()
 // OUTFLOW FULFILLMENT VALIDATION TESTS
 // ============================================================================
 
-/// Test that validate_outflow_fulfillment succeeds when all parameters match
-///
-/// What is tested: Validating an outflow fulfillment transaction where transaction was successful,
-/// intent_id matches, recipient matches requester_addr_connected_chain, amount matches desired_amount,
-/// and solver matches reserved solver.
-///
-/// Why: Verify that the validation function correctly validates all requirements for a successful
-/// outflow fulfillment.
+/// 14. Test: Validate Outflow Fulfillment Success
+/// Verifies that validation passes when all parameters match: successful tx, correct intent_id, recipient, amount, and solver.
+/// Why: The happy-path must confirm that all validation requirements are correctly checked and a fully matching fulfillment is accepted.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_success() {
     let solver_registry_addr = DUMMY_SOLVER_REGISTRY_ADDR;
@@ -323,13 +293,9 @@ async fn test_validate_outflow_fulfillment_success() {
     );
 }
 
-/// Test that validate_outflow_fulfillment succeeds when intent_ids match after normalization
-///
-/// What is tested: Validating an outflow fulfillment transaction where the transaction's intent_id
-/// has leading zeros (padded format) but matches the intent's intent_id after normalization.
-///
-/// Why: EVM transactions pad intent_id to 32 bytes, but intents may have the same intent_id
-/// without padding. Normalization ensures they match correctly.
+/// 15. Test: Validate Outflow Fulfillment Succeeds With Normalized Intent ID
+/// Verifies that validation passes when the transaction's padded intent_id matches the intent's unpadded intent_id after normalization.
+/// Why: EVM pads intent_id to 32 bytes while intents may omit leading zeros, so normalization must be applied before comparison.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_succeeds_with_normalized_intent_id() {
     let solver_registry_addr = DUMMY_SOLVER_REGISTRY_ADDR;
@@ -363,12 +329,9 @@ async fn test_validate_outflow_fulfillment_succeeds_with_normalized_intent_id() 
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when transaction was not successful
-///
-/// What is tested: Validating an outflow fulfillment transaction where the transaction failed
-/// should result in validation failure.
-///
-/// Why: Verify that only successful transactions can fulfill intents.
+/// 16. Test: Validate Outflow Fulfillment Fails on Unsuccessful Tx
+/// Verifies that validation fails when the fulfillment transaction was not successful.
+/// Why: Only successful transactions can fulfill intents; failed transactions must be rejected to prevent false fulfillments.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_unsuccessful_tx() {
     let config = build_test_config_with_evm();
@@ -396,12 +359,9 @@ async fn test_validate_outflow_fulfillment_fails_on_unsuccessful_tx() {
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when intent_id doesn't match
-///
-/// What is tested: Validating an outflow fulfillment transaction where the transaction's intent_id
-/// doesn't match the intent's intent_id should result in validation failure.
-///
-/// Why: Verify that transactions can only fulfill the specific intent they reference.
+/// 17. Test: Validate Outflow Fulfillment Fails on Intent ID Mismatch
+/// Verifies that validation fails when the transaction's intent_id does not match the intent's intent_id.
+/// Why: Transactions must only fulfill the specific intent they reference to prevent cross-intent fulfillment attacks.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_intent_id_mismatch() {
     let config = build_test_config_with_evm();
@@ -430,12 +390,9 @@ async fn test_validate_outflow_fulfillment_fails_on_intent_id_mismatch() {
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when recipient doesn't match requester_addr_connected_chain
-///
-/// What is tested: Validating an outflow fulfillment transaction where the transaction's recipient
-/// doesn't match the intent's requester_addr_connected_chain should result in validation failure.
-///
-/// Why: Verify that tokens are sent to the correct recipient address on the connected chain.
+/// 18. Test: Validate Outflow Fulfillment Fails on Recipient Mismatch
+/// Verifies that validation fails when the transaction's recipient does not match the intent's requester_addr_connected_chain.
+/// Why: Tokens must be sent to the correct recipient on the connected chain to prevent funds being delivered to the wrong address.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_recipient_mismatch() {
     let config = build_test_config_with_evm();
@@ -465,12 +422,9 @@ async fn test_validate_outflow_fulfillment_fails_on_recipient_mismatch() {
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when amount doesn't match desired_amount
-///
-/// What is tested: Validating an outflow fulfillment transaction where the transaction's amount
-/// doesn't match the intent's desired_amount should result in validation failure.
-///
-/// Why: Verify that the correct amount of tokens is transferred.
+/// 19. Test: Validate Outflow Fulfillment Fails on Amount Mismatch
+/// Verifies that validation fails when the transaction's amount does not match the intent's desired_amount.
+/// Why: The correct amount of tokens must be transferred to satisfy the intent; partial or excess amounts must be rejected.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_amount_mismatch() {
     let config = build_test_config_with_evm();
@@ -505,12 +459,9 @@ async fn test_validate_outflow_fulfillment_fails_on_amount_mismatch() {
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when solver doesn't match reserved solver
-///
-/// What is tested: Validating an outflow fulfillment transaction where the transaction's solver
-/// doesn't match the intent's reserved solver should result in validation failure.
-///
-/// Why: Verify that only the authorized solver can fulfill the intent.
+/// 21. Test: Validate Outflow Fulfillment Fails on Solver Mismatch
+/// Verifies that validation fails when the transaction's solver does not match the intent's reserved solver.
+/// Why: Only the authorized solver may fulfill an intent to enforce solver reservation and prevent unauthorized fulfillments.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_solver_mismatch() {
     let different_solver = "0xffffffffffffffffffffffffffffffffffffffff"; // Different solver address for testing mismatch

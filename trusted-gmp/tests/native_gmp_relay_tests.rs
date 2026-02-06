@@ -21,7 +21,8 @@ use trusted_gmp::native_gmp_relay::{
 // ADDRESS PARSING TESTS
 // ============================================================================
 
-/// Test parsing a full 64-character hex address using DUMMY_SOLVER_ADDR_HUB.
+/// 1. Test: Parse Full-Length 64-Character Hex Address
+/// Verifies that parse_32_byte_address correctly parses a full 64-character hex address using DUMMY_SOLVER_ADDR_HUB.
 /// Why: This is the standard Move VM address format used throughout the codebase.
 #[test]
 fn test_parse_32_byte_address_full_length() {
@@ -34,7 +35,8 @@ fn test_parse_32_byte_address_full_length() {
     assert_eq!(result[31], 0x07, "Last byte should match constant (0x07)");
 }
 
-/// Test parsing DUMMY_INTENT_ID which has a different last byte.
+/// 2. Test: Parse Intent ID Address
+/// Verifies that parse_32_byte_address correctly parses DUMMY_INTENT_ID which has a different last byte.
 /// Why: Verify consistent behavior across different test constants.
 #[test]
 fn test_parse_32_byte_address_intent_id() {
@@ -46,7 +48,8 @@ fn test_parse_32_byte_address_intent_id() {
     assert_eq!(result[31], 0x01, "Last byte should match constant (0x01)");
 }
 
-/// Test parsing a short address that needs significant left-padding.
+/// 3. Test: Parse Short Address With Leading Zero Restoration
+/// Verifies that parse_32_byte_address correctly left-pads a short address to 32 bytes.
 /// Why: Move VM may strip leading zeros; we must restore them for 32-byte SVM pubkeys.
 #[test]
 fn test_parse_32_byte_address_restores_leading_zeros() {
@@ -62,7 +65,8 @@ fn test_parse_32_byte_address_restores_leading_zeros() {
     assert_eq!(result[31], 0x01, "Last byte should be 0x01");
 }
 
-/// Test parsing a 4-hex-char address (2 bytes, needs 30 bytes padding).
+/// 4. Test: Parse Two-Byte Address With Significant Padding
+/// Verifies that parse_32_byte_address correctly pads a 4-hex-char (2 byte) address to 32 bytes.
 /// Why: Verify significant padding works correctly.
 #[test]
 fn test_parse_32_byte_address_two_bytes_input() {
@@ -83,7 +87,8 @@ fn test_parse_32_byte_address_two_bytes_input() {
 // SVM PUBKEY PARSING TESTS
 // ============================================================================
 
-/// Test parsing an SVM pubkey from hex format using DUMMY_INTENT_ID.
+/// 5. Test: Parse SVM Pubkey From Hex Format
+/// Verifies that parse_svm_pubkey correctly converts a hex-encoded address to a Solana Pubkey.
 /// Why: GMP messages use hex-encoded addresses; we convert to Solana Pubkey.
 #[test]
 fn test_parse_svm_pubkey_from_hex_format() {
@@ -94,7 +99,8 @@ fn test_parse_svm_pubkey_from_hex_format() {
     assert_eq!(pubkey.to_bytes()[0], 0x00, "First byte should be 0x00");
 }
 
-/// Test parsing an SVM pubkey from base58 format using DUMMY_SVM_ESCROW_PROGRAM_ID.
+/// 6. Test: Parse SVM Pubkey From Base58 Format
+/// Verifies that parse_svm_pubkey correctly converts a base58-encoded address to a Solana Pubkey.
 /// Why: Solana native addresses use base58; we must support both formats.
 #[test]
 fn test_parse_svm_pubkey_from_base58_format() {
@@ -108,7 +114,8 @@ fn test_parse_svm_pubkey_from_base58_format() {
 // ED25519 KEYPAIR CONVERSION TESTS
 // ============================================================================
 
-/// Test converting an Ed25519 seed to Solana keypair format.
+/// 7. Test: Ed25519 Seed To Keypair Bytes Produces Valid Keypair
+/// Verifies that ed25519_seed_to_keypair_bytes converts a 32-byte seed into a valid 64-byte Solana keypair.
 /// Why: trusted-gmp uses Ed25519 keys; Solana SDK expects 64-byte keypairs.
 #[test]
 fn test_ed25519_seed_to_keypair_bytes_produces_valid_keypair() {
@@ -133,7 +140,8 @@ fn test_ed25519_seed_to_keypair_bytes_produces_valid_keypair() {
     assert_eq!(keypair.to_bytes(), keypair_bytes);
 }
 
-/// Test that invalid seed length returns an error.
+/// 8. Test: Ed25519 Seed To Keypair Bytes Rejects Invalid Length
+/// Verifies that ed25519_seed_to_keypair_bytes returns an error for seeds that are not exactly 32 bytes.
 /// Why: Ed25519 seeds must be exactly 32 bytes.
 #[test]
 fn test_ed25519_seed_to_keypair_bytes_rejects_invalid_length() {
@@ -147,7 +155,8 @@ fn test_ed25519_seed_to_keypair_bytes_rejects_invalid_length() {
 // TRANSACTION HASH EXTRACTION TESTS
 // ============================================================================
 
-/// Test extracting transaction hash from JSON format (aptos CLI).
+/// 9. Test: Extract Transaction Hash From JSON Output
+/// Verifies that extract_transaction_hash parses the transaction_hash from JSON-formatted aptos CLI output.
 /// Why: Modern aptos CLI outputs JSON with transaction_hash field.
 #[test]
 fn test_extract_transaction_hash_from_json_output() {
@@ -161,7 +170,8 @@ fn test_extract_transaction_hash_from_json_output() {
     assert_eq!(hash, Some(DUMMY_TX_HASH.to_string()));
 }
 
-/// Test extracting transaction hash from traditional CLI format.
+/// 10. Test: Extract Transaction Hash From Traditional Output
+/// Verifies that extract_transaction_hash parses the hash from "Transaction hash: 0x..." formatted CLI output.
 /// Why: Older CLI versions use "Transaction hash: 0x..." format.
 #[test]
 fn test_extract_transaction_hash_from_traditional_output() {
@@ -175,7 +185,8 @@ fn test_extract_transaction_hash_from_traditional_output() {
     assert_eq!(hash, Some(DUMMY_TX_HASH.to_string()));
 }
 
-/// Test that missing hash returns None.
+/// 11. Test: Extract Transaction Hash Returns None When Missing
+/// Verifies that extract_transaction_hash returns None when no transaction hash is present in the output.
 /// Why: Some CLI outputs may not contain a transaction hash.
 #[test]
 fn test_extract_transaction_hash_returns_none_when_missing() {
@@ -186,7 +197,8 @@ fn test_extract_transaction_hash_returns_none_when_missing() {
     assert_eq!(hash, None);
 }
 
-/// Test hash extraction with Hash capitalization variant.
+/// 12. Test: Extract Transaction Hash Handles Capitalization
+/// Verifies that extract_transaction_hash handles "Transaction Hash:" with capital H.
 /// Why: Some outputs use "Hash:" instead of "hash:".
 #[test]
 fn test_extract_transaction_hash_handles_capitalization() {
@@ -201,7 +213,8 @@ fn test_extract_transaction_hash_handles_capitalization() {
 // BYTES ARRAY TO HEX TESTS
 // ============================================================================
 
-/// Test converting array of decimal byte strings to hex.
+/// 13. Test: Bytes Array To Hex Converts Decimal Strings
+/// Verifies that bytes_array_to_hex converts an array of decimal byte strings to a 0x-prefixed hex string.
 /// Why: MVM events encode bytes as arrays of decimal strings like ["1", "2", "255"].
 #[test]
 fn test_bytes_array_to_hex_converts_decimal_strings() {
@@ -211,7 +224,8 @@ fn test_bytes_array_to_hex_converts_decimal_strings() {
     assert_eq!(result, "0x0102ff", "Should convert decimal bytes to hex with 0x prefix");
 }
 
-/// Test converting empty array.
+/// 14. Test: Bytes Array To Hex Empty Array
+/// Verifies that bytes_array_to_hex returns just "0x" for an empty input array.
 /// Why: Edge case for empty payloads.
 #[test]
 fn test_bytes_array_to_hex_empty_array() {
@@ -225,7 +239,8 @@ fn test_bytes_array_to_hex_empty_array() {
 // HEX TO BYTES TESTS
 // ============================================================================
 
-/// Test hex to bytes conversion with 0x prefix.
+/// 15. Test: Hex To Bytes With 0x Prefix
+/// Verifies that hex_to_bytes correctly decodes a hex string with 0x prefix into bytes.
 /// Why: Most addresses and payloads use 0x prefix.
 #[test]
 fn test_hex_to_bytes_with_prefix() {
@@ -234,7 +249,8 @@ fn test_hex_to_bytes_with_prefix() {
     assert_eq!(bytes, vec![1, 2, 255]);
 }
 
-/// Test hex to bytes conversion without 0x prefix.
+/// 16. Test: Hex To Bytes Without Prefix
+/// Verifies that hex_to_bytes correctly decodes a hex string without 0x prefix into bytes.
 /// Why: Some inputs may omit the prefix.
 #[test]
 fn test_hex_to_bytes_without_prefix() {
@@ -247,14 +263,16 @@ fn test_hex_to_bytes_without_prefix() {
 // ADDRESS NORMALIZATION TESTS
 // ============================================================================
 
-/// Test normalize_address adds 0x prefix when missing.
+/// 17. Test: Normalize Address Adds Prefix
+/// Verifies that normalize_address adds a 0x prefix to addresses that are missing it.
 /// Why: Some Move VM addresses may be stored without prefix.
 #[test]
 fn test_normalize_address_adds_prefix() {
     assert_eq!(normalize_address("abc123"), "0xabc123");
 }
 
-/// Test normalize_address preserves existing prefix.
+/// 18. Test: Normalize Address Preserves Existing Prefix
+/// Verifies that normalize_address does not double-prefix addresses that already have 0x.
 /// Why: Should not double-prefix addresses.
 #[test]
 fn test_normalize_address_preserves_existing_prefix() {
@@ -265,7 +283,8 @@ fn test_normalize_address_preserves_existing_prefix() {
 // SVM MESSAGE PARSING TESTS
 // ============================================================================
 
-/// Test parsing SVM MessageSent log format.
+/// 19. Test: Parse SVM MessageSent Log Format
+/// Verifies that the MessageSent log format can be correctly parsed into its component fields.
 /// Why: Validates the log parsing logic used in poll_svm_events().
 #[test]
 fn test_parse_svm_message_sent_log_format() {
@@ -304,7 +323,8 @@ fn test_parse_svm_message_sent_log_format() {
     assert_eq!(payload_hex, Some("0xdeadbeef".to_string()));
 }
 
-/// Test that non-MessageSent logs are correctly identified.
+/// 20. Test: Non-MessageSent Log Is Ignored
+/// Verifies that logs without the MessageSent marker are correctly identified as non-relay logs.
 /// Why: Only MessageSent logs should be processed by the relay.
 #[test]
 fn test_non_message_sent_log_is_ignored() {
@@ -312,7 +332,8 @@ fn test_non_message_sent_log_is_ignored() {
     assert!(!log.contains("MessageSent:"), "Non-MessageSent log should not contain marker");
 }
 
-/// Test Solana pubkey to hex conversion using DUMMY_SVM_ESCROW_PROGRAM_ID.
+/// 21. Test: Solana Pubkey To Hex Conversion
+/// Verifies that a Solana base58 pubkey is correctly converted to its hex representation.
 /// Why: MessageSent logs contain base58 pubkeys that must be converted to hex.
 #[test]
 fn test_solana_pubkey_to_hex_conversion() {
@@ -332,7 +353,8 @@ fn test_solana_pubkey_to_hex_conversion() {
 // RELAY CONFIG TESTS
 // ============================================================================
 
-/// Test NativeGmpRelayConfig extracts MVM connected chain when present.
+/// 22. Test: Relay Config Extracts MVM Connected Chain
+/// Verifies that NativeGmpRelayConfig correctly extracts MVM connected chain fields from config.
 /// Why: The relay needs to route messages to connected MVM chains.
 #[test]
 fn test_relay_config_extracts_mvm_connected_chain() {
@@ -372,7 +394,8 @@ fn test_relay_config_extracts_mvm_connected_chain() {
     );
 }
 
-/// Test NativeGmpRelayConfig handles missing MVM connected chain.
+/// 23. Test: Relay Config Handles Missing MVM Connected Chain
+/// Verifies that NativeGmpRelayConfig sets MVM connected fields to None when not configured.
 /// Why: When only hub and SVM are configured, MVM connected fields should be None.
 #[test]
 fn test_relay_config_handles_missing_mvm_connected() {
@@ -404,7 +427,8 @@ fn test_relay_config_handles_missing_mvm_connected() {
     );
 }
 
-/// Test NativeGmpRelayConfig extracts both MVM connected and SVM chains.
+/// 24. Test: Relay Config Extracts Both Connected Chains
+/// Verifies that NativeGmpRelayConfig correctly extracts both MVM connected and SVM chain fields simultaneously.
 /// Why: Relay may need to route to both MVM and SVM connected chains.
 #[test]
 fn test_relay_config_extracts_both_connected_chains() {
@@ -435,9 +459,9 @@ fn test_relay_config_extracts_both_connected_chains() {
 // FULFILLMENT PROOF PAYLOAD PARSING TESTS
 // ============================================================================
 
-/// Test FulfillmentProof payload parsing for intent_id extraction.
+/// 25. Test: FulfillmentProof Payload Intent ID Extraction
+/// Verifies that intent_id and solver_addr can be correctly extracted from a FulfillmentProof payload at the expected byte offsets.
 /// Why: deliver_to_svm must correctly parse intent_id from payload to derive PDAs.
-/// Payload format: [type(1)] [intent_id(32)] [solver_addr(32)] [amount(8)] [timestamp(8)] = 81 bytes
 #[test]
 fn test_fulfillment_proof_payload_intent_id_extraction() {
     // Build a valid FulfillmentProof payload (81 bytes)
@@ -463,7 +487,8 @@ fn test_fulfillment_proof_payload_intent_id_extraction() {
     assert_eq!(extracted_solver_addr, solver_addr, "Extracted solver_addr should match");
 }
 
-/// Test FulfillmentProof payload validation for minimum length.
+/// 26. Test: FulfillmentProof Payload Minimum Length
+/// Verifies that FulfillmentProof payloads are validated against the minimum 65-byte length requirement.
 /// Why: deliver_to_svm checks payload.len() >= 65 for required fields.
 #[test]
 fn test_fulfillment_proof_payload_minimum_length() {
@@ -484,9 +509,9 @@ fn test_fulfillment_proof_payload_minimum_length() {
 // ATA DERIVATION TESTS
 // ============================================================================
 
-/// Test ATA derivation formula is correct.
-/// Why: trusted-gmp derives solver's ATA manually. Must match spl-associated-token-account.
-/// ATA = PDA([owner, TOKEN_PROGRAM_ID, mint], ASSOCIATED_TOKEN_PROGRAM_ID)
+/// 27. Test: ATA Derivation Formula
+/// Verifies that the ATA derivation using PDA([owner, TOKEN_PROGRAM_ID, mint], ASSOCIATED_TOKEN_PROGRAM_ID) produces a valid, distinct pubkey.
+/// Why: trusted-gmp derives solver's ATA manually and must match spl-associated-token-account.
 #[test]
 fn test_ata_derivation_formula() {
     // Known constants
@@ -520,7 +545,8 @@ fn test_ata_derivation_formula() {
     assert_ne!(derived_ata, mint, "ATA should be different from mint");
 }
 
-/// Test ATA derivation is deterministic.
+/// 28. Test: ATA Derivation Is Deterministic
+/// Verifies that deriving an ATA twice with the same inputs produces identical addresses and bumps.
 /// Why: Same inputs must always produce the same ATA address.
 #[test]
 fn test_ata_derivation_is_deterministic() {
@@ -546,7 +572,8 @@ fn test_ata_derivation_is_deterministic() {
     assert_eq!(bump1, bump2, "Bump should be deterministic");
 }
 
-/// Test ATA changes with different owners.
+/// 29. Test: ATA Differs By Owner
+/// Verifies that different owners produce different ATA addresses for the same token mint.
 /// Why: Each owner must have a unique ATA for the same token.
 #[test]
 fn test_ata_differs_by_owner() {

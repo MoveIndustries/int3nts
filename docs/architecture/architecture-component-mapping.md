@@ -20,7 +20,7 @@ graph TB
     end
     
     subgraph Layer1["Layer 1 (Depends on Foundation)"]
-        EM[Escrow Domain<br/>intent_as_escrow.move<br/>IntentEscrow.sol]
+        EM[Escrow Domain<br/>intent_escrow.move<br/>intent_inflow_escrow.move<br/>IntentInflowEscrow.sol]
     end
     
     subgraph Layer2["Layer 2 (Depends on Foundation + Layer 1)"]
@@ -61,7 +61,7 @@ graph TB
     end
     
     subgraph "Escrow Domain"
-        EM[intent_as_escrow.move<br/>IntentEscrow.sol]
+        EM[intent_escrow.move<br/>intent_inflow_escrow.move<br/>IntentInflowEscrow.sol]
     end
     
     subgraph "Settlement Domain"
@@ -76,8 +76,8 @@ graph TB
     IM -->|Uses reservation| EM
     EM -->|Emits escrow events| VM
     SM -.->|Fulfillment functions<br/>in fa_intent.move| IM
-    SM -.->|Completion functions<br/>in intent_as_escrow.move| EM
-    SM -.->|Claim functions<br/>in IntentEscrow.sol| EM
+    SM -.->|Completion functions<br/>in intent_escrow.move| EM
+    SM -.->|Claim functions<br/>in IntentInflowEscrow.sol| EM
     VM -->|Validates & approves<br/>via trusted-gmp| SM
     VM -->|Monitors events<br/>via coordinator| IM
     VM -->|Monitors events<br/>via coordinator| EM
@@ -144,7 +144,7 @@ graph TB
 
 #### Core Intent Framework
 
-- **`intent-frameworks/mvm/sources/intent.move`**
+- **`intent-frameworks/mvm/intent-hub/sources/intent.move`**
   - **Purpose**: Generic intent framework providing abstract structures and functions
   - **Key Structures**: `TradeIntent<Source, Args>`, `TradeSession<Args>`
   - **Key Functions**: `create_intent()`, `start_intent_session()`, `finish_intent_session()`, `revoke_intent()`
@@ -152,7 +152,7 @@ graph TB
 
 #### Fungible Asset Intent Implementation
 
-- **`intent-frameworks/mvm/sources/fa_intent.move`**
+- **`intent-frameworks/mvm/intent-hub/sources/fa_intent.move`**
   - **Purpose**: Fungible asset trading intent implementation
   - **Key Structures**: `FungibleAssetLimitOrder`, `FungibleStoreManager`, `FungibleAssetRecipientWitness`
   - **Key Functions**: `create_fa_to_fa_intent()`, `fulfill_cross_chain_request_intent()`
@@ -161,7 +161,7 @@ graph TB
 
 #### Oracle-Guarded Intent Implementation
 
-- **`intent-frameworks/mvm/sources/fa_intent_with_oracle.move`**
+- **`intent-frameworks/mvm/intent-hub/sources/fa_intent_with_oracle.move`**
   - **Purpose**: Oracle signature requirement layer on top of base intent mechanics
   - **Key Structures**: `OracleGuardedLimitOrder`, `OracleSignatureRequirement`
   - **Key Functions**: `create_fa_to_fa_intent_with_oracle()`, `start_oracle_intent_session()`, `finish_oracle_intent_session()`
@@ -170,14 +170,14 @@ graph TB
 
 #### Cross-Chain Intent Creation
 
-- **`intent-frameworks/mvm/sources/fa_intent_cross_chain.move`**
+- **`intent-frameworks/mvm/intent-hub/sources/fa_intent_cross_chain.move`**
   - **Purpose**: Cross-chain request-intent creation (tokens locked on different chain)
   - **Key Functions**: `create_cross_chain_request_intent()`, `create_cross_chain_request_intent_entry()`
   - **Responsibilities**: Creates reserved intents with `intent_id` for cross-chain linking, zero-amount source (tokens on other chain). Uses solver registry to verify solver signatures.
 
 #### Intent Reservation System
 
-- **`intent-frameworks/mvm/sources/intent_reservation.move`**
+- **`intent-frameworks/mvm/intent-hub/sources/intent_reservation.move`**
   - **Purpose**: Reserved intent system for specific solver addresses
   - **Key Structures**: `IntentReserved`, `IntentToSign`, `IntentDraft`
   - **Key Functions**: `verify_and_create_reservation()`, `verify_and_create_reservation_from_registry()`
@@ -185,7 +185,7 @@ graph TB
 
 #### Solver Registry
 
-- **`intent-frameworks/mvm/sources/solver_registry.move`**
+- **`intent-frameworks/mvm/intent-hub/sources/solver_registry.move`**
   - **Purpose**: On-chain registry for solver public keys and EVM addresses
   - **Key Structures**: `SolverRegistry`, `SolverInfo`
   - **Key Functions**: `register_solver()`, `update_solver()`, `deregister_solver()`, `get_public_key()`, `get_evm_address()`
@@ -193,7 +193,7 @@ graph TB
 
 #### Test Utilities
 
-- **`intent-frameworks/mvm/sources/test_fa_helper.move`**
+- **`intent-frameworks/mvm/intent-hub/sources/test_fa_helper.move`**
   - **Purpose**: Test helper utilities for intent framework testing
   - **Domain**: Testing infrastructure (not part of production domains)
 
@@ -201,24 +201,30 @@ graph TB
 
 ### Escrow Domain
 
-#### Move-Based Escrow
+#### Move-Based Escrow (Hub)
 
-- **`intent-frameworks/mvm/sources/intent_as_escrow.move`**
+- **`intent-frameworks/mvm/intent-hub/sources/intent_escrow.move`**
   - **Purpose**: Simplified escrow abstraction using oracle-intent system
   - **Key Structures**: `EscrowConfig`
   - **Key Functions**: `create_escrow()`, `start_escrow_session()`, `complete_escrow()`
   - **Security**: **CRITICAL** - Enforces non-revocable requirement (`revocable = false`)
   - **Responsibilities**: Escrow creation, session management, trusted-gmp approval handling
 
-- **`intent-frameworks/mvm/sources/intent_as_escrow_entry.move`**
+- **`intent-frameworks/mvm/intent-hub/sources/intent_escrow_entry.move`**
   - **Purpose**: Entry function wrappers for CLI convenience
   - **Key Functions**: `create_escrow_from_fa()`, `complete_escrow_from_fa()`
   - **Responsibilities**: User-friendly entry points for escrow operations
 
+#### Move-Based Escrow (Connected Chain)
+
+- **`intent-frameworks/mvm/intent-connected/sources/gmp/intent_inflow_escrow.move`**
+  - **Purpose**: Inflow escrow for MVM as connected chain with GMP integration
+  - **Responsibilities**: Escrow creation with GMP requirements validation, auto-release on fulfillment proof receipt
+
 #### EVM-Based Escrow
 
-- **`intent-frameworks/evm/contracts/IntentEscrow.sol`**
-  - **Purpose**: Solidity escrow contract for EVM chains
+- **`intent-frameworks/evm/contracts/IntentInflowEscrow.sol`**
+  - **Purpose**: Solidity inflow escrow contract for EVM chains
   - **Key Structures**: `Escrow` struct
   - **Key Functions**: `createEscrow()`, `deposit()`, `claim()`, `cancel()`
   - **Key Events**: `EscrowInitialized`, `DepositMade`, `EscrowClaimed`, `EscrowCancelled`
@@ -237,25 +243,25 @@ graph TB
 
 #### Intent Fulfillment (Move)
 
-- **`intent-frameworks/mvm/sources/fa_intent.move`** (fulfillment functions)
+- **`intent-frameworks/mvm/intent-hub/sources/fa_intent.move`** (fulfillment functions)
   - **Key Functions**: `fulfill_cross_chain_request_intent()`, `finish_fa_intent_session()`
   - **Responsibilities**: Processes solver fulfillment, validates conditions, transfers assets
 
 #### Escrow Completion (Move)
 
-- **`intent-frameworks/mvm/sources/intent_as_escrow.move`** (completion functions)
+- **`intent-frameworks/mvm/intent-hub/sources/intent_escrow.move`** (completion functions)
   - **Key Functions**: `complete_escrow()`
   - **Responsibilities**: Verifies trusted-gmp approval, releases escrowed funds to solver
 
 #### Escrow Claim (EVM)
 
-- **`intent-frameworks/evm/contracts/IntentEscrow.sol`** (claim function)
+- **`intent-frameworks/evm/contracts/IntentInflowEscrow.sol`** (claim function)
   - **Key Functions**: `claim()`
   - **Responsibilities**: Verifies trusted-gmp signature, transfers funds to reserved solver
 
 #### Escrow Cancellation
 
-- **`intent-frameworks/evm/contracts/IntentEscrow.sol`** (cancel function)
+- **`intent-frameworks/evm/contracts/IntentInflowEscrow.sol`** (cancel function)
   - **Key Functions**: `cancel()`
   - **Responsibilities**: Returns funds to requester after expiry
 
@@ -405,11 +411,11 @@ This section documents comprehensive communication patterns between domains, inc
 
 **Escrow → Validation Domain** (Event Emission):
 
-- `OracleLimitOrderEvent` (Move): Emitted when escrow is created (`intent_as_escrow.move`)
+- `OracleLimitOrderEvent` (Move): Emitted when escrow is created (`intent_escrow.move`)
   - Contains: Escrow details with `intent_id` for cross-chain correlation, `reserved_solver`
   - Purpose: Coordinator monitors Move VM escrow creation; trusted-gmp validates safety
   - Monitoring: Coordinator actively polls Move VM connected chain and caches escrows when created
-- `EscrowInitialized` (EVM): Emitted when escrow is created (`IntentEscrow.sol`)
+- `EscrowInitialized` (EVM): Emitted when escrow is created (`IntentInflowEscrow.sol`)
   - Contains: `intentId`, `requester`, `token`, `reservedSolver`
   - Purpose: Coordinator monitors EVM escrow creation; trusted-gmp validates safety
   - Monitoring: Coordinator actively polls EVM connected chain and caches escrows when created (symmetrical with Move VM)
@@ -427,8 +433,8 @@ This section documents comprehensive communication patterns between domains, inc
 **Escrow → Intent Management** (Layer 1 → Foundation):
 
 - **Reservation System**: Escrow uses `IntentReserved` structure from `intent_reservation.move` to enforce reserved solver addresses
-- **Oracle-Intent System**: Escrow implementation uses `fa_intent_with_oracle.move` for oracle-guarded intent mechanics
-- **Function Calls**: `create_escrow()` internally uses `create_fa_to_fa_intent_with_oracle()` from Intent Management
+- **Oracle-Intent System**: Hub escrow implementation uses `fa_intent_with_oracle.move` for oracle-guarded intent mechanics
+- **Function Calls**: `create_escrow()` (hub) internally uses `create_fa_to_fa_intent_with_oracle()` from Intent Management
 
 **Settlement → Intent Management** (Layer 2 → Foundation):
 
@@ -542,6 +548,6 @@ This table provides a concise overview of domain boundaries, listing the primary
 | Domain | Primary Files | Key Responsibility |
 |--------|--------------|-------------------|
 | **Intent Management** | `intent.move`, `fa_intent.move`, `fa_intent_with_oracle.move`, `fa_intent_cross_chain.move`, `intent_reservation.move` | Intent lifecycle, creation, validation, event emission |
-| **Escrow** | `intent_as_escrow.move`, `intent_as_escrow_entry.move`, `IntentEscrow.sol` | Asset custody, fund locking, trusted-gmp integration |
-| **Settlement** | Functions in `fa_intent.move`, `intent_as_escrow.move`, `IntentEscrow.sol` | Intent fulfillment, escrow completion, asset transfers |
+| **Escrow** | `intent_escrow.move`, `intent_escrow_entry.move`, `intent_inflow_escrow.move`, `IntentInflowEscrow.sol` | Asset custody, fund locking, trusted-gmp integration |
+| **Settlement** | Functions in `fa_intent.move`, `intent_escrow.move`, `IntentInflowEscrow.sol` | Intent fulfillment, escrow completion, asset transfers |
 | **Validation (Coordinator + Trusted GMP)** | Coordinator: `monitor/`, `api/`, `config/`, `mvm_client.rs`, `storage/`; Trusted GMP: `validator/`, `crypto/`, `api/`, `config/`, `mvm_client.rs`, `evm_client.rs` | Coordinator: event monitoring (hub, Move VM, EVM), caching, negotiation routing; Trusted GMP: cross-chain validation, approval signatures (Ed25519 & ECDSA) |

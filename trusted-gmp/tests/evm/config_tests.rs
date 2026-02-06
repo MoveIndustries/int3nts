@@ -9,8 +9,9 @@ use trusted_gmp::config::Config;
 mod test_helpers;
 use test_helpers::{build_test_config_with_evm, DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_APPROVER_EVM_PUBKEY_HASH};
 
-/// Test that EvmChainConfig structure has all required fields
-/// Why: Verify EvmChainConfig struct fields are properly defined
+/// 1. Test: EVM Chain Config Structure
+/// Verifies that EvmChainConfig structure has all required fields.
+/// Why: Missing config fields would cause runtime failures when connecting to EVM chains.
 #[test]
 fn test_evm_chain_config_structure() {
     use trusted_gmp::config::EvmChainConfig;
@@ -36,8 +37,9 @@ fn test_evm_chain_config_structure() {
     );
 }
 
-/// Test that connected_chain_evm can be set to Some(EvmChainConfig)
-/// Why: Verify connected_chain_evm accepts actual values when configured
+/// 2. Test: Connected Chain EVM with Values
+/// Verifies that connected_chain_evm can be set to Some(EvmChainConfig) with actual values.
+/// Why: The EVM chain config must be settable for multi-chain deployments.
 #[test]
 fn test_connected_chain_evm_with_values() {
     use trusted_gmp::config::EvmChainConfig;
@@ -66,8 +68,9 @@ fn test_connected_chain_evm_with_values() {
     );
 }
 
-/// Test that EVM config can be serialized and deserialized
-/// Why: Verify TOML round-trip works correctly with EVM chain config
+/// 3. Test: EVM Config Serialization
+/// Verifies that EVM config can be serialized to and deserialized from TOML.
+/// Why: Config persistence requires correct serialization round-tripping.
 #[test]
 fn test_evm_config_serialization() {
     let config = build_test_config_with_evm();
@@ -94,8 +97,9 @@ fn test_evm_config_serialization() {
     );
 }
 
-/// Test that EVM chain config has all fields populated correctly
-/// Why: Verify build_test_config_with_evm() creates complete EVM config
+/// 4. Test: EVM Chain Config with All Fields
+/// Verifies that EVM chain config has all fields populated correctly.
+/// Why: Incomplete config would cause failures during EVM chain operations.
 #[test]
 fn test_evm_chain_config_with_all_fields() {
     let config = build_test_config_with_evm();
@@ -132,8 +136,9 @@ fn test_evm_chain_config_with_all_fields() {
     );
 }
 
-/// Test that config with EVM chain can be loaded (structure validation)
-/// Why: Verify EVM config structure is valid for loading
+/// 5. Test: EVM Config Loading
+/// Verifies that config with EVM chain can be loaded and cloned.
+/// Why: Config must be loadable and clonable for service initialization.
 #[test]
 fn test_evm_config_loading() {
     let config = build_test_config_with_evm();

@@ -118,7 +118,7 @@ pub async fn monitor_connected_chain(monitor: &EventMonitor) -> Result<()> {
 /// Monitors the connected EVM chain for escrow initialization events.
 ///
 /// This function runs in an infinite loop, polling the connected EVM chain
-/// for EscrowInitialized events. When events are found, it caches them and validates
+/// for EscrowCreated events. When events are found, it caches them and validates
 /// that they fulfill the conditions of existing hub intents.
 ///
 /// The validation ensures that:

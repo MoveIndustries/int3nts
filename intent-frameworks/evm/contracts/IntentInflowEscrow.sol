@@ -75,9 +75,11 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
     event EscrowCreated(
         bytes32 indexed intentId,
         bytes32 escrowId,
-        address indexed creator,
+        address indexed requester,
         uint64 amount,
-        address indexed token
+        address indexed token,
+        bytes32 reservedSolver,
+        uint64 expiry
     );
 
     /// @notice Emitted when EscrowConfirmation is sent to hub
@@ -321,7 +323,7 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
         // Transfer tokens from creator to this contract
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
 
-        emit EscrowCreated(intentId, escrowId, msg.sender, amount, token);
+        emit EscrowCreated(intentId, escrowId, msg.sender, amount, token, req.solverAddr, req.expiry);
 
         // Send EscrowConfirmation to hub
         _sendEscrowConfirmation(intentId, escrowId, amount, req.tokenAddr, requesterAddr32);

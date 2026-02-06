@@ -11,6 +11,7 @@ for arg in "$@"; do
         --no-build) SKIP_BUILD=true ;;
     esac
 done
+export SKIP_BUILD
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
@@ -32,8 +33,23 @@ log_and_echo "=========================================================="
 
 log_and_echo ""
 if [ "$SKIP_BUILD" = "true" ]; then
-    log_and_echo " Step 1: Skipping build (--no-build)"
+    log_and_echo " Step 1: Build if missing (--no-build)"
     log_and_echo "========================================"
+    # SVM on-chain programs (docker build)
+    if [ ! -f "$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_inflow_escrow.so" ] || \
+       [ ! -f "$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_gmp.so" ] || \
+       [ ! -f "$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_outflow_validator.so" ]; then
+        pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
+        ./scripts/build-with-docker.sh 2>&1 | tail -5
+        popd > /dev/null
+        log_and_echo "   ✅ SVM: on-chain programs (built)"
+    else
+        log_and_echo "   ✅ SVM: on-chain programs (exists)"
+    fi
+    build_common_bins_if_missing
+    build_if_missing "$PROJECT_ROOT/intent-frameworks/svm" "cargo build -p intent_escrow_cli" \
+        "SVM: intent_escrow_cli" \
+        "$PROJECT_ROOT/intent-frameworks/svm/target/debug/intent_escrow_cli"
 else
     log_and_echo " Step 1: Build bins and pre-pull docker images"
     log_and_echo "========================================"

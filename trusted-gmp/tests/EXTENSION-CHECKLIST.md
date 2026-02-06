@@ -90,7 +90,7 @@ All tests listed here are VM-specific; generic tests are intentionally excluded 
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 1 | test_escrow_initialized_event_has_amount_and_expiry | N/A | ✅ | ⚠️ |
+| 1 | test_escrow_created_event_has_amount_and_expiry | N/A | ✅ | ⚠️ |
 | 2 | test_escrow_amount_is_not_hardcoded_zero | N/A | ✅ | ⚠️ |
 | 3 | test_amount_hex_parsing | N/A | ✅ | ⚠️ |
 | 4 | test_expiry_hex_parsing | N/A | ✅ | ⚠️ |

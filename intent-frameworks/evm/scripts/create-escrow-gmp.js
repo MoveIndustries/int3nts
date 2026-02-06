@@ -80,9 +80,11 @@ async function main() {
     console.log("\nEscrow created successfully!");
     console.log("  Intent ID:", parsed.args.intentId);
     console.log("  Escrow ID:", parsed.args.escrowId);
-    console.log("  Creator:", parsed.args.creator);
+    console.log("  Requester:", parsed.args.requester);
     console.log("  Amount:", parsed.args.amount.toString());
     console.log("  Token:", parsed.args.token);
+    console.log("  Reserved Solver:", parsed.args.reservedSolver);
+    console.log("  Expiry:", parsed.args.expiry.toString());
   } else {
     console.log("\nEscrow created for intent (GMP):", intentId);
   }
