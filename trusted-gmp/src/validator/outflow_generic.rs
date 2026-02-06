@@ -4,7 +4,7 @@
 //! Outflow intents have tokens locked on the hub chain and request tokens on the connected chain.
 
 use anyhow::{Context, Result};
-use solana_program::pubkey::Pubkey;
+use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 use tracing::info;
 

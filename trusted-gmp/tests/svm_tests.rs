@@ -1,7 +1,7 @@
 //! Unit tests for SVM outflow fulfillment parsing
 
 use serde_json::json;
-use solana_program::pubkey::Pubkey;
+use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 use trusted_gmp::validator::extract_svm_fulfillment_params;
 

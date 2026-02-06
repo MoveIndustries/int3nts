@@ -5792,10 +5792,7 @@ dependencies = [
  "serde_yaml",
  "sha3",
  "solana-client",
- "solana-program",
  "solana-sdk",
- "solana-sdk-ids",
- "spl-token",
  "tokio",
  "toml 0.8.23",
  "tracing",
@@ -5837,21 +5834,6 @@ checksum = "741a62a566d97c58d33f9ed32337ceedd4e35109a686e31b1866c5dfa56abddc"
 dependencies = [
  "bytemuck",
  "solana-pubkey",
-]
-
-[[package]]
-name = "spl-token"
-version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70a0f06ac7f23dc0984931b1fe309468f14ea58e32660439c1cef19456f5d0e3"
-dependencies = [
- "arrayref",
- "bytemuck",
- "num-derive",
- "num-traits",
- "num_enum",
- "solana-program",
- "thiserror 1.0.69",
 ]
 
 [[package]]

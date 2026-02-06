@@ -9,7 +9,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use solana_program::pubkey::Pubkey;
+use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 use std::time::Duration;
 

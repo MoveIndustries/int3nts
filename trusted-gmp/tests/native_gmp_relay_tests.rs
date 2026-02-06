@@ -9,7 +9,7 @@ use helpers::{
     build_test_config_with_mvm, build_test_config_with_svm, DUMMY_INTENT_ID, DUMMY_SOLVER_ADDR_HUB,
     DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_TX_HASH, TEST_MVM_CHAIN_ID, TEST_SVM_CHAIN_ID,
 };
-use solana_program::pubkey::Pubkey;
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
 use std::str::FromStr;
 use trusted_gmp::native_gmp_relay::{

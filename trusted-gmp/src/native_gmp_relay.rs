@@ -24,14 +24,13 @@ use ed25519_dalek::SigningKey;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use solana_client::rpc_client::RpcClient;
-use solana_program::pubkey::Pubkey;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use solana_sdk_ids::system_program;
 use std::collections::HashSet;
 use std::process::Command;
 use std::str::FromStr;
@@ -43,6 +42,9 @@ use tracing::{debug, error, info, warn};
 use crate::config::Config;
 use crate::mvm_client::MvmClient;
 use crate::svm_client::SvmClient;
+
+// Well-known Solana program IDs.
+const SYSTEM_PROGRAM_ID: Pubkey = Pubkey::new_from_array([0; 32]);
 
 // ============================================================================
 // CONFIGURATION
@@ -470,7 +472,7 @@ impl NativeGmpRelay {
         // Query recent signatures for the GMP program.
         // NOTE: Always fetch most recent signatures (before=None) to catch new transactions.
         // The svm_processed_signatures HashSet prevents duplicate processing.
-        let program_id = solana_program::pubkey::Pubkey::from_str(
+        let program_id = Pubkey::from_str(
             self.config.svm_gmp_program_id.as_ref().unwrap(),
         )
         .context("Invalid SVM GMP program ID")?;
@@ -609,7 +611,7 @@ impl NativeGmpRelay {
         }
 
         // Convert Solana pubkey (base58) to hex
-        let src_addr_hex = match solana_program::pubkey::Pubkey::from_str(&src_addr_raw) {
+        let src_addr_hex = match Pubkey::from_str(&src_addr_raw) {
             Ok(pubkey) => format!("0x{}", hex::encode(pubkey.to_bytes())),
             Err(_) => {
                 warn!("Invalid Solana pubkey in MessageSent: {}", src_addr_raw);
@@ -892,7 +894,7 @@ impl NativeGmpRelay {
             AccountMeta::new(nonce_in_pda, false),
             AccountMeta::new_readonly(relay_pubkey, true), // signer
             AccountMeta::new(relay_pubkey, true),          // payer (signer)
-            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(SYSTEM_PROGRAM_ID, false),
             AccountMeta::new_readonly(routing_pda, false), // routing config (may not exist)
             AccountMeta::new_readonly(dst_program, false), // destination program 1 (outflow_validator)
             AccountMeta::new_readonly(escrow_program, false), // destination program 2 (intent_escrow)
@@ -943,7 +945,7 @@ impl NativeGmpRelay {
                 accounts.push(AccountMeta::new_readonly(outflow_config_pda, false)); // 1
                 accounts.push(AccountMeta::new_readonly(relay_pubkey, true));  // 2: authority (signer)
                 accounts.push(AccountMeta::new(relay_pubkey, true));           // 3: payer (signer)
-                accounts.push(AccountMeta::new_readonly(system_program::id(), false)); // 4
+                accounts.push(AccountMeta::new_readonly(SYSTEM_PROGRAM_ID, false)); // 4
 
                 // Accounts for intent_escrow's LzReceive (indices 5-9)
                 // LzReceive expects: requirements(w), gmp_config(r), authority(s), payer(s,w), system_program
@@ -951,7 +953,7 @@ impl NativeGmpRelay {
                 accounts.push(AccountMeta::new_readonly(escrow_gmp_config_pda, false)); // 6
                 accounts.push(AccountMeta::new_readonly(relay_pubkey, true));  // 7: authority (signer)
                 accounts.push(AccountMeta::new(relay_pubkey, true));           // 8: payer (signer)
-                accounts.push(AccountMeta::new_readonly(system_program::id(), false)); // 9
+                accounts.push(AccountMeta::new_readonly(SYSTEM_PROGRAM_ID, false)); // 9
             }
         } else if !payload.is_empty() && payload[0] == 0x03 {
             // FulfillmentProof (0x03) - route to intent_escrow only
@@ -1070,7 +1072,7 @@ impl NativeGmpRelay {
                     AccountMeta::new(ata, false),                 // associated token account (writable)
                     AccountMeta::new_readonly(owner, false),      // wallet owner
                     AccountMeta::new_readonly(mint, false),       // token mint
-                    AccountMeta::new_readonly(system_program::id(), false), // system program
+                    AccountMeta::new_readonly(SYSTEM_PROGRAM_ID, false), // system program
                     AccountMeta::new_readonly(token_program, false), // token program
                 ],
                 data: vec![1], // 1 = create_idempotent

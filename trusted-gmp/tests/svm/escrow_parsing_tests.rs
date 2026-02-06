@@ -4,7 +4,7 @@
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use borsh::BorshSerialize;
-use solana_program::pubkey::Pubkey;
+use solana_sdk::pubkey::Pubkey;
 use trusted_gmp::svm_client::EscrowAccount;
 
 /// Test that Borsh-encoded escrow data round-trips through base64 encoding

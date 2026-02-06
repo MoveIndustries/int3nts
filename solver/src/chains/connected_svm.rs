@@ -9,20 +9,21 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use reqwest::Client;
 use serde::Deserialize;
 use solana_client::rpc_client::RpcClient;
-use solana_program::pubkey::Pubkey;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use solana_sdk_ids::system_program;
 use std::str::FromStr;
 use std::time::Duration;
 
 use crate::config::SvmChainConfig;
 
 // Well-known program IDs from Solana mainnet/devnet docs.
+const SPL_TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const SYSTEM_PROGRAM_ID: &str = "11111111111111111111111111111111";
 const ASSOCIATED_TOKEN_PROGRAM_ID: &str = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
 
 #[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
@@ -358,14 +359,14 @@ impl ConnectedSvmClient {
                 AccountMeta::new(solver_token, false),
                 AccountMeta::new(recipient_token, false),
                 AccountMeta::new_readonly(token_mint, false),
-                AccountMeta::new_readonly(spl_token::id(), false),
+                AccountMeta::new_readonly(spl_token_program_id()?, false),
                 AccountMeta::new_readonly(gmp_endpoint_id, false),
                 // GMP Send accounts (passed through to CPI)
                 AccountMeta::new_readonly(gmp_config_pda, false),
                 AccountMeta::new(gmp_nonce_out_pda, false),
                 AccountMeta::new_readonly(solver.pubkey(), true), // sender
                 AccountMeta::new(solver.pubkey(), true),          // payer
-                AccountMeta::new_readonly(system_program::id(), false),
+                AccountMeta::new_readonly(system_program_id()?, false),
             ],
             data: instruction_data,
         };
@@ -531,8 +532,9 @@ fn get_associated_token_address_with_program_id(
     mint: &Pubkey,
     program_id: &Pubkey,
 ) -> Pubkey {
+    let token_program = spl_token_program_id().expect("SPL token program id");
     Pubkey::find_program_address(
-        &[owner.as_ref(), spl_token::id().as_ref(), mint.as_ref()],
+        &[owner.as_ref(), token_program.as_ref(), mint.as_ref()],
         program_id,
     )
     .0
@@ -544,6 +546,16 @@ fn get_associated_token_address_with_program_id(
 ///
 /// * `Ok(Pubkey)` - Associated token program id
 /// * `Err(anyhow::Error)` - Invalid program id constant
+fn spl_token_program_id() -> Result<Pubkey> {
+    Pubkey::from_str(SPL_TOKEN_PROGRAM_ID)
+        .context("Invalid SPL token program id")
+}
+
+fn system_program_id() -> Result<Pubkey> {
+    Pubkey::from_str(SYSTEM_PROGRAM_ID)
+        .context("Invalid system program id")
+}
+
 fn associated_token_program_id() -> Result<Pubkey> {
     Pubkey::from_str(ASSOCIATED_TOKEN_PROGRAM_ID)
         .context("Invalid associated token program id")

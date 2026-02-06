@@ -3,7 +3,7 @@
 //! Parses SVM transactions to extract intent_id memo details and SPL token transfer metadata.
 
 use anyhow::{Context, Result};
-use solana_program::pubkey::Pubkey;
+use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 
 use crate::validator::generic::FulfillmentTransactionParams;

@@ -7,7 +7,7 @@ use base64::Engine;
 use borsh::BorshSerialize;
 use solver::chains::{ConnectedSvmClient, EscrowAccount};
 use solver::config::SvmChainConfig;
-use solana_program::pubkey::Pubkey;
+use solana_sdk::pubkey::Pubkey;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
