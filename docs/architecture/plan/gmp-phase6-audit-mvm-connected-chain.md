@@ -201,22 +201,28 @@ if (msg_type == MESSAGE_TYPE_INTENT_REQUIREMENTS) {
 
 ---
 
-## Size Estimates
+## Actual Package Sizes (Post-Split)
 
-Based on current module sizes:
+| Package | Bytecode | Deploy Size | Under 60KB? |
+|---------|----------|-------------|-------------|
+| `intent-gmp` | 8 KB | 16 KB | ✅ Yes |
+| `intent-hub` | 35 KB | 75 KB | ❌ No (requires `--chunked-publish`) |
+| `intent-connected` | 14 KB | 14 KB | ✅ Yes |
 
-| Package | Estimated Size | Under 60KB? |
-|---------|---------------|-------------|
-| `intent_gmp` | ~15-20KB | Yes |
-| `intent_hub` | ~40-50KB | Yes |
-| `intent_connected` | ~25-30KB | Yes |
-
-Current combined package: **108KB** (exceeds 60KB limit)
+**Note:** `intent-hub` remains large because it contains all core intent modules (fa_intent, solver_registry, intent_registry, etc.). Further splitting would require architectural changes to how intents work.
 
 ---
 
-## Next Steps
+## Completed Tasks
 
-1. **Commit 2:** Split MVM package into three packages
-2. **Commit 3:** Rename SVM and EVM programs for consistency
-3. **Commit 4:** Verify dependencies are minimal after split
+- [x] **Split MVM package into three packages** (`intent-gmp`, `intent-hub`, `intent-connected`)
+- [x] **Create hub-specific native_gmp_endpoint** (routes to `intent_gmp_hub` only)
+- [x] **Create connected-specific native_gmp_endpoint** (routes to `outflow_validator_impl` + `inflow_escrow_gmp`)
+- [x] **Remove `is_initialized()` conditionals** - missing init is now a hard failure
+- [x] **Update deploy scripts** for new package structure
+- [x] **All tests passing** (164 MVM tests across 3 packages)
+
+## Pending Tasks
+
+- [ ] **Rename module:** `outflow_validator_impl` → `intent_outflow_validator_impl` (Phase 6 naming)
+- [ ] **Rename SVM and EVM programs** for consistency

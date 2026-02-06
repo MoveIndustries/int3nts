@@ -1,6 +1,6 @@
 # Phase 6: Intent Unification Review (1-2 days)
 
-**Status:** Not Started
+**Status:** In Progress
 **Depends On:** Phase 5
 **Blocks:** None (Review Phase)
 
@@ -48,39 +48,22 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
 
 ### Tasks
 
-- [ ] **Commit 1: Audit MVM connected chain modules**
+- [x] **Commit 1: Audit MVM connected chain modules** ✅
   - Review `inflow_escrow_gmp.move` dependencies
   - Review `intent_outflow_validator.move` dependencies (currently named `outflow_validator.move`)
   - Identify shared code with hub modules
   - Document minimal required dependencies
-  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
+  - See: `gmp-phase6-audit-mvm-connected-chain.md`
 
-- [ ] **Commit 2: Split MVM package into three separate packages (REQUIRED)**
-  - **NOTE: This is now REQUIRED, not optional.** The combined MVM package is 108KB, exceeding Movement's 60KB single-transaction limit. While `--chunked-publish` works as a temporary workaround, splitting into separate packages is the proper solution.
-  - Create three packages with the following dependency structure:
-    - `intent_gmp` is the base layer (deploy first)
-    - `intent_hub` and `intent_connected` both depend on `intent_gmp`
-  - **`intent_gmp`** - GMP infrastructure (deploy to both hub and connected chains)
-    - gmp_common (message encoding/decoding)
-    - gmp_sender (outbound message sending)
-    - native_gmp_endpoint (inbound message receiving — currently shared, see note below)
-  - **`intent_hub`** - Hub-only modules (deploy to hub chain only)
-    - fa_intent, fa_intent_with_oracle
-    - fa_intent_inflow, fa_intent_outflow
-    - intent_gmp_hub, solver_registry, intent_registry
-    - Hub-specific native_gmp_endpoint route_message (routes to intent_gmp_hub only)
-    - Depends on: intent_gmp
-  - **`intent_connected`** - Connected chain modules (deploy to connected MVM chains only)
-    - intent_outflow_validator, intent_outflow_validator_impl
-    - inflow_escrow_gmp
-    - Connected-chain-specific native_gmp_endpoint route_message (routes to intent_outflow_validator_impl + inflow_escrow_gmp)
-    - Depends on: intent_gmp
-  - **NOTE:** Once split, remove the `is_initialized()` conditional routing in `native_gmp_endpoint::route_message`. Currently the hub and connected chain share one `native_gmp_endpoint` with conditional checks because both deploy the same code. After the split, each package gets its own routing with unconditional calls — no fallbacks, missing init is a hard failure.
-  - Update deployment scripts:
-    - Hub chain: deploy intent_gmp first, then intent_hub
-    - Connected chain: deploy intent_gmp first, then intent_connected
-  - Verify each package is under 60KB limit
-  - Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
+- [x] **Commit 2: Split MVM package into three separate packages (REQUIRED)** ✅
+  - Created three packages:
+    - **`intent-gmp`** (8KB bytecode, 16KB deploy) - gmp_common, gmp_sender, gmp_intent_state, gmp_endpoints
+    - **`intent-hub`** (35KB bytecode, 75KB deploy) - All core intent modules + hub-specific native_gmp_endpoint
+    - **`intent-connected`** (14KB bytecode, 14KB deploy) - outflow_validator, inflow_escrow_gmp + connected-specific native_gmp_endpoint
+  - Removed `is_initialized()` conditional routing - missing init is now a hard failure
+  - Updated deployment scripts (hub deploys intent-gmp then intent-hub with `--chunked-publish`)
+  - **Note:** intent-hub still exceeds 60KB (75KB) and requires `--chunked-publish`
+  - All 164 MVM tests passing across 3 packages
 
 - [ ] **Commit 3: Rename SVM and EVM programs for consistency**
   - **SVM renames:**
@@ -316,11 +299,11 @@ The SVM Docker build is slow. Research bottlenecks and identify optimization opp
 
 ## Exit Criteria
 
-- [ ] Part A: MVM and SVM connected chain modules audited and documented
-- [ ] Part A: MVM package split into 3 packages (intent_gmp, intent_hub, intent_connected)
+- [x] Part A: MVM and SVM connected chain modules audited and documented
+- [x] Part A: MVM package split into 3 packages (intent-gmp, intent-hub, intent-connected)
 - [ ] Part A: SVM program structure documented (gmp + connected logical grouping)
 - [ ] Part A: Recommendation on package structure documented
 - [ ] Part B: All three approaches analyzed with security implications
 - [ ] Part B: Prototype of conditional oracle approach (test branch)
 - [ ] Part B: Final recommendation document written
-- [ ] All existing tests still pass (no regressions)
+- [x] All existing tests still pass (no regressions)

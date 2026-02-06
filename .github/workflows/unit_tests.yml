@@ -7,10 +7,20 @@ on:
       - real-main
 
 jobs:
-  move:
+  move-gmp:
     uses: ./.github/workflows/unit-tests-reusable.yml
     with:
-      script: "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
+      script: "cd intent-frameworks/mvm/intent-gmp && movement move test --dev --named-addresses mvmt_intent=0x123"
+
+  move-hub:
+    uses: ./.github/workflows/unit-tests-reusable.yml
+    with:
+      script: "cd intent-frameworks/mvm/intent-hub && movement move test --dev --named-addresses mvmt_intent=0x123"
+
+  move-connected:
+    uses: ./.github/workflows/unit-tests-reusable.yml
+    with:
+      script: "cd intent-frameworks/mvm/intent-connected && movement move test --dev --named-addresses mvmt_intent=0x123"
 
   evm:
     uses: ./.github/workflows/unit-tests-reusable.yml

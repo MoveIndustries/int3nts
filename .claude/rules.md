@@ -81,8 +81,10 @@ Run individual component tests (from project root):
 # SVM (Solana) - ALWAYS use this, never cargo test directly
 cd intent-frameworks/svm && ./scripts/test.sh
 
-# MVM (Movement)
-cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123
+# MVM (Movement) - run all 3 packages
+cd intent-frameworks/mvm/intent-gmp && movement move test --dev --named-addresses mvmt_intent=0x123
+cd intent-frameworks/mvm/intent-hub && movement move test --dev --named-addresses mvmt_intent=0x123
+cd intent-frameworks/mvm/intent-connected && movement move test --dev --named-addresses mvmt_intent=0x123
 
 # EVM
 cd intent-frameworks/evm && npm test
