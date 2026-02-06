@@ -208,7 +208,7 @@ These apply to all `lzReceive()` handlers in both flows:
 - `lz_receive()`: Entry point called by LZ endpoint, dispatches to handlers
 - Trusted remote verification
 
-**New: `gmp/native_gmp_endpoint.move`** - Native GMP endpoint:
+**New: `gmp/intent_gmp.move`** - Native GMP endpoint:
 
 - `send()`: Emits event (no real cross-chain)
 - `deliver_message()`: Trusted-GMP calls this to relay messages
@@ -308,7 +308,7 @@ lz_send(endpoint, dst_chain_id, destination, payload);
 
 // GMP endpoint is configured at deployment:
 // Production: 0x1a44076050125825900e736c501f859c50fE728c (LZ)
-// Local/CI:   <native_gmp_endpoint_address>
+// Local/CI:   <intent_gmp_address>
 ```
 
 ---

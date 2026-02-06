@@ -2056,30 +2056,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "intent_escrow"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "borsh 0.10.4",
- "gmp-common",
- "hex",
- "rand 0.8.5",
- "solana-program",
- "solana-program-test",
- "solana-sdk",
- "spl-token",
- "thiserror 1.0.69",
- "tokio",
-]
-
-[[package]]
 name = "intent_escrow_cli"
 version = "0.1.0"
 dependencies = [
  "borsh 0.10.4",
  "hex",
- "intent_escrow",
  "intent_gmp",
+ "intent_inflow_escrow",
  "intent_outflow_validator",
  "solana-client",
  "solana-program",
@@ -2095,6 +2078,23 @@ dependencies = [
  "solana-program",
  "solana-program-test",
  "solana-sdk",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
+name = "intent_inflow_escrow"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "borsh 0.10.4",
+ "gmp-common",
+ "hex",
+ "rand 0.8.5",
+ "solana-program",
+ "solana-program-test",
+ "solana-sdk",
+ "spl-token",
  "thiserror 1.0.69",
  "tokio",
 ]

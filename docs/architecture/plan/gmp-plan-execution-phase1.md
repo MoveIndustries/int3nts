@@ -281,7 +281,7 @@ Connected chain functions (MVM as connected chain):
 
 - `intent-frameworks/svm/programs/native-gmp-endpoint/Cargo.toml`
 - `intent-frameworks/svm/programs/native-gmp-endpoint/src/lib.rs` (interface only)
-- `intent-frameworks/mvm/sources/gmp/native_gmp_endpoint.move` (interface only)
+- `intent-frameworks/mvm/sources/gmp/intent_gmp.move` (interface only)
 
 **Tasks:**
 

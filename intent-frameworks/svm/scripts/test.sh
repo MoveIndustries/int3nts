@@ -21,8 +21,8 @@ cd "$PROJECT_DIR"
 # Run Rust tests (native Solana, no validator required)
 # Suppress verbose logs: set tarpc to error level (suppresses OpenTelemetry warnings)
 # and solana_runtime to warn (suppresses DEBUG messages)
-echo "[test.sh] Running intent-escrow tests..."
-RUST_LOG=tarpc=error,solana_runtime=warn cargo test -p intent_escrow --tests -- --nocapture "$@"
+echo "[test.sh] Running intent-inflow-escrow tests..."
+RUST_LOG=tarpc=error,solana_runtime=warn cargo test -p intent_inflow_escrow --tests -- --nocapture "$@"
 
 echo "[test.sh] Running gmp-common tests..."
 RUST_LOG=tarpc=error,solana_runtime=warn cargo test -p gmp-common --tests -- --nocapture "$@"

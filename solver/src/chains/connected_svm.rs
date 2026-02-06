@@ -227,7 +227,7 @@ impl ConnectedSvmClient {
     pub fn is_escrow_released(&self, intent_id: &str) -> Result<bool> {
         let intent_bytes = parse_intent_id(intent_id)?;
 
-        // Derive escrow PDA using same seeds as intent_escrow program
+        // Derive escrow PDA using same seeds as intent_inflow_escrow program
         let (escrow_pda, _) = Pubkey::find_program_address(
             &[b"escrow", &intent_bytes],
             &self.program_id,

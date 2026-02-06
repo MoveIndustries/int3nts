@@ -2,23 +2,16 @@
 //!
 //! Monitors escrow deposits on connected chains and fulfills inflow intents on the hub chain.
 //!
-//! Flow (GMP for MVM):
+//! Flow (GMP for MVM/EVM/SVM):
 //! 1. **Monitor Escrows**: Poll hub chain for `is_escrow_confirmed` (GMP EscrowConfirmation received)
 //! 2. **Fulfill Intent**: Call hub chain `fulfill_inflow_intent` when escrow is confirmed
 //! 3. **Wait for Auto-Release**: Poll connected chain for `is_released` (escrow auto-releases
 //!    when FulfillmentProof is received via GMP - no manual release call needed)
-//!
-//! Flow (EVM/SVM):
-//! 1. **Monitor Escrows**: Poll connected chain for escrow creation events
-//! 2. **Fulfill Intent**: Call hub chain `fulfill_inflow_intent` when escrow is detected
-//! 3. **Release Escrow**: Poll trusted-gmp for approval signature, then release escrow on connected chain
 
 use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient, HubChainClient};
 use crate::config::SolverConfig;
-use crate::coordinator_gmp_client::CoordinatorGmpClient;
 use crate::service::tracker::{IntentTracker, TrackedIntent};
 use anyhow::{Context, Result};
-use base64::{engine::general_purpose::STANDARD, Engine};
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{error, info, warn};
@@ -31,8 +24,6 @@ pub struct InflowService {
     tracker: Arc<IntentTracker>,
     /// Hub chain client for querying escrow confirmation state
     hub_client: HubChainClient,
-    /// Trusted GMP base URL for approval polling (used by EVM/SVM)
-    trusted_gmp_url: String,
     /// Optional connected MVM chain client
     mvm_client: Option<ConnectedMvmClient>,
     /// Optional connected EVM chain client
@@ -60,7 +51,6 @@ impl InflowService {
     /// * `Ok(InflowService)` - Successfully created service
     /// * `Err(anyhow::Error)` - Failed to create service
     pub fn new(config: SolverConfig, tracker: Arc<IntentTracker>) -> Result<Self> {
-        let trusted_gmp_url = config.service.trusted_gmp_url.clone();
         let hub_client = HubChainClient::new(&config.hub_chain)?;
 
         // Create connected chain clients for all configured chains
@@ -83,7 +73,6 @@ impl InflowService {
             config,
             tracker,
             hub_client,
-            trusted_gmp_url,
             mvm_client,
             evm_client,
             svm_client,
@@ -98,29 +87,6 @@ impl InflowService {
             "svm" => self.config.get_svm_config().map(|c| c.chain_id),
             _ => None,
         }
-    }
-
-    /// Determines which connected chain to use for an inflow intent (based on offered_chain_id)
-    /// Returns ("mvm"|"evm"|"svm", chain_id) or None if no matching chain
-    fn get_source_chain_for_intent(&self, intent: &TrackedIntent) -> Option<(&'static str, u64)> {
-        let offered_chain_id = intent.draft_data.offered_chain_id;
-
-        if let Some(chain_id) = self.get_chain_id("mvm") {
-            if chain_id == offered_chain_id {
-                return Some(("mvm", chain_id));
-            }
-        }
-        if let Some(chain_id) = self.get_chain_id("evm") {
-            if chain_id == offered_chain_id {
-                return Some(("evm", chain_id));
-            }
-        }
-        if let Some(chain_id) = self.get_chain_id("svm") {
-            if chain_id == offered_chain_id {
-                return Some(("svm", chain_id));
-            }
-        }
-        None
     }
 
     /// Polls for confirmed escrows matching tracked inflow intents.
@@ -308,209 +274,6 @@ impl InflowService {
             .fulfill_inflow_intent(intent_addr, payment_amount)
     }
 
-    /// Releases an escrow on the connected chain after fulfillment.
-    ///
-    /// For MVM (GMP flow):
-    ///   1. Polls connected chain `is_fulfilled` until FulfillmentProof is received via GMP
-    ///   2. Calls `inflow_escrow_gmp::release_escrow` (no signature needed)
-    ///
-    /// For EVM/SVM (trusted-gmp flow):
-    ///   1. Polls trusted-gmp for approval signature
-    ///   2. Calls escrow claim function with signature
-    ///
-    /// # Arguments
-    ///
-    /// * `intent` - Tracked intent with matching escrow
-    /// * `escrow_id` - Escrow identifier (intent_id for MVM, contract address for EVM/SVM)
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(String)` - Transaction hash
-    /// * `Err(anyhow::Error)` - Failed to release escrow
-    pub async fn release_escrow(
-        &self,
-        intent: &TrackedIntent,
-        escrow_id: &str,
-    ) -> Result<String> {
-        let (chain_type, _) = self
-            .get_source_chain_for_intent(intent)
-            .context("No configured connected chain matches intent's offered_chain_id")?;
-
-        // MVM and SVM use GMP flow: poll connected chain for auto-release
-        match chain_type {
-            "mvm" => return self.release_mvm_gmp_escrow(intent).await,
-            "svm" => return self.release_svm_gmp_escrow(intent).await,
-            "evm" => {
-                // EVM uses trusted-gmp signature approval flow
-                return self.release_evm_signature_escrow(intent, escrow_id).await;
-            }
-            _ => anyhow::bail!("Unknown chain type: {}", chain_type),
-        }
-    }
-
-    /// Releases EVM escrow using trusted-gmp signature approval flow.
-    ///
-    /// Polls trusted-gmp for approval signature, then calls claim_escrow on connected chain.
-    async fn release_evm_signature_escrow(
-        &self,
-        intent: &TrackedIntent,
-        escrow_id: &str,
-    ) -> Result<String> {
-        let trusted_gmp_url = self.trusted_gmp_url.clone();
-        let intent_id_normalized = normalize_intent_id(&intent.intent_id);
-        let poll_interval = Duration::from_secs(2);
-        let expiry_time = intent.expiry_time;
-
-        let approval = loop {
-            let current_time = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-
-            if current_time >= expiry_time {
-                anyhow::bail!(
-                    "Escrow expired while waiting for approval (expiry: {})",
-                    expiry_time
-                );
-            }
-
-            let approvals = tokio::task::spawn_blocking({
-                let trusted_gmp_url = trusted_gmp_url.clone();
-                move || {
-                    let client = CoordinatorGmpClient::new(&trusted_gmp_url);
-                    client.get_approvals()
-                }
-            })
-            .await
-            .context("Failed to spawn blocking task")?
-            .context("Failed to get approvals")?;
-
-            // Find approval matching this intent_id
-            if let Some(approval) = approvals.iter().find(|approval| {
-                let approval_intent_id_normalized = normalize_intent_id(&approval.intent_id);
-                approval_intent_id_normalized == intent_id_normalized
-            }) {
-                info!("Found approval for intent {}", intent.intent_id);
-                break approval.clone();
-            }
-
-            // Approval not found yet, wait and retry
-            tokio::time::sleep(poll_interval).await;
-        };
-
-        // Decode base64 signature to bytes
-        let signature_bytes = STANDARD
-            .decode(&approval.signature)
-            .context("Failed to decode base64 signature")?;
-
-        let client = self.evm_client.as_ref().context("EVM client not configured")?;
-        client
-            .claim_escrow(escrow_id, &intent.intent_id, &signature_bytes)
-            .await
-    }
-
-    /// Waits for MVM inflow escrow to be auto-released via GMP flow.
-    ///
-    /// Polls the connected chain `inflow_escrow_gmp::is_released` until the hub's
-    /// FulfillmentProof GMP message is received and processed. With auto-release,
-    /// tokens are transferred to the solver automatically when the proof arrives.
-    async fn release_mvm_gmp_escrow(&self, intent: &TrackedIntent) -> Result<String> {
-        let client = self
-            .mvm_client
-            .as_ref()
-            .context("MVM client not configured")?;
-        let poll_interval = Duration::from_secs(2);
-        let expiry_time = intent.expiry_time;
-
-        // Poll connected chain until escrow is auto-released (FulfillmentProof triggers release)
-        loop {
-            let current_time = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-
-            if current_time >= expiry_time {
-                anyhow::bail!(
-                    "Escrow expired while waiting for auto-release (expiry: {})",
-                    expiry_time
-                );
-            }
-
-            match client.is_escrow_released(&intent.intent_id).await {
-                Ok(true) => {
-                    info!(
-                        "Escrow auto-released on connected chain for intent {}",
-                        intent.intent_id
-                    );
-                    // With auto-release, tokens were transferred when FulfillmentProof was received
-                    return Ok(format!("auto-released:{}", intent.intent_id));
-                }
-                Ok(false) => {
-                    // Not yet released, wait and retry
-                }
-                Err(e) => {
-                    return Err(e.context(format!(
-                        "Failed to check escrow release status for intent {}",
-                        intent.intent_id
-                    )));
-                }
-            }
-
-            tokio::time::sleep(poll_interval).await;
-        }
-    }
-
-    /// Waits for SVM inflow escrow to be auto-released via GMP flow.
-    ///
-    /// Polls the connected chain escrow account until `is_claimed` is true.
-    /// With GMP auto-release, tokens are transferred to the solver automatically
-    /// when the FulfillmentProof arrives via trusted-gmp relay.
-    async fn release_svm_gmp_escrow(&self, intent: &TrackedIntent) -> Result<String> {
-        let client = self
-            .svm_client
-            .as_ref()
-            .context("SVM client not configured")?;
-        let poll_interval = Duration::from_secs(2);
-        let expiry_time = intent.expiry_time;
-
-        // Poll connected chain until escrow is auto-released (FulfillmentProof triggers release)
-        loop {
-            let current_time = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs();
-
-            if current_time >= expiry_time {
-                anyhow::bail!(
-                    "Escrow expired while waiting for auto-release (expiry: {})",
-                    expiry_time
-                );
-            }
-
-            match client.is_escrow_released(&intent.intent_id) {
-                Ok(true) => {
-                    info!(
-                        "Escrow auto-released on SVM connected chain for intent {}",
-                        intent.intent_id
-                    );
-                    // With auto-release, tokens were transferred when FulfillmentProof was received
-                    return Ok(format!("auto-released:{}", intent.intent_id));
-                }
-                Ok(false) => {
-                    // Not yet released, wait and retry
-                }
-                Err(e) => {
-                    return Err(e.context(format!(
-                        "Failed to check escrow release status for intent {}",
-                        intent.intent_id
-                    )));
-                }
-            }
-
-            tokio::time::sleep(poll_interval).await;
-        }
-    }
-
     /// Runs the inflow fulfillment service loop
     ///
     /// This function continuously:
@@ -561,23 +324,9 @@ impl InflowService {
                             }
                         }
 
-                        // Release escrow after a delay (wait for GMP/trusted-gmp processing)
-                        tokio::time::sleep(Duration::from_secs(2)).await;
-
-                        match self.release_escrow(&intent, &escrow_id).await {
-                            Ok(tx_hash) => {
-                                info!(
-                                    "Released escrow {} for intent {}: {}",
-                                    escrow_id, intent.intent_id, tx_hash
-                                );
-                            }
-                            Err(e) => {
-                                error!(
-                                    "Failed to release escrow {} for intent {}: {}",
-                                    escrow_id, intent.intent_id, e
-                                );
-                            }
-                        }
+                        // GMP auto-release: tokens are transferred to solver automatically when
+                        // FulfillmentProof arrives on connected chain. No action needed from solver.
+                        // The solver can immediately move on to the next intent.
                     }
                 }
                 Err(e) => {

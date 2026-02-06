@@ -1,0 +1,510 @@
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+
+describe("IntentGmp", function () {
+  let gmpEndpoint;
+  let admin;
+  let relay;
+  let user;
+  let mockHandler;
+
+  // Test chain IDs
+  const MOVEMENT_CHAIN_ID = 30325;
+
+  // Test addresses (32 bytes)
+  const TRUSTED_REMOTE = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  const UNTRUSTED_REMOTE = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
+
+  before(async function () {
+    [admin, relay, user] = await ethers.getSigners();
+  });
+
+  beforeEach(async function () {
+    // Deploy IntentGmp
+    const IntentGmp = await ethers.getContractFactory("IntentGmp");
+    gmpEndpoint = await IntentGmp.deploy(admin.address);
+    await gmpEndpoint.waitForDeployment();
+
+    // Deploy a mock handler for testing
+    const MockHandler = await ethers.getContractFactory("MockMessageHandler");
+    mockHandler = await MockHandler.deploy();
+    await mockHandler.waitForDeployment();
+
+    // Configure endpoint
+    await gmpEndpoint.setEscrowHandler(mockHandler.target);
+    await gmpEndpoint.setTrustedRemote(MOVEMENT_CHAIN_ID, TRUSTED_REMOTE);
+  });
+
+  // ============================================================================
+  // Initialization
+  // ============================================================================
+
+  describe("Initialization", function () {
+    /// 1. Test: Initialize Creates Config
+    /// Verifies admin is set as initial authorized relay.
+    /// Why: Admin must be able to deliver messages during setup.
+    it("should set admin as authorized relay on deploy", async function () {
+      expect(await gmpEndpoint.isRelayAuthorized(admin.address)).to.equal(true);
+    });
+
+    /// 2. Test: Initialize Sets Nonce
+    /// Verifies outbound nonce starts at 1.
+    /// Why: First message should have nonce 1, not 0.
+    it("should start with outbound nonce of 1", async function () {
+      expect(await gmpEndpoint.nextOutboundNonce()).to.equal(1);
+    });
+
+    /// 3. Test: Initialize Rejects Zero Admin
+    /// Verifies deployment fails with zero admin address.
+    /// Why: Zero address cannot be admin.
+    it("should reject zero admin address", async function () {
+      const IntentGmp = await ethers.getContractFactory("IntentGmp");
+      await expect(
+        IntentGmp.deploy(ethers.ZeroAddress)
+      ).to.be.revertedWithCustomError(gmpEndpoint, "OwnableInvalidOwner");
+    });
+  });
+
+  // ============================================================================
+  // Relay Authorization
+  // ============================================================================
+
+  describe("Relay Authorization", function () {
+    /// 15. Test: Add Relay
+    /// Verifies authorized relays can be added.
+    /// Why: Multiple relays may be needed for redundancy.
+    it("should allow admin to add relay", async function () {
+      await expect(gmpEndpoint.addRelay(relay.address))
+        .to.emit(gmpEndpoint, "RelayAdded")
+        .withArgs(relay.address);
+
+      expect(await gmpEndpoint.isRelayAuthorized(relay.address)).to.equal(true);
+    });
+
+    /// Test: Remove Relay
+    /// Verifies authorized relays can be removed.
+    /// Why: Compromised relays must be removable.
+    it("should allow admin to remove relay", async function () {
+      await gmpEndpoint.addRelay(relay.address);
+
+      await expect(gmpEndpoint.removeRelay(relay.address))
+        .to.emit(gmpEndpoint, "RelayRemoved")
+        .withArgs(relay.address);
+
+      expect(await gmpEndpoint.isRelayAuthorized(relay.address)).to.equal(false);
+    });
+
+    /// Test: Reject Non-Admin Add Relay
+    /// Verifies only admin can add relays.
+    /// Why: Relay authorization is security-critical.
+    it("should reject non-admin adding relay", async function () {
+      await expect(
+        gmpEndpoint.connect(user).addRelay(relay.address)
+      ).to.be.revertedWithCustomError(gmpEndpoint, "OwnableUnauthorizedAccount");
+    });
+
+    /// Test: Reject Duplicate Relay
+    /// Verifies adding existing relay fails.
+    /// Why: Prevents confusion in relay management.
+    it("should reject adding duplicate relay", async function () {
+      await gmpEndpoint.addRelay(relay.address);
+      await expect(
+        gmpEndpoint.addRelay(relay.address)
+      ).to.be.revertedWithCustomError(gmpEndpoint, "E_ALREADY_EXISTS");
+    });
+
+    /// Test: Reject Removing Non-Existent Relay
+    /// Verifies removing non-existent relay fails.
+    /// Why: Prevents confusion in relay management.
+    it("should reject removing non-existent relay", async function () {
+      await expect(
+        gmpEndpoint.removeRelay(relay.address)
+      ).to.be.revertedWithCustomError(gmpEndpoint, "E_NOT_FOUND");
+    });
+  });
+
+  // ============================================================================
+  // Trusted Remote Configuration
+  // ============================================================================
+
+  describe("Trusted Remote Configuration", function () {
+    /// 20. Test: Set Trusted Remote
+    /// Verifies trusted remote can be set.
+    /// Why: Only trusted sources should be accepted.
+    it("should allow admin to set trusted remote", async function () {
+      const newTrusted = "0xaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+
+      await expect(gmpEndpoint.setTrustedRemote(MOVEMENT_CHAIN_ID, newTrusted))
+        .to.emit(gmpEndpoint, "TrustedRemoteSet")
+        .withArgs(MOVEMENT_CHAIN_ID, newTrusted);
+
+      const remotes = await gmpEndpoint.getTrustedRemotes(MOVEMENT_CHAIN_ID);
+      expect(remotes.length).to.equal(1);
+      expect(remotes[0]).to.equal(newTrusted);
+    });
+
+    /// Test: Add Trusted Remote
+    /// Verifies multiple trusted remotes can be added.
+    /// Why: Connected chains may have multiple trusted programs.
+    it("should allow admin to add trusted remote", async function () {
+      const secondTrusted = "0xaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+
+      await expect(gmpEndpoint.addTrustedRemote(MOVEMENT_CHAIN_ID, secondTrusted))
+        .to.emit(gmpEndpoint, "TrustedRemoteAdded")
+        .withArgs(MOVEMENT_CHAIN_ID, secondTrusted);
+
+      const remotes = await gmpEndpoint.getTrustedRemotes(MOVEMENT_CHAIN_ID);
+      expect(remotes.length).to.equal(2);
+    });
+
+    /// 22. Test: Set Trusted Remote Unauthorized
+    /// Verifies only admin can set trusted remote.
+    /// Why: Trusted remote configuration is security-critical.
+    it("should reject non-admin setting trusted remote", async function () {
+      await expect(
+        gmpEndpoint.connect(user).setTrustedRemote(MOVEMENT_CHAIN_ID, TRUSTED_REMOTE)
+      ).to.be.revertedWithCustomError(gmpEndpoint, "OwnableUnauthorizedAccount");
+    });
+
+    /// Test: Has Trusted Remote
+    /// Verifies hasTrustedRemote returns correct value.
+    /// Why: View function for checking configuration.
+    it("should return true for configured chain", async function () {
+      expect(await gmpEndpoint.hasTrustedRemote(MOVEMENT_CHAIN_ID)).to.equal(true);
+    });
+
+    /// Test: No Trusted Remote
+    /// Verifies hasTrustedRemote returns false for unconfigured chain.
+    /// Why: View function for checking configuration.
+    it("should return false for unconfigured chain", async function () {
+      const unconfiguredChainId = 99999;
+      expect(await gmpEndpoint.hasTrustedRemote(unconfiguredChainId)).to.equal(false);
+    });
+  });
+
+  // ============================================================================
+  // Message Delivery
+  // ============================================================================
+
+  describe("Message Delivery", function () {
+    let validPayload;
+
+    beforeEach(async function () {
+      // Create a valid IntentRequirements payload (145 bytes)
+      validPayload = "0x01" + "00".repeat(144);
+    });
+
+    /// 16. Test: Deliver Message Calls Handler
+    /// Verifies delivered message is routed to handler.
+    /// Why: Message routing is core functionality.
+    it("should route IntentRequirements to escrow handler", async function () {
+      await gmpEndpoint.deliverMessage(
+        MOVEMENT_CHAIN_ID,
+        TRUSTED_REMOTE,
+        validPayload,
+        1
+      );
+
+      // Check that handler received the message
+      expect(await mockHandler.lastReceivedChainId()).to.equal(MOVEMENT_CHAIN_ID);
+      expect(await mockHandler.lastReceivedSrcAddr()).to.equal(TRUSTED_REMOTE);
+      expect(await mockHandler.requirementsReceived()).to.equal(true);
+    });
+
+    /// 17. Test: Deliver Message Rejects Replay
+    /// Verifies duplicate nonce is rejected.
+    /// Why: Replay protection prevents double-processing.
+    it("should reject message with same nonce", async function () {
+      await gmpEndpoint.deliverMessage(
+        MOVEMENT_CHAIN_ID,
+        TRUSTED_REMOTE,
+        validPayload,
+        1
+      );
+
+      await expect(
+        gmpEndpoint.deliverMessage(
+          MOVEMENT_CHAIN_ID,
+          TRUSTED_REMOTE,
+          validPayload,
+          1
+        )
+      ).to.be.revertedWithCustomError(gmpEndpoint, "E_NONCE_ALREADY_USED");
+    });
+
+    /// 18. Test: Deliver Message Rejects Unauthorized Relay
+    /// Verifies unauthorized caller cannot deliver.
+    /// Why: Only authorized relays should deliver messages.
+    it("should reject delivery from unauthorized relay", async function () {
+      await expect(
+        gmpEndpoint.connect(user).deliverMessage(
+          MOVEMENT_CHAIN_ID,
+          TRUSTED_REMOTE,
+          validPayload,
+          1
+        )
+      ).to.be.revertedWithCustomError(gmpEndpoint, "E_UNAUTHORIZED_RELAY");
+    });
+
+    /// 19. Test: Deliver Message Authorized Relay
+    /// Verifies authorized relay can deliver.
+    /// Why: Authorized relays should be able to deliver.
+    it("should allow delivery from authorized relay", async function () {
+      await gmpEndpoint.addRelay(relay.address);
+
+      await expect(
+        gmpEndpoint.connect(relay).deliverMessage(
+          MOVEMENT_CHAIN_ID,
+          TRUSTED_REMOTE,
+          validPayload,
+          1
+        )
+      ).to.emit(gmpEndpoint, "MessageDelivered");
+    });
+
+    /// 20. Test: Deliver Message Rejects Untrusted Remote
+    /// Verifies untrusted source address is rejected.
+    /// Why: Only trusted sources should be accepted.
+    it("should reject delivery from untrusted remote", async function () {
+      await expect(
+        gmpEndpoint.deliverMessage(
+          MOVEMENT_CHAIN_ID,
+          UNTRUSTED_REMOTE,
+          validPayload,
+          1
+        )
+      ).to.be.revertedWithCustomError(gmpEndpoint, "E_UNTRUSTED_REMOTE");
+    });
+
+    /// 21. Test: Deliver Message Rejects No Trusted Remote
+    /// Verifies delivery fails for unconfigured chain.
+    /// Why: No trusted remote means no trusted source.
+    it("should reject delivery for unconfigured chain", async function () {
+      const unconfiguredChainId = 99999;
+
+      await expect(
+        gmpEndpoint.deliverMessage(
+          unconfiguredChainId,
+          TRUSTED_REMOTE,
+          validPayload,
+          1
+        )
+      ).to.be.revertedWithCustomError(gmpEndpoint, "E_NO_TRUSTED_REMOTE");
+    });
+
+    /// 23. Test: Deliver Message Rejects Lower Nonce
+    /// Verifies nonce must be strictly increasing.
+    /// Why: Prevents replay and out-of-order processing.
+    it("should reject message with lower nonce", async function () {
+      await gmpEndpoint.deliverMessage(
+        MOVEMENT_CHAIN_ID,
+        TRUSTED_REMOTE,
+        validPayload,
+        5
+      );
+
+      await expect(
+        gmpEndpoint.deliverMessage(
+          MOVEMENT_CHAIN_ID,
+          TRUSTED_REMOTE,
+          validPayload,
+          3
+        )
+      ).to.be.revertedWithCustomError(gmpEndpoint, "E_NONCE_ALREADY_USED");
+    });
+
+    /// Test: Deliver FulfillmentProof Routes to Escrow Handler
+    /// Verifies FulfillmentProof is routed correctly.
+    /// Why: FulfillmentProof triggers escrow release.
+    it("should route FulfillmentProof to escrow handler", async function () {
+      // FulfillmentProof payload (81 bytes)
+      const fulfillmentPayload = "0x03" + "00".repeat(80);
+
+      await gmpEndpoint.deliverMessage(
+        MOVEMENT_CHAIN_ID,
+        TRUSTED_REMOTE,
+        fulfillmentPayload,
+        1
+      );
+
+      expect(await mockHandler.fulfillmentReceived()).to.equal(true);
+    });
+
+    /// Test: Reject Unknown Message Type
+    /// Verifies unknown message type is rejected.
+    /// Why: Connected chain should not receive EscrowConfirmation.
+    it("should reject unknown message type", async function () {
+      // EscrowConfirmation payload (0x02) - should not be received on connected chain
+      const escrowConfirmPayload = "0x02" + "00".repeat(136);
+
+      await expect(
+        gmpEndpoint.deliverMessage(
+          MOVEMENT_CHAIN_ID,
+          TRUSTED_REMOTE,
+          escrowConfirmPayload,
+          1
+        )
+      ).to.be.reverted;
+    });
+
+    /// Test: Emit MessageDelivered Event
+    /// Verifies delivery emits correct event.
+    /// Why: Events are used for relay monitoring.
+    it("should emit MessageDelivered event", async function () {
+      await expect(
+        gmpEndpoint.deliverMessage(
+          MOVEMENT_CHAIN_ID,
+          TRUSTED_REMOTE,
+          validPayload,
+          1
+        )
+      ).to.emit(gmpEndpoint, "MessageDelivered")
+        .withArgs(MOVEMENT_CHAIN_ID, TRUSTED_REMOTE, validPayload, 1);
+    });
+
+    /// Test: Update Inbound Nonce
+    /// Verifies inbound nonce is updated after delivery.
+    /// Why: Nonce tracking is essential for replay protection.
+    it("should update inbound nonce after delivery", async function () {
+      expect(await gmpEndpoint.getInboundNonce(MOVEMENT_CHAIN_ID)).to.equal(0);
+
+      await gmpEndpoint.deliverMessage(
+        MOVEMENT_CHAIN_ID,
+        TRUSTED_REMOTE,
+        validPayload,
+        5
+      );
+
+      expect(await gmpEndpoint.getInboundNonce(MOVEMENT_CHAIN_ID)).to.equal(5);
+    });
+  });
+
+  // ============================================================================
+  // Message Sending
+  // ============================================================================
+
+  describe("Message Sending", function () {
+    /// 15. Test: Send Updates Nonce State
+    /// Verifies outbound nonce increments after send.
+    /// Why: Each message must have unique nonce.
+    it("should increment outbound nonce on send", async function () {
+      const initialNonce = await gmpEndpoint.nextOutboundNonce();
+
+      // Send from handler
+      const payload = "0x02" + "00".repeat(136);
+      await mockHandler.callSendMessage(
+        gmpEndpoint.target,
+        MOVEMENT_CHAIN_ID,
+        TRUSTED_REMOTE,
+        payload
+      );
+
+      expect(await gmpEndpoint.nextOutboundNonce()).to.equal(initialNonce + 1n);
+    });
+
+    /// Test: Emit MessageSent Event
+    /// Verifies send emits correct event.
+    /// Why: Events are observed by relays.
+    it("should emit MessageSent event", async function () {
+      const payload = "0x02" + "00".repeat(136);
+
+      await expect(
+        mockHandler.callSendMessage(
+          gmpEndpoint.target,
+          MOVEMENT_CHAIN_ID,
+          TRUSTED_REMOTE,
+          payload
+        )
+      ).to.emit(gmpEndpoint, "MessageSent")
+        .withArgs(MOVEMENT_CHAIN_ID, TRUSTED_REMOTE, payload, 1);
+    });
+
+    /// Test: Only Handlers Can Send
+    /// Verifies non-handlers cannot send messages.
+    /// Why: Only registered handlers should send messages.
+    it("should reject send from non-handler", async function () {
+      const payload = "0x02" + "00".repeat(136);
+
+      await expect(
+        gmpEndpoint.sendMessage(
+          MOVEMENT_CHAIN_ID,
+          TRUSTED_REMOTE,
+          payload
+        )
+      ).to.be.revertedWith("Only handlers can send");
+    });
+  });
+
+  // ============================================================================
+  // Handler Configuration
+  // ============================================================================
+
+  describe("Handler Configuration", function () {
+    /// Test: Set Escrow Handler
+    /// Verifies escrow handler can be configured.
+    /// Why: Handler routing requires configuration.
+    it("should allow admin to set escrow handler", async function () {
+      const MockHandler = await ethers.getContractFactory("MockMessageHandler");
+      const newHandler = await MockHandler.deploy();
+
+      await expect(gmpEndpoint.setEscrowHandler(newHandler.target))
+        .to.emit(gmpEndpoint, "EscrowHandlerSet")
+        .withArgs(newHandler.target);
+
+      expect(await gmpEndpoint.escrowHandler()).to.equal(newHandler.target);
+    });
+
+    /// Test: Set Outflow Handler
+    /// Verifies outflow handler can be configured.
+    /// Why: Handler routing requires configuration.
+    it("should allow admin to set outflow handler", async function () {
+      const MockHandler = await ethers.getContractFactory("MockMessageHandler");
+      const newHandler = await MockHandler.deploy();
+
+      await expect(gmpEndpoint.setOutflowHandler(newHandler.target))
+        .to.emit(gmpEndpoint, "OutflowHandlerSet")
+        .withArgs(newHandler.target);
+
+      expect(await gmpEndpoint.outflowHandler()).to.equal(newHandler.target);
+    });
+
+    /// Test: Route to Both Handlers
+    /// Verifies IntentRequirements routes to both handlers.
+    /// Why: Both escrow and outflow need requirements.
+    it("should route IntentRequirements to both handlers", async function () {
+      const MockHandler = await ethers.getContractFactory("MockMessageHandler");
+      const outflowHandler = await MockHandler.deploy();
+      await gmpEndpoint.setOutflowHandler(outflowHandler.target);
+
+      const validPayload = "0x01" + "00".repeat(144);
+      await gmpEndpoint.deliverMessage(
+        MOVEMENT_CHAIN_ID,
+        TRUSTED_REMOTE,
+        validPayload,
+        1
+      );
+
+      expect(await mockHandler.requirementsReceived()).to.equal(true);
+      expect(await outflowHandler.requirementsReceived()).to.equal(true);
+    });
+
+    /// Test: FulfillmentProof Requires Escrow Handler
+    /// Verifies FulfillmentProof fails without escrow handler.
+    /// Why: FulfillmentProof must be routed to escrow.
+    it("should reject FulfillmentProof without escrow handler", async function () {
+      // Remove escrow handler
+      await gmpEndpoint.setEscrowHandler(ethers.ZeroAddress);
+
+      const fulfillmentPayload = "0x03" + "00".repeat(80);
+
+      await expect(
+        gmpEndpoint.deliverMessage(
+          MOVEMENT_CHAIN_ID,
+          TRUSTED_REMOTE,
+          fulfillmentPayload,
+          1
+        )
+      ).to.be.revertedWithCustomError(gmpEndpoint, "E_HANDLER_NOT_CONFIGURED");
+    });
+  });
+});

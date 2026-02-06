@@ -29,13 +29,13 @@ This establishes the baseline of test names and numbers from the start, preventi
 
 ### Example: Creating Placeholder Test File
 
-**Reference (SVM):** `intent-frameworks/svm/programs/intent_escrow/tests/gmp.rs`
+**Reference (SVM):** `intent-frameworks/svm/programs/intent_inflow_escrow/tests/gmp.rs`
 
-**New (MVM):** `intent-frameworks/mvm/tests/inflow_escrow_gmp_tests.move`
+**New (MVM):** `intent-frameworks/mvm/tests/intent_inflow_escrow_tests.move`
 
 ```move
 #[test_only]
-module mvmt_intent::inflow_escrow_gmp_tests {
+module mvmt_intent::intent_inflow_escrow_tests {
     // ... imports and helpers ...
 
     // ============================================================================
@@ -227,7 +227,7 @@ When a test from another framework doesn't apply to your platform, add a comment
 /// Why: A valid solver must be specified for claims.
 ///
 /// NOTE: N/A for EVM - Solidity address type cannot be zero by default, and require() checks prevent zero addresses
-// SVM: intent-frameworks/svm/programs/intent_escrow/tests/error_conditions.rs - "test_reject_zero_solver_address"
+// SVM: intent-frameworks/svm/programs/intent_inflow_escrow/tests/error_conditions.rs - "test_reject_zero_solver_address"
 ```
 
 ### Platform-Specific Tests
@@ -245,7 +245,7 @@ If your platform has tests that don't exist in other frameworks, add them to the
 | 19 | test_release_escrow_rejects_double_release | ✅ | ⚠️ | N/A |
 ```
 
-**Step 2: Implement in MVM** (`intent-frameworks/mvm/tests/inflow_escrow_gmp_tests.move`)
+**Step 2: Implement in MVM** (`intent-frameworks/mvm/tests/intent_inflow_escrow_tests.move`)
 
 ```move
 /// 16. Test: Release escrow succeeds after fulfillment (MVM-specific)
@@ -258,7 +258,7 @@ fun test_release_escrow_succeeds_after_fulfillment(...) {
 }
 ```
 
-**Step 3: Add N/A comments in SVM** (`intent-frameworks/svm/programs/intent_escrow/tests/gmp.rs`)
+**Step 3: Add N/A comments in SVM** (`intent-frameworks/svm/programs/intent_inflow_escrow/tests/gmp.rs`)
 
 ```rust
 // ============================================================================

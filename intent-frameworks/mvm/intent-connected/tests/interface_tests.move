@@ -1,8 +1,8 @@
 #[test_only]
-// Tests for the outflow_validator module (MVM as connected chain).
+// Tests for the intent_outflow_validator module (MVM as connected chain).
 module mvmt_intent::interface_tests {
     use std::vector;
-    use mvmt_intent::outflow_validator;
+    use mvmt_intent::intent_outflow_validator;
     use mvmt_intent::gmp_common;
 
     // ============================================================================
@@ -83,7 +83,7 @@ module mvmt_intent::interface_tests {
         let payload = gmp_common::encode_intent_requirements(&msg);
 
         // Receive and decode
-        let decoded = outflow_validator::receive_intent_requirements(
+        let decoded = intent_outflow_validator::receive_intent_requirements(
             DUMMY_CHAIN_ID,
             test_src_address(),
             payload,

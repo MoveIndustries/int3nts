@@ -404,7 +404,7 @@ fn program_test_with_spl_and_gmp() -> ProgramTest {
         processor!(spl_token::processor::Processor::process),
     );
     pt.add_program(
-        "native_gmp_endpoint",
+        "intent_gmp",
         gmp_endpoint_id(),
         processor!(intent_gmp::processor::process_instruction),
     );

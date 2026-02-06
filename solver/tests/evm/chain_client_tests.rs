@@ -171,15 +171,15 @@ async fn test_get_escrow_events_evm_error() {
 // #6: escrow_event_deserialization - N/A for EVM (parses directly in get_escrow_events)
 
 // ============================================================================
-// FULFILLMENT OPERATIONS
+// ESCROW RELEASE (GMP Auto-Release)
 // ============================================================================
 
-/// 7. Test: Claim Escrow Intent ID Formatting
+/// 7. Test: Is Escrow Released Intent ID Formatting
 /// Verifies that intent_id is correctly formatted for Hardhat script.
 /// Why: EVM expects 0x-prefixed hex strings. Missing prefix would cause the
 /// Hardhat script to fail with a parse error.
 #[test]
-fn test_claim_escrow_intent_id_formatting() {
+fn test_is_escrow_released_intent_id_formatting() {
     // Test that intent_id with 0x prefix is preserved
     let intent_id_with_prefix = "0x1234567890abcdef";
     let formatted = if intent_id_with_prefix.starts_with("0x") {
@@ -199,97 +199,56 @@ fn test_claim_escrow_intent_id_formatting() {
     assert_eq!(formatted, "0x1234567890abcdef");
 }
 
-/// 8. Test: Claim Escrow Signature Encoding
-/// Verifies that signature bytes are correctly converted to hex string.
-/// Why: The Hardhat script expects a hex-encoded signature. Wrong encoding
-/// would cause signature verification to fail on the smart contract.
+/// 8. Test: Is Escrow Released Output Parsing
+/// Verifies that "isReleased: true/false" is correctly parsed from Hardhat output.
+/// Why: The solver needs to know when escrow is auto-released to complete the flow.
+/// Wrong parsing would cause the solver to wait forever or miss releases.
 #[test]
-fn test_claim_escrow_signature_encoding() {
-    use hex;
+fn test_is_escrow_released_output_parsing() {
+    // Test "isReleased: true" output
+    let output_true = "Some log output\nisReleased: true\n";
+    assert!(output_true.contains("isReleased: true"));
+    assert!(!output_true.contains("isReleased: false"));
 
-    // Test signature encoding (65 bytes: r || s || v)
-    let signature_bytes = vec![0xaa; 65];
-    let signature_hex = hex::encode(&signature_bytes);
-
-    // Should be 130 hex chars (65 bytes * 2)
-    assert_eq!(signature_hex.len(), 130);
-    assert_eq!(signature_hex, "aa".repeat(65));
-
-    // Test with actual signature-like data
-    let mut signature = vec![0u8; 65];
-    signature[0] = 0x12;
-    signature[64] = 0x34;
-    let signature_hex = hex::encode(&signature);
-    assert!(signature_hex.starts_with("12"));
-    assert!(signature_hex.ends_with("34"));
+    // Test "isReleased: false" output
+    let output_false = "Some log output\nisReleased: false\n";
+    assert!(output_false.contains("isReleased: false"));
+    assert!(!output_false.contains("isReleased: true"));
 }
 
-/// 9. Test: Claim Escrow Command Building
+/// 9. Test: Is Escrow Released Command Building
 /// Verifies that the Hardhat command is built correctly with all required arguments.
-/// Why: The claim_escrow function invokes a Hardhat script with environment variables.
+/// Why: The is_escrow_released function invokes a Hardhat script with environment variables.
 /// Wrong command formatting would cause the script to fail or use wrong parameters.
 #[test]
-fn test_claim_escrow_command_building() {
-    let escrow_addr = DUMMY_ESCROW_CONTRACT_ADDR_EVM;
+fn test_is_escrow_released_command_building() {
+    let escrow_gmp_addr = DUMMY_ESCROW_CONTRACT_ADDR_EVM;
     let intent_id_evm = "0x1234567890abcdef";
-    let signature_hex = "aa".repeat(130);
     let evm_framework_dir = "/path/to/intent-frameworks/evm";
 
     // Build the command string that would be passed to bash -c
     let command = format!(
-        "cd '{}' && ESCROW_ADDR='{}' INTENT_ID_EVM='{}' SIGNATURE_HEX='{}' npx hardhat run scripts/claim-escrow.js --network localhost",
+        "cd '{}' && ESCROW_GMP_ADDR='{}' INTENT_ID_EVM='{}' npx hardhat run scripts/get-is-released.js --network localhost",
         evm_framework_dir,
-        escrow_addr,
-        intent_id_evm,
-        signature_hex
+        escrow_gmp_addr,
+        intent_id_evm
     );
 
     // Verify all components are present
-    assert!(command.contains("ESCROW_ADDR"));
-    assert!(command.contains(escrow_addr));
+    assert!(command.contains("ESCROW_GMP_ADDR"));
+    assert!(command.contains(escrow_gmp_addr));
     assert!(command.contains("INTENT_ID_EVM"));
     assert!(command.contains(intent_id_evm));
-    assert!(command.contains("SIGNATURE_HEX"));
-    assert!(command.contains(&signature_hex));
-    assert!(command.contains("claim-escrow.js"));
+    assert!(command.contains("get-is-released.js"));
     assert!(command.contains("--network localhost"));
 }
 
-/// 10. Test: Claim Escrow Hash Extraction
-/// Verifies that transaction hash is correctly extracted from Hardhat output.
-/// Why: The solver needs the transaction hash to track fulfillment status.
-/// Wrong extraction would cause the solver to lose track of pending fulfillments.
-#[test]
-fn test_claim_escrow_hash_extraction() {
-    // Test successful output format from Hardhat script
-    let output =
-        "Some log output\nClaim transaction hash: 0xabcdef1234567890\nEscrow released successfully!";
-
-    if let Some(hash_line) = output.lines().find(|l| l.contains("hash") || l.contains("Hash")) {
-        if let Some(hash) = hash_line.split_whitespace().find(|s| s.starts_with("0x")) {
-            assert_eq!(hash, "0xabcdef1234567890");
-        } else {
-            panic!("Failed to extract hash from line: {}", hash_line);
-        }
-    } else {
-        panic!("Failed to find hash line in output");
-    }
-
-    // Test case-insensitive matching
-    let output_upper = "Some log output\nCLAIM TRANSACTION HASH: 0x1234567890abcdef\nSuccess!";
-    if let Some(hash_line) = output_upper.lines().find(|l| l.contains("hash") || l.contains("Hash")) {
-        if let Some(hash) = hash_line.split_whitespace().find(|s| s.starts_with("0x")) {
-            assert_eq!(hash, "0x1234567890abcdef");
-        }
-    }
-}
-
-/// 11. Test: Claim Escrow Missing Directory Error
+/// 10. Test: Is Escrow Released Missing Directory Error
 /// Verifies that proper error is returned when intent-frameworks/evm directory is missing.
 /// Why: A clear error message helps operators diagnose deployment issues.
 /// Silent failures would make debugging much harder.
 #[test]
-fn test_claim_escrow_missing_directory_error() {
+fn test_is_escrow_released_missing_directory_error() {
     // Simulate the directory check logic
     let current_dir = std::env::current_dir().unwrap();
     let project_root = current_dir.parent().unwrap();
@@ -301,5 +260,5 @@ fn test_claim_escrow_missing_directory_error() {
     assert!(evm_framework_dir.to_string_lossy().contains("intent-frameworks/evm"));
 }
 
-// #12: pubkey_from_hex_with_leading_zeros - N/A for EVM (SVM-specific)
-// #13: pubkey_from_hex_no_leading_zeros - N/A for EVM (SVM-specific)
+// #11: pubkey_from_hex_with_leading_zeros - N/A for EVM (SVM-specific)
+// #12: pubkey_from_hex_no_leading_zeros - N/A for EVM (SVM-specific)

@@ -7,7 +7,7 @@
 /// ## Architecture
 ///
 /// - gmp_sender: Send functionality only (this module)
-/// - native_gmp_endpoint: Receive/routing functionality
+/// - intent_gmp: Receive/routing functionality
 /// - Application modules (outflow_validator, etc.): Import gmp_sender for sending
 ///
 /// This separation allows application modules to send GMP messages without

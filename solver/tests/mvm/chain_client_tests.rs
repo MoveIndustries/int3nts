@@ -81,7 +81,7 @@ fn test_fulfill_outflow_via_gmp_command_building() {
     let profile = "solver-chain2";
 
     // Build the function ID
-    let function_id = format!("{}::outflow_validator_impl::fulfill_intent", module_addr);
+    let function_id = format!("{}::intent_outflow_validator_impl::fulfill_intent", module_addr);
 
     // Build the args as the CLI would
     let intent_id_hex = intent_id.strip_prefix("0x").unwrap_or(intent_id);
@@ -89,7 +89,7 @@ fn test_fulfill_outflow_via_gmp_command_building() {
     let arg2 = format!("address:{}", token_metadata);
 
     // Verify function ID format
-    assert!(function_id.contains("outflow_validator_impl::fulfill_intent"));
+    assert!(function_id.contains("intent_outflow_validator_impl::fulfill_intent"));
     assert!(function_id.starts_with("0x"));
 
     // Verify args format
@@ -112,7 +112,7 @@ fn test_fulfill_outflow_via_gmp_command_building() {
 // ============================================================================
 
 /// 14. Test: is_escrow_released returns true when escrow has been auto-released
-/// Verifies that is_escrow_released() calls the inflow_escrow_gmp::is_released
+/// Verifies that is_escrow_released() calls the intent_inflow_escrow::is_released
 /// view function and parses the boolean response.
 /// Why: With auto-release, the solver polls this to confirm release happened.
 #[tokio::test]
@@ -239,7 +239,7 @@ fn test_normalize_hex_to_address_no_prefix() {
 // ============================================================================
 
 /// 23. Test: has_outflow_requirements returns true when requirements delivered
-/// Verifies that has_outflow_requirements() calls the outflow_validator_impl::has_requirements
+/// Verifies that has_outflow_requirements() calls the intent_outflow_validator_impl::has_requirements
 /// view function and parses the boolean response.
 /// Why: The solver polls this before calling fulfill_intent. A parse error would block fulfillment.
 #[tokio::test]

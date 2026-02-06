@@ -28,21 +28,14 @@ SOLVER_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd solver && car
 SOLVER_PASSED=$(echo "$SOLVER_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum+0}')
 SOLVER_FAILED=$(echo "$SOLVER_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
 
-echo "Running MVM tests (3 packages)..."
-MOVE_PASSED=0
-MOVE_FAILED=0
-
-for pkg in intent-gmp intent-hub intent-connected; do
-    echo "  Running MVM $pkg tests..."
-    PKG_OUTPUT=$(nix develop ./nix -c bash -c "cd intent-frameworks/mvm/$pkg && movement move test --dev --named-addresses mvmt_intent=0x123" 2>&1) || {
-        echo "MVM $pkg tests failed:"
-        echo "$PKG_OUTPUT"
-    }
-    PKG_PASSED=$(echo "$PKG_OUTPUT" | grep -oE "passed: [0-9]+" | awk '{print $2}' | head -1)
-    PKG_FAILED=$(echo "$PKG_OUTPUT" | grep -oE "failed: [0-9]+" | awk '{print $2}' | head -1)
-    MOVE_PASSED=$((MOVE_PASSED + ${PKG_PASSED:-0}))
-    MOVE_FAILED=$((MOVE_FAILED + ${PKG_FAILED:-0}))
-done
+echo "Running MVM tests..."
+MVM_TEST_OUTPUT=$(./intent-frameworks/mvm/scripts/test.sh 2>&1) || {
+    echo "MVM tests failed:"
+    echo "$MVM_TEST_OUTPUT"
+}
+# Parse "passed: N" from each package output and sum
+MOVE_PASSED=$(echo "$MVM_TEST_OUTPUT" | grep -oE "passed: [0-9]+" | awk '{sum += $2} END {print sum+0}')
+MOVE_FAILED=$(echo "$MVM_TEST_OUTPUT" | grep -oE "failed: [0-9]+" | awk '{sum += $2} END {print sum+0}')
 
 echo "Running EVM tests..."
 EVM_TEST_OUTPUT=$(nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm install && npm test" 2>&1) || {

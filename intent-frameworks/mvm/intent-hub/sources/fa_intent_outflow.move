@@ -63,7 +63,7 @@ module mvmt_intent::fa_intent_outflow {
 
     /// Receive and record a FulfillmentProof via GMP.
     ///
-    /// This function is called by native_gmp_endpoint when a FulfillmentProof message
+    /// This function is called by intent_gmp when a FulfillmentProof message
     /// is received from the connected chain. It validates the message and records
     /// the proof in GMP state, enabling the solver to claim their tokens.
     ///

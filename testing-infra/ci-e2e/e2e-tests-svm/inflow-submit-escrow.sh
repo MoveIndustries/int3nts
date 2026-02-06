@@ -49,7 +49,7 @@ export SVM_INTENT_ID="$INTENT_ID"
 export SVM_AMOUNT="$SVM_AMOUNT"
 # Unix timestamp after which requester can cancel the escrow
 export SVM_EXPIRY="$SVM_EXPIRY"
-# Deployed intent_escrow program ID on SVM
+# Deployed intent_inflow_escrow program ID on SVM
 export SVM_PROGRAM_ID="$SVM_PROGRAM_ID"
 # intent-gmp program ID for cross-chain messaging
 export SVM_GMP_ENDPOINT_ID="$SVM_GMP_ENDPOINT_ID"

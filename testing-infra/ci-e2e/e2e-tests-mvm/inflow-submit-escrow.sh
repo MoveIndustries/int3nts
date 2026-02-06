@@ -82,7 +82,7 @@ for attempt in $(seq 1 30); do
     HAS_REQ=$(curl -s "http://127.0.0.1:8082/v1/view" \
         -H 'Content-Type: application/json' \
         -d "{
-            \"function\": \"0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::has_requirements\",
+            \"function\": \"0x${MVMCON_MODULE_ADDR}::intent_inflow_escrow::has_requirements\",
             \"type_arguments\": [],
             \"arguments\": [\"0x${INTENT_ID_HEX}\"]
         }" 2>/dev/null | jq -r '.[0]' 2>/dev/null)
@@ -121,7 +121,7 @@ log "     Offered metadata: $OFFERED_METADATA_MVMCON"
 
 # Use GMP-based escrow: validates against IntentRequirements received from hub
 ESCROW_OUTPUT=$(aptos move run --profile requester-chain2 --assume-yes \
-    --function-id "0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::create_escrow_with_validation" \
+    --function-id "0x${MVMCON_MODULE_ADDR}::intent_inflow_escrow::create_escrow_with_validation" \
     --args "hex:${INTENT_ID_HEX}" "address:${OFFERED_METADATA_MVMCON}" "u64:1000000" 2>&1)
 ESCROW_EXIT_CODE=$?
 

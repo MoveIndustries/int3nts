@@ -431,7 +431,7 @@ impl NativeGmpRelay {
             let message = GmpMessage {
                 src_chain_id,
                 // Use the module address (where GMP contracts are deployed) as src_addr,
-                // not the individual sender. The destination chain's native_gmp_endpoint
+                // not the individual sender. The destination chain's intent_gmp
                 // trusts the source chain's module address, not individual senders.
                 src_addr: normalize_address(module_addr),
                 dst_chain_id,
@@ -680,7 +680,7 @@ impl NativeGmpRelay {
         }
     }
 
-    /// Deliver message to MVM hub chain via native_gmp_endpoint::deliver_message_entry.
+    /// Deliver message to MVM hub chain via intent_gmp::deliver_message_entry.
     ///
     /// Uses the CLI-based transaction submission pattern (same as solver).
     async fn deliver_to_mvm_hub(&self, message: &GmpMessage) -> Result<()> {
@@ -693,7 +693,7 @@ impl NativeGmpRelay {
         .await
     }
 
-    /// Deliver message to MVM connected chain via native_gmp_endpoint::deliver_message_entry.
+    /// Deliver message to MVM connected chain via intent_gmp::deliver_message_entry.
     async fn deliver_to_mvm_connected(&self, message: &GmpMessage) -> Result<()> {
         let rpc_url = self
             .config
@@ -735,7 +735,7 @@ impl NativeGmpRelay {
 
         // Build function ID
         let function_id = format!(
-            "{}::native_gmp_endpoint::deliver_message_entry",
+            "{}::intent_gmp::deliver_message_entry",
             module_addr
         );
 

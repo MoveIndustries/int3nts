@@ -54,9 +54,9 @@ clear_stale_toolchain() {
     rm -f "$deps_dir"/platform-tools-*.md 2>/dev/null || true
 }
 
-echo "[build.sh] Running cargo build-sbf for intent_escrow..."
+echo "[build.sh] Running cargo build-sbf for intent_inflow_escrow..."
 clear_stale_toolchain
-cargo build-sbf --manifest-path programs/intent_escrow/Cargo.toml -- --locked
+cargo build-sbf --manifest-path programs/intent_inflow_escrow/Cargo.toml -- --locked
 
 echo "[build.sh] Running cargo build-sbf for intent-gmp..."
 clear_stale_toolchain
@@ -68,6 +68,6 @@ cargo build-sbf --manifest-path programs/intent-outflow-validator/Cargo.toml -- 
 
 echo "[build.sh] Build complete!"
 echo "[build.sh] Output:"
-echo "  - target/deploy/intent_escrow.so"
+echo "  - target/deploy/intent_inflow_escrow.so"
 echo "  - target/deploy/intent_gmp.so"
 echo "  - target/deploy/intent_outflow_validator.so"

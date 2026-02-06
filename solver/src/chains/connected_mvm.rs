@@ -76,7 +76,7 @@ impl ConnectedMvmClient {
         // base_url already includes /v1
         let view_url = format!("{}/view", self.base_url);
         let request_body = serde_json::json!({
-            "function": format!("{}::outflow_validator_impl::has_requirements", self.module_addr),
+            "function": format!("{}::intent_outflow_validator_impl::has_requirements", self.module_addr),
             "type_arguments": [],
             "arguments": [intent_id_hex]
         });
@@ -115,7 +115,7 @@ impl ConnectedMvmClient {
 
     /// Checks if an inflow escrow has been released (auto-released when FulfillmentProof received).
     ///
-    /// Calls the `inflow_escrow_gmp::is_released` view function on the connected chain.
+    /// Calls the `inflow_escrow::is_released` view function on the connected chain.
     /// With auto-release, when this returns true, tokens have already been transferred to solver.
     ///
     /// # Arguments
@@ -132,7 +132,7 @@ impl ConnectedMvmClient {
         // base_url already includes /v1
         let view_url = format!("{}/view", self.base_url);
         let request_body = serde_json::json!({
-            "function": format!("{}::inflow_escrow_gmp::is_released", self.module_addr),
+            "function": format!("{}::intent_inflow_escrow::is_released", self.module_addr),
             "type_arguments": [],
             "arguments": [intent_id_hex]
         });
@@ -339,7 +339,7 @@ impl ConnectedMvmClient {
                 "--assume-yes",
                 "--function-id",
                 &format!(
-                    "{}::outflow_validator_impl::fulfill_intent",
+                    "{}::intent_outflow_validator_impl::fulfill_intent",
                     self.module_addr
                 ),
                 "--args",

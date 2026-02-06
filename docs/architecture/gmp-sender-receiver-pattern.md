@@ -87,7 +87,7 @@ LZ V2 solves this by **separating send and receive into distinct components**:
 
 ```text
 ┌─────────────────────────┐     ┌─────────────────────────┐
-│   gmp_sender.move       │     │  native_gmp_endpoint.move│
+│   gmp_sender.move       │     │  intent_gmp.move│
 │                         │     │  (receiver)             │
 │   - lz_send()           │     │  - deliver_message()    │
 │   - MessageSent event   │     │  - route_message()      │
@@ -103,7 +103,7 @@ LZ V2 solves this by **separating send and receive into distinct components**:
 │                                                           │
 │   - imports gmp_sender::lz_send (to send FulfillmentProof)│
 │   - exposes receive_intent_requirements() (called by      │
-│     native_gmp_endpoint when routing)                     │
+│     intent_gmp when routing)                     │
 └───────────────────────────────────────────────────────────┘
 ```
 
@@ -112,7 +112,7 @@ LZ V2 solves this by **separating send and receive into distinct components**:
 ```text
 gmp_sender ← outflow_validator_impl
                       ↑
-         native_gmp_endpoint (receiver)
+         intent_gmp (receiver)
 ```
 
 ### SVM Architecture
@@ -156,7 +156,7 @@ By following LZ's pattern, our code structure mirrors what we'll use in producti
 | Module | Responsibility |
 |--------|---------------|
 | `gmp_sender` | Outbound message emission only |
-| `native_gmp_endpoint` | Inbound message delivery and routing only |
+| `intent_gmp` | Inbound message delivery and routing only |
 | Application modules | Business logic only |
 
 ### 4. Testability
@@ -176,7 +176,7 @@ Each component can be tested independently:
 | File | Purpose |
 |------|---------|
 | [gmp_sender.move](../../intent-frameworks/mvm/sources/gmp/gmp_sender.move) | Outbound GMP send functionality |
-| [native_gmp_endpoint.move](../../intent-frameworks/mvm/sources/gmp/native_gmp_endpoint.move) | Inbound message delivery and routing |
+| [intent_gmp.move](../../intent-frameworks/mvm/sources/gmp/intent_gmp.move) | Inbound message delivery and routing |
 | [outflow_validator.move](../../intent-frameworks/mvm/sources/gmp/outflow_validator.move) | Example app that imports gmp_sender |
 
 ### SVM
@@ -235,7 +235,7 @@ When deploying, initialize in this order:
 
 ```text
 1. gmp_sender::initialize()        // Sender first (no dependencies)
-2. native_gmp_endpoint::initialize() // Receiver second
+2. intent_gmp::initialize() // Receiver second
 3. outflow_validator_impl::initialize() // Apps last
 ```
 

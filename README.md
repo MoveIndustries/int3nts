@@ -31,14 +31,12 @@ nix develop ./nix
 Run from project root:
 
 ```bash
-# MVM (Movement) - 3 packages
-nix develop ./nix -c bash -c "cd intent-frameworks/mvm/intent-gmp && movement move test --dev --named-addresses mvmt_intent=0x123"       # MVM GMP (shared)
-nix develop ./nix -c bash -c "cd intent-frameworks/mvm/intent-hub && movement move test --dev --named-addresses mvmt_intent=0x123"       # MVM Hub
-nix develop ./nix -c bash -c "cd intent-frameworks/mvm/intent-connected && movement move test --dev --named-addresses mvmt_intent=0x123" # MVM Connected
+# MVM (Movement)
+./intent-frameworks/mvm/scripts/test.sh
 # EVM (Ethereum)
 nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm install && npm test"
 # SVM (Solana)
-nix develop ./nix -c bash -c "cd intent-frameworks/svm && ./scripts/test.sh"
+./intent-frameworks/svm/scripts/test.sh
 # Rust services
 RUST_LOG=off nix develop ./nix -c bash -c "cd coordinator && cargo test --quiet"
 RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"

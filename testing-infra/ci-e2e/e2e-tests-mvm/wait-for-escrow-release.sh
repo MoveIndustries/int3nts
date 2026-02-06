@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Wait for escrow auto-release for MVM E2E tests
-# Polls the inflow_escrow_gmp::is_released view function on connected MVM chain
+# Polls the intent_inflow_escrow::is_released view function on connected MVM chain
 # to verify the escrow was auto-released to the solver when FulfillmentProof arrived.
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -23,7 +23,7 @@ INTENT_ID_HEX=$(printf "%064s" "$INTENT_ID_HEX" | tr ' ' '0')
 
 log_and_echo "⏳ Waiting for escrow auto-release..."
 log "   Intent ID: $INTENT_ID"
-log "   Module: 0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::is_released"
+log "   Module: 0x${MVMCON_MODULE_ADDR}::intent_inflow_escrow::is_released"
 
 # Poll for escrow release (max 30 seconds, every 2 seconds)
 MAX_ATTEMPTS=15
@@ -34,7 +34,7 @@ while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
     IS_RELEASED=$(curl -s "http://127.0.0.1:8082/v1/view" \
         -H 'Content-Type: application/json' \
         -d "{
-            \"function\": \"0x${MVMCON_MODULE_ADDR}::inflow_escrow_gmp::is_released\",
+            \"function\": \"0x${MVMCON_MODULE_ADDR}::intent_inflow_escrow::is_released\",
             \"type_arguments\": [],
             \"arguments\": [\"0x${INTENT_ID_HEX}\"]
         }" 2>/dev/null | jq -r '.[0]' 2>/dev/null)

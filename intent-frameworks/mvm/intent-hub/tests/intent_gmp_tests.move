@@ -17,7 +17,7 @@
 // ## Related Test Files (MVM as Connected Chain)
 // - `interface_tests.move`: Tests outflow_validator interface (symmetric with SVM)
 // - `outflow_validator_tests.move`: Tests outflow validator implementation
-// - `inflow_escrow_gmp_tests.move`: Tests inflow escrow GMP functionality
+// - `intent_inflow_escrow_tests.move`: Tests inflow escrow GMP functionality
 #[test_only]
 module mvmt_intent::intent_gmp_tests {
     use std::vector;

@@ -354,7 +354,7 @@ module mvmt_intent::intent_gmp_hub {
 
     /// Receive and process EscrowConfirmation from a connected chain.
     ///
-    /// Called by native_gmp_endpoint when a connected chain confirms escrow creation.
+    /// Called by intent_gmp when a connected chain confirms escrow creation.
     /// The hub validates the confirmation comes from a trusted source.
     ///
     /// # Arguments
@@ -402,7 +402,7 @@ module mvmt_intent::intent_gmp_hub {
 
     /// Receive and process FulfillmentProof from a connected chain.
     ///
-    /// Called by native_gmp_endpoint when a connected chain reports fulfillment.
+    /// Called by intent_gmp when a connected chain reports fulfillment.
     /// The hub validates the proof comes from a trusted source.
     ///
     /// # Arguments

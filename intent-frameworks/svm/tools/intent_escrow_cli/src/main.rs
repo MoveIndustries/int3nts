@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use intent_escrow::{
+use intent_inflow_escrow::{
     instruction::EscrowInstruction,
     state::{seeds, Escrow, EscrowState},
 };

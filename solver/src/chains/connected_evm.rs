@@ -377,53 +377,22 @@ impl ConnectedEvmClient {
         anyhow::bail!("Could not extract transaction hash from Hardhat output: {}", output_str)
     }
 
-    /// Claims an escrow by releasing funds to the solver with trusted-gmp approval
+    /// Checks if an inflow escrow has been auto-released (via FulfillmentProof GMP message).
     ///
-    /// Calls the `claim` function on the IntentEscrow contract using Hardhat script,
-    /// matching the approach used in E2E test scripts. The Hardhat script handles
-    /// signing using Hardhat's signer configuration (Account 2 = Solver).
+    /// Calls the Hardhat script `get-is-released.js` to check IntentInflowEscrow.isReleased().
+    /// With GMP auto-release, when this returns true, tokens have already been transferred to solver.
     ///
     /// # Arguments
     ///
-    /// * `escrow_addr` - Address of the IntentEscrow contract
-    /// * `intent_id` - Intent ID (hex string with 0x prefix, will be converted to uint256)
-    /// * `signature` - Approver's (Trusted GMP) ECDSA signature (65 bytes: r || s || v)
+    /// * `intent_id` - Intent ID as hex string (e.g., "0x4b1e...")
     ///
     /// # Returns
     ///
-    /// * `Ok(String)` - Transaction hash
-    /// * `Err(anyhow::Error)` - Failed to claim escrow
-    ///
-    /// # Note
-    ///
-    /// This function calls the Hardhat script `claim-escrow.js` via `npx hardhat run`,
-    /// matching the approach used in E2E test scripts. The script uses Hardhat's signer[2]
-    /// (Solver account) for signing the transaction.
-    ///
-    /// # TODO
-    ///
-    /// Future improvement: Implement this directly using a Rust Ethereum library instead of
-    /// calling Hardhat scripts. Good options include:
-    /// - `ethers-rs` (https://github.com/gakonst/ethers-rs) - Popular, well-maintained
-    /// - `alloy` (https://github.com/alloy-rs/alloy) - Modern, type-safe, actively developed
-    ///
-    /// This would eliminate the dependency on Node.js/Hardhat and provide better error handling
-    /// and type safety. The implementation would:
-    /// 1. Load the solver's private key from config
-    /// 2. Create a wallet/provider using the RPC URL
-    /// 3. Call the `claim(uint256 intentId, bytes memory signature)` function directly
-    /// 4. Sign and send the transaction
-    pub async fn claim_escrow(
-        &self,
-        escrow_addr: &str,
-        intent_id: &str,
-        signature: &[u8],
-    ) -> Result<String> {
-        // Convert signature bytes to hex string (without 0x prefix, as expected by script)
-        let signature_hex = hex::encode(signature);
-
+    /// * `Ok(true)` - Escrow has been released to solver
+    /// * `Ok(false)` - Escrow not yet released
+    /// * `Err(anyhow::Error)` - Failed to query
+    pub async fn is_escrow_released(&self, intent_id: &str) -> Result<bool> {
         // Convert intent_id to EVM format (uint256)
-        // The intent_id should already be in hex format (0x...), but we need to ensure it's valid
         let intent_id_evm = if intent_id.starts_with("0x") {
             intent_id.to_string()
         } else {
@@ -440,10 +409,7 @@ impl ConnectedEvmClient {
             );
         }
 
-        // Call Hardhat script via npx (using nix develop to ensure correct environment)
-        // Pass BASE_SEPOLIA_RPC_URL so Hardhat can configure the baseSepolia network
-        // Pass BASE_SOLVER_PRIVATE_KEY for signing (signers[2] in the script)
-        let solver_private_key = std::env::var("BASE_SOLVER_PRIVATE_KEY").unwrap_or_default();
+        // Call Hardhat script via nix develop to check isReleased()
         let nix_dir = project_root.join("nix");
         let output = Command::new("nix")
             .args(&[
@@ -453,13 +419,10 @@ impl ConnectedEvmClient {
                 "bash",
                 "-c",
                 &format!(
-                    "cd '{}' && BASE_SEPOLIA_RPC_URL='{}' BASE_SOLVER_PRIVATE_KEY='{}' ESCROW_ADDR='{}' INTENT_ID_EVM='{}' SIGNATURE_HEX='{}' npx hardhat run scripts/claim-escrow.js --network {}",
+                    "cd '{}' && ESCROW_GMP_ADDR='{}' INTENT_ID_EVM='{}' npx hardhat run scripts/get-is-released.js --network {}",
                     evm_framework_dir.display(),
-                    self.base_url,
-                    solver_private_key,
-                    escrow_addr,
+                    self.escrow_contract_addr,
                     intent_id_evm,
-                    signature_hex,
                     self.network_name
                 ),
             ])
@@ -470,22 +433,21 @@ impl ConnectedEvmClient {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
             anyhow::bail!(
-                "Hardhat claim-escrow script failed:\nstderr: {}\nstdout: {}",
+                "Hardhat get-is-released script failed:\nstderr: {}\nstdout: {}",
                 stderr,
                 stdout
             );
         }
 
-        // Extract transaction hash from output
-        // The script outputs: "Claim transaction hash: 0x..."
+        // Parse output for "isReleased: true" or "isReleased: false"
         let output_str = String::from_utf8_lossy(&output.stdout);
-        if let Some(hash_line) = output_str.lines().find(|l| l.contains("hash") || l.contains("Hash")) {
-            if let Some(hash) = hash_line.split_whitespace().find(|s| s.starts_with("0x")) {
-                return Ok(hash.to_string());
-            }
+        if output_str.contains("isReleased: true") {
+            Ok(true)
+        } else if output_str.contains("isReleased: false") {
+            Ok(false)
+        } else {
+            anyhow::bail!("Unexpected output from get-is-released.js: {}", output_str)
         }
-
-        anyhow::bail!("Could not extract transaction hash from Hardhat output: {}", output_str)
     }
 }
 

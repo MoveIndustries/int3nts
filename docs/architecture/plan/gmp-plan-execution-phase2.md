@@ -43,12 +43,12 @@
 
 **Files:**
 
-- `intent-frameworks/mvm/sources/gmp/native_gmp_endpoint.move` (already exists from Phase 1, extend)
-- `intent-frameworks/mvm/tests/native_gmp_endpoint_tests.move`
+- `intent-frameworks/mvm/sources/gmp/intent_gmp.move` (already exists from Phase 1, extend)
+- `intent-frameworks/mvm/tests/intent_gmp_tests.move`
 
 **Tasks:**
 
-- [x] Extend `native_gmp_endpoint` with CPI to destination module's receive handler
+- [x] Extend `intent_gmp` with CPI to destination module's receive handler
 - [x] Add trusted remote verification (source chain + address validation)
 - [x] Add replay protection with nonce tracking per source
 - [x] Implement message routing based on payload type
@@ -171,22 +171,22 @@
 
 ---
 
-### Commit 6: Implement inflow_escrow_gmp module (MVM)
+### Commit 6: Implement inflow_escrow module (MVM)
 
 **Files:**
 
-- `intent-frameworks/mvm/sources/gmp/inflow_escrow_gmp.move`
-- `intent-frameworks/mvm/tests/inflow_escrow_gmp_tests.move`
+- `intent-frameworks/mvm/sources/gmp/inflow_escrow.move`
+- `intent-frameworks/mvm/tests/inflow_escrow_tests.move`
 
 **Tasks:**
 
-- [x] Create `inflow_escrow_gmp` module with GMP config (hub_chain_id, trusted_hub_addr)
+- [x] Create `inflow_escrow` module with GMP config (hub_chain_id, trusted_hub_addr)
 - [x] Implement `receive_intent_requirements` - stores requirements from hub (with idempotency)
 - [x] Implement `create_escrow_with_validation` - validates requirements exist and match escrow details
 - [x] Implement `receive_fulfillment_proof` - marks escrow fulfilled (MVM uses manual release, not auto-release)
 - [x] Send `EscrowConfirmation` GMP message back to hub on escrow creation via `gmp_sender::lz_send`
-- [x] Add routing in `native_gmp_endpoint` for inflow escrow messages
-- [x] Implement MVM tests 8, 12, 13 in `inflow_escrow_gmp_tests.move`
+- [x] Add routing in `intent_gmp` for inflow escrow messages
+- [x] Implement MVM tests 8, 12, 13 in `inflow_escrow_tests.move`
 - [x] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with MVM InflowEscrow test status
 
 **Test:**
@@ -205,7 +205,7 @@
 
 - `intent-frameworks/mvm/sources/interfaces/intent_gmp_hub.move` (extend existing)
 - `intent-frameworks/mvm/tests/intent_gmp_tests.move`
-- `intent-frameworks/mvm/tests/native_gmp_endpoint_tests.move`
+- `intent-frameworks/mvm/tests/intent_gmp_tests.move`
 
 **Completed tasks:**
 
@@ -215,7 +215,7 @@
 - [x] Add trusted source validation in receive handlers (both receive functions validate source via is_trusted_source)
 - [x] Test message encoding (payload size and discriminator bytes verified)
 - [x] Test source validation (added tests for rejecting untrusted sources)
-- [x] Update native_gmp_endpoint tests to initialize intent_gmp_hub config
+- [x] Update intent_gmp tests to initialize intent_gmp_hub config
 
 **Test:**
 

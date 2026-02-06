@@ -11,7 +11,7 @@
 # - HUB_CHAIN_ID: Hub chain ID
 # - EVM_CHAIN_ID: Connected EVM chain ID
 # - ACCOUNT_ADDR: Hub chain module address
-# - ESCROW_CONTRACT_ADDR: EVM escrow contract address
+# - ESCROW_GMP_ADDR: EVM IntentInflowEscrow contract address
 # - EVM_PRIVATE_KEY_ENV: Environment variable name for EVM private key
 
 set -e
@@ -55,9 +55,9 @@ generate_solver_config_evm() {
         log_and_echo "❌ ERROR: USD_EVM_ADDR not found in chain-info.env"
         exit 1
     fi
-    local escrow_addr="${ESCROW_CONTRACT_ADDR:-}"
+    local escrow_addr="${ESCROW_GMP_ADDR:-}"
     if [ -z "$escrow_addr" ]; then
-        log_and_echo "❌ ERROR: ESCROW_CONTRACT_ADDR not found in chain-info.env"
+        log_and_echo "❌ ERROR: ESCROW_GMP_ADDR not found in chain-info.env"
         exit 1
     fi
     # Lowercase and pad to 32 bytes for Move compatibility (hub chain uses 32-byte addresses)

@@ -96,7 +96,7 @@ initialize_intent_registry "intent-account-chain1" "$HUB_MODULE_ADDR" "$LOG_FILE
 log ""
 log " Initializing native GMP endpoint..."
 if aptos move run --profile intent-account-chain1 --assume-yes \
-    --function-id ${HUB_MODULE_ADDR}::native_gmp_endpoint::initialize >> "$LOG_FILE" 2>&1; then
+    --function-id ${HUB_MODULE_ADDR}::intent_gmp::initialize >> "$LOG_FILE" 2>&1; then
     log "   ✅ Native GMP endpoint initialized"
 else
     log "   ️ Native GMP endpoint may already be initialized (ignoring)"
@@ -153,10 +153,10 @@ if [ -n "$E2E_TRUSTED_GMP_MOVE_ADDRESS" ]; then
         log "   ️ Could not fund relay (may need manual funding)"
     fi
 
-    # Add relay as authorized relay in native_gmp_endpoint
-    log "   - Adding relay as authorized in native_gmp_endpoint..."
+    # Add relay as authorized relay in intent_gmp
+    log "   - Adding relay as authorized in intent_gmp..."
     if aptos move run --profile intent-account-chain1 --assume-yes \
-        --function-id ${HUB_MODULE_ADDR}::native_gmp_endpoint::add_authorized_relay \
+        --function-id ${HUB_MODULE_ADDR}::intent_gmp::add_authorized_relay \
         --args address:${RELAY_ADDRESS} >> "$LOG_FILE" 2>&1; then
         log "   ✅ Relay added as authorized"
     else

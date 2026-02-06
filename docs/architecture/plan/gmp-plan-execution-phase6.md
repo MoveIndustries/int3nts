@@ -43,14 +43,14 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
 
 | Module | Purpose | Used By |
 |--------|---------|---------|
-| `inflow_escrow_gmp` | Receives requirements from hub, creates escrow on connected chain, sends confirmation to hub | MVM as connected chain (inflow) |
+| `intent_inflow_escrow` | Receives requirements from hub, creates escrow on connected chain, sends confirmation to hub | MVM as connected chain (inflow) |
 | `intent_outflow_validator` | Receives requirements from hub, validates solver fulfillment on connected chain, sends proof to hub | MVM as connected chain (outflow) |
 
 ### Tasks
 
 - [x] **Commit 1: Audit MVM connected chain modules** ✅
-  - Review `inflow_escrow_gmp.move` dependencies
-  - Review `intent_outflow_validator.move` dependencies (currently named `outflow_validator.move`)
+  - Review `intent_inflow_escrow.move` dependencies
+  - Review `intent_outflow_validator.move` dependencies
   - Identify shared code with hub modules
   - Document minimal required dependencies
   - See: `gmp-phase6-audit-mvm-connected-chain.md`
@@ -58,8 +58,8 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
 - [x] **Commit 2: Split MVM package into three separate packages (REQUIRED)** ✅
   - Created three packages:
     - **`intent-gmp`** (8KB bytecode, 16KB deploy) - gmp_common, gmp_sender, gmp_intent_state, gmp_endpoints
-    - **`intent-hub`** (35KB bytecode, 75KB deploy) - All core intent modules + hub-specific native_gmp_endpoint
-    - **`intent-connected`** (14KB bytecode, 14KB deploy) - outflow_validator, inflow_escrow_gmp + connected-specific native_gmp_endpoint
+    - **`intent-hub`** (35KB bytecode, 75KB deploy) - All core intent modules + hub-specific intent_gmp
+    - **`intent-connected`** (14KB bytecode, 14KB deploy) - intent_outflow_validator, intent_inflow_escrow + connected-specific intent_gmp
   - Removed `is_initialized()` conditional routing - missing init is now a hard failure
   - Updated deployment scripts (hub deploys intent-gmp then intent-hub with `--chunked-publish`)
   - **Note:** intent-hub still exceeds 60KB (75KB) and requires `--chunked-publish`
@@ -88,8 +88,8 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
 - [x] **Commit 5: Auto-release escrow on FulfillmentProof receipt (GMP flow)** ✅
   - Collapsed two-step release into single step matching SVM behavior
   - Changes made:
-    - `inflow_escrow_gmp.move`: `receive_fulfillment_proof` now transfers tokens to solver and marks both fulfilled+released
-    - `inflow_escrow_gmp.move`: `release_escrow` kept as manual fallback
+    - `intent_inflow_escrow.move`: `receive_fulfillment_proof` now transfers tokens to solver and marks both fulfilled+released
+    - `intent_inflow_escrow.move`: `release_escrow` kept as manual fallback
     - `solver/src/service/inflow.rs`: `release_mvm_gmp_escrow` now polls `is_escrow_released` (no manual release call)
     - `solver/src/chains/connected_mvm.rs`: replaced `is_escrow_fulfilled` with `is_escrow_released`, marked `release_gmp_escrow` as dead code
     - Updated 5 Move tests to reflect auto-release behavior
@@ -97,10 +97,10 @@ Minimize and isolate the MVM connected chain contracts (used when MVM acts as a 
 
 **Files to analyze:**
 
-- `intent-frameworks/mvm/sources/gmp/inflow_escrow_gmp.move`
-- `intent-frameworks/mvm/sources/gmp/outflow_validator.move` (rename to `intent_outflow_validator.move`)
+- `intent-frameworks/mvm/intent-connected/sources/gmp/intent_inflow_escrow.move`
+- `intent-frameworks/mvm/intent-connected/sources/gmp/intent_outflow_validator.move`
 - `intent-frameworks/mvm/sources/gmp/gmp_common.move`
-- `intent-frameworks/mvm/sources/gmp/native_gmp_endpoint.move`
+- `intent-frameworks/mvm/sources/gmp/intent_gmp.move`
 - `intent-frameworks/svm/programs/intent-gmp/` (renamed from native-gmp-endpoint)
 - `intent-frameworks/svm/programs/intent_escrow/`
 - `intent-frameworks/svm/programs/intent-outflow-validator/` (renamed from outflow-validator)

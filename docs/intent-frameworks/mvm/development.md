@@ -21,10 +21,8 @@ This document covers development setup, testing, configuration, and dependencies
 2. **Run Tests**
 
    ```bash
-   # From project root (run all 3 packages)
-   nix develop ./nix -c bash -c "cd intent-frameworks/mvm/intent-gmp && movement move test --dev --named-addresses mvmt_intent=0x123"
-   nix develop ./nix -c bash -c "cd intent-frameworks/mvm/intent-hub && movement move test --dev --named-addresses mvmt_intent=0x123"
-   nix develop ./nix -c bash -c "cd intent-frameworks/mvm/intent-connected && movement move test --dev --named-addresses mvmt_intent=0x123"
+   # From project root (runs all 3 packages)
+   ./intent-frameworks/mvm/scripts/test.sh
    ```
 
 ## Testing
@@ -34,10 +32,8 @@ This document covers development setup, testing, configuration, and dependencies
 Run all tests with:
 
 ```bash
-# Run each package separately
-cd intent-frameworks/mvm/intent-gmp && movement move test --dev --named-addresses mvmt_intent=0x123
-cd intent-frameworks/mvm/intent-hub && movement move test --dev --named-addresses mvmt_intent=0x123
-cd intent-frameworks/mvm/intent-connected && movement move test --dev --named-addresses mvmt_intent=0x123
+# From project root (script handles nix shell automatically)
+./intent-frameworks/mvm/scripts/test.sh
 ```
 
 ### Test Structure
@@ -58,9 +54,9 @@ The test suite is split across three packages:
 
 **intent-connected tests** (connected chain functionality):
 
-- **Inflow Escrow Tests**: [`inflow_escrow_gmp_tests.move`](../../intent-frameworks/mvm/intent-connected/tests/inflow_escrow_gmp_tests.move) - Tests for inflow escrow
-- **Outflow Validator Tests**: [`outflow_validator_tests.move`](../../intent-frameworks/mvm/intent-connected/tests/outflow_validator_tests.move) - Tests for outflow validation
-- **GMP Endpoint Tests**: [`native_gmp_endpoint_tests.move`](../../intent-frameworks/mvm/intent-connected/tests/native_gmp_endpoint_tests.move) - Tests for GMP message routing
+- **Inflow Escrow Tests**: [`intent_inflow_escrow_tests.move`](../../intent-frameworks/mvm/intent-connected/tests/intent_inflow_escrow_tests.move) - Tests for inflow escrow
+- **Outflow Validator Tests**: [`intent_outflow_validator_tests.move`](../../intent-frameworks/mvm/intent-connected/tests/intent_outflow_validator_tests.move) - Tests for outflow validation
+- **GMP Endpoint Tests**: [`intent_gmp_tests.move`](../../intent-frameworks/mvm/intent-connected/tests/intent_gmp_tests.move) - Tests for GMP message routing
 
 ### Test Categories
 

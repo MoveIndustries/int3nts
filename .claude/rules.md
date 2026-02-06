@@ -78,16 +78,14 @@ Run all tests with summary:
 Run individual component tests (from project root):
 
 ```bash
-# SVM (Solana) - ALWAYS use this, never cargo test directly
-cd intent-frameworks/svm && ./scripts/test.sh
-
-# MVM (Movement) - run all 3 packages
-cd intent-frameworks/mvm/intent-gmp && movement move test --dev --named-addresses mvmt_intent=0x123
-cd intent-frameworks/mvm/intent-hub && movement move test --dev --named-addresses mvmt_intent=0x123
-cd intent-frameworks/mvm/intent-connected && movement move test --dev --named-addresses mvmt_intent=0x123
+# MVM (Movement) - ALWAYS use this
+cd intent-frameworks/mvm && ./scripts/test.sh
 
 # EVM
 cd intent-frameworks/evm && npm test
+
+# SVM (Solana) - ALWAYS use this, never cargo test directly
+cd intent-frameworks/svm && ./scripts/test.sh
 
 # Rust services
 cd coordinator && cargo test --quiet

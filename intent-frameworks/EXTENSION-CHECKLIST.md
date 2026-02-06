@@ -14,7 +14,7 @@ Each test file uses independent numbering starting from 1. At the end of the imp
 
 MVM: `intent-frameworks/mvm/tests/initialization_tests.move` ⚠️
 EVM: `intent-frameworks/evm/test/initialization.test.js`
-SVM: `intent-frameworks/svm/programs/intent_escrow/tests/initialization.rs`
+SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/initialization.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -27,7 +27,7 @@ SVM: `intent-frameworks/svm/programs/intent_escrow/tests/initialization.rs`
 
 MVM: `intent-frameworks/mvm/tests/deposit_tests.move` ⚠️
 EVM: `intent-frameworks/evm/test/deposit.test.js`
-SVM: `intent-frameworks/svm/programs/intent_escrow/tests/deposit.rs`
+SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/deposit.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -40,7 +40,7 @@ SVM: `intent-frameworks/svm/programs/intent_escrow/tests/deposit.rs`
 
 MVM: `intent-frameworks/mvm/tests/claim_tests.move` ⚠️
 EVM: `intent-frameworks/evm/test/claim.test.js`
-SVM: `intent-frameworks/svm/programs/intent_escrow/tests/claim.rs`
+SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/claim.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -56,7 +56,7 @@ SVM: `intent-frameworks/svm/programs/intent_escrow/tests/claim.rs`
 
 MVM: `intent-frameworks/mvm/tests/cancel_tests.move` ⚠️
 EVM: `intent-frameworks/evm/test/cancel.test.js`
-SVM: `intent-frameworks/svm/programs/intent_escrow/tests/cancel.rs`
+SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/cancel.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -70,7 +70,7 @@ SVM: `intent-frameworks/svm/programs/intent_escrow/tests/cancel.rs`
 
 MVM: `intent-frameworks/mvm/tests/expiry_tests.move` ⚠️
 EVM: `intent-frameworks/evm/test/expiry.test.js`
-SVM: `intent-frameworks/svm/programs/intent_escrow/tests/expiry.rs`
+SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/expiry.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -84,7 +84,7 @@ SVM: `intent-frameworks/svm/programs/intent_escrow/tests/expiry.rs`
 
 MVM: `intent-frameworks/mvm/tests/cross_chain_tests.move` ⚠️
 EVM: `intent-frameworks/evm/test/cross-chain.test.js`
-SVM: `intent-frameworks/svm/programs/intent_escrow/tests/cross_chain.rs`
+SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/cross_chain.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -97,7 +97,7 @@ SVM: `intent-frameworks/svm/programs/intent_escrow/tests/cross_chain.rs`
 
 MVM: `intent-frameworks/mvm/tests/edge_cases_tests.move` ⚠️
 EVM: `intent-frameworks/evm/test/edge-cases.test.js`
-SVM: `intent-frameworks/svm/programs/intent_escrow/tests/edge_cases.rs`
+SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/edge_cases.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -111,7 +111,7 @@ SVM: `intent-frameworks/svm/programs/intent_escrow/tests/edge_cases.rs`
 
 MVM: `intent-frameworks/mvm/tests/error_conditions_tests.move` ⚠️
 EVM: `intent-frameworks/evm/test/error-conditions.test.js`
-SVM: `intent-frameworks/svm/programs/intent_escrow/tests/error_conditions.rs`
+SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/error_conditions.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -131,7 +131,7 @@ SVM: `intent-frameworks/svm/programs/intent_escrow/tests/error_conditions.rs`
 
 MVM: `intent-frameworks/mvm/tests/integration_tests.move` ⚠️
 EVM: `intent-frameworks/evm/test/integration.test.js`
-SVM: `intent-frameworks/svm/programs/intent_escrow/tests/integration.rs`
+SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/integration.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
@@ -296,7 +296,7 @@ Native GMP endpoint provides a standardized interface for cross-chain messaging.
 
 ### Native GMP Endpoint Interface Tests
 
-MVM: `intent-frameworks/mvm/tests/native_gmp_endpoint_tests.move`
+MVM: `intent-frameworks/mvm/tests/intent_gmp_tests.move`
 EVM: `intent-frameworks/evm/test/native-gmp-endpoint/` ⚠️
 SVM: `intent-frameworks/svm/programs/native-gmp-endpoint/tests/endpoint_tests.rs`
 
@@ -338,9 +338,9 @@ Inflow escrow handles the connected chain side of inflow intents (tokens locked 
 
 ### Inflow Escrow GMP Tests
 
-MVM: `intent-frameworks/mvm/tests/inflow_escrow_gmp_tests.move`
+MVM: `intent-frameworks/mvm/tests/inflow_escrow_tests.move`
 EVM: `intent-frameworks/evm/test/inflow-escrow-gmp/` ⚠️
-SVM: `intent-frameworks/svm/programs/intent_escrow/tests/gmp.rs`
+SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/gmp.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | --- | --- | --- | --- |

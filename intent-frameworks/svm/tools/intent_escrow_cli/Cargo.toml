@@ -19,6 +19,6 @@ solana-client = "2.1"
 solana-sdk = "2.1"
 solana-program = "2.1"
 spl-token = "6.0"
-intent_escrow = { path = "../../programs/intent_escrow", features = ["no-entrypoint"] }
+intent_inflow_escrow = { path = "../../programs/intent_inflow_escrow", features = ["no-entrypoint"] }
 intent_gmp = { path = "../../programs/intent-gmp", features = ["no-entrypoint"] }
 intent_outflow_validator = { path = "../../programs/intent-outflow-validator", features = ["no-entrypoint"] }

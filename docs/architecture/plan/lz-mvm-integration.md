@@ -1126,7 +1126,7 @@ intent-frameworks/mvm/sources/
 ├── gmp/
 │   ├── gmp_messages.move        # Message encoding/decoding (wire format)
 │   ├── gmp_endpoint.move        # LZ endpoint interaction (send/quote)
-│   ├── native_gmp_endpoint.move  # Mock endpoint for local/CI
+│   ├── intent_gmp.move  # Mock endpoint for local/CI
 │   └── oapp_config.move         # Peer management, endpoint config
 ├── fa_intent.move               # Existing (no changes)
 ├── fa_intent_outflow.move       # Modified: add lz_send on create, lz_receive for proof

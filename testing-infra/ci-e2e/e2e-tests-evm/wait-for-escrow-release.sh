@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Wait for escrow release for EVM E2E tests
-# Polls for escrow release status and exits with error if not released within timeout
+# Wait for escrow auto-release for EVM E2E tests
+# Polls the IntentInflowEscrow::isReleased view function on connected EVM chain
+# to verify the escrow was auto-released to the solver when FulfillmentProof arrived.
 
 set -e
 
@@ -37,48 +38,49 @@ if [ -z "$INTENT_ID" ]; then
     exit 1
 fi
 
-ESCROW_ADDR="${ESCROW_CONTRACT_ADDR:-}"
-INTENT_ID_EVM="${INTENT_ID_EVM:-}"
+# Use GMP contract address (IntentInflowEscrow)
+ESCROW_GMP_ADDR="${ESCROW_GMP_ADDR:-}"
 
-# Convert INTENT_ID to EVM format if INTENT_ID_EVM is not set
-if [ -z "$INTENT_ID_EVM" ] && [ -n "$INTENT_ID" ]; then
-    INTENT_ID_EVM=$(convert_intent_id_to_evm "$INTENT_ID")
-fi
+# Convert INTENT_ID to EVM format
+INTENT_ID_EVM=$(convert_intent_id_to_evm "$INTENT_ID")
 
-if [ -z "$ESCROW_ADDR" ] || [ -z "$INTENT_ID_EVM" ]; then
-    log_and_echo "❌ PANIC: Missing required variables for escrow claim check"
-    log_and_echo "   ESCROW_ADDR: ${ESCROW_ADDR:-not set}"
-    log_and_echo "   INTENT_ID_EVM: ${INTENT_ID_EVM:-not set}"
+if [ -z "$ESCROW_GMP_ADDR" ]; then
+    log_and_echo "❌ PANIC: Missing required variable ESCROW_GMP_ADDR"
+    log_and_echo "   ESCROW_GMP_ADDR: ${ESCROW_GMP_ADDR:-not set}"
     log_and_echo "   INTENT_ID: ${INTENT_ID:-not set}"
-    display_service_logs "Missing variables for escrow claim check"
+    display_service_logs "Missing ESCROW_GMP_ADDR for escrow release check"
     exit 1
 fi
 
-log_and_echo "⏳ Waiting for escrow release..."
-log_and_echo "   Escrow: $ESCROW_ADDR"
-log_and_echo "   Intent ID (EVM): $INTENT_ID_EVM"
+log_and_echo "⏳ Waiting for escrow auto-release..."
+log "   Intent ID: $INTENT_ID"
+log "   IntentInflowEscrow: $ESCROW_GMP_ADDR"
+log "   Intent ID (EVM): $INTENT_ID_EVM"
 
-# Poll for escrow claim (max 30 seconds, every 2 seconds)
+# Poll for escrow release (max 30 seconds, every 2 seconds)
 MAX_ATTEMPTS=15
 ATTEMPT=1
-ESCROW_CLAIMED=false
+ESCROW_RELEASED=false
 
 while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-    CLAIM_STATUS=$(is_escrow_claimed "$ESCROW_ADDR" "$INTENT_ID_EVM" 2>/dev/null || echo "false")
-    if [ "$CLAIM_STATUS" = "true" ]; then
-        log_and_echo "   ✅ Escrow released!"
-        ESCROW_CLAIMED=true
+    IS_RELEASED=$(is_released_evm "$ESCROW_GMP_ADDR" "$INTENT_ID_EVM" 2>/dev/null || echo "false")
+    if [ "$IS_RELEASED" = "true" ]; then
+        log_and_echo "   ✅ Escrow auto-released to solver! (isReleased=true)"
+        ESCROW_RELEASED=true
         break
     fi
+    log "   Attempt $ATTEMPT/$MAX_ATTEMPTS: Escrow not yet auto-released, waiting..."
     if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
         sleep 2
     fi
     ATTEMPT=$((ATTEMPT + 1))
 done
 
-if [ "$ESCROW_CLAIMED" = "false" ]; then
-    log_and_echo "❌ PANIC: Escrow not released after ${MAX_ATTEMPTS} attempts (${MAX_ATTEMPTS}s)"
+if [ "$ESCROW_RELEASED" = "false" ]; then
+    log_and_echo "❌ PANIC: Escrow not auto-released after ${MAX_ATTEMPTS} attempts ($((MAX_ATTEMPTS * 2))s)"
+    log_and_echo "   Intent ID: $INTENT_ID"
     display_service_logs "Escrow release timeout"
     exit 1
 fi
 
+log_and_echo "✅ Escrow auto-release verified!"
