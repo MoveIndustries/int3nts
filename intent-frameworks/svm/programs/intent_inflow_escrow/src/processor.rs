@@ -778,7 +778,7 @@ impl Processor {
         stored.serialize(&mut &mut requirements_account.data.borrow_mut()[..])?;
 
         msg!(
-            "RequirementsReceived: intent_id={:?}, amount={}, src_chain_id={}",
+            "IntentRequirementsReceived: intent_id={:?}, amount={}, src_chain_id={}",
             &requirements.intent_id[..8],
             requirements.amount_required,
             src_chain_id

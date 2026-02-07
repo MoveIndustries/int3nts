@@ -20,6 +20,9 @@ mod outflow_generic;
 mod hub_mvm;
 mod inflow_mvm;
 mod inflow_svm;
+mod outflow_mvm;
+mod outflow_evm;
+mod outflow_svm;
 
 // Re-export public types and functions
 #[allow(unused_imports)] // ChainType is used by external consumers (tests, lib re-export)
@@ -40,3 +43,14 @@ pub use outflow_generic::poll_hub_events;
 #[doc(hidden)]
 #[allow(unused_imports)] // Only used in tests
 pub use hub_mvm::parse_amount_with_u64_limit;
+
+// Re-export outflow monitoring functions for testing
+#[doc(hidden)]
+#[allow(unused_imports)] // Only used in tests
+pub use outflow_mvm::poll_mvm_requirements_received;
+#[doc(hidden)]
+#[allow(unused_imports)] // Only used in tests
+pub use outflow_evm::poll_evm_requirements_received;
+#[doc(hidden)]
+#[allow(unused_imports)] // Only used in tests
+pub use outflow_svm::poll_svm_requirements_received;

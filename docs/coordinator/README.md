@@ -6,17 +6,28 @@ The coordinator monitors intent and escrow events across hub and connected chain
 
 - Monitors intent events on the hub chain (intent creation, fulfillment)
 - Monitors escrow events on connected chains (MVM, EVM, and SVM)
+- Monitors IntentRequirementsReceived events on connected chains (for readiness tracking)
 - Caches events for efficient querying
 
-Supports monitoring multiple connected chains simultaneously. MVM chains monitor `OracleLimitOrderEvent` events; EVM chains monitor `EscrowInitialized` events; SVM chains monitor escrow PDA accounts.
+Supports monitoring multiple connected chains simultaneously. MVM chains monitor `OracleLimitOrderEvent` and `IntentRequirementsReceived` events; EVM chains monitor `EscrowInitialized` and `IntentRequirementsReceived` events; SVM chains monitor escrow PDA accounts and `IntentRequirementsReceived` logs.
 
 ## Architecture
 
 ### Components
 
 - **Event Monitor**: Listens for intent and escrow events on hub and connected chains (MVM, EVM, and SVM)
+- **Readiness Tracker**: Monitors IntentRequirementsReceived events to mark intents as ready for fulfillment/escrow
 - **Event Cache**: Stores discovered events for API querying
 - **Negotiation Router**: Coordinates draft intent submission and solver matching (FCFS)
+
+### Readiness Tracking
+
+The coordinator tracks when intent requirements have been delivered to connected chains (via GMP):
+
+- **Outflow intents**: Marks intent as `ready_on_connected_chain: true` when solver can fulfill on connected chain
+- **Inflow intents**: Marks intent as ready when requester can create/fill escrow on connected chain
+
+This allows frontend applications to know when to proceed with the next step in the intent lifecycle, without needing to directly query the connected chain or Trusted GMP service.
 
 ## Project Structure
 

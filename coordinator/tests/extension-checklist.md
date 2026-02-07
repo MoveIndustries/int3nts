@@ -35,3 +35,12 @@ All tests listed here are VM-specific; generic tests are intentionally excluded 
 | 18 | test_get_solver_public_key_errors_on_http_error | ✅ | N/A | N/A |
 | 19 | test_get_solver_public_key_rejects_address_without_prefix | ✅ | N/A | N/A |
 | 20 | test_get_all_escrows_parses_program_accounts | N/A | N/A | ✅ |
+
+## tests/readiness_*vm_tests.rs (IntentRequirementsReceived monitoring)
+
+| # | Test | MVM | EVM | SVM |
+| --- | ------ | ----- | ----- | ----- |
+| 1 | test_poll_*vm_requirements_received_parses_event | ✅ | ✅ | ✅ |
+| 2 | test_poll_*vm_requirements_received_handles_empty_events | ✅ | ✅ | ✅ |
+| 3 | test_poll_*vm_requirements_received_handles_multiple_events | ✅ | ✅ | ✅ |
+| 4 | test_poll_*vm_requirements_received_normalizes_intent_id | ✅ | ✅ | ✅ |

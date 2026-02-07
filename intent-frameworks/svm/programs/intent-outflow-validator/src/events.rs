@@ -25,7 +25,7 @@ pub fn emit_fulfillment_succeeded(
 /// Emitted when intent requirements are received via GMP.
 pub fn emit_requirements_received(intent_id: &[u8; 32], src_chain_id: u32) {
     msg!(
-        "RequirementsReceived: intent_id={}, src_chain_id={}",
+        "IntentRequirementsReceived: intent_id={}, src_chain_id={}",
         hex::encode(intent_id),
         src_chain_id
     );
