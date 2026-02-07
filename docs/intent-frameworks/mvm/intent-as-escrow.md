@@ -4,18 +4,18 @@
 
 ## Overview
 
-The MVM Intent Framework provides a simple escrow system through the `intent_as_escrow.move` module. This abstraction makes it easy to lock tokens and wait for trusted-gmp approval. The actual swap conditions and logic happen off-chain or on another chain - this chain just locks tokens and awaits binary yes/no from the trusted-gmp service.
+The MVM Intent Framework provides a simple escrow system through the `intent_escrow.move` module. This abstraction makes it easy to lock tokens and wait for trusted-gmp approval. The actual swap conditions and logic happen off-chain or on another chain - this chain just locks tokens and awaits binary yes/no from the trusted-gmp service.
 
-**Important**: Escrows created through `intent_as_escrow` **must** specify a reserved solver address. While the underlying `fa_intent_with_oracle` intent type supports optional reservations, escrows enforce this requirement for security (preventing signature replay attacks).
+**Important**: Escrows created through `intent_escrow` **must** specify a reserved solver address. While the underlying `fa_intent_with_oracle` intent type supports optional reservations, escrows enforce this requirement for security (preventing signature replay attacks).
 
 ## Simple Escrow API
 
-The `intent_as_escrow.move` module provides a clean interface for escrow functionality:
+The `intent_escrow.move` module provides a clean interface for escrow functionality:
 
 ```move
 // 1. Create escrow (must specify solver address)
 let reservation = intent_reservation::new_reservation(solver_addr);
-let escrow_intent = intent_as_escrow::create_escrow(
+let escrow_intent = intent_escrow::create_escrow(
     requester_signer,
     offered_asset,
     approver_public_key,
@@ -25,14 +25,14 @@ let escrow_intent = intent_as_escrow::create_escrow(
 );
 
 // 2. Solver takes escrow (solver signer must match reserved solver)
-let (escrowed_asset, session) = intent_as_escrow::start_escrow_session(solver, escrow_intent);
+let (escrowed_asset, session) = intent_escrow::start_escrow_session(solver, escrow_intent);
 
 // 3. Trusted GMP signs the intent_id - signature itself is the approval
 let intent_id = @0x1; // Same intent_id used when creating escrow
 let approver_signature = ed25519::sign_arbitrary_bytes(&approver_secret_key, bcs::to_bytes(&intent_id));
 
 // 4. Complete escrow (solver signer must match reserved solver)
-intent_as_escrow::complete_escrow(
+intent_escrow::complete_escrow(
     solver,
     session,
     solver_payment,
@@ -102,7 +102,7 @@ The escrow system is deployed on a single MVM chain. The trusted-gmp service (or
 ```move
 // Requester locks TokenA and waits for approver approval
 let reservation = intent_reservation::new_reservation(solver_addr);
-let escrow = intent_as_escrow::create_escrow(
+let escrow = intent_escrow::create_escrow(
     requester_signer,
     token_a_asset,
     approver_public_key,
@@ -120,5 +120,5 @@ let intent_id = @0x1; // Same intent_id used when creating escrow
 let approver_signature = ed25519::sign_arbitrary_bytes(&approver_key, bcs::to_bytes(&intent_id));
 
 // Escrow releases tokens to solver (signature itself is the approval)
-intent_as_escrow::complete_escrow(solver, session, payment, approver_signature);
+intent_escrow::complete_escrow(solver, session, payment, approver_signature);
 ```

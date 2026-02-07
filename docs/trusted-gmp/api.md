@@ -144,6 +144,6 @@ In the integration script this is automated (solver-chain2 profile):
 SIGNATURE_HEX=$(echo "$SIGNATURE_BASE64" | base64 -d | xxd -p -c 1000 | tr -d '\n')
 
 movement move run --profile solver-chain2 --assume-yes \
-  --function-id "0x<connected_module_address>::intent_as_escrow_entry::complete_escrow_from_fa" \
+  --function-id "0x<connected_module_address>::intent_escrow_entry::complete_escrow_from_fa" \
   --args "address:<escrow_id>" "u64:<payment_amount>" "hex:<signature_hex>"
 ```

@@ -1,12 +1,12 @@
 # GMP Integration Proposal
 
-**Status:** Proposal
+**Status:** In Progress (Phase 3 In Progress)
 **Date:** 2026-01-22
-**Summary:** Add Generic Message Passing (GMP) so production can use LayerZero instead of our off-chain signer. Validation moves on-chain; cross-chain messaging replaces approval signatures. Coordinator and Trusted GMP are assumed (already in place).
+**Summary:** Add Generic Message Passing (GMP) for cross-chain messaging. Production can use either Trusted GMP (our relay) or LZ. Validation moves on-chain; cross-chain messaging replaces approval signatures. Coordinator and Trusted GMP are assumed (already in place).
 
-> **🔷 GMP Protocol: LayerZero v2**
+> **🔷 GMP Protocol: LZ v2**
 >
-> This proposal uses **LayerZero v2** as the GMP protocol. LayerZero provides the best cross-chain coverage (Movement/Aptos, EVM, Solana), mature integration, and flexible executor network. See [GMP Protocol Comparison](#gmp-protocol-comparison) for full analysis.
+> This proposal uses **LZ v2** as the GMP protocol. LZ provides the best cross-chain coverage (Movement/Aptos, EVM, Solana), mature integration, and flexible executor network. See [GMP Protocol Comparison](#gmp-protocol-comparison) for full analysis.
 
 ---
 
@@ -19,18 +19,18 @@
 
 ### Proposed Addition: GMP
 
-Add **on-chain validation + GMP messaging** so production does not depend on our signer:
+Add **on-chain validation + GMP messaging** for cross-chain communication:
 
 - Validation logic moves into smart contracts on each chain
-- GMP (LayerZero v2) handles cross-chain message delivery
-- Contracts authenticate via GMP message verification instead of our signatures
-- Coordinator unchanged (still no keys, UX only); Trusted GMP remains for local/CI only
+- GMP handles cross-chain message delivery (either Trusted GMP relay or LZ v2)
+- Contracts authenticate via GMP message verification instead of approval signatures
+- Coordinator unchanged (still no keys, UX only); Trusted GMP can be used in production or local/CI
 
 ### Key Benefits
 
 | Benefit | Impact |
 |---------|--------|
-| **Production: no our signer** | Production uses LayerZero; no single key we operate that can compromise system |
+| **Flexible production options** | Production can use Trusted GMP relay or LZ; choice of trust model |
 | **Censorship resistance** | Permissionless GMP networks vs. our Trusted GMP signer |
 | **Decentralization** | Trust GMP validator networks instead of our service |
 | **Security** | Validation logic is transparent on-chain |
@@ -42,7 +42,7 @@ Add **on-chain validation + GMP messaging** so production does not depend on our
 |-----------|-----------------------------|----------|
 | **Gas costs** | Low (signatures cheap) | Higher (GMP fees + on-chain validation) |
 | **Contract complexity** | Low | Medium (validation logic on-chain) |
-| **Infrastructure** | Coordinator + Trusted GMP | Coordinator + (optional Trusted GMP for CI only) |
+| **Infrastructure** | Coordinator + Trusted GMP | Coordinator + Trusted GMP relay or LZ |
 | **Flexibility** | Easy to update validation logic | Requires contract redeployment |
 
 ---
@@ -51,15 +51,15 @@ Add **on-chain validation + GMP messaging** so production does not depend on our
 
 See execution phase documents for detailed implementation plan:
 
-- [Phase 1: Research & Design](gmp-plan-execution-phase1.md) (2-3 days)
-- [Phase 2: SVM Prototype](gmp-plan-execution-phase2.md) (3-4 days)
-- [Phase 3: Multi-Chain Expansion](gmp-plan-execution-phase3.md) (5-7 days)
-- [Phase 4: Coordinator GMP Integration](gmp-plan-execution-phase4.md) (2 days) - Add GMP message tracking to coordinator
-- [Phase 5: Integration & Documentation](gmp-plan-execution-phase5.md) (2-3 days)
+- [Phase 1: Research & Design](gmp-plan-execution-phase1.md) ✅ **COMPLETE** - Interfaces, message schemas, wire format spec
+- [Phase 2: SVM + MVM Core](gmp-plan-execution-phase2.md) ✅ **COMPLETE** - Build both chains together for real cross-chain testing
+- [Phase 3: EVM Expansion & Architecture Alignment](gmp-plan-execution-phase3.md) 🔄 **IN PROGRESS** - EVM contracts, package split, naming, intent unification, SVM build perf
+- [Phase 4: Coordinator GMP Integration](gmp-plan-execution-phase4.md) (1 day) - Add GMP message tracking to coordinator
+- [Phase 5: Integration & Documentation](gmp-plan-execution-phase5.md) (1-2 days) - Frontend, solver SDK, fee analysis, final cleanup
 
-**Total Timeline:** ~3 weeks (testnet only)
+**Total Timeline:** ~1.5 weeks (testnet only)
 
-**Assumed starting point:** Coordinator and Trusted GMP already exist. This plan adds GMP so production uses LayerZero instead of our signer.
+**Assumed starting point:** Coordinator and Trusted GMP already exist. This plan adds GMP messaging (using either Trusted GMP relay or LZ).
 
 ---
 
@@ -76,12 +76,12 @@ Current architecture (no change in this plan):
 └─────────────────────────────────┘  └─────────────────────────────────┘
 ```
 
-**After GMP (this plan):** Production uses LayerZero for cross-chain approval; Trusted GMP remains for local/CI only. Coordinator unchanged.
+**After GMP (this plan):** Production uses LZ for cross-chain approval; Trusted GMP remains for local/CI only. Coordinator unchanged.
 
 | Environment | Who authorizes releases | Trust |
 |-------------|-------------------------|--------|
 | **Local/CI (today & after)** | Trusted GMP (our signer) | 🔴 Our service |
-| **Production (after GMP)** | LayerZero DVNs | 🟡 GMP network |
+| **Production (after GMP)** | LZ DVNs | 🟡 GMP network |
 
 ---
 
@@ -123,13 +123,13 @@ Replace **"our off-chain signer (Trusted GMP) validates and signs"** with **"on-
 
 #### Current (Trusted GMP signs)
 
-```
+```text
 Trusted GMP (off-chain) validates → Signs approval → Contract checks signature
 ```
 
 #### After GMP (production)
 
-```
+```text
 On-chain contract validates → Sends GMP message → Receiving contract accepts via GMP
 ```
 
@@ -137,7 +137,7 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 | GMP | Auto-Delivery to Destination | Auto-Initiation from Events | Who Triggers Source Call |
 |-----|------------------------------|----------------------------|--------------------------|
-| **LayerZero** | ✅ YES (Executors) | ❌ NO | Solver / User / Relayer |
+| **LZ** | ✅ YES (Executors) | ❌ NO | Solver / User / Relayer |
 | **Wormhole** | ⚠️ PARTIAL (if configured) | ❌ NO | Solver / User / Relayer |
 | **Axelar** | ✅ YES (Gas Service) | ❌ NO | Solver / User / Relayer |
 | **CCIP** | ✅ YES (built-in) | ❌ NO | Solver / User / Relayer |
@@ -275,21 +275,21 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 ### What Remains (Given)
 
-**Coordinator** (unchanged by this plan): event monitoring, caching, REST API, negotiation. No keys. **Trusted GMP** (unchanged): still used for local/CI signing; not used in production once GMP is live.
+**Coordinator** (unchanged by this plan): event monitoring, caching, REST API, negotiation. No keys. **Trusted GMP**: can be used for production relay or local/CI.
 
 | Function | Coordinator (given) | Trusted GMP (given) | After GMP (production) |
 |----------|---------------------|---------------------|-------------------------|
 | **Event monitoring / API** | ✅ YES | — | Coordinator only |
-| **Who authorizes releases** | — | Trusted GMP (local/CI) | LayerZero (production) |
-| **Our signer in production** | — | Today: yes | No (GMP only) |
+| **Who authorizes releases** | — | Trusted GMP relay | Trusted GMP relay OR LZ |
+| **Production relay options** | — | ✅ YES | Trusted GMP relay OR LZ |
 
 ### Updated Infrastructure Complexity (After GMP)
 
 | Aspect | Current (Trusted GMP signs) | After GMP (production) | Impact |
 |--------|-----------------------------|------------------------|--------|
-| **Infrastructure YOU run** | Coordinator + Trusted GMP | Coordinator only (Trusted GMP for CI only) | **No signer in production** |
-| **Infrastructure SOMEONE runs** | Just you (signer) | **GMP protocol operators** | **Shifts to decentralized network** |
-| **Signer criticality in prod** | 🔴 **CRITICAL** | 🟢 **NONE** (GMP delivers) | **Much better** |
+| **Infrastructure YOU run** | Coordinator + Trusted GMP | Coordinator + (Trusted GMP relay OR LZ) | **Flexible relay choice** |
+| **Infrastructure SOMEONE runs** | Just you (signer) | You (Trusted GMP relay) OR GMP protocol operators | **Choice of trust model** |
+| **Relay criticality in prod** | 🔴 **CRITICAL** | 🟡 **DEPENDS** (your relay or decentralized) | **Flexibility** |
 | **Security requirements** | 🔴 **MAXIMUM** (signer holds keys) | 🟢 **MINIMAL** (coordinator read-only) | **Massive improvement** |
 | **Censorship power** | 🔴 **HIGH** (can refuse to sign) | 🟢 **NONE** (permissionless GMP) | **Eliminated** |
 
@@ -301,7 +301,7 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 | Aspect | Current (Trusted GMP signs) | After GMP (production) |
 |--------|-----------------------------|-------------------------|
-| **Authority source** | Our Trusted GMP private key | GMP protocol (LayerZero DVNs, relayers) |
+| **Authority source** | Our Trusted GMP private key | GMP protocol (LZ DVNs, relayers) |
 | **Validation location** | Off-chain (Trusted GMP) | On-chain (smart contracts) |
 | **Censorship resistance** | ❌ Our signer can refuse | ✅ Permissionless GMP networks |
 | **Liveness dependency** | Our signer must be online | GMP network (highly redundant) |
@@ -363,7 +363,7 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 ### Evaluation Criteria
 
-| Criterion | LayerZero | Axelar | Wormhole | CCIP |
+| Criterion | LZ | Axelar | Wormhole | CCIP |
 |-----------|-----------|--------|----------|------|
 | **Movement Support** | ✅ Aptos (similar) | ✅ Aptos | ✅ Aptos | ⚠️ Limited |
 | **Solana Support** | ✅ YES | ✅ YES | ✅ YES (native) | ⚠️ Expanding |
@@ -373,18 +373,19 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 | **Trust Model** | Oracle+Relayer | Validator Set | Guardian Network | Chainlink DON |
 | **Maturity** | High | High | High | High |
 
-### Decision: LayerZero v2
+### Decision: LZ v2
 
-**FINAL SELECTION:** LayerZero v2 has been selected as the GMP protocol for this implementation.
+**FINAL SELECTION:** LZ v2 has been selected as the GMP protocol for this implementation.
 
 **Rationale:**
+
 - Best cross-chain coverage (MVM, EVM, SVM)
 - Mature Aptos integration (similar to Movement)
 - Flexible executor network
 - Competitive fees
 - Strong ecosystem support
 
-**Note:** This decision is final. All implementation phases will use LayerZero v2.
+**Note:** This decision is final. All implementation phases will use LZ v2.
 
 ---
 
@@ -403,14 +404,14 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 | Environment | GMP Provider | Flow |
 |-------------|--------------|------|
-| **Production** | Real GMP (LayerZero) | Contract → `lzSend()` → [Real GMP DVNs + Executors] → `lzReceive()` → Destination |
+| **Production** | Real GMP (LZ) | Contract → `lzSend()` → [Real GMP DVNs + Executors] → `lzReceive()` → Destination |
 | **Local/CI/Testing** | Trusted GMP Service | Contract → `lzSend()` → [Mock endpoint emits event] → [Trusted GMP watches] → [Calls `lzReceive()`] → Destination |
 
 ### Key Principle
 
 **Contracts remain identical across all environments** - they use the same GMP interfaces. Only the underlying endpoint implementation differs:
 
-- **Production**: Real LayerZero endpoint
+- **Production**: Real LZ endpoint
 - **Local/CI/Testing**: Mock endpoint + Trusted GMP service
 
 ### Trusted GMP Role (Given)
@@ -419,9 +420,9 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 |--------|---------------------------|------------------------|------------------------|
 | **Watches events** | Intent/escrow events | `MessageSent` (mock endpoints) | N/A – not used |
 | **Validates logic** | 15+ checks off-chain | ❌ None (contracts validate) | N/A |
-| **Action taken** | Generates signatures | Calls `lzReceive()` (mock) | N/A – LayerZero delivers |
+| **Action taken** | Generates signatures | Calls `lzReceive()` (mock) | N/A – LZ delivers |
 | **Private keys** | ✅ YES (signing) | ✅ YES (operator wallet per chain) | N/A |
-| **Can steal funds** | 🔴 YES | 🔴 YES (same risk in CI) | 🟡 LayerZero DVNs |
+| **Can steal funds** | 🔴 YES | 🔴 YES (same risk in CI) | 🟡 LZ DVNs |
 
 ### Implementation
 
@@ -433,7 +434,7 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 **Contracts use configurable GMP endpoint address:**
 
 - **Local/CI**: Mock endpoint → Trusted GMP service relays messages
-- **Production**: Real LayerZero endpoint → LayerZero handles delivery
+- **Production**: Real LZ endpoint → LZ handles delivery
 
 > ⚠️ **Production only.** In production, contracts use GMP (no our signer). Trusted GMP remains for local/CI; current signature-based flow is deprecated for production.
 
@@ -454,7 +455,7 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 | **Testnet** | Mock + Trusted GMP (LZ not yet available) | Real LZ (devnet) | Real LZ (Base Sepolia) |
 | **Mainnet** | Real LZ | Real LZ | Real LZ |
 
-> **Note:** LayerZero does not yet support Movement testnet. Until LZ testnet support is available, Movement testnet uses mock endpoints + Trusted GMP (same as local/CI). Mainnet uses real LayerZero.
+> **Note:** LZ does not yet support Movement testnet. Until LZ testnet support is available, Movement testnet uses mock endpoints + Trusted GMP (same as local/CI). Mainnet can use Trusted GMP relay or LZ.
 
 ---
 
@@ -479,7 +480,7 @@ Adding GMP so production does not use our signer is **FEASIBLE** but requires:
 - **GMP integration** – add cross-chain messaging to all contracts
 - **New validation contracts** – deploy on all connected chains
 - **Coordinator** – unchanged (already in place; no keys, no validation)
-- **~3 week timeline** – testnet only
+- **~1.5 week timeline** – testnet only
 
 ### Key Benefits
 
@@ -493,7 +494,7 @@ Adding GMP so production does not use our signer is **FEASIBLE** but requires:
 
 - ⚠️ **Higher gas costs** - GMP fees + on-chain validation
 - ⚠️ **Contract complexity** - moderate increase (~50-100 lines per contract)
-- ⚠️ **Development time** - 3-4 weeks for testnet (with AI assistance)
+- ⚠️ **Development time** - ~1.5 weeks for testnet (with AI assistance)
 - ⚠️ **New dependencies** - rely on GMP protocol security
 - ⚠️ **Solver UX changes** - must use validation contracts
 

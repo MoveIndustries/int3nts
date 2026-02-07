@@ -111,8 +111,8 @@ fn test_config_validation_multiple_connected_chains() {
         name: "EVM Chain".to_string(),
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
+        outflow_validator_contract_addr: "0x0000000000000000000000000000000000000010".to_string(),
         chain_id: 31337,
-
     });
 
     config.connected_chain_svm = Some(SvmChainConfig {
@@ -175,8 +175,8 @@ fn test_config_validate_hub_evm_duplicate_chain_id() {
         name: "EVM Chain".to_string(),
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
+        outflow_validator_contract_addr: "0x0000000000000000000000000000000000000010".to_string(),
         chain_id: 100, // Same as hub
-
     });
 
     let result = config.validate();
@@ -200,8 +200,8 @@ fn test_config_validate_mvm_evm_duplicate_chain_id() {
         name: "EVM Chain".to_string(),
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
+        outflow_validator_contract_addr: "0x0000000000000000000000000000000000000010".to_string(),
         chain_id: 100, // Same as MVM
-
     });
 
     let result = config.validate();
@@ -226,8 +226,8 @@ fn test_config_validate_unique_chain_ids() {
         name: "EVM Chain".to_string(),
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
+        outflow_validator_contract_addr: "0x0000000000000000000000000000000000000010".to_string(),
         chain_id: 31337, // Different from hub and MVM
-
     });
 
     let result = config.validate();

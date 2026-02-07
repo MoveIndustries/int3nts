@@ -1,9 +1,9 @@
 //! Unit tests for EVM escrow event parsing
 //!
-//! These tests verify that EscrowInitialized events are correctly parsed,
+//! These tests verify that EscrowCreated events are correctly parsed,
 //! especially that amount and expiry fields are properly extracted.
 
-use trusted_gmp::evm_client::EscrowInitializedEvent;
+use trusted_gmp::evm_client::EscrowCreatedEvent;
 use trusted_gmp::monitor::{ChainType, EscrowEvent, EventMonitor, IntentEvent};
 
 #[path = "../mod.rs"]
@@ -14,40 +14,40 @@ use test_helpers::{
     DUMMY_TOKEN_ADDR_EVM, DUMMY_TX_HASH,
 };
 
-/// Test that EscrowInitializedEvent struct contains amount and expiry fields
-/// Why: The event struct must include amount and expiry for proper escrow validation
+/// 1. Test: EscrowCreated Event Has Amount and Expiry
+/// Verifies that EscrowCreatedEvent struct includes amount, expiry, escrow_id, and reserved_solver fields.
+/// Why: These fields are required for proper escrow validation and cross-chain symmetry with MVM and SVM.
 #[test]
-fn test_escrow_initialized_event_has_amount_and_expiry() {
-    let event = EscrowInitializedEvent {
+fn test_escrow_created_event_has_amount_and_expiry() {
+    let event = EscrowCreatedEvent {
         intent_id: DUMMY_INTENT_ID.to_string(),
-        escrow_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
+        escrow_id: DUMMY_ESCROW_ID_MVM.to_string(),
         requester_addr: DUMMY_REQUESTER_ADDR_EVM.to_string(),
-        token_addr: DUMMY_TOKEN_ADDR_EVM.to_string(),
-        reserved_solver_addr: DUMMY_SOLVER_ADDR_EVM.to_string(),
         amount: 100000,
+        token_addr: DUMMY_TOKEN_ADDR_EVM.to_string(),
+        reserved_solver: DUMMY_SOLVER_ADDR_EVM.to_string(),
         expiry: DUMMY_EXPIRY,
         block_number: "0x1".to_string(),
         transaction_hash: DUMMY_TX_HASH.to_string(),
     };
 
-    // Verify fields are accessible and have correct values
     assert_eq!(event.amount, 100000, "Amount should be 100000");
     assert_eq!(event.expiry, DUMMY_EXPIRY, "Expiry should be DUMMY_EXPIRY");
     assert_ne!(event.amount, 0, "Amount should NOT be 0");
 }
 
-/// Test that parsed amount is not hardcoded to 0
-/// Why: Verify amount field is properly populated, not defaulted to 0
+/// 2. Test: Escrow Amount Is Not Hardcoded Zero
+/// Verifies that the parsed amount field is properly populated, not defaulted to 0.
+/// Why: A hardcoded zero amount would silently break all escrow validations.
 #[test]
 fn test_escrow_amount_is_not_hardcoded_zero() {
-    // Create event with non-zero amount
-    let event = EscrowInitializedEvent {
-        intent_id: DUMMY_ESCROW_ID_MVM.to_string(), // Different intent_id for this test case
-        escrow_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
+    let event = EscrowCreatedEvent {
+        intent_id: DUMMY_ESCROW_ID_MVM.to_string(),
+        escrow_id: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         requester_addr: DUMMY_REQUESTER_ADDR_EVM.to_string(),
+        amount: 1,
         token_addr: DUMMY_TOKEN_ADDR_EVM.to_string(),
-        reserved_solver_addr: DUMMY_SOLVER_ADDR_EVM.to_string(),
-        amount: 1, // Minimum non-zero amount
+        reserved_solver: DUMMY_SOLVER_ADDR_EVM.to_string(),
         expiry: DUMMY_EXPIRY,
         block_number: "0x100".to_string(),
         transaction_hash: DUMMY_TX_HASH.to_string(),
@@ -59,8 +59,9 @@ fn test_escrow_amount_is_not_hardcoded_zero() {
     );
 }
 
-/// Test parsing of amount from hex data
-/// Why: Verify the hex-to-u64 conversion works correctly for typical escrow amounts
+/// 3. Test: Amount Hex Parsing
+/// Verifies that hex-to-u64 conversion works correctly for typical escrow amounts.
+/// Why: EVM event data encodes amounts as uint256 hex; incorrect parsing would produce wrong escrow amounts.
 #[test]
 fn test_amount_hex_parsing() {
     // Simulate what the EVM client does when parsing the event data
@@ -77,8 +78,9 @@ fn test_amount_hex_parsing() {
     assert_eq!(parsed_eth, 1000000000000000000);
 }
 
-/// Test parsing of expiry from hex data
-/// Why: Verify expiry timestamp parsing works correctly
+/// 4. Test: Expiry Hex Parsing
+/// Verifies that expiry timestamp hex-to-u64 parsing works correctly.
+/// Why: Incorrect expiry parsing could allow expired or premature escrow operations.
 #[test]
 fn test_expiry_hex_parsing() {
     // Far future timestamp used in tests
@@ -88,8 +90,9 @@ fn test_expiry_hex_parsing() {
     assert_eq!(parsed_expiry, timestamp);
 }
 
-/// Test that escrow with zero amount fails validation
-/// Why: Zero-amount escrows should be rejected as invalid
+/// 5. Test: Zero Amount Escrow Fails Validation
+/// Verifies that an escrow with zero amount is rejected during validation.
+/// Why: Zero-amount escrows are invalid and must be caught before approval.
 #[tokio::test]
 async fn test_zero_amount_escrow_fails_validation() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -149,8 +152,9 @@ async fn test_zero_amount_escrow_fails_validation() {
     );
 }
 
-/// Test that escrow with correct amount passes validation
-/// Why: Escrows that meet the intent's required amount should be accepted
+/// 6. Test: Correct Amount Escrow Passes Validation
+/// Verifies that an escrow meeting the intent's required amount passes validation.
+/// Why: Valid escrows must be approved for the fulfillment flow to proceed.
 #[tokio::test]
 async fn test_correct_amount_escrow_passes_validation() {
     let _ = tracing_subscriber::fmt::try_init();

@@ -74,7 +74,7 @@ Frontend checks are for UX, not security. All security checks must be server-sid
 
 ### Anti-Patterns to Eliminate
 
-```
+```text
 ❌ "The button is hidden" - not a security strategy
 ❌ "Frontend validates the input" - bots ignore this
 ❌ "Only authorized users see this page" - URL is guessable
@@ -116,7 +116,7 @@ Auth working once doesn't mean auth is safe. Test edge cases.
 
 | Component | File | Checks |
 |-----------|------|--------|
-| Solver Registry | `intent-frameworks/mvm/sources/solver_registry.move` | Public key management |
+| Solver Registry | `intent-frameworks/mvm/intent-hub/sources/solver_registry.move` | Public key management |
 | Signature Verification | `trusted-gmp/src/crypto/` | Ed25519/ECDSA validation |
 | Intent Creation | `create_inflow_intent`, `create_outflow_intent` | Solver signature verification |
 
@@ -131,7 +131,8 @@ No logs means no answers. Not for bugs, not for breaches, not for refunds.
 ### Requirements
 
 - [ ] **Structured Logging**: Use consistent log format
-  ```
+
+  ```json
   {
     "timestamp": "2026-01-13T10:00:00Z",
     "level": "INFO",
@@ -174,7 +175,8 @@ Third-party services will fail. Design for it.
 ### Requirements
 
 - [ ] **Retries with Limits**: Implement exponential backoff
-  ```
+
+  ```text
   Max retries: 3-5
   Initial delay: 100ms
   Max delay: 10s
@@ -215,7 +217,8 @@ API keys in code will leak. Not maybe. Will.
   - Different secrets per environment
 
 - [ ] **Proper .gitignore**: Exclude sensitive files
-  ```
+
+  ```text
   .env
   .env.local
   .env.*.local

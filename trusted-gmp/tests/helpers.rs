@@ -130,6 +130,14 @@ pub const DUMMY_PUBLIC_KEY: [u8; 4] = [1, 2, 3, 4];
 #[allow(dead_code)]
 pub const DUMMY_SOLVER_REGISTRY_ADDR: &str = "0x1";
 
+/// Test MVM chain ID (Movement mainnet)
+#[allow(dead_code)]
+pub const TEST_MVM_CHAIN_ID: u32 = 30817;
+
+/// Test SVM chain ID (Solana)
+#[allow(dead_code)]
+pub const TEST_SVM_CHAIN_ID: u32 = 30168;
+
 // ============================================================================
 // CONFIGURATION BUILDERS
 // ============================================================================
@@ -199,6 +207,8 @@ pub fn build_test_config_with_evm() -> Config {
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         chain_id: 31337,
         approver_evm_pubkey_hash: DUMMY_APPROVER_EVM_PUBKEY_HASH.to_string(),
+        gmp_endpoint_addr: None,
+        outflow_validator_addr: None,
     });
     config
 }
@@ -213,6 +223,7 @@ pub fn build_test_config_with_svm() -> Config {
         rpc_url: "http://127.0.0.1:8899".to_string(),
         chain_id: 4,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
+        gmp_endpoint_program_id: Some(DUMMY_SVM_ESCROW_PROGRAM_ID.to_string()),
     });
     config
 }

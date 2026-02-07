@@ -19,8 +19,9 @@ use test_helpers::{
 // TESTS
 // ============================================================================
 
-/// Test that validate_intent_safety rejects intents with expiry_time in the past
-/// Why: Verify that expired intents are rejected for safety
+/// 1. Test: Expired Intent Rejection in Validate Intent Safety
+/// Verifies that validate_intent_safety rejects intents with expiry_time in the past.
+/// Why: Expired intents must be rejected to prevent processing stale cross-chain requests.
 #[tokio::test]
 async fn test_expired_intent_rejection_in_validate_intent_safety() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -54,8 +55,9 @@ async fn test_expired_intent_rejection_in_validate_intent_safety() {
     );
 }
 
-/// Test that validate_intent_safety accepts intents with expiry_time in the future
-/// Why: Verify that non-expired intents pass validation
+/// 2. Test: Non-Expired Intent Acceptance in Validate Intent Safety
+/// Verifies that validate_intent_safety accepts intents with expiry_time in the future.
+/// Why: Valid non-expired intents must pass safety validation so they can proceed to fulfillment.
 #[tokio::test]
 async fn test_non_expired_intent_acceptance_in_validate_intent_safety() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -89,8 +91,9 @@ async fn test_non_expired_intent_acceptance_in_validate_intent_safety() {
     );
 }
 
-/// Test edge case: intent expires exactly at current time
-/// Why: Verify behavior when expiry_time equals current timestamp
+/// 3. Test: Intent Expires Exactly at Current Time
+/// Verifies that validate_intent_safety handles the edge case where expiry_time equals the current timestamp.
+/// Why: The boundary condition at exact expiry time must behave consistently to avoid off-by-one validation errors.
 #[tokio::test]
 async fn test_intent_expires_exactly_at_current_time() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -135,8 +138,9 @@ async fn test_intent_expires_exactly_at_current_time() {
     }
 }
 
-/// Test that validate_fulfillment rejects fulfillments that occur after intent expiry
-/// Why: Verify that fulfillments after expiry are rejected
+/// 4. Test: Fulfillment Timestamp Validation After Expiry
+/// Verifies that validate_fulfillment rejects fulfillments with a timestamp after the intent's expiry_time.
+/// Why: Fulfillments occurring after expiry must be rejected to enforce intent time boundaries.
 #[tokio::test]
 async fn test_fulfillment_timestamp_validation_after_expiry() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -179,8 +183,9 @@ async fn test_fulfillment_timestamp_validation_after_expiry() {
     );
 }
 
-/// Test that validate_fulfillment accepts fulfillments that occur before intent expiry
-/// Why: Verify that fulfillments before expiry are accepted
+/// 5. Test: Fulfillment Timestamp Validation Before Expiry
+/// Verifies that validate_fulfillment accepts fulfillments with a timestamp before the intent's expiry_time.
+/// Why: Valid fulfillments occurring before expiry must pass validation to allow successful cross-chain settlement.
 #[tokio::test]
 async fn test_fulfillment_timestamp_validation_before_expiry() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -223,8 +228,9 @@ async fn test_fulfillment_timestamp_validation_before_expiry() {
     );
 }
 
-/// Test that validate_fulfillment accepts fulfillments that occur exactly at expiry time
-/// Why: Verify edge case behavior when fulfillment timestamp equals expiry
+/// 6. Test: Fulfillment Timestamp Validation at Expiry
+/// Verifies that validate_fulfillment accepts fulfillments with a timestamp exactly equal to the intent's expiry_time.
+/// Why: The boundary condition where fulfillment timestamp equals expiry must be accepted since the check is strictly greater-than.
 #[tokio::test]
 async fn test_fulfillment_timestamp_validation_at_expiry() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -268,8 +274,9 @@ async fn test_fulfillment_timestamp_validation_at_expiry() {
     );
 }
 
-/// Test that validate_fulfillment succeeds when all conditions are met
-/// Why: Verify that valid fulfillments pass all validation checks
+/// 7. Test: Fulfillment Validation Success
+/// Verifies that validate_fulfillment succeeds when all conditions are met including matching amounts, metadata, and intent_id.
+/// Why: The happy path must work end-to-end to confirm that valid fulfillments pass all validation checks.
 #[tokio::test]
 async fn test_fulfillment_validation_success() {
     // Initialize tracing subscriber to capture log output during tests (ignored if already initialized)
@@ -315,8 +322,9 @@ async fn test_fulfillment_validation_success() {
     );
 }
 
-/// Test that validate_fulfillment rejects when provided_amount doesn't match desired_amount
-/// Why: Verify that amount mismatches are caught
+/// 8. Test: Fulfillment Amount Mismatch Rejection
+/// Verifies that validate_fulfillment rejects fulfillments where provided_amount does not match the intent's desired_amount.
+/// Why: Amount mismatches must be caught to prevent under-fulfillment or over-fulfillment of intents.
 #[tokio::test]
 async fn test_fulfillment_amount_mismatch_rejection() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -362,8 +370,9 @@ async fn test_fulfillment_amount_mismatch_rejection() {
     );
 }
 
-/// Test that validate_fulfillment rejects when provided_metadata doesn't match desired_metadata
-/// Why: Verify that metadata mismatches are caught
+/// 9. Test: Fulfillment Metadata Mismatch Rejection
+/// Verifies that validate_fulfillment rejects fulfillments where provided_metadata does not match the intent's desired_metadata.
+/// Why: Metadata mismatches must be caught to prevent fulfillment with the wrong token or asset type.
 #[tokio::test]
 async fn test_fulfillment_metadata_mismatch_rejection() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -409,8 +418,9 @@ async fn test_fulfillment_metadata_mismatch_rejection() {
     );
 }
 
-/// Test that validate_fulfillment rejects when intent_id doesn't match
-/// Why: Verify that fulfillments for different intents are rejected
+/// 10. Test: Fulfillment Intent ID Mismatch Rejection
+/// Verifies that validate_fulfillment rejects fulfillments where the intent_id does not match the intent being fulfilled.
+/// Why: Intent ID mismatches must be caught to prevent a fulfillment proof from being applied to the wrong intent.
 #[tokio::test]
 async fn test_fulfillment_intent_id_mismatch_rejection() {
     let _ = tracing_subscriber::fmt::try_init();

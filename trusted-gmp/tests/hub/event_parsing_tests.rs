@@ -128,13 +128,9 @@ async fn setup_mock_server_with_oracle_event(
 // TESTS
 // ============================================================================
 
-/// Test that poll_hub_events correctly parses OracleLimitOrderEvent and populates requester_addr_connected_chain
-///
-/// What is tested: When an OracleLimitOrderEvent is emitted with requester_addr_connected_chain,
-/// poll_hub_events should parse it and include it in the IntentEvent.
-///
-/// Why: Verify that outflow intents have all required fields populated from the event,
-/// preventing validation failures due to missing requester_addr_connected_chain.
+/// 1. Test: Poll Hub Events Populates Requester Address Connected Chain
+/// Verifies that poll_hub_events correctly parses OracleLimitOrderEvent and includes requester_addr_connected_chain in the IntentEvent.
+/// Why: Outflow intents require all fields populated from the event to prevent validation failures due to missing requester_addr_connected_chain.
 #[tokio::test]
 async fn test_poll_hub_events_populates_requester_addr_connected_chain() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -185,14 +181,9 @@ async fn test_poll_hub_events_populates_requester_addr_connected_chain() {
     assert_eq!(event.desired_amount, 500);
 }
 
-/// Test that poll_hub_events fails validation when requester_addr_connected_chain is missing for outflow intents
-///
-/// What is tested: When an OracleLimitOrderEvent is emitted without requester_addr_connected_chain
-/// but with different chain IDs (indicating outflow), the event should still be parsed but
-/// validation should fail later when requester_addr_connected_chain is None.
-///
-/// Why: Verify that missing requester_addr_connected_chain is detected during validation,
-/// not silently ignored.
+/// 2. Test: Poll Hub Events Handles Missing Requester Address Connected Chain
+/// Verifies that poll_hub_events parses an outflow event without requester_addr_connected_chain and sets it to None rather than silently ignoring the absence.
+/// Why: Missing requester_addr_connected_chain must be detected during validation so it is not silently ignored.
 #[tokio::test]
 async fn test_poll_hub_events_handles_missing_requester_addr_connected_chain() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -236,11 +227,9 @@ async fn test_poll_hub_events_handles_missing_requester_addr_connected_chain() {
 // AMOUNT PARSING TESTS
 // ============================================================================
 
-/// Test that parse_amount_with_u64_limit successfully parses valid u64 amounts
-///
-/// What is tested: Parsing amounts that are valid u64 values should succeed.
-///
-/// Why: Verify that the function correctly parses and converts valid amounts.
+/// 3. Test: Parse Amount With u64 Limit Success
+/// Verifies that parse_amount_with_u64_limit successfully parses valid u64 amounts including zero, small values, and u64::MAX.
+/// Why: The amount parser must correctly convert valid string amounts to u64 for use in Move contracts.
 #[test]
 fn test_parse_amount_with_u64_limit_success() {
     use trusted_gmp::monitor::parse_amount_with_u64_limit;
@@ -261,11 +250,9 @@ fn test_parse_amount_with_u64_limit_success() {
     assert_eq!(result.unwrap(), 0u64);
 }
 
-/// Test that parse_amount_with_u64_limit rejects amounts exceeding u64::MAX
-///
-/// What is tested: Parsing amounts that exceed u64::MAX should fail with a clear error.
-///
-/// Why: Verify that the function correctly validates the Move contract constraint.
+/// 4. Test: Parse Amount With u64 Limit Exceeds Max
+/// Verifies that parse_amount_with_u64_limit rejects amounts exceeding u64::MAX with a clear error message.
+/// Why: Move contracts enforce a u64 upper bound on amounts, so values exceeding this limit must be rejected.
 #[test]
 fn test_parse_amount_with_u64_limit_exceeds_max() {
     use trusted_gmp::monitor::parse_amount_with_u64_limit;
@@ -293,11 +280,9 @@ fn test_parse_amount_with_u64_limit_exceeds_max() {
     );
 }
 
-/// Test that parse_amount_with_u64_limit handles invalid number strings
-///
-/// What is tested: Parsing invalid number strings should fail with a parse error.
-///
-/// Why: Verify that the function correctly handles invalid input.
+/// 5. Test: Parse Amount With u64 Limit Invalid String
+/// Verifies that parse_amount_with_u64_limit rejects non-numeric strings with a parse error that includes the field name.
+/// Why: Invalid input must produce a clear error rather than silently failing or returning a default value.
 #[test]
 fn test_parse_amount_with_u64_limit_invalid_string() {
     use trusted_gmp::monitor::parse_amount_with_u64_limit;
@@ -318,11 +303,9 @@ fn test_parse_amount_with_u64_limit_invalid_string() {
     );
 }
 
-/// Test that parse_amount_with_u64_limit handles large but valid u64 values
-///
-/// What is tested: Parsing large but valid u64 values (close to u64::MAX) should succeed.
-///
-/// Why: Verify that the function correctly handles large values within the limit.
+/// 6. Test: Parse Amount With u64 Limit Large Valid
+/// Verifies that parse_amount_with_u64_limit successfully parses large but valid u64 values such as u64::MAX - 1 and 1 ETH in wei.
+/// Why: Large values close to the u64 boundary must be handled correctly without false rejections.
 #[test]
 fn test_parse_amount_with_u64_limit_large_valid() {
     use trusted_gmp::monitor::parse_amount_with_u64_limit;

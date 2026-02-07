@@ -71,6 +71,12 @@ pub struct EvmChainConfig {
     /// This is the Ethereum address derived from the trusted-gmp's ECDSA public key (on-chain approver address).
     #[serde(rename = "approver_evm_pubkey_hash")]
     pub approver_evm_pubkey_hash: String,
+    /// Address of the IntentGmp contract (GMP endpoint for message delivery/polling)
+    #[serde(default)]
+    pub gmp_endpoint_addr: Option<String>,
+    /// Address of the IntentOutflowValidator contract
+    #[serde(default)]
+    pub outflow_validator_addr: Option<String>,
 }
 
 /// Configuration for a Solana chain (SVM).
@@ -84,6 +90,9 @@ pub struct SvmChainConfig {
     pub chain_id: u64,
     /// Program ID of the intent escrow program
     pub escrow_program_id: String,
+    /// Program ID of the native GMP endpoint (for polling outbound messages)
+    #[serde(default)]
+    pub gmp_endpoint_program_id: Option<String>,
 }
 
 /// Trusted GMP configuration including cryptographic keys and timing parameters.
@@ -138,6 +147,7 @@ impl TrustedGmpConfig {
     ///
     /// * `Ok(String)` - The public key (base64 encoded)
     /// * `Err(anyhow::Error)` - Failed to load from environment
+    #[allow(dead_code)]
     pub fn get_public_key(&self) -> anyhow::Result<String> {
         std::env::var(&self.public_key_env)
             .map_err(|_| anyhow::anyhow!(

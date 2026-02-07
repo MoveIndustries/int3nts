@@ -25,13 +25,9 @@ use test_helpers::{
 // MOVE VM TRANSACTION EXTRACTION TESTS
 // ============================================================================
 
-/// Test that extract_mvm_fulfillment_params successfully extracts parameters from valid Move VM transaction
-///
-/// What is tested: Extracting intent_id, recipient, amount, solver, and token_metadata from a valid
-/// Move VM transaction that calls utils::transfer_with_intent_id().
-///
-/// Why: Verify that the extraction function correctly parses Move VM transaction payloads
-/// to extract all required parameters for validation.
+/// 1. Test: Extract MVM Fulfillment Params Success
+/// Verifies that extract_mvm_fulfillment_params correctly extracts intent_id, recipient, amount, solver, and token_metadata from a valid Move VM transaction.
+/// Why: The extraction function must correctly parse Move VM transaction payloads to extract all required parameters for validation.
 #[test]
 fn test_extract_mvm_fulfillment_params_success() {
     let tx = MvmTransaction {
@@ -73,10 +69,8 @@ fn test_extract_mvm_fulfillment_params_success() {
     );
 }
 
-/// Test that extract_mvm_fulfillment_params handles amount as JSON number
-///
-/// What is tested: Extracting amount when Aptos serializes it as a JSON number (when passed as decimal to aptos CLI).
-///
+/// 2. Test: Extract MVM Fulfillment Params Amount As Number
+/// Verifies that extract_mvm_fulfillment_params correctly handles amount when Aptos serializes it as a JSON number.
 /// Why: Aptos CLI accepts decimal format (u64:100000000) but serializes it as a JSON number in the transaction payload.
 #[test]
 fn test_extract_mvm_fulfillment_params_amount_as_number() {
@@ -103,11 +97,9 @@ fn test_extract_mvm_fulfillment_params_amount_as_number() {
     assert_eq!(params.amount, 100000000);
 }
 
-/// Test that extract_mvm_fulfillment_params handles amount as decimal string
-///
-/// What is tested: Extracting amount when Aptos serializes it as a decimal string (without 0x prefix).
-///
-/// Why: Aptos may serialize u64 values as decimal strings "100000000" instead of hex strings or JSON numbers.
+/// 3. Test: Extract MVM Fulfillment Params Amount As Decimal String
+/// Verifies that extract_mvm_fulfillment_params correctly handles amount when Aptos serializes it as a decimal string without 0x prefix.
+/// Why: Aptos may serialize u64 values as decimal strings instead of hex strings or JSON numbers.
 #[test]
 fn test_extract_mvm_fulfillment_params_amount_as_decimal_string() {
     let tx = MvmTransaction {
@@ -133,13 +125,9 @@ fn test_extract_mvm_fulfillment_params_amount_as_decimal_string() {
     assert_eq!(params.amount, 100000000);
 }
 
-/// Test that extract_mvm_fulfillment_params fails when transaction is not a transfer_with_intent_id call
-///
-/// What is tested: Attempting to extract parameters from a Move VM transaction that doesn't call
-/// utils::transfer_with_intent_id() should fail with an appropriate error.
-///
-/// Why: Verify that the extraction function correctly identifies and rejects transactions
-/// that are not the expected fulfillment transaction type.
+/// 4. Test: Extract MVM Fulfillment Params Wrong Function
+/// Verifies that extract_mvm_fulfillment_params fails when the transaction does not call utils::transfer_with_intent_id().
+/// Why: The extraction function must correctly identify and reject transactions that are not the expected fulfillment transaction type.
 #[test]
 fn test_extract_mvm_fulfillment_params_wrong_function() {
     let tx = MvmTransaction {
@@ -160,12 +148,9 @@ fn test_extract_mvm_fulfillment_params_wrong_function() {
     );
 }
 
-/// Test that extract_mvm_fulfillment_params fails when transaction payload is missing
-///
-/// What is tested: Attempting to extract parameters from a Move VM transaction without a payload
-/// should fail with an appropriate error.
-///
-/// Why: Verify that the extraction function handles missing payload gracefully.
+/// 5. Test: Extract MVM Fulfillment Params Missing Payload
+/// Verifies that extract_mvm_fulfillment_params fails when the transaction payload is missing.
+/// Why: The extraction function must error explicitly when the payload is absent rather than silently proceeding.
 #[test]
 fn test_extract_mvm_fulfillment_params_missing_payload() {
     let tx = MvmTransaction {
@@ -182,14 +167,9 @@ fn test_extract_mvm_fulfillment_params_missing_payload() {
     assert!(result.unwrap_err().to_string().contains("payload"));
 }
 
-/// Test that extract_mvm_fulfillment_params normalizes addresses with missing leading zeros
-///
-/// What is tested: Extracting parameters from a Move VM transaction where addresses
-/// are missing leading zeros (e.g., 62 hex chars instead of 64) should be normalized
-/// to 64 hex characters with leading zeros.
-///
-/// Why: Move VM addresses can be serialized without leading zeros, but validation
-/// requires exactly 64 hex characters. This test ensures addresses are properly normalized.
+/// 6. Test: Extract MVM Fulfillment Params Address Normalization
+/// Verifies that extract_mvm_fulfillment_params normalizes addresses with missing leading zeros to 64 hex characters.
+/// Why: Move VM addresses can be serialized without leading zeros, but validation requires exactly 64 hex characters.
 #[test]
 fn test_extract_mvm_fulfillment_params_address_normalization() {
     // Address without leading zeros: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee (62 chars)
@@ -253,14 +233,9 @@ fn test_extract_mvm_fulfillment_params_address_normalization() {
 // OUTFLOW FULFILLMENT VALIDATION TESTS
 // ============================================================================
 
-/// Test that validate_outflow_fulfillment succeeds when all parameters match
-///
-/// What is tested: Validating an outflow fulfillment transaction where transaction was successful,
-/// intent_id matches, recipient matches requester_addr_connected_chain, amount matches desired_amount,
-/// and solver matches reserved solver.
-///
-/// Why: Verify that the validation function correctly validates all requirements for a successful
-/// outflow fulfillment.
+/// 14. Test: Validate Outflow Fulfillment Success
+/// Verifies that validate_outflow_fulfillment succeeds when the transaction is successful, intent_id matches, recipient matches, amount matches, and solver is registered.
+/// Why: The validation function must correctly accept fulfillments where all parameters satisfy the outflow requirements.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_success() {
     let solver_addr = DUMMY_SOLVER_ADDR_HUB;
@@ -296,12 +271,9 @@ async fn test_validate_outflow_fulfillment_success() {
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when transaction was not successful
-///
-/// What is tested: Validating an outflow fulfillment transaction where the transaction failed
-/// should result in validation failure.
-///
-/// Why: Verify that only successful transactions can fulfill intents.
+/// 16. Test: Validate Outflow Fulfillment Fails On Unsuccessful Tx
+/// Verifies that validate_outflow_fulfillment rejects a fulfillment when the underlying transaction failed.
+/// Why: Only successful transactions can fulfill intents; failed transactions must never be accepted as valid fulfillments.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_unsuccessful_tx() {
     let config = build_test_config_with_mvm();
@@ -330,12 +302,9 @@ async fn test_validate_outflow_fulfillment_fails_on_unsuccessful_tx() {
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when intent_id doesn't match
-///
-/// What is tested: Validating an outflow fulfillment transaction where the transaction's intent_id
-/// doesn't match the intent's intent_id should result in validation failure.
-///
-/// Why: Verify that transactions can only fulfill the specific intent they reference.
+/// 17. Test: Validate Outflow Fulfillment Fails On Intent ID Mismatch
+/// Verifies that validate_outflow_fulfillment rejects a fulfillment when the transaction's intent_id does not match the intent's intent_id.
+/// Why: Transactions must only fulfill the specific intent they reference to prevent cross-intent fulfillment attacks.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_intent_id_mismatch() {
     let config = build_test_config_with_mvm();
@@ -364,12 +333,9 @@ async fn test_validate_outflow_fulfillment_fails_on_intent_id_mismatch() {
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when recipient doesn't match requester_addr_connected_chain
-///
-/// What is tested: Validating an outflow fulfillment transaction where the transaction's recipient
-/// doesn't match the intent's requester_addr_connected_chain should result in validation failure.
-///
-/// Why: Verify that tokens are sent to the correct recipient address on the connected chain.
+/// 18. Test: Validate Outflow Fulfillment Fails On Recipient Mismatch
+/// Verifies that validate_outflow_fulfillment rejects a fulfillment when the transaction's recipient does not match the intent's requester_addr_connected_chain.
+/// Why: Tokens must be sent to the correct recipient address on the connected chain to prevent misdirected transfers.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_recipient_mismatch() {
     let config = build_test_config_with_mvm();
@@ -399,12 +365,9 @@ async fn test_validate_outflow_fulfillment_fails_on_recipient_mismatch() {
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when amount doesn't match desired_amount
-///
-/// What is tested: Validating an outflow fulfillment transaction where the transaction's amount
-/// doesn't match the intent's desired_amount should result in validation failure.
-///
-/// Why: Verify that the correct amount of tokens is transferred.
+/// 19. Test: Validate Outflow Fulfillment Fails On Amount Mismatch
+/// Verifies that validate_outflow_fulfillment rejects a fulfillment when the transaction's amount does not match the intent's desired_amount.
+/// Why: The correct amount of tokens must be transferred to satisfy the intent; partial or excess amounts are invalid.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_amount_mismatch() {
     let config = build_test_config_with_mvm();
@@ -439,12 +402,9 @@ async fn test_validate_outflow_fulfillment_fails_on_amount_mismatch() {
     );
 }
 
-/// Test that validate_outflow_fulfillment fails when reserved solver is not registered in hub registry
-///
-/// What is tested: Validating an outflow fulfillment transaction where the reserved solver
-/// is not registered in the hub chain solver registry should result in validation failure.
-///
-/// Why: Verify that only registered solvers can fulfill intents.
+/// 20. Test: Validate Outflow Fulfillment Fails On Solver Not Registered
+/// Verifies that validate_outflow_fulfillment rejects a fulfillment when the reserved solver is not registered in the hub chain solver registry.
+/// Why: Only registered solvers can fulfill intents; unregistered solvers must be rejected to maintain system integrity.
 #[tokio::test]
 async fn test_validate_outflow_fulfillment_fails_on_solver_not_registered() {
     let unregistered_solver = DUMMY_SOLVER_ADDR_HUB;

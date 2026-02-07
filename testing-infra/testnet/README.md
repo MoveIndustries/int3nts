@@ -83,7 +83,7 @@ cd frontend && npm install --legacy-peer-deps && npm run dev
 
 Create `frontend/.env.local` with testnet values:
 
-```
+```bash
 NEXT_PUBLIC_COORDINATOR_URL=http://localhost:3333
 NEXT_PUBLIC_TRUSTED_GMP_URL=http://localhost:3334
 ```
@@ -121,5 +121,3 @@ All scripts read from:
 - `trusted-gmp/config/trusted-gmp_testnet.toml` - Trusted GMP service config (gitignored)
 - `solver/config/solver_testnet.toml` - Solver service config (gitignored)
 - `config/testnet-assets.toml` - Public asset addresses and decimals
-
-See `.taskmaster/tasks/TESTNET_DEPLOYMENT_PLAN.md` for detailed deployment instructions.

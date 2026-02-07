@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Inflow SVM-specific monitoring functions
 //!
 //! This module contains Solana-specific escrow polling logic

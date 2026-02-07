@@ -2,7 +2,16 @@
 
 # E2E Integration Test Runner - OUTFLOW (SVM)
 
-set -e
+set -eo pipefail
+
+# Parse flags
+SKIP_BUILD=false
+for arg in "$@"; do
+    case "$arg" in
+        --no-build) SKIP_BUILD=true ;;
+    esac
+done
+export SKIP_BUILD
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
@@ -23,27 +32,56 @@ log_and_echo "=========================================================="
 ./testing-infra/ci-e2e/chain-hub/stop-chain.sh || true
 
 log_and_echo ""
-log_and_echo " Step 1: Build bins and pre-pull docker images"
-log_and_echo "========================================"
-pushd "$PROJECT_ROOT/coordinator" > /dev/null
-cargo build --bin coordinator 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ Coordinator: coordinator"
+if [ "$SKIP_BUILD" = "true" ]; then
+    log_and_echo " Step 1: Build if missing (--no-build)"
+    log_and_echo "========================================"
+    # SVM on-chain programs (docker build)
+    if [ ! -f "$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_inflow_escrow.so" ] || \
+       [ ! -f "$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_gmp.so" ] || \
+       [ ! -f "$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_outflow_validator.so" ]; then
+        pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
+        ./scripts/build-with-docker.sh 2>&1 | tail -5
+        popd > /dev/null
+        log_and_echo "   ✅ SVM: on-chain programs (built)"
+    else
+        log_and_echo "   ✅ SVM: on-chain programs (exists)"
+    fi
+    build_common_bins_if_missing
+    build_if_missing "$PROJECT_ROOT/intent-frameworks/svm" "cargo build -p intent_escrow_cli" \
+        "SVM: intent_escrow_cli" \
+        "$PROJECT_ROOT/intent-frameworks/svm/target/debug/intent_escrow_cli"
+else
+    log_and_echo " Step 1: Build bins and pre-pull docker images"
+    log_and_echo "========================================"
+    # Delete existing binaries to ensure fresh build
+    rm -f "$PROJECT_ROOT/target/debug/trusted-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
+    rm -f "$PROJECT_ROOT/target/release/trusted-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
 
-pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
-cargo build --bin trusted-gmp --bin generate_keys 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys"
+    pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
+    ./scripts/build-with-docker.sh 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ SVM: on-chain programs (intent_inflow_escrow, intent_gmp, intent_outflow_validator)"
 
-pushd "$PROJECT_ROOT/solver" > /dev/null
-cargo build --bin solver 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ Solver: solver"
+    pushd "$PROJECT_ROOT/coordinator" > /dev/null
+    cargo build --bin coordinator 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ Coordinator: coordinator"
 
-pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
-cargo build -p intent_escrow_cli 2>&1 | tail -5
-popd > /dev/null
-log_and_echo "   ✅ SVM: intent_escrow_cli"
+    pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
+    cargo build --bin trusted-gmp --bin generate_keys 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys"
+
+    pushd "$PROJECT_ROOT/solver" > /dev/null
+    cargo build --bin solver 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ Solver: solver"
+
+    pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
+    cargo build -p intent_escrow_cli 2>&1 | tail -5
+    popd > /dev/null
+    log_and_echo "   ✅ SVM: intent_escrow_cli"
+fi
 
 log_and_echo ""
 docker pull "$APTOS_DOCKER_IMAGE"
@@ -55,12 +93,12 @@ log_and_echo ""
 
 log_and_echo " Step 3: Setting up chains and deploying contracts..."
 log_and_echo "======================================================"
-./testing-infra/ci-e2e/chain-connected-svm/setup-chain.sh
-./testing-infra/ci-e2e/chain-connected-svm/setup-requester-solver.sh
-./testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh
 ./testing-infra/ci-e2e/chain-hub/setup-chain.sh
 ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
+./testing-infra/ci-e2e/chain-connected-svm/setup-chain.sh
+./testing-infra/ci-e2e/chain-connected-svm/setup-requester-solver.sh
 ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
+./testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh
 
 log_and_echo ""
 log_and_echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
@@ -74,6 +112,7 @@ log_and_echo "======================================="
 ./testing-infra/ci-e2e/e2e-tests-svm/start-solver.sh
 
 ./testing-infra/ci-e2e/verify-solver-running.sh
+./testing-infra/ci-e2e/verify-trusted-gmp-running.sh
 
 log_and_echo ""
 log_and_echo " Step 5: Testing OUTFLOW intents (hub chain → connected SVM chain)..."
@@ -95,7 +134,7 @@ log_and_echo ""
 log_and_echo " Step 5b: Waiting for solver to automatically fulfill..."
 log_and_echo "==========================================================="
 
-if ! wait_for_solver_fulfillment "$INTENT_ID" "outflow" 60; then
+if ! wait_for_solver_fulfillment "$INTENT_ID" "outflow" 40; then
     log_and_echo "❌ ERROR: Solver did not fulfill the intent automatically"
     display_service_logs "Solver fulfillment timeout"
     exit 1

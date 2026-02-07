@@ -1,4 +1,4 @@
-# Phase 5: Integration & Documentation (2-3 days)
+# Phase 5: Integration & Documentation (1-2 days)
 
 **Status:** Not Started
 **Depends On:** Phase 4
@@ -14,9 +14,9 @@
 
 **Files:**
 
-- `frontend/src/config/gmp.ts`
-- `frontend/src/components/IntentStatus.tsx`
-- `frontend/src/tests/gmp.test.ts`
+- `frontend/src/lib/coordinator.ts` (existing)
+- `frontend/src/lib/types.ts` (existing)
+- `frontend/src/config/chains.ts` (existing)
 
 **Tasks:**
 
@@ -32,7 +32,7 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -40,15 +40,16 @@
 
 **Files:**
 
-- `solver/src/gmp.rs`
-- `solver/src/tests/gmp_tests.rs`
+- `solver/src/coordinator_gmp_client.rs` (existing)
+- `solver/src/service/outflow.rs` (existing - GMP flow already implemented)
+- `solver/src/service/inflow.rs` (existing - GMP flow already implemented)
 
 **Tasks:**
 
-- [ ] Use validation contract for outflow intents
-- [ ] Handle escrow creation for inflow intents
-- [ ] Integrate with coordinator API for intent discovery
-- [ ] Test fulfillment flows work correctly
+- [ ] **Note:** GMP flow already implemented in Phase 2 (solver calls validation contracts)
+- [ ] Add any remaining GMP status tracking
+- [ ] Integrate with coordinator API for GMP message status
+- [ ] Test fulfillment flows work correctly with GMP
 
 **Test:**
 
@@ -57,11 +58,39 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 3: Add full cross-chain testnet integration test
+### Commit 3: Update deployment scripts for GMP (moved from Phase 2)
+
+**Files:**
+
+- `intent-frameworks/svm/scripts/` (update existing deployment scripts)
+- `intent-frameworks/mvm/scripts/` (update existing deployment scripts)
+
+**Tasks:**
+
+- [ ] Update SVM deployment scripts to include GMP programs (intent-outflow-validator, intent-escrow with GMP config)
+- [ ] Update MVM deployment scripts to include GMP modules
+- [ ] Add trusted remote configuration to deployment scripts
+- [ ] Deploy updated contracts/modules to testnets
+- [ ] Verify cross-chain flow works on testnets (with native GMP relay)
+
+**Test:**
+
+```bash
+./testing-infra/run-all-unit-tests.sh
+
+# Verify deployments
+solana program show <INTENT_OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
+```
+
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+
+---
+
+### Commit 4: Add full cross-chain testnet integration test
 
 **Files:**
 
@@ -82,11 +111,36 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 4: Add GMP integration documentation
+### Commit 5: Add fee estimation and endpoint configuration
+
+**Files:**
+
+- `docs/architecture/plan/gmp-endpoints.md`
+- `docs/architecture/plan/gmp-fee-analysis.md`
+
+**Tasks:**
+
+- [ ] Document all GMP endpoint addresses (LZ for Solana and Movement, local for testing)
+- [ ] Document environment configuration (local/CI uses native GMP endpoints, testnet/mainnet use LZ)
+- [ ] Estimate LZ message fees for each route
+- [ ] Estimate on-chain validation gas costs
+- [ ] Compare costs to current Trusted GMP system
+
+**Test:**
+
+```bash
+# Documentation review - manual
+```
+
+> ⚠️ **Documentation review before proceeding to Commit 6.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+
+---
+
+### Commit 6: Add GMP integration documentation
 
 **Files:**
 
@@ -110,11 +164,11 @@
 # Documentation review - manual
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 5: Final cleanup and verification
+### Commit 7: Final cleanup and verification
 
 **Files:**
 
@@ -142,7 +196,7 @@ test ! -d verifier && echo "OK: coordinator + trusted-gmp only"
 grep -r "private_key\|secret_key\|signing_key" coordinator/ && exit 1 || echo "OK: coordinator has no keys"
 ```
 
-> ⚠️ **CI e2e tests must pass before Phase 5 is complete.**
+> ⚠️ **CI e2e tests must pass before Phase 5 is complete (7 commits total).** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -173,10 +227,12 @@ At the end of Phase 5, update:
 
 ## Exit Criteria
 
-- [ ] All 5 commits merged to feature branch
+- [ ] All 7 commits merged to feature branch
 - [ ] Frontend shows GMP status correctly
 - [ ] Solver uses validation contracts (GMP flow only)
+- [ ] Programs/modules deployed to testnets (Commit 3)
 - [ ] Full cross-chain testnet integration passes
 - [ ] Documentation complete
+- [ ] Fee analysis complete (deferred from Phase 1)
 - [ ] Architecture confirmed: coordinator + trusted-gmp only (no monolithic signer)
 - [ ] All conception documents reviewed and updated

@@ -8,8 +8,9 @@ use trusted_gmp::crypto::CryptoService;
 mod test_helpers;
 use test_helpers::{build_test_config_with_mvm, DUMMY_INTENT_ID};
 
-/// Test that ECDSA signature creation succeeds for EVM escrow release
-/// Why: ECDSA signatures are required for EVM chain compatibility - must work correctly
+/// 10. Test: EVM Approval Signature Creation
+/// Verifies that ECDSA signature creation succeeds for EVM escrow release.
+/// Why: ECDSA signatures are required for EVM chain compatibility and must produce non-empty output.
 #[test]
 fn test_create_evm_approval_signature_success() {
     let config = build_test_config_with_mvm();
@@ -23,8 +24,9 @@ fn test_create_evm_approval_signature_success() {
     assert!(!signature.is_empty(), "Signature should not be empty");
 }
 
-/// Test that ECDSA signature format is exactly 65 bytes (r || s || v)
-/// Why: EVM requires 65-byte signatures (32 r + 32 s + 1 v) for ecrecover
+/// 11. Test: EVM Signature 65-Byte Format
+/// Verifies that the ECDSA signature is exactly 65 bytes (32 r + 32 s + 1 v) with a valid recovery ID.
+/// Why: EVM ecrecover requires precisely 65-byte signatures to recover the signer address.
 #[test]
 fn test_create_evm_approval_signature_format_65_bytes() {
     let config = build_test_config_with_mvm();
@@ -46,8 +48,9 @@ fn test_create_evm_approval_signature_format_65_bytes() {
     );
 }
 
-/// Test that ECDSA signature can be verified (on-chain compatible)
-/// Why: Signatures must be verifiable on EVM chains using ecrecover
+/// 12. Test: EVM Signature Verification
+/// Verifies that the ECDSA signature has valid, non-zero r and s components and a correct recovery ID.
+/// Why: Signatures must be verifiable on EVM chains using ecrecover to authorize escrow release.
 #[test]
 fn test_create_evm_approval_signature_verification() {
     let config = build_test_config_with_mvm();
@@ -74,8 +77,9 @@ fn test_create_evm_approval_signature_verification() {
     assert!(!s.iter().all(|&b| b == 0), "s must not be zero");
 }
 
-/// Test that Ethereum address derivation works correctly
-/// Why: Ethereum address is needed for EVM contract interactions - must be derived correctly
+/// 13. Test: Ethereum Address Derivation
+/// Verifies that the derived Ethereum address is a 42-character hex string with 0x prefix and is deterministic.
+/// Why: A correctly derived Ethereum address is needed for EVM contract interactions and on-chain identity.
 #[test]
 fn test_get_ethereum_address_derivation() {
     let config = build_test_config_with_mvm();
@@ -96,8 +100,9 @@ fn test_get_ethereum_address_derivation() {
     assert_eq!(address, address2, "Address should be consistent");
 }
 
-/// Test that recovery ID (v) is calculated correctly (27 or 28)
-/// Why: Recovery ID determines which public key can recover from signature - must be correct
+/// 14. Test: Recovery ID Calculation
+/// Verifies that the recovery ID (v) is always 27 or 28 across multiple signature invocations.
+/// Why: The recovery ID determines which public key ecrecover derives, so it must always be valid.
 #[test]
 fn test_evm_signature_recovery_id_calculation() {
     let config = build_test_config_with_mvm();
@@ -117,8 +122,9 @@ fn test_evm_signature_recovery_id_calculation() {
     }
 }
 
-/// Test that keccak256 hashing is used in message preparation
-/// Why: EVM uses keccak256 for message hashing - must match on-chain behavior
+/// 15. Test: Keccak256 Deterministic Hashing
+/// Verifies that signing the same intent ID twice produces identical signatures due to deterministic keccak256 hashing.
+/// Why: EVM uses keccak256 for message hashing and signatures must be reproducible to match on-chain behavior.
 #[test]
 fn test_evm_signature_keccak256_hashing() {
     let config = build_test_config_with_mvm();
@@ -136,8 +142,9 @@ fn test_evm_signature_keccak256_hashing() {
     assert_eq!(signature1, signature2, "Signatures should be deterministic");
 }
 
-/// Test that Ethereum signed message prefix is applied correctly
-/// Why: Ethereum requires "\x19Ethereum Signed Message:\n32" prefix for ecrecover compatibility
+/// 16. Test: Ethereum Message Prefix
+/// Verifies that the signature has valid 65-byte format indicating the Ethereum signed message prefix was applied.
+/// Why: Ethereum requires the "\x19Ethereum Signed Message:\n32" prefix for ecrecover compatibility.
 #[test]
 fn test_evm_signature_ethereum_message_prefix() {
     let config = build_test_config_with_mvm();
@@ -157,8 +164,9 @@ fn test_evm_signature_ethereum_message_prefix() {
     // (we can't directly verify the prefix without reimplementing the hash, but we verify the result is valid)
 }
 
-/// Test that intent ID padding to 32 bytes works correctly
-/// Why: Intent IDs must be padded to 32 bytes for EVM abi.encodePacked compatibility
+/// 17. Test: Intent ID Padding
+/// Verifies that short, full, and unprefixed intent IDs all produce valid 65-byte signatures after padding.
+/// Why: Intent IDs must be padded to 32 bytes for EVM abi.encodePacked compatibility.
 #[test]
 fn test_evm_intent_id_padding() {
     let config = build_test_config_with_mvm();
@@ -199,8 +207,9 @@ fn test_evm_intent_id_padding() {
     );
 }
 
-/// Test error handling for invalid intent IDs
-/// Why: Invalid intent IDs should be rejected with clear error messages
+/// 18. Test: Invalid Intent ID Rejection
+/// Verifies that intent IDs longer than 32 bytes and invalid hex strings are rejected with errors.
+/// Why: Invalid intent IDs must be rejected early with clear errors to prevent malformed on-chain transactions.
 #[test]
 fn test_evm_signature_invalid_intent_id() {
     let config = build_test_config_with_mvm();

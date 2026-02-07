@@ -104,43 +104,44 @@ get_hardhat_account_address() {
     echo "$address"
 }
 
-# Extract escrow contract address from deployment output or log files
+# Extract escrow contract address from chain-info.env, deployment output, or log files
 # Usage: extract_escrow_contract_address [deploy_output] [log_file_pattern]
 # Example: extract_escrow_contract_address "$DEPLOY_OUTPUT"
 #          extract_escrow_contract_address "" "deploy-contract*.log"
-# Extracts the IntentEscrow contract address from:
-#   1. Deployment output (if provided)
-#   2. Log files matching pattern (if provided)
-#   3. Falls back to searching log files in .tmp/e2e-tests/
+# Extracts the IntentInflowEscrow contract address from:
+#   1. chain-info.env (ESCROW_GMP_ADDR)
+#   2. Deployment output (if provided)
+#   3. Log files matching pattern (if provided)
 # Returns the escrow contract address or exits with error if not found
 extract_escrow_contract_address() {
     local deploy_output="$1"
     local log_file_pattern="${2:-deploy-contract*.log}"
-    
+
     if [ -z "$PROJECT_ROOT" ]; then
         setup_project_root
     fi
-    
+
     local contract_addr=""
-    
-    # First, try to extract from deployment output if provided
-    if [ -n "$deploy_output" ]; then
-        contract_addr=$(echo "$deploy_output" | grep -i "IntentEscrow deployed to" | awk '{print $NF}' | tr -d '\n')
-        
-        if [ -z "$contract_addr" ]; then
-            # Try alternative pattern (any 0x followed by 40 hex chars)
-            contract_addr=$(echo "$deploy_output" | grep -oE "0x[a-fA-F0-9]{40}" | head -1)
-        fi
+
+    # First, try to get from chain-info.env (set by deploy-contract.sh)
+    local chain_info_file="$PROJECT_ROOT/.tmp/chain-info.env"
+    if [ -f "$chain_info_file" ]; then
+        contract_addr=$(grep "^ESCROW_GMP_ADDR=" "$chain_info_file" 2>/dev/null | cut -d'=' -f2 | tr -d '\n')
     fi
-    
+
+    # If not found in chain-info.env, try to extract from deployment output
+    if [ -z "$contract_addr" ] && [ -n "$deploy_output" ]; then
+        contract_addr=$(echo "$deploy_output" | grep "IntentInflowEscrow:" | awk '{print $NF}' | tr -d '\n')
+    fi
+
     # If not found in output, try log files
     if [ -z "$contract_addr" ]; then
         local log_dir="$PROJECT_ROOT/.tmp/e2e-tests"
         if [ -d "$log_dir" ]; then
-            contract_addr=$(grep -i "IntentEscrow deployed to" "$log_dir"/$log_file_pattern 2>/dev/null | tail -1 | awk '{print $NF}' | tr -d '\n')
+            contract_addr=$(grep "IntentInflowEscrow:" "$log_dir"/$log_file_pattern 2>/dev/null | tail -1 | awk '{print $NF}' | tr -d '\n')
         fi
     fi
-    
+
     if [ -z "$contract_addr" ]; then
         log_and_echo "❌ ERROR: Could not extract escrow contract address"
         if [ -n "$deploy_output" ]; then
@@ -149,7 +150,7 @@ extract_escrow_contract_address() {
         fi
         exit 1
     fi
-    
+
     echo "$contract_addr"
 }
 

@@ -4,7 +4,7 @@ Escrow program for cross-chain intents on Solana that releases funds to solvers 
 
 ## Overview
 
-The `IntentEscrow` program implements a secure escrow system:
+The `IntentInflowEscrow` program implements a secure escrow system:
 
 - Requesters deposit SPL tokens into escrows tied to intent IDs
 - Solvers can claim funds after providing a valid trusted-gmp signature

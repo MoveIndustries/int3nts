@@ -41,6 +41,7 @@ name = "Connected SVM Chain"
 rpc_url = "http://127.0.0.1:8899"
 escrow_program_id = "$SVM_PROGRAM_ID"
 chain_id = 4
+gmp_endpoint_program_id = "$SVM_GMP_ENDPOINT_ID"
 EOF
 
 awk -v svm_section="$(cat $TEMP_FILE)" '
@@ -54,4 +55,6 @@ rm -f "$TEMP_FILE"
 export TRUSTED_GMP_CONFIG_PATH="$TRUSTED_GMP_E2E_CI_TESTING_CONFIG"
 
 log_and_echo "   Added Connected SVM Chain section to trusted-gmp config"
+log_and_echo "   Escrow program ID: $SVM_PROGRAM_ID"
+log_and_echo "   GMP endpoint program ID: $SVM_GMP_ENDPOINT_ID"
 log_and_echo ""

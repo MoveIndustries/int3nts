@@ -26,9 +26,9 @@ fn is_safe_for_escrow(event: &IntentEvent) -> bool {
 // INTENT ID NORMALIZATION TESTS
 // ============================================================================
 
-/// Test that normalize_intent_id handles leading zeros correctly
-/// What is tested: Intent IDs with leading zeros are normalized to match those without
-/// Why: EVM and Move VM may format the same intent_id differently (with/without leading zeros)
+/// 1. Test: Normalize Intent ID Leading Zeros
+/// Verifies that intent IDs with leading zeros are normalized to match those without.
+/// Why: EVM and Move VM may format the same intent_id differently (with/without leading zeros).
 #[test]
 fn test_normalize_intent_id_leading_zeros() {
     use trusted_gmp::monitor::normalize_intent_id;
@@ -50,9 +50,9 @@ fn test_normalize_intent_id_leading_zeros() {
     );
 }
 
-/// Test that normalize_intent_id handles all-zero intent IDs
-/// What is tested: Intent ID with all zeros is normalized correctly
-/// Why: Edge case that should be handled gracefully
+/// 2. Test: Normalize Intent ID All Zeros
+/// Verifies that intent IDs with all zeros are normalized correctly.
+/// Why: Edge case that should be handled gracefully.
 #[test]
 fn test_normalize_intent_id_all_zeros() {
     use trusted_gmp::monitor::normalize_intent_id;
@@ -61,9 +61,9 @@ fn test_normalize_intent_id_all_zeros() {
     assert_eq!(normalize_intent_id("0x0"), "0x0");
 }
 
-/// Test that normalize_intent_id handles case differences
-/// What is tested: Uppercase hex characters are normalized to lowercase
-/// Why: Ensures consistent comparison regardless of input case
+/// 3. Test: Normalize Intent ID Case
+/// Verifies that uppercase hex characters are normalized to lowercase.
+/// Why: Ensures consistent comparison regardless of input case.
 #[test]
 fn test_normalize_intent_id_case() {
     use trusted_gmp::monitor::normalize_intent_id;
@@ -76,8 +76,9 @@ fn test_normalize_intent_id_case() {
 // TESTS
 // ============================================================================
 
-/// Test that revocable intents are rejected (error thrown)
-/// Why: Verify critical security check - revocable intents must be rejected for escrow
+/// 4. Test: Revocable Intent Rejection
+/// Verifies that revocable intents are rejected and non-revocable intents are accepted for escrow.
+/// Why: Critical security check - revocable intents must be rejected to prevent unsafe escrows.
 #[test]
 fn test_revocable_intent_rejection() {
     let revocable_intent = IntentEvent {
@@ -99,8 +100,9 @@ fn test_revocable_intent_rejection() {
     assert!(result, "Non-revocable intents should be safe for escrow");
 }
 
-/// Test that approval is generated when fulfillment and escrow are both present
-/// Why: Verify the core approval flow works when all required data is cached
+/// 5. Test: Generates Approval When Fulfillment and Escrow Present
+/// Verifies that an approval with a valid signature is generated when both fulfillment and escrow are cached.
+/// Why: Core approval flow must work correctly when all required data is present.
 #[tokio::test]
 async fn test_generates_approval_when_fulfillment_and_escrow_present() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -162,8 +164,9 @@ async fn test_generates_approval_when_fulfillment_and_escrow_present() {
     );
 }
 
-/// Test that error is returned when no matching escrow exists
-/// Why: Verify approval generation correctly fails when escrow is not in cache
+/// 6. Test: Returns Error When No Matching Escrow
+/// Verifies that approval generation returns an error when no matching escrow exists in the cache.
+/// Why: Approval generation must correctly fail when the required escrow is missing.
 #[tokio::test]
 async fn test_returns_error_when_no_matching_escrow() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -191,14 +194,9 @@ async fn test_returns_error_when_no_matching_escrow() {
     );
 }
 
-/// Test that multiple concurrent intents are handled correctly
-/// Why: Verify the trusted-gmp can handle multiple intents/escrows/fulfillments happening simultaneously
-///
-/// Note: This test is in monitor_tests.rs (not cross_chain_tests.rs) because it primarily tests
-/// EventMonitor's concurrent handling capabilities - specifically that the monitor can process
-/// multiple fulfillments simultaneously without race conditions, correctly match each fulfillment
-/// to its escrow, and generate independent approvals. While it involves cross-chain scenarios,
-/// the focus is on the monitor's concurrency safety rather than cross-chain matching logic.
+/// 7. Test: Multiple Concurrent Intents
+/// Verifies that the monitor can process multiple fulfillments simultaneously without race conditions, correctly matching each to its escrow and generating independent approvals.
+/// Why: The trusted-gmp must handle multiple intents/escrows/fulfillments happening concurrently with correct isolation.
 #[tokio::test]
 async fn test_multiple_concurrent_intents() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -341,8 +339,9 @@ async fn test_multiple_concurrent_intents() {
     assert_ne!(sig1, sig3, "Signatures should be unique per intent");
 }
 
-/// Test that monitor's validate_intent_fulfillment rejects escrows when matching intent has expired
-/// Why: Verify that expired intents are rejected when validating escrow fulfillment
+/// 8. Test: Expiry Check Failure in Validate Intent Fulfillment
+/// Verifies that validation rejects escrows when the matching intent has expired.
+/// Why: Expired intents must be rejected to prevent fulfillment of stale intents.
 #[tokio::test]
 async fn test_expiry_check_failure_in_monitor_validate_intent_fulfillment() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -405,8 +404,9 @@ async fn test_expiry_check_failure_in_monitor_validate_intent_fulfillment() {
     );
 }
 
-/// Test that monitor's validate_intent_fulfillment passes expiry check for non-expired intents
-/// Why: Verify that non-expired intents pass the expiry validation
+/// 9. Test: Expiry Check Success in Validate Intent Fulfillment
+/// Verifies that validation passes for non-expired intents when all other checks also pass.
+/// Why: Non-expired intents with valid data must be accepted for fulfillment.
 #[tokio::test]
 async fn test_expiry_check_success_in_monitor_validate_intent_fulfillment() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -464,8 +464,9 @@ async fn test_expiry_check_success_in_monitor_validate_intent_fulfillment() {
     );
 }
 
-/// Test that duplicate escrow events are rejected (not added to cache)
-/// Why: Verify that the monitor correctly detects and rejects duplicate escrow events
+/// 10. Test: Duplicate Escrow Event Rejection
+/// Verifies that duplicate escrow events are detected and not added to the cache.
+/// Why: The monitor must prevent duplicate escrows to avoid double-processing.
 #[tokio::test]
 async fn test_duplicate_escrow_event_rejection() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -514,8 +515,9 @@ async fn test_duplicate_escrow_event_rejection() {
     assert_eq!(escrow_cache[0].escrow_id, escrow.escrow_id);
 }
 
-/// Test that duplicate intent events are rejected (not added to cache)
-/// Why: Verify that the monitor correctly detects and rejects duplicate intent events
+/// 11. Test: Duplicate Intent Event Rejection
+/// Verifies that duplicate intent events are detected and not added to the cache.
+/// Why: The monitor must prevent duplicate intents to avoid double-processing.
 #[tokio::test]
 async fn test_duplicate_intent_event_rejection() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -566,8 +568,9 @@ async fn test_duplicate_intent_event_rejection() {
     assert_eq!(cache[0].intent_id, intent.intent_id);
 }
 
-/// Test that duplicate fulfillment events are handled correctly (not processed twice)
-/// Why: Verify that the monitor correctly detects and skips duplicate fulfillment events
+/// 12. Test: Duplicate Fulfillment Event Handling
+/// Verifies that duplicate fulfillment events are detected, not re-added to the cache, and do not regenerate approvals.
+/// Why: The monitor must prevent duplicate fulfillments to avoid redundant approval generation.
 #[tokio::test]
 async fn test_duplicate_fulfillment_event_handling() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -667,8 +670,9 @@ async fn test_duplicate_fulfillment_event_handling() {
     );
 }
 
-/// Test that default helper structs work with signature generation
-/// Why: Verify that default helpers use valid hex values that can be used for signature generation
+/// 13. Test: Base Helpers Work With Signature Generation
+/// Verifies that default test helper structs use valid hex values compatible with signature generation.
+/// Why: Test helpers must produce valid data so other tests relying on them are not silently broken.
 #[tokio::test]
 async fn test_base_helpers_work_with_signature_generation() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -721,9 +725,9 @@ async fn test_base_helpers_work_with_signature_generation() {
     );
 }
 
-/// Test that fulfillment events with odd-length intent_ids are normalized correctly
-/// Why: Move VM events can emit intent_ids with odd number of hex characters (e.g., 63 chars),
-/// which must be normalized to 64 chars before signature creation to avoid hex parsing errors
+/// 14. Test: Fulfillment With Odd-Length Intent ID
+/// Verifies that fulfillment events with odd-length intent IDs are normalized before signature creation.
+/// Why: Move VM events can emit intent_ids with odd hex character counts that must be normalized to avoid hex parsing errors.
 #[tokio::test]
 async fn test_fulfillment_with_odd_length_intent_id() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -792,8 +796,9 @@ async fn test_fulfillment_with_odd_length_intent_id() {
     );
 }
 
-/// Test that approval generation fails when fulfillment intent_id doesn't match escrow intent_id
-/// Why: Verify that mismatched intent_ids are rejected - fulfillment must match an existing escrow
+/// 15. Test: Approval Fails When Intent ID Mismatch
+/// Verifies that approval generation fails when the fulfillment intent_id does not match any escrow intent_id.
+/// Why: Mismatched intent_ids must be rejected to ensure fulfillments only approve their corresponding escrows.
 #[tokio::test]
 async fn test_approval_fails_when_intent_id_mismatch() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -841,8 +846,9 @@ async fn test_approval_fails_when_intent_id_mismatch() {
     );
 }
 
-/// Test that approval generation fails when no escrow exists in cache
-/// Why: Verify that fulfillments cannot be approved when there's no matching escrow in the cache
+/// 16. Test: Approval Fails When No Escrow Exists
+/// Verifies that approval generation fails when the escrow cache is empty.
+/// Why: Fulfillments must not be approved when there is no escrow in the cache to match against.
 #[tokio::test]
 async fn test_approval_fails_when_no_escrow_exists() {
     let _ = tracing_subscriber::fmt::try_init();

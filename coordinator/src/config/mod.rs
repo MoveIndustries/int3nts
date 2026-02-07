@@ -71,8 +71,15 @@ pub struct EvmChainConfig {
     pub rpc_url: String,
     /// Address of the IntentEscrow contract (single contract, one escrow per intentId)
     pub escrow_contract_addr: String,
+    /// Address of the IntentOutflowValidator contract (for requirements received events)
+    #[serde(default = "default_outflow_validator_addr")]
+    pub outflow_validator_contract_addr: String,
     /// Chain ID (e.g., 31337 for Hardhat, 1 for Ethereum mainnet)
     pub chain_id: u64,
+}
+
+fn default_outflow_validator_addr() -> String {
+    "0x0000000000000000000000000000000000000000".to_string()
 }
 
 /// Configuration for a Solana chain (SVM).

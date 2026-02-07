@@ -9,7 +9,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use borsh::{BorshDeserialize, BorshSerialize};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use solana_program::pubkey::Pubkey;
+use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -32,6 +32,7 @@ pub struct EscrowAccount {
 
 #[derive(Debug, Clone)]
 pub struct EscrowWithPubkey {
+    #[allow(dead_code)]
     pub pubkey: Pubkey,
     pub escrow: EscrowAccount,
 }
@@ -61,7 +62,9 @@ struct JsonRpcError {
 
 #[derive(Debug, Deserialize)]
 struct ProgramAccountResult {
+    #[allow(dead_code)]
     pubkey: String,
+    #[allow(dead_code)]
     account: RpcAccount,
 }
 
@@ -74,6 +77,48 @@ struct RpcAccount {
 #[allow(dead_code)]
 struct AccountInfoResult {
     value: Option<RpcAccount>,
+}
+
+/// Signature info from getSignaturesForAddress
+#[derive(Debug, Deserialize, Clone)]
+#[allow(dead_code)]
+pub struct SignatureInfo {
+    pub signature: String,
+    pub slot: u64,
+    #[serde(rename = "blockTime")]
+    pub block_time: Option<i64>,
+    pub err: Option<serde_json::Value>,
+}
+
+/// Transaction response from getTransaction
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct TransactionResponse {
+    pub slot: u64,
+    pub meta: Option<TransactionMeta>,
+    pub transaction: TransactionData,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct TransactionMeta {
+    pub err: Option<serde_json::Value>,
+    #[serde(rename = "logMessages")]
+    pub log_messages: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct TransactionData {
+    pub message: TransactionMessage,
+    pub signatures: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct TransactionMessage {
+    #[serde(rename = "accountKeys")]
+    pub account_keys: Vec<String>,
 }
 
 // ============================================================================
@@ -121,6 +166,7 @@ impl SvmClient {
         Ok(result.map(|account| account.escrow))
     }
 
+    #[allow(dead_code)]
     pub async fn get_all_escrows(&self) -> Result<Vec<EscrowWithPubkey>> {
         let params = serde_json::json!([
             self.program_id.to_string(),
@@ -161,6 +207,83 @@ impl SvmClient {
         }
 
         Ok(escrows)
+    }
+
+    /// Get recent signatures for an address (e.g., the GMP program).
+    /// Returns signatures in reverse chronological order (newest first).
+    pub async fn get_signatures_for_address(
+        &self,
+        address: &Pubkey,
+        limit: Option<usize>,
+        before: Option<&str>,
+    ) -> Result<Vec<SignatureInfo>> {
+        let mut config = serde_json::json!({
+            "limit": limit.unwrap_or(100)
+        });
+        if let Some(before_sig) = before {
+            config["before"] = serde_json::json!(before_sig);
+        }
+
+        let params = serde_json::json!([address.to_string(), config]);
+
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "getSignaturesForAddress".to_string(),
+            params,
+            id: 1,
+        };
+
+        let response: JsonRpcResponse<Vec<SignatureInfo>> = self
+            .client
+            .post(&self.rpc_url)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to call getSignaturesForAddress")?
+            .json()
+            .await
+            .context("Failed to parse getSignaturesForAddress response")?;
+
+        if let Some(error) = response.error {
+            return Err(anyhow::anyhow!("SVM RPC error: {}", error.message));
+        }
+
+        Ok(response.result.unwrap_or_default())
+    }
+
+    /// Get transaction details including logs.
+    pub async fn get_transaction(&self, signature: &str) -> Result<Option<TransactionResponse>> {
+        let params = serde_json::json!([
+            signature,
+            {
+                "encoding": "json",
+                "maxSupportedTransactionVersion": 0
+            }
+        ]);
+
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "getTransaction".to_string(),
+            params,
+            id: 1,
+        };
+
+        let response: JsonRpcResponse<TransactionResponse> = self
+            .client
+            .post(&self.rpc_url)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to call getTransaction")?
+            .json()
+            .await
+            .context("Failed to parse getTransaction response")?;
+
+        if let Some(error) = response.error {
+            return Err(anyhow::anyhow!("SVM RPC error: {}", error.message));
+        }
+
+        Ok(response.result)
     }
 
     #[allow(dead_code)]
@@ -210,6 +333,7 @@ impl SvmClient {
     }
 }
 
+#[allow(dead_code)]
 pub fn pubkey_to_hex(pubkey: &Pubkey) -> String {
     format!("0x{}", hex::encode(pubkey.to_bytes()))
 }

@@ -28,11 +28,15 @@ stop_coordinator
 stop_trusted_gmp
 stop_solver
 
-# Delete target folders to ensure fresh binaries are built
-log_and_echo "   Deleting target folders for fresh builds..."
-rm -rf "$PROJECT_ROOT/coordinator/target"
-rm -rf "$PROJECT_ROOT/trusted-gmp/target"
-rm -rf "$PROJECT_ROOT/solver/target"
+# Delete target folders to ensure fresh binaries are built (skip with --no-build)
+if [ "$SKIP_BUILD" = "true" ]; then
+    log_and_echo "   Keeping target folders (--no-build)"
+else
+    log_and_echo "   Deleting target folders for fresh builds..."
+    rm -rf "$PROJECT_ROOT/coordinator/target"
+    rm -rf "$PROJECT_ROOT/trusted-gmp/target"
+    rm -rf "$PROJECT_ROOT/solver/target"
+fi
 
 # Clean up ephemeral test config to leave clean state
 rm -f "$PROJECT_ROOT/testing-infra/ci-e2e/.trusted-gmp-keys.env"

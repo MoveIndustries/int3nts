@@ -30,9 +30,9 @@ async fn create_test_api_server() -> ApiServer {
 // HEALTH ENDPOINT TESTS
 // ============================================================================
 
-/// Test that health endpoint returns success
-/// What is tested: Basic health check endpoint
-/// Why: Ensures service is running and responsive
+/// 1. Test: Health Endpoint Returns Success
+/// Verifies that the health check endpoint returns OK with success response.
+/// Why: Ensures the service is running and responsive to basic health probes.
 #[tokio::test]
 async fn test_health_endpoint() {
     let api_server = create_test_api_server().await;
@@ -54,9 +54,9 @@ async fn test_health_endpoint() {
 // EVENTS ENDPOINT TESTS
 // ============================================================================
 
-/// Test that events endpoint returns success
-/// What is tested: Events retrieval endpoint
-/// Why: Ensures monitored events can be retrieved
+/// 2. Test: Events Endpoint Returns Success
+/// Verifies that the events endpoint returns OK with success response.
+/// Why: Ensures monitored cross-chain events can be retrieved via the API.
 #[tokio::test]
 async fn test_events_endpoint() {
     let api_server = create_test_api_server().await;
@@ -77,9 +77,9 @@ async fn test_events_endpoint() {
 // APPROVALS ENDPOINT TESTS
 // ============================================================================
 
-/// Test that approvals endpoint returns success
-/// What is tested: Approvals retrieval endpoint
-/// Why: Ensures cached approvals can be retrieved
+/// 3. Test: Approvals Endpoint Returns Success
+/// Verifies that the approvals endpoint returns OK with success response.
+/// Why: Ensures cached cross-chain approval signatures can be retrieved via the API.
 #[tokio::test]
 async fn test_approvals_endpoint() {
     let api_server = create_test_api_server().await;
@@ -100,9 +100,9 @@ async fn test_approvals_endpoint() {
 // PUBLIC KEY ENDPOINT TESTS
 // ============================================================================
 
-/// Test that public-key endpoint returns success
-/// What is tested: Public key retrieval endpoint
-/// Why: Ensures trusted-gmp public key can be retrieved for signature verification
+/// 4. Test: Public Key Endpoint Returns Success
+/// Verifies that the public-key endpoint returns OK with the signing key.
+/// Why: Ensures the trusted-gmp public key can be retrieved for signature verification.
 #[tokio::test]
 async fn test_public_key_endpoint() {
     let api_server = create_test_api_server().await;

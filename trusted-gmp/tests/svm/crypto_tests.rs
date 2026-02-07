@@ -8,8 +8,9 @@ use trusted_gmp::crypto::CryptoService;
 mod test_helpers;
 use test_helpers::{build_test_config_with_svm, create_default_fulfillment, DUMMY_INTENT_ID};
 
-/// Test that crypto service creates different key pairs for each instance
-/// Why: Ensure each trusted-gmp instance has a unique cryptographic identity to prevent key collisions
+/// 1. Test: Unique Key Generation
+/// Verifies that each CryptoService instance creates a different key pair.
+/// Why: Each trusted-gmp instance must have a unique cryptographic identity to prevent key collisions.
 #[test]
 fn test_unique_key_generation() {
     let config1 = build_test_config_with_svm();
@@ -23,8 +24,9 @@ fn test_unique_key_generation() {
     assert_ne!(public_key1, public_key2);
 }
 
-/// Test that SVM signatures can be created and verified
-/// Why: SVM approvals require raw intent_id signatures for escrow claims
+/// 3. Test: SVM Signature Creation and Verification
+/// Verifies that an SVM Ed25519 signature can be created and verified against the original intent ID.
+/// Why: SVM approvals require raw intent_id signatures for escrow claims.
 #[test]
 fn test_svm_signature_creation_and_verification() {
     let config = build_test_config_with_svm();
@@ -45,8 +47,9 @@ fn test_svm_signature_creation_and_verification() {
     assert!(is_valid, "Signature should be valid");
 }
 
-/// Test that incorrect SVM signatures fail verification
-/// Why: Prevent signature replay across different intent ids
+/// 4. Test: Signature Verification Fails for Wrong Message
+/// Verifies that a signature created for one intent ID fails verification against a different intent ID.
+/// Why: Signatures must not be replayable across different intent IDs.
 #[test]
 fn test_svm_signature_verification_fails_for_wrong_message() {
     let config = build_test_config_with_svm();
@@ -69,8 +72,9 @@ fn test_svm_signature_verification_fails_for_wrong_message() {
     assert!(!is_valid, "Signature should fail for wrong intent_id");
 }
 
-/// Test that signatures for different intent_ids are different
-/// Why: Each intent_id must have a unique signature to prevent replay attacks
+/// 5. Test: Signatures Differ for Different Intent IDs
+/// Verifies that signing two distinct intent IDs produces two distinct signatures.
+/// Why: Each intent ID must have a unique signature to prevent replay attacks.
 #[test]
 fn test_signatures_differ_for_different_intent_ids() {
     let config = build_test_config_with_svm();
@@ -84,8 +88,9 @@ fn test_signatures_differ_for_different_intent_ids() {
     assert_ne!(sig1.signature, sig2.signature);
 }
 
-/// Test that public key is consistent
-/// Why: Public key must remain constant for the same instance for external verification
+/// 7. Test: Public Key Consistency
+/// Verifies that repeated calls to get_public_key return the same value for a single instance.
+/// Why: The public key must remain constant for the same instance so external verifiers can rely on it.
 #[test]
 fn test_public_key_consistency() {
     let config = build_test_config_with_svm();
@@ -97,8 +102,9 @@ fn test_public_key_consistency() {
     assert_eq!(public_key1, public_key2);
 }
 
-/// Test that signature contains timestamp
-/// Why: Timestamps enable replay attack prevention and audit trail for approval decisions
+/// 8. Test: Signature Contains Timestamp
+/// Verifies that the signature data includes a recent, non-zero timestamp.
+/// Why: Timestamps enable replay attack prevention and provide an audit trail for approval decisions.
 #[test]
 fn test_signature_contains_timestamp() {
     let config = build_test_config_with_svm();
@@ -117,8 +123,9 @@ fn test_signature_contains_timestamp() {
     );
 }
 
-/// Test intent ID validation for SVM signature creation
-/// Why: Valid intent IDs should succeed, invalid intent IDs should be rejected with clear errors
+/// 19. Test: SVM Signature Intent ID Validation
+/// Verifies that valid intent IDs are accepted and invalid hex intent IDs are rejected with clear errors.
+/// Why: Input validation must reject malformed intent IDs before any cryptographic operations occur.
 #[test]
 fn test_svm_signature_intent_id_validation() {
     let config = build_test_config_with_svm();

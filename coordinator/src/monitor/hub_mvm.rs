@@ -274,6 +274,7 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                         .parse::<u64>()
                         .context("Failed to parse expiry_time")?,
                     timestamp,
+                    ready_on_connected_chain: false,
                 });
             } else if event_type.contains("LimitOrderEvent") && !event_type.contains("Fulfillment")
             {
@@ -328,6 +329,7 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                         .parse::<u64>()
                         .context("Failed to parse expiry_time")?,
                     timestamp,
+                    ready_on_connected_chain: false,
                 });
             } else if event_type.contains("OracleLimitOrderEvent") {
                 // Outflow intents use OracleLimitOrderEvent (from fa_intent_with_oracle)
@@ -405,6 +407,7 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                         .parse::<u64>()
                         .context("Failed to parse expiry_time")?,
                     timestamp,
+                    ready_on_connected_chain: false,
                 });
             }
         }

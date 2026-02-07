@@ -6,7 +6,16 @@
 # It sets up chains, deploys contracts, starts coordinator and trusted-gmp for negotiation routing,
 # submits inflow intents via coordinator, then runs the tests.
 
-set -e
+set -eo pipefail
+
+# Parse flags
+SKIP_BUILD=false
+for arg in "$@"; do
+    case "$arg" in
+        --no-build) SKIP_BUILD=true ;;
+    esac
+done
+export SKIP_BUILD
 
 # Source common utilities
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -25,22 +34,35 @@ echo "================================================================"
 ./testing-infra/ci-e2e/chain-connected-mvm/cleanup.sh
 
 echo ""
-echo " Step 1: Build bins and pre-pull docker images"
-echo "========================================"
-pushd "$PROJECT_ROOT/coordinator" > /dev/null
-cargo build --bin coordinator 2>&1 | tail -5
-popd > /dev/null
-echo "   ✅ Coordinator: coordinator"
+if [ "$SKIP_BUILD" = "true" ]; then
+    echo " Step 1: Build if missing (--no-build)"
+    echo "========================================"
+    build_common_bins_if_missing
+    build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin sign_intent" \
+        "Solver: sign_intent" \
+        "$PROJECT_ROOT/solver/target/debug/sign_intent"
+else
+    echo " Step 1: Build bins and pre-pull docker images"
+    echo "========================================"
+    # Delete existing binaries to ensure fresh build
+    rm -f "$PROJECT_ROOT/target/debug/trusted-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
+    rm -f "$PROJECT_ROOT/target/release/trusted-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
 
-pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
-cargo build --bin trusted-gmp --bin generate_keys 2>&1 | tail -5
-popd > /dev/null
-echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys"
+    pushd "$PROJECT_ROOT/coordinator" > /dev/null
+    cargo build --bin coordinator 2>&1 | tail -5
+    popd > /dev/null
+    echo "   ✅ Coordinator: coordinator"
 
-pushd "$PROJECT_ROOT/solver" > /dev/null
-cargo build --bin solver --bin sign_intent 2>&1 | tail -5
-popd > /dev/null
-echo "   ✅ Solver: solver, sign_intent"
+    pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
+    cargo build --bin trusted-gmp --bin generate_keys 2>&1 | tail -5
+    popd > /dev/null
+    echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys"
+
+    pushd "$PROJECT_ROOT/solver" > /dev/null
+    cargo build --bin solver --bin sign_intent 2>&1 | tail -5
+    popd > /dev/null
+    echo "   ✅ Solver: solver, sign_intent"
+fi
 
 echo ""
 docker pull "$APTOS_DOCKER_IMAGE"
@@ -54,9 +76,9 @@ echo " Step 3: Setting up chains, deploying contracts, funding accounts"
 echo "===================================================================="
 ./testing-infra/ci-e2e/chain-hub/setup-chain.sh
 ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
-./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
 ./testing-infra/ci-e2e/chain-connected-mvm/setup-chain.sh
 ./testing-infra/ci-e2e/chain-connected-mvm/setup-requester-solver.sh
+./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
 ./testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh
 
 echo ""
@@ -71,8 +93,9 @@ echo " Step 4b: Starting solver service..."
 echo "======================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-solver.sh
 
-# Verify solver started successfully
+# Verify solver and trusted-gmp started successfully
 ./testing-infra/ci-e2e/verify-solver-running.sh
+./testing-infra/ci-e2e/verify-trusted-gmp-running.sh
 
 echo ""
 echo " Step 5: Testing INFLOW intents (connected chain → hub chain)..."
@@ -103,7 +126,7 @@ echo "   2. Fulfill the intent on hub chain"
 echo "   3. Trusted-GMP will detect fulfillment and generate approval"
 echo ""
 
-if ! wait_for_solver_fulfillment "$INTENT_ID" "inflow" 60; then
+if ! wait_for_solver_fulfillment "$INTENT_ID" "inflow" 20; then
     echo "❌ ERROR: Solver did not fulfill the intent automatically"
     display_service_logs "Solver fulfillment timeout"
     exit 1
@@ -112,8 +135,8 @@ fi
 echo "✅ Solver fulfilled the intent automatically!"
 echo ""
 
-# Wait for solver to claim escrow (verifies escrow object was deleted)
-./testing-infra/ci-e2e/e2e-tests-mvm/wait-for-escrow-claim.sh
+# Wait for escrow auto-release (verifies FulfillmentProof triggered release)
+./testing-infra/ci-e2e/e2e-tests-mvm/wait-for-escrow-release.sh
 
 echo ""
 echo " Final Balance Validation"

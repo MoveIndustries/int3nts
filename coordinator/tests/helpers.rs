@@ -171,8 +171,8 @@ pub fn build_test_config_with_evm() -> Config {
         name: "Connected EVM Chain".to_string(),
         rpc_url: "http://127.0.0.1:8545".to_string(),
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
+        outflow_validator_contract_addr: "0x0000000000000000000000000000000000000010".to_string(),
         chain_id: 31337,
-
     });
     config
 }
@@ -228,6 +228,7 @@ pub fn create_default_intent_mvm() -> IntentEvent {
         connected_chain_id: Some(2),
         expiry_time: 0, // Should be set explicitly in tests
         timestamp: 0,
+        ready_on_connected_chain: false,
     }
 }
 
@@ -249,6 +250,20 @@ pub fn create_default_intent_evm() -> IntentEvent {
         offered_metadata: format!(r#"{{"token":"{}"}}"#, DUMMY_TOKEN_ADDR_EVM), // EVM token address format for cross-chain
         connected_chain_id: Some(31337), // EVM chain ID (matches build_test_config_with_evm)
         requester_addr_connected_chain: Some(DUMMY_REQUESTER_ADDR_EVM.to_string()), // EVM address format (20 bytes)
+        ..create_default_intent_mvm()
+    }
+}
+
+/// Create a default intent event with test values for Solana connected chain.
+/// This uses `create_default_intent_mvm()` as a base and overrides SVM-specific fields.
+/// ```
+/// let intent = create_default_intent_svm();
+/// ```
+#[allow(dead_code)]
+pub fn create_default_intent_svm() -> IntentEvent {
+    IntentEvent {
+        connected_chain_id: Some(4), // SVM chain ID (matches build_test_config_with_svm)
+        requester_addr_connected_chain: Some(DUMMY_REQUESTER_ADDR_SVM.to_string()), // SVM address format (base58)
         ..create_default_intent_mvm()
     }
 }

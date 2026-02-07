@@ -1,8 +1,10 @@
-# Phase 3: Multi-Chain Expansion (5-7 days)
+# Phase 3: EVM Expansion & Cross-Chain Architecture Alignment
 
-**Status:** Not Started
+**Status:** Complete (6 commits)
 **Depends On:** Phase 2
 **Blocks:** Phase 4
+
+**Goal:** Add EVM connected chain support, separate MVM packages for hub vs connected chain deployment, align naming conventions across all three VMs, optimize the GMP escrow release flow, and document intent type differences.
 
 ---
 
@@ -10,237 +12,122 @@
 
 > 📋 **Commit Conventions:** Before each commit, review `.claude/CLAUDE.md` and `.cursor/rules` for commit message format, test requirements, and coding standards.
 
-### Commit 1: Add LayerZero OApp base for Movement (MVM)
+### Commit 1: Audit MVM connected chain modules ✅
 
-**Files:**
-
-- `intent-frameworks/mvm/sources/layerzero/oapp.move`
-- `intent-frameworks/mvm/sources/layerzero/endpoint.move`
-- `intent-frameworks/mvm/sources/mocks/mock_lz_endpoint.move`
-- `intent-frameworks/mvm/sources/tests/layerzero_tests.move`
-
-**Tasks:**
-
-- [ ] Port LayerZero OApp pattern to Move
-- [ ] Implement `lz_receive()` entry function
-- [ ] Implement `lz_send()` internal function
-- [ ] Implement trusted remote verification
-- [ ] Implement mock endpoint for testing
-- [ ] Test send/receive with mock endpoint
-
-**Test:**
-
-```bash
-# Run all unit tests
-./testing-infra/run-all-unit-tests.sh
-```
-
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.**
+- Review `intent_inflow_escrow.move` dependencies
+- Review `intent_outflow_validator.move` dependencies
+- Identify shared code with hub modules
+- Document minimal required dependencies
+- See: `gmp-phase6-audit-mvm-connected-chain.md`
 
 ---
 
-### Commit 2: Integrate GMP into MVM hub intent contract
+### Commit 2: Split MVM package into three separate packages ✅
 
-**Files:**
-
-- `intent-frameworks/mvm/sources/intent.move`
-- `intent-frameworks/mvm/sources/tests/intent_gmp_tests.move`
-
-**Tasks:**
-
-- [ ] Add `send_intent_requirements()` - calls `lz_send()` on intent creation
-- [ ] Add `send_fulfillment_proof()` - calls `lz_send()` on fulfillment
-- [ ] Add `receive_escrow_confirmation()` - called by `lz_receive()`
-- [ ] Gate fulfillment on escrow confirmation receipt
-- [ ] Test message encoding matches SVM/EVM schema
-- [ ] Test fulfillment blocked without escrow confirmation
-- [ ] Test state updates on GMP message receipt
-
-**Test:**
-
-```bash
-# Run all unit tests
-./testing-infra/run-all-unit-tests.sh
-```
-
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.**
+- Created three packages:
+  - **`intent-gmp`** (8KB bytecode, 16KB deploy) - gmp_common, gmp_sender, gmp_intent_state, gmp_endpoints
+  - **`intent-hub`** (35KB bytecode, 75KB deploy) - All core intent modules + hub-specific intent_gmp
+  - **`intent-connected`** (14KB bytecode, 14KB deploy) - intent_outflow_validator, intent_inflow_escrow + connected-specific intent_gmp
+- Removed `is_initialized()` conditional routing - missing init is now a hard failure
+- Updated deployment scripts (hub deploys intent-gmp then intent-hub with `--chunked-publish`)
+- **Note:** intent-hub still exceeds 60KB (75KB) and requires `--chunked-publish`
+- All 164 MVM tests passing across 3 packages
 
 ---
 
-### Commit 3: Implement EVM contracts with GMP (OutflowValidator)
+### Commit 3: Rename SVM programs for consistency ✅
 
-**Files:**
-
-- `intent-frameworks/evm/contracts/mocks/MockLayerZeroEndpoint.sol`
-- `intent-frameworks/evm/contracts/OutflowValidator.sol`
-- `intent-frameworks/evm/test/OutflowValidator.test.ts`
-
-**Tasks:**
-
-- [ ] Implement MockLayerZeroEndpoint for EVM testing
-- [ ] Inherit from LayerZero `OApp` base contract
-- [ ] Implement `lzReceive()` to receive intent requirements from hub
-- [ ] **Idempotency check**: Before storing, check if requirements already exist for intent_id + step number
-- [ ] **If requirements already exist → ignore duplicate message (idempotent)**
-- [ ] **If requirements don't exist → store intent requirements** in mapping (intent_id/step => {requirements, authorizedSolver})
-- [ ] Implement `fulfillIntent(intent_id, token, amount)` for authorized solvers to call
-- [ ] Pull tokens from authorized solver's wallet via `transferFrom(authorizedSolver, contract, amount)` (requires prior approval)
-- [ ] Validate recipient, amount, token match stored requirements
-- [ ] Validate solver matches authorized solver from stored requirements
-- [ ] Forward tokens to user wallet
-- [ ] Send GMP message to hub via `lzSend()`
-- [ ] Test all validation scenarios
-- [ ] Test `transferFrom()` fails without approval
-- [ ] Test fulfillment fails with unauthorized solver
-- [ ] Test atomic execution (transferFrom + validation + forwarding + GMP send in one transaction)
-
-**Test:**
-
-```bash
-# Run all unit tests
-./testing-infra/run-all-unit-tests.sh
-```
-
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.**
+- **SVM renames completed:**
+  - Renamed `native-gmp-endpoint` → `intent-gmp`
+  - Renamed `outflow-validator` → `intent-outflow-validator`
+  - Final SVM structure (2 logical groups, 3 programs):
+    - **`intent-gmp`** - GMP infrastructure
+    - **`intent-connected`** = `intent-escrow` + `intent-outflow-validator` (2 programs, logically grouped)
+  - Note: Unlike Move, Solana cannot bundle programs into packages - each is deployed separately
+- **EVM:** NativeGmpEndpoint.sol and OutflowValidator.sol do not exist yet (skipped)
+- Updated Cargo.toml, Rust imports, build.sh, test.sh
 
 ---
 
-### Commit 4: Implement EVM contracts with GMP (InflowEscrowGMP)
+### Commit 4: Align EVM architecture with MVM/SVM patterns ✅
 
-**Files:**
+Created EVM contracts following the same three-package structure as MVM and SVM, plus native GMP relay support and E2E test updates.
 
-- `intent-frameworks/evm/contracts/InflowEscrowGMP.sol`
-- `intent-frameworks/evm/test/InflowEscrowGMP.test.ts`
+**EVM contracts created:**
 
-**Tasks:**
+- `IntentGmp.sol` - GMP infrastructure (like MVM intent-gmp, SVM intent-gmp)
+  - `send()` function emits `MessageSent` event
+  - `deliverMessage()` for relay to inject messages
+  - Trusted remote verification and relay authorization
+  - Message nonce tracking for replay protection
+- `IntentOutflowValidator.sol` - Outflow validation (like MVM/SVM intent-outflow-validator)
+  - `receiveMessage()` receives intent requirements from hub (idempotent)
+  - `fulfillIntent()` for authorized solvers (pulls tokens via `transferFrom`, validates, forwards, sends GMP)
+- `IntentInflowEscrow.sol` - Escrow for inflow (like SVM intent-inflow-escrow)
+  - `receiveMessage()` for intent requirements from hub (idempotent)
+  - `createEscrowWithValidation()` validates requirements match escrow details
+  - Auto-release on fulfillment proof receipt
+  - Sends `EscrowConfirmation` back to hub on creation
+- `gmp-common/Messages.sol` + `gmp-common/Endpoints.sol` - Shared message encoding/decoding
 
-- [ ] Inherit from LayerZero `OApp` base contract
-- [ ] Implement `lzReceive()` for intent requirements from hub
-- [ ] **Idempotency check**: Before storing, check if requirements already exist for intent_id + step number
-- [ ] **If requirements already exist → ignore duplicate message (idempotent)**
-- [ ] **If requirements don't exist → store requirements** (mapped by intent_id + step number)
-- [ ] Implement `createEscrowWithValidation()` - validates that requirements exist and match escrow details
-- [ ] Implement automatic escrow release on fulfillment proof receipt
-- [ ] Send `EscrowConfirmation` message back to hub on creation
-- [ ] Test all escrow scenarios
-- [ ] Test idempotency: duplicate GMP message is ignored (requirements already stored)
-- [ ] Test escrow creation reverts if requirements don't exist
-- [ ] Test escrow creation reverts if requirements don't match
+**Native GMP relay extended for EVM:**
 
-**Test:**
+- EVM event parsing for `MessageSent` in `native_gmp_relay.rs`
+- EVM message delivery via `deliverMessage()`
+- EVM chain config in relay (similar to MVM/SVM)
 
-```bash
-# Run all unit tests
-./testing-infra/run-all-unit-tests.sh
-```
+**Solver + E2E updates:**
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.**
+- `solver/src/chains/connected_evm.rs` - added `fulfill_outflow_via_gmp()`
+- `solver/src/service/outflow.rs` - EVM uses GMP flow
+- E2E deployment scripts deploy IntentGmp + IntentInflowEscrow + IntentOutflowValidator
+- E2E inflow and outflow tests updated for GMP flow
 
----
-
-### Commit 5: Implement LayerZero simulator in trusted-gmp
-
-**Files:**
-
-- `trusted-gmp/src/layerzero_simulator.rs`
-- `trusted-gmp/src/main.rs`
-- `trusted-gmp/src/tests/simulator_tests.rs`
-
-**Tasks:**
-
-- [ ] Add `LayerZeroSimulator` struct
-- [ ] Watch for `MessageSent` events on all chains (MVM, SVM, EVM)
-- [ ] Deliver messages by calling `lzReceive` / `deliver_message`
-- [ ] Support configurable chain RPCs and mock endpoints
-- [ ] Integrate into trusted-gmp binary as `--mode simulator`
-- [ ] Test event parsing and message delivery
-
-**Test:**
-
-```bash
-# Run all unit tests
-./testing-infra/run-all-unit-tests.sh
-```
-
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.**
+**Tests:** EVM 161 unit tests, Solver 149, Trusted-GMP 191
 
 ---
 
-### Commit 6: Add cross-chain E2E test: MVM ↔ SVM outflow
+### Commit 5: Auto-release escrow on FulfillmentProof receipt (GMP flow) ✅
 
-**Files:**
-
-- `testing-infra/ci-e2e/e2e-tests-gmp/mvm-svm-outflow.sh`
-- `testing-infra/ci-e2e/e2e-tests-gmp/test-helpers.sh`
-
-**Tasks:**
-
-- [ ] Set up test environment with mock endpoints on both chains
-- [ ] Start LayerZero simulator in background
-- [ ] Create intent on MVM hub
-- [ ] Verify requirements message sent to SVM
-- [ ] Solver validates on SVM
-- [ ] Verify success message sent back to MVM
-
-**Test:**
-
-```bash
-# Run all unit tests
-./testing-infra/run-all-unit-tests.sh
-```
-
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.**
+- Collapsed two-step release into single step matching SVM behavior
+- Changes made:
+  - `intent_inflow_escrow.move`: `receive_fulfillment_proof` now transfers tokens to solver and marks both fulfilled+released
+  - `intent_inflow_escrow.move`: `release_escrow` kept as manual fallback
+  - `solver/src/service/inflow.rs`: `release_mvm_gmp_escrow` now polls `is_escrow_released` (no manual release call)
+  - `solver/src/chains/connected_mvm.rs`: replaced `is_escrow_fulfilled` with `is_escrow_released`, marked `release_gmp_escrow` as dead code
+  - Updated 5 Move tests to reflect auto-release behavior
+  - E2E tests already poll `is_released` - no changes needed (release happens faster now)
 
 ---
 
-### Commit 7: Add cross-chain E2E test: MVM ↔ SVM inflow
+### Commit 6: Document current intent type differences ✅
 
-**Files:**
+Investigated whether hub intents can be unified into a single base type while maintaining security guarantees.
 
-- `testing-infra/ci-e2e/e2e-tests-gmp/mvm-svm-inflow.sh`
-
-**Tasks:**
-
-- [ ] Create intent on MVM hub (inflow type)
-- [ ] Verify requirements message sent to SVM
-- [ ] Requester creates escrow on SVM
-- [ ] Verify escrow confirmation sent back to MVM
-- [ ] Solver fulfills on MVM hub
-- [ ] Verify fulfillment proof sent to SVM
-- [ ] Verify escrow releases on SVM
-
-**Test:**
-
-```bash
-# Run all unit tests
-./testing-infra/run-all-unit-tests.sh
-```
-
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 8.**
+- **5 fields shared** between `FALimitOrder` (6 fields) and `OracleGuardedLimitOrder` (8 fields)
+- Key difference: `OracleGuardedLimitOrder` has defense-in-depth (type-level authorization); `FALimitOrder` relies on wrapper-level security only
+- `intent_id` differs: `Option<address>` (inflow) vs `address` (outflow, always present)
+- `OracleGuardedLimitOrder` has 2 unique fields: `requirement` (oracle) and `requester_addr_connected_chain`
+- Cross-chain payment: outflow uses 0 payment on hub (real payment on connected chain); inflow always requires payment
+- Outflow is non-revocable (security); inflow is revocable
+- See: `gmp-phase3-intent-type-analysis.md`
 
 ---
 
-### Commit 8: Add cross-chain E2E test: MVM ↔ EVM
+## Key Files
 
-**Files:**
-
-- `testing-infra/ci-e2e/e2e-tests-gmp/mvm-evm-outflow.sh`
-- `testing-infra/ci-e2e/e2e-tests-gmp/mvm-evm-inflow.sh`
-
-**Tasks:**
-
-- [ ] Outflow: MVM intent → EVM validation → success
-- [ ] Inflow: MVM intent → EVM escrow → MVM fulfillment → EVM release
-- [ ] Use simulator for cross-chain message relay
-
-**Test:**
-
-```bash
-# Run all unit tests
-./testing-infra/run-all-unit-tests.sh
-```
-
-> ⚠️ **CI e2e tests must pass before Phase 3 is complete.**
+- `intent-frameworks/evm/contracts/IntentGmp.sol`
+- `intent-frameworks/evm/contracts/IntentInflowEscrow.sol`
+- `intent-frameworks/evm/contracts/IntentOutflowValidator.sol`
+- `intent-frameworks/evm/contracts/gmp-common/Messages.sol`
+- `intent-frameworks/evm/contracts/gmp-common/Endpoints.sol`
+- `intent-frameworks/mvm/intent-gmp/` (MVM GMP package)
+- `intent-frameworks/mvm/intent-hub/` (MVM hub package)
+- `intent-frameworks/mvm/intent-connected/` (MVM connected chain package)
+- `intent-frameworks/svm/programs/intent-gmp/` (renamed from native-gmp-endpoint)
+- `intent-frameworks/svm/programs/intent_escrow/`
+- `intent-frameworks/svm/programs/intent-outflow-validator/` (renamed from outflow-validator)
+- `trusted-gmp/src/native_gmp_relay.rs`
 
 ---
 
@@ -251,188 +138,16 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI runs e2e tests automatically. All e2e tests (MVM, EVM, SVM - inflow + outflow, plus new GMP cross-chain tests) must pass before merging.**
-
----
-
-## Reference Implementations
-
-### MVM Intent GMP Contract
-
-```move
-// intent-frameworks/mvm/sources/intent_gmp.move
-module intent::intent_gmp {
-    use layerzero::endpoint;
-
-    // Called when intent is fulfilled on hub
-    public fun send_fulfillment_proof(
-        intent_id: u64,
-        solver: address,
-        amount: u64
-    ) {
-        let payload = encode_fulfillment(intent_id, solver, amount);
-        // Calls real LZ endpoint in production, mock in CI
-        endpoint::send(
-            connected_chain_id,
-            escrow_contract_address,
-            payload
-        );
-    }
-
-    // LayerZero calls this on message receipt
-    public fun lz_receive(
-        src_chain_id: u64,
-        src_address: vector<u8>,
-        payload: vector<u8>
-    ) {
-        let (escrow_id, amount, solver) = decode_payload(payload);
-        validate_and_release_escrow(escrow_id, amount, solver);
-    }
-}
-```
-
-### EVM MockLayerZeroEndpoint
-
-```solidity
-// intent-frameworks/evm/contracts/mocks/MockLayerZeroEndpoint.sol
-contract MockLayerZeroEndpoint {
-    event MessageSent(
-        uint16 dstChainId,
-        bytes destination,
-        bytes payload,
-        address sender
-    );
-
-    function send(
-        uint16 _dstChainId,
-        bytes calldata _destination,
-        bytes calldata _payload,
-        address payable,
-        address,
-        bytes calldata
-    ) external payable {
-        emit MessageSent(_dstChainId, _destination, _payload, msg.sender);
-    }
-
-    function deliverMessage(
-        address receiver,
-        uint16 srcChainId,
-        bytes calldata srcAddress,
-        uint64 nonce,
-        bytes calldata payload
-    ) external {
-        ILayerZeroReceiver(receiver).lzReceive(srcChainId, srcAddress, nonce, payload);
-    }
-}
-```
-
-### LayerZero Simulator
-
-```rust
-// trusted-gmp/src/layerzero_simulator.rs
-pub struct LayerZeroSimulator {
-    hub_rpc: String,
-    connected_rpcs: HashMap<u64, String>,
-    mock_endpoints: HashMap<u64, Address>,
-}
-
-impl LayerZeroSimulator {
-    pub async fn run(&self) -> Result<()> {
-        info!("Starting LayerZero simulator for CI testing");
-        loop {
-            for (chain_id, rpc_url) in &self.connected_rpcs {
-                let events = self.query_message_sent_events(*chain_id, rpc_url).await?;
-                for event in events {
-                    self.deliver_message(event).await?;
-                }
-            }
-            tokio::time::sleep(Duration::from_millis(500)).await;
-        }
-    }
-}
-```
-
-### Simulator Configuration
-
-```toml
-# trusted-gmp/config.ci.toml
-[mode]
-type = "ci_simulator"
-
-[ci_simulator]
-enabled = true
-
-[[ci_simulator.mock_endpoints]]
-chain_id = 1
-chain_type = "mvm"
-rpc_url = "http://localhost:8545"
-endpoint_address = "0x1234..."
-
-[[ci_simulator.mock_endpoints]]
-chain_id = 900  # Solana localnet
-chain_type = "svm"
-rpc_url = "http://localhost:8899"
-endpoint_address = "<PROGRAM_ID>"
-
-[[ci_simulator.mock_endpoints]]
-chain_id = 84532  # Base Sepolia
-chain_type = "evm"
-rpc_url = "http://localhost:8546"
-endpoint_address = "0x5678..."
-```
-
-### CI Pipeline
-
-```yaml
-# .github/workflows/gmp-tests.yml
-jobs:
-  integration-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Start local blockchain nodes
-        run: |
-          anvil --port 8545 --chain-id 1 &        # MVM sim
-          solana-test-validator --reset &          # SVM
-          anvil --port 8546 --chain-id 84532 &    # Base
-          sleep 5
-
-      - name: Deploy mock LayerZero endpoints
-        run: |
-          # Deploy to all three chains
-          ./scripts/deploy-mocks.sh
-
-      - name: Start simulator
-        run: |
-          cd trusted-gmp && cargo build --release
-          ./target/release/trusted-gmp --config config.ci.toml &
-          sleep 3
-
-      - name: Run integration tests
-        run: npm run test:integration
-```
-
----
-
-## Documentation Update
-
-At the end of Phase 3, update:
-
-- [ ] `docs/mvm/` - Add GMP integration documentation for MVM contracts
-- [ ] `docs/evm/` - Add GMP integration documentation for EVM contracts
-- [ ] `docs/testing/` - Document how to run LayerZero simulator for local testing
-- [ ] `intent-frameworks/mvm/README.md` - Update with GMP module info
-- [ ] `intent-frameworks/evm/README.md` - Update with GMP contract info
-- [ ] Review conception documents for accuracy after changes
-- [ ] Check if other files reference MVM/EVM flows and update them
-
 ---
 
 ## Exit Criteria
 
-- [ ] All 8 commits merged to feature branch
-- [ ] MVM GMP unit tests pass
-- [ ] EVM GMP unit tests pass
-- [ ] Trusted GMP simulator tests pass
-- [ ] All cross-chain E2E tests pass (MVM↔SVM, MVM↔EVM)
-- [ ] All three chains can send/receive GMP messages in test environment
-- [ ] Documentation updated
+- [x] MVM connected chain modules audited and documented
+- [x] MVM package split into 3 packages (intent-gmp, intent-hub, intent-connected)
+- [x] SVM programs renamed for consistency (intent-gmp, intent-outflow-validator)
+- [x] EVM contracts created with consistent naming (IntentGmp, IntentInflowEscrow, IntentOutflowValidator)
+- [x] Native GMP relay supports all three chain types (MVM, SVM, EVM)
+- [x] Cross-chain E2E tests pass (MVM ↔ EVM outflow + inflow)
+- [x] MVM escrow auto-releases on FulfillmentProof (matches SVM behavior)
+- [x] Intent type differences documented (unification not pursued — separate types justified by security model)
+- [x] All existing tests still pass (no regressions)

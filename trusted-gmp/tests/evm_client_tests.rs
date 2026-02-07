@@ -98,8 +98,9 @@ async fn setup_mock_receipt(
 // TESTS
 // ============================================================================
 
-/// Test that get_transaction_receipt_status returns "0x1" for successful transactions
-/// Why: Verify that the method correctly parses the receipt status and returns success.
+/// 20. Test: Transaction Receipt Status Success
+/// Verifies that get_transaction_receipt_status returns "0x1" for successful transactions.
+/// Why: Correct receipt status parsing is required to validate outflow fulfillment transactions.
 #[tokio::test]
 async fn test_get_transaction_receipt_status_success() {
     let tx_hash = DUMMY_TX_HASH;
@@ -113,8 +114,9 @@ async fn test_get_transaction_receipt_status_success() {
     assert_eq!(status, Some("0x1".to_string()), "Status should be 0x1 for success");
 }
 
-/// Test that get_transaction_receipt_status returns "0x0" for failed transactions
-/// Why: Verify that the method correctly identifies failed transactions.
+/// 21. Test: Transaction Receipt Status Failure
+/// Verifies that get_transaction_receipt_status returns "0x0" for failed transactions.
+/// Why: Failed transactions must be correctly identified to reject invalid fulfillments.
 #[tokio::test]
 async fn test_get_transaction_receipt_status_failure() {
     let tx_hash = DUMMY_TX_HASH;
@@ -128,8 +130,9 @@ async fn test_get_transaction_receipt_status_failure() {
     assert_eq!(status, Some("0x0".to_string()), "Status should be 0x0 for failure");
 }
 
-/// Test that get_transaction_receipt_status returns None when receipt is not found
-/// Why: Verify that the method handles missing receipts gracefully.
+/// 22. Test: Transaction Receipt Status Not Found
+/// Verifies that get_transaction_receipt_status returns None when receipt is not found.
+/// Why: Missing receipts must return None rather than an error to distinguish from failures.
 #[tokio::test]
 async fn test_get_transaction_receipt_status_not_found() {
     let mock_server = MockServer::start().await;

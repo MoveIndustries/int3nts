@@ -25,7 +25,7 @@ The coordinator automatically monitors all configured chains concurrently:
 
 Run the full E2E test flow:
 
-```
+```bash
 ./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh
 ```
 

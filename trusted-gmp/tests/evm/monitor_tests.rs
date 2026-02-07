@@ -12,8 +12,9 @@ use test_helpers::{
     DUMMY_INTENT_ID, DUMMY_REQUESTER_ADDR_HUB, DUMMY_SOLVER_ADDR_HUB,
 };
 
-/// Test that EVM escrow detection logic correctly identifies EVM escrows
-/// Why: Verify that escrows are correctly identified as EVM when not in Move VM cache and EVM is configured
+/// 1. Test: EVM Escrow Detection Logic
+/// Verifies that EVM escrow detection correctly identifies EVM escrows when not in Move VM cache.
+/// Why: Correct chain detection determines which signature type (ECDSA vs Ed25519) is used for approval.
 #[tokio::test]
 async fn test_evm_escrow_detection_logic() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -59,8 +60,9 @@ async fn test_evm_escrow_detection_logic() {
     }
 }
 
-/// Test that ECDSA signature creation works for EVM escrows
-/// Why: Verify that EVM escrows trigger ECDSA signature creation instead of Ed25519
+/// 2. Test: EVM Escrow ECDSA Signature Creation
+/// Verifies that EVM escrows trigger ECDSA signature creation instead of Ed25519.
+/// Why: EVM chains require ECDSA signatures for ecrecover-based escrow release.
 #[tokio::test]
 async fn test_evm_escrow_ecdsa_signature_creation() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -98,8 +100,9 @@ async fn test_evm_escrow_ecdsa_signature_creation() {
     }
 }
 
-/// Test that EVM and Move VM escrows are correctly differentiated
-/// Why: Verify that the monitor correctly chooses ECDSA for EVM and Ed25519 for Move VM
+/// 3. Test: EVM vs MVM Escrow Differentiation
+/// Verifies that the monitor correctly chooses ECDSA for EVM and Ed25519 for Move VM escrows.
+/// Why: Using the wrong signature type would cause on-chain verification to fail.
 #[tokio::test]
 async fn test_evm_vs_mvm_escrow_differentiation() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -185,8 +188,9 @@ async fn test_evm_vs_mvm_escrow_differentiation() {
     }
 }
 
-/// Test complete EVM escrow approval workflow
-/// Why: Verify the full workflow from fulfillment event to approval creation for EVM escrows
+/// 4. Test: EVM Escrow Approval Flow
+/// Verifies the full workflow from fulfillment event to approval creation for EVM escrows.
+/// Why: End-to-end approval flow must produce a valid ECDSA signature with correct intent_id.
 #[tokio::test]
 async fn test_evm_escrow_approval_flow() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -237,8 +241,9 @@ async fn test_evm_escrow_approval_flow() {
     }
 }
 
-/// Test error handling for invalid intent IDs in EVM escrow processing
-/// Why: Verify that invalid intent IDs are handled gracefully in EVM escrow workflows
+/// 5. Test: EVM Escrow with Invalid Intent ID
+/// Verifies that invalid intent IDs are handled gracefully in EVM escrow workflows.
+/// Why: Malformed intent IDs must not cause panics or undefined behavior.
 #[tokio::test]
 async fn test_evm_escrow_with_invalid_intent_id() {
     let _ = tracing_subscriber::fmt::try_init();

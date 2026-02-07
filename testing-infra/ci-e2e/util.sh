@@ -7,6 +7,58 @@
 export APTOS_DOCKER_IMAGE="aptoslabs/tools@sha256:b6d7fc304963929ad89ef74da020ed995da22dc11fd6cb68cf5f17b6bfff0ccf"
 
 
+# Build only if any of the specified output files are missing.
+# Used by --no-build to skip builds when binaries already exist.
+# Usage: build_if_missing <build_dir> <build_command> <description> <check_paths...>
+#   build_dir: Directory to run the build in (pushd target)
+#   build_command: The build command to run (e.g., "cargo build --bin coordinator")
+#   description: Human-readable description for log output
+#   check_paths: One or more output file paths to check; rebuilds if ANY is missing
+build_if_missing() {
+    local build_dir="$1"
+    local build_command="$2"
+    local description="$3"
+    shift 3
+
+    local needs_build=false
+    for check_path in "$@"; do
+        if [ ! -f "$check_path" ]; then
+            needs_build=true
+            break
+        fi
+    done
+
+    if [ "$needs_build" = "true" ]; then
+        pushd "$build_dir" > /dev/null
+        eval "$build_command" 2>&1 | tail -5
+        popd > /dev/null
+        log_and_echo "   ✅ $description (built)"
+    else
+        log_and_echo "   ✅ $description (exists)"
+    fi
+}
+
+# Build the common set of binaries required by all E2E test scripts.
+# Checks each binary individually and only builds what's missing.
+# Usage: build_common_bins_if_missing
+# Requires PROJECT_ROOT to be set.
+build_common_bins_if_missing() {
+    # Order: coordinator first (fastest independent build ~57s),
+    # then generate_keys before trusted-gmp (same crate, warms dep cache)
+    build_if_missing "$PROJECT_ROOT/coordinator" "cargo build --bin coordinator" \
+        "Coordinator: coordinator" \
+        "$PROJECT_ROOT/coordinator/target/debug/coordinator"
+    build_if_missing "$PROJECT_ROOT/trusted-gmp" "cargo build --bin generate_keys" \
+        "Trusted-GMP: generate_keys" \
+        "$PROJECT_ROOT/trusted-gmp/target/debug/generate_keys"
+    build_if_missing "$PROJECT_ROOT/trusted-gmp" "cargo build --bin trusted-gmp" \
+        "Trusted-GMP: trusted-gmp" \
+        "$PROJECT_ROOT/trusted-gmp/target/debug/trusted-gmp"
+    build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin solver" \
+        "Solver: solver" \
+        "$PROJECT_ROOT/solver/target/debug/solver"
+}
+
 # Get project root - can be called from any script location
 # Usage: Call this function to set PROJECT_ROOT and optionally change to it
 # Note: If SCRIPT_DIR is already set by the calling script, use that; otherwise derive from BASH_SOURCE
@@ -303,7 +355,30 @@ display_service_logs() {
         log_and_echo ""
         log_and_echo "️  Solver log not found: $solver_log"
     fi
-    
+
+    # Show coordinator events summary
+    local coordinator_url="${COORDINATOR_URL:-http://127.0.0.1:3333}"
+    local events_response
+    events_response=$(curl -s "${coordinator_url}/events" 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        local escrow_count fulfillment_count intent_count
+        escrow_count=$(echo "$events_response" | jq -r '.data.escrow_events | length' 2>/dev/null || echo "0")
+        fulfillment_count=$(echo "$events_response" | jq -r '.data.fulfillment_events | length' 2>/dev/null || echo "0")
+        intent_count=$(echo "$events_response" | jq -r '.data.intent_events | length' 2>/dev/null || echo "0")
+
+        log_and_echo ""
+        log_and_echo " Coordinator events:"
+        log_and_echo "   Intent events: $intent_count"
+        log_and_echo "   Escrow events: $escrow_count"
+        log_and_echo "   Fulfillment events: $fulfillment_count"
+
+        if [ "$escrow_count" != "0" ]; then
+            log_and_echo ""
+            log_and_echo "   Escrow details:"
+            echo "$events_response" | jq -r '.data.escrow_events[] | "      \(.intent_id) - amount: \(.offered_amount)"' 2>/dev/null || log_and_echo "      (parse error)"
+        fi
+    fi
+
     log_and_echo ""
 }
 
@@ -661,22 +736,25 @@ stop_trusted_gmp() {
 }
 
 # Check trusted-gmp health
-# Usage: check_trusted_gmp_health [port]
-# Checks if trusted-gmp health endpoint responds
+# Usage: check_trusted_gmp_health
+# Checks if trusted-gmp process is running and has initialized
+# The native GMP relay has no HTTP server; we check the log for init message
 # Returns 0 if healthy, 1 if not
 check_trusted_gmp_health() {
-    local port="${1:-3334}"
-
-    if curl -s -f "http://127.0.0.1:${port}/health" > /dev/null 2>&1; then
-        return 0
-    else
-        return 1
+    # Check process is alive
+    if [ -n "$TRUSTED_GMP_PID" ] && ps -p "$TRUSTED_GMP_PID" > /dev/null 2>&1; then
+        # Check log for successful initialization
+        local log_file="${TRUSTED_GMP_LOG:-${LOG_DIR:-/dev/null}/trusted-gmp.log}"
+        if [ -f "$log_file" ] && grep -q "Native GMP relay initialized successfully" "$log_file" 2>/dev/null; then
+            return 0
+        fi
     fi
+    return 1
 }
 
 # Verify trusted-gmp is running
 # Usage: verify_trusted_gmp_running
-# Checks trusted-gmp process, port, and health endpoint
+# Checks trusted-gmp process is alive and initialized
 # Exits with error if trusted-gmp is not running
 verify_trusted_gmp_running() {
     # Ensure LOG_DIR is set (for reading PID files)
@@ -693,6 +771,11 @@ verify_trusted_gmp_running() {
         export TRUSTED_GMP_PID
     fi
 
+    # Load log path if not set
+    if [ -z "$TRUSTED_GMP_LOG" ] && [ -n "$LOG_DIR" ]; then
+        TRUSTED_GMP_LOG="$LOG_DIR/trusted-gmp.log"
+    fi
+
     # Check trusted-gmp process
     if [ -z "$TRUSTED_GMP_PID" ] || ! ps -p "$TRUSTED_GMP_PID" > /dev/null 2>&1; then
         log_and_echo "❌ ERROR: Trusted-GMP process is not running"
@@ -701,25 +784,15 @@ verify_trusted_gmp_running() {
         exit 1
     fi
 
-    # Check if trusted-gmp port is listening
-    TRUSTED_GMP_PORT="${TRUSTED_GMP_PORT:-3334}"
-    if ! check_port_listening "$TRUSTED_GMP_PORT"; then
-        log_and_echo "❌ ERROR: Trusted-GMP is not listening on port $TRUSTED_GMP_PORT"
-        log_and_echo "   Trusted-GMP PID: $TRUSTED_GMP_PID"
-        log_and_echo "   Process exists but port is not accessible"
-        log_and_echo "   Check logs: ${TRUSTED_GMP_LOG:-<not set>}"
-        exit 1
-    fi
-
-    # Check trusted-gmp health endpoint
-    if ! check_trusted_gmp_health "$TRUSTED_GMP_PORT"; then
+    # Check trusted-gmp initialized (native GMP relay has no HTTP server)
+    if ! check_trusted_gmp_health; then
         log_and_echo "❌ ERROR: Trusted-GMP health check failed"
         log_and_echo "   Trusted-GMP PID: $TRUSTED_GMP_PID"
-        log_and_echo "   Port $TRUSTED_GMP_PORT is listening but /health endpoint failed"
+        log_and_echo "   Process is running but initialization not confirmed in log"
         log_and_echo "   Check logs: ${TRUSTED_GMP_LOG:-<not set>}"
         exit 1
     fi
-    log "   ✅ Trusted-GMP is running and healthy (PID: $TRUSTED_GMP_PID, port: $TRUSTED_GMP_PORT)"
+    log "   ✅ Trusted-GMP is running and healthy (PID: $TRUSTED_GMP_PID)"
 }
 
 # Generate trusted-gmp keys for E2E/CI testing
@@ -738,6 +811,7 @@ generate_trusted_gmp_keys() {
         source "$TRUSTED_GMP_KEYS_FILE"
         export E2E_TRUSTED_GMP_PRIVATE_KEY
         export E2E_TRUSTED_GMP_PUBLIC_KEY
+        export E2E_TRUSTED_GMP_MOVE_ADDRESS
         log_and_echo "   ✅ Loaded existing trusted-gmp ephemeral keys"
         return
     fi
@@ -753,9 +827,10 @@ generate_trusted_gmp_keys() {
     fi
     KEYS_OUTPUT=$("$generate_keys_bin" 2>/dev/null)
 
-    # Extract keys from output
+    # Extract keys and Move address from output
     PRIVATE_KEY=$(echo "$KEYS_OUTPUT" | grep "Private Key (base64):" | sed 's/.*: //')
     PUBLIC_KEY=$(echo "$KEYS_OUTPUT" | grep "Public Key (base64):" | sed 's/.*: //')
+    MOVE_ADDRESS=$(echo "$KEYS_OUTPUT" | grep "Move Address (hex):" | sed 's/.*: //')
 
     if [ -z "$PRIVATE_KEY" ] || [ -z "$PUBLIC_KEY" ]; then
         log_and_echo "❌ ERROR: Failed to generate trusted-gmp test keys"
@@ -765,6 +840,7 @@ generate_trusted_gmp_keys() {
     # Export keys as environment variables (E2E prefix to avoid collision)
     export E2E_TRUSTED_GMP_PRIVATE_KEY="$PRIVATE_KEY"
     export E2E_TRUSTED_GMP_PUBLIC_KEY="$PUBLIC_KEY"
+    export E2E_TRUSTED_GMP_MOVE_ADDRESS="$MOVE_ADDRESS"
 
     # Save keys to file for reuse within the same test run
     cat > "$TRUSTED_GMP_KEYS_FILE" << EOF
@@ -773,6 +849,7 @@ generate_trusted_gmp_keys() {
 # WARNING: These keys are for testing only. Do not use in production.
 E2E_TRUSTED_GMP_PRIVATE_KEY="$PRIVATE_KEY"
 E2E_TRUSTED_GMP_PUBLIC_KEY="$PUBLIC_KEY"
+E2E_TRUSTED_GMP_MOVE_ADDRESS="$MOVE_ADDRESS"
 EOF
 
     cd "$PROJECT_ROOT"
@@ -793,6 +870,7 @@ load_trusted_gmp_keys() {
         source "$TRUSTED_GMP_KEYS_FILE"
         export E2E_TRUSTED_GMP_PRIVATE_KEY
         export E2E_TRUSTED_GMP_PUBLIC_KEY
+        export E2E_TRUSTED_GMP_MOVE_ADDRESS
     else
         log_and_echo "❌ ERROR: Trusted-GMP keys file not found at $TRUSTED_GMP_KEYS_FILE"
         log_and_echo "   Run generate_trusted_gmp_keys first."
@@ -858,8 +936,10 @@ start_trusted_gmp() {
 
     # Wait for trusted-gmp to be ready
     log "   - Waiting for trusted-gmp to initialize..."
+    TRUSTED_GMP_LOG="$log_file"
+    export TRUSTED_GMP_PID TRUSTED_GMP_LOG
     RETRY_COUNT=0
-    MAX_RETRIES=180
+    MAX_RETRIES=30
 
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         # Check if process is still running
@@ -876,16 +956,14 @@ start_trusted_gmp() {
             exit 1
         fi
 
-        # Check health endpoint
+        # Check health (process running + init log message present)
         if check_trusted_gmp_health; then
             log "   ✅ Trusted-GMP is ready!"
 
             # Give trusted-gmp time to start polling and collect initial events
-            log "   - Waiting for trusted-gmp to poll and collect events (30 seconds)..."
-            sleep 30
+            log "   - Waiting for trusted-gmp to poll and collect events (10 seconds)..."
+            sleep 10
 
-            TRUSTED_GMP_LOG="$log_file"
-            export TRUSTED_GMP_PID TRUSTED_GMP_LOG
             return 0
         fi
 
@@ -1318,65 +1396,10 @@ wait_for_solver_fulfillment() {
         elapsed=$((elapsed + poll_interval))
     done
     
-    # Timeout - show diagnostic info
+    # Timeout - callers handle detailed log display via display_service_logs
     log ""
     log_and_echo "⏰ Timeout waiting for solver fulfillment after ${timeout_seconds}s"
-    log ""
-    log " Diagnostic Information:"
-    log "========================================"
-    
-    # Show solver logs (solver_log_file already declared above)
-    if [ -f "$solver_log_file" ]; then
-        log ""
-        log "   Solver logs (last 100 lines):"
-        log "   + + + + + + + + + + + + + + + + + + + +"
-        tail -100 "$solver_log_file" | while IFS= read -r line; do log "   $line"; done
-        log "   + + + + + + + + + + + + + + + + + + + +"
-    else
-        log "   Solver log file not found at: $solver_log_file"
-    fi
-    
-    # Show coordinator and trusted-gmp logs
-    local coordinator_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/coordinator.log"
-    local trusted_gmp_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/trusted-gmp.log"
-    for log_label in "Coordinator" "Trusted-GMP"; do
-        local f; [ "$log_label" = "Coordinator" ] && f="$coordinator_log_file" || f="$trusted_gmp_log_file"
-        if [ -f "$f" ]; then
-            log ""
-            log "   $log_label logs (last 100 lines):"
-            log "   + + + + + + + + + + + + + + + + + + + +"
-            tail -100 "$f" | while IFS= read -r line; do log "   $line"; done
-            log "   + + + + + + + + + + + + + + + + + + + +"
-        else
-            log ""
-            log "   $log_label log file not found (checked: $f)"
-        fi
-    done
-    
-    # Show coordinator events
-    log ""
-    log "   Coordinator events:"
-    local events_response
-    events_response=$(curl -s "${coordinator_url}/events" 2>/dev/null)
-    if [ $? -eq 0 ]; then
-        local escrow_count fulfillment_count intent_count
-        escrow_count=$(echo "$events_response" | jq -r '.data.escrow_events | length' 2>/dev/null || echo "0")
-        fulfillment_count=$(echo "$events_response" | jq -r '.data.fulfillment_events | length' 2>/dev/null || echo "0")
-        intent_count=$(echo "$events_response" | jq -r '.data.intent_events | length' 2>/dev/null || echo "0")
-        
-        log "      Intent events: $intent_count"
-        log "      Escrow events: $escrow_count"
-        log "      Fulfillment events: $fulfillment_count"
-        
-        if [ "$escrow_count" != "0" ]; then
-            log ""
-            log "      Escrow details:"
-            echo "$events_response" | jq -r '.data.escrow_events[] | "         \(.intent_id) - amount: \(.offered_amount)"' 2>/dev/null || log "         (parse error)"
-        fi
-    else
-        log "      Failed to query coordinator events"
-    fi
-    
+
     return 1
 }
 

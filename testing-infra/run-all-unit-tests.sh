@@ -28,15 +28,14 @@ SOLVER_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd solver && car
 SOLVER_PASSED=$(echo "$SOLVER_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum+0}')
 SOLVER_FAILED=$(echo "$SOLVER_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
 
-echo "Running Move tests..."
-MOVE_TEST_OUTPUT=$(nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123" 2>&1) || {
-    echo "Move tests failed:"
-    echo "$MOVE_TEST_OUTPUT"
+echo "Running MVM tests..."
+MVM_TEST_OUTPUT=$(./intent-frameworks/mvm/scripts/test.sh 2>&1) || {
+    echo "MVM tests failed:"
+    echo "$MVM_TEST_OUTPUT"
 }
-MOVE_PASSED=$(echo "$MOVE_TEST_OUTPUT" | grep -oE "passed: [0-9]+" | awk '{print $2}' | head -1)
-MOVE_FAILED=$(echo "$MOVE_TEST_OUTPUT" | grep -oE "failed: [0-9]+" | awk '{print $2}' | head -1)
-MOVE_PASSED=${MOVE_PASSED:-0}
-MOVE_FAILED=${MOVE_FAILED:-0}
+# Parse "passed: N" from each package output and sum
+MOVE_PASSED=$(echo "$MVM_TEST_OUTPUT" | grep -oE "passed: [0-9]+" | awk '{sum += $2} END {print sum+0}')
+MOVE_FAILED=$(echo "$MVM_TEST_OUTPUT" | grep -oE "failed: [0-9]+" | awk '{sum += $2} END {print sum+0}')
 
 echo "Running EVM tests..."
 EVM_TEST_OUTPUT=$(nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm install && npm test" 2>&1) || {

@@ -119,32 +119,63 @@ display_balances_connected_evm() {
     fi
 }
 
-# Check if an escrow is claimed
-# Usage: is_escrow_claimed <escrow_addr> <intent_id_evm>
-# Returns: "true" if claimed, "false" if not claimed, exits with error if check fails
-is_escrow_claimed() {
-    local escrow_addr="$1"
+# Check if IntentRequirements have been delivered via GMP (for IntentInflowEscrow.sol)
+# Usage: has_requirements_evm <escrow_gmp_addr> <intent_id_evm>
+# Returns: "true" if requirements exist, "false" if not, exits with error if check fails
+has_requirements_evm() {
+    local escrow_gmp_addr="$1"
     local intent_id_evm="$2"
-    
-    if [ -z "$escrow_addr" ] || [ -z "$intent_id_evm" ]; then
-        echo "❌ PANIC: is_escrow_claimed requires escrow_addr and intent_id_evm" >&2
+
+    if [ -z "$escrow_gmp_addr" ] || [ -z "$intent_id_evm" ]; then
+        echo "❌ PANIC: has_requirements_evm requires escrow_gmp_addr and intent_id_evm" >&2
         exit 1
     fi
-    
+
     if [ -z "$PROJECT_ROOT" ]; then
         setup_project_root
     fi
-    
-    local output=$(nix develop "$PROJECT_ROOT/nix" -c bash -c "cd '$PROJECT_ROOT/intent-frameworks/evm' && ESCROW_ADDR='$escrow_addr' INTENT_ID_EVM='$intent_id_evm' npx hardhat run scripts/get-escrow-status.js --network localhost" 2>&1)
-    
-    # Check for "isClaimed: true" or "isClaimed: false" in output
-    if echo "$output" | grep -q "isClaimed: true"; then
+
+    local output=$(nix develop "$PROJECT_ROOT/nix" -c bash -c "cd '$PROJECT_ROOT/intent-frameworks/evm' && ESCROW_GMP_ADDR='$escrow_gmp_addr' INTENT_ID_EVM='$intent_id_evm' npx hardhat run scripts/get-has-requirements.js --network localhost" 2>&1)
+
+    # Check for "hasRequirements: true" or "hasRequirements: false" in output
+    if echo "$output" | grep -q "hasRequirements: true"; then
         echo "true"
-    elif echo "$output" | grep -q "isClaimed: false"; then
+    elif echo "$output" | grep -q "hasRequirements: false"; then
         echo "false"
     else
-        echo "❌ PANIC: is_escrow_claimed failed to get escrow status" >&2
-        echo "   escrow_addr: $escrow_addr, intent_id_evm: $intent_id_evm" >&2
+        echo "❌ PANIC: has_requirements_evm failed to get requirements status" >&2
+        echo "   escrow_gmp_addr: $escrow_gmp_addr, intent_id_evm: $intent_id_evm" >&2
+        echo "   output: $output" >&2
+        exit 1
+    fi
+}
+
+# Check if escrow is auto-released via FulfillmentProof (for IntentInflowEscrow.sol)
+# Usage: is_released_evm <escrow_gmp_addr> <intent_id_evm>
+# Returns: "true" if released, "false" if not released, exits with error if check fails
+is_released_evm() {
+    local escrow_gmp_addr="$1"
+    local intent_id_evm="$2"
+
+    if [ -z "$escrow_gmp_addr" ] || [ -z "$intent_id_evm" ]; then
+        echo "❌ PANIC: is_released_evm requires escrow_gmp_addr and intent_id_evm" >&2
+        exit 1
+    fi
+
+    if [ -z "$PROJECT_ROOT" ]; then
+        setup_project_root
+    fi
+
+    local output=$(nix develop "$PROJECT_ROOT/nix" -c bash -c "cd '$PROJECT_ROOT/intent-frameworks/evm' && ESCROW_GMP_ADDR='$escrow_gmp_addr' INTENT_ID_EVM='$intent_id_evm' npx hardhat run scripts/get-is-released.js --network localhost" 2>&1)
+
+    # Check for "isReleased: true" or "isReleased: false" in output
+    if echo "$output" | grep -q "isReleased: true"; then
+        echo "true"
+    elif echo "$output" | grep -q "isReleased: false"; then
+        echo "false"
+    else
+        echo "❌ PANIC: is_released_evm failed to get release status" >&2
+        echo "   escrow_gmp_addr: $escrow_gmp_addr, intent_id_evm: $intent_id_evm" >&2
         echo "   output: $output" >&2
         exit 1
     fi
