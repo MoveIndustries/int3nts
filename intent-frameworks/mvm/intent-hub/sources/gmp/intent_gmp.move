@@ -272,8 +272,8 @@ module mvmt_intent::intent_gmp {
         };
     }
 
-    /// Add an authorized relay address. Only the admin can call this.
-    public entry fun add_authorized_relay(
+    /// Add a relay address. Only the admin can call this.
+    public entry fun add_relay(
         admin: &signer,
         relay_addr: address,
     ) acquires EndpointConfig {
@@ -289,8 +289,8 @@ module mvmt_intent::intent_gmp {
         };
     }
 
-    /// Remove an authorized relay address. Only the admin can call this.
-    public entry fun remove_authorized_relay(
+    /// Remove a relay address. Only the admin can call this.
+    public entry fun remove_relay(
         admin: &signer,
         relay_addr: address,
     ) acquires EndpointConfig {

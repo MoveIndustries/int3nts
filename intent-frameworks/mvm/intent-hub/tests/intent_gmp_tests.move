@@ -514,7 +514,7 @@ module mvmt_intent::intent_gmp_tests {
     // Why: Relay management is security-critical; must be admin-only.
     #[test(admin = @mvmt_intent)]
     #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
-    fun test_add_authorized_relay_rejects_non_admin(admin: &signer) {
+    fun test_add_relay_rejects_non_admin(admin: &signer) {
         intent_gmp_hub::initialize(admin);
         intent_gmp::initialize(admin);
 
@@ -522,15 +522,15 @@ module mvmt_intent::intent_gmp_tests {
         let non_admin = account::create_account_for_test(@0x999);
 
         // Try to add relay as non-admin - should fail
-        intent_gmp::add_authorized_relay(&non_admin, @0x789);
+        intent_gmp::add_relay(&non_admin, @0x789);
     }
 
-    // 14. Test: RemoveAuthorizedRelay rejects non-admin
-    // Verifies that only the admin can remove authorized relays.
+    // 14. Test: RemoveRelay rejects non-admin
+    // Verifies that only the admin can remove relays.
     // Why: Relay management is security-critical; must be admin-only.
     #[test(admin = @mvmt_intent)]
     #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
-    fun test_remove_authorized_relay_rejects_non_admin(admin: &signer) {
+    fun test_remove_relay_rejects_non_admin(admin: &signer) {
         intent_gmp_hub::initialize(admin);
         intent_gmp::initialize(admin);
 
@@ -538,7 +538,7 @@ module mvmt_intent::intent_gmp_tests {
         let non_admin = account::create_account_for_test(@0x999);
 
         // Try to remove relay as non-admin - should fail
-        intent_gmp::remove_authorized_relay(&non_admin, @mvmt_intent);
+        intent_gmp::remove_relay(&non_admin, @mvmt_intent);
     }
 
     // ============================================================================

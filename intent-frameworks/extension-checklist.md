@@ -346,8 +346,8 @@ SVM: `intent-frameworks/svm/programs/intent-gmp/tests/endpoint_tests.rs`
 | 22 | test_set_trusted_remote_unauthorized | [x] | [x] | [x] |
 | 23 | test_deliver_message_rejects_lower_nonce | [x] | [x] | [x] |
 | 24 | test_deliver_intent_requirements_stores_in_both_handlers | [x] | N/A | N/A |
-| 25 | test_add_authorized_relay_rejects_non_admin | [x] | [x] | [x] |
-| 26 | test_remove_authorized_relay_rejects_non_admin | [x] | [x] | [x] |
+| 25 | test_add_relay_rejects_non_admin | [x] | [x] | [x] |
+| 26 | test_remove_relay_rejects_non_admin | [x] | [x] | [x] |
 | 27 | test_deliver_intent_requirements_fails_without_outflow_init | [x] | N/A | N/A |
 | 28 | test_fulfillment_proof_routes_to_intent_escrow | N/A | N/A | [x] |
 | 29 | test_fulfillment_proof_fails_with_insufficient_accounts | N/A | N/A | [x] |

@@ -209,7 +209,7 @@ module mvmt_intent::intent_gmp_tests {
 
         // Add new relay
         let new_relay = account::create_account_for_test(@0x789);
-        intent_gmp::add_authorized_relay(&admin, @0x789);
+        intent_gmp::add_relay(&admin, @0x789);
 
         // Verify relay is authorized
         assert!(intent_gmp::is_relay_authorized(@0x789), 1);
@@ -375,34 +375,34 @@ module mvmt_intent::intent_gmp_tests {
         assert!(intent_inflow_escrow::has_requirements(intent_id), 2);
     }
 
-    // 25. Test: AddAuthorizedRelay rejects non-admin
-    // Verifies that only the admin can add authorized relays.
+    // 25. Test: AddRelay rejects non-admin
+    // Verifies that only the admin can add relays.
     // Why: Relay management is security-critical; must be admin-only.
     #[test]
     #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
-    fun test_add_authorized_relay_rejects_non_admin() {
+    fun test_add_relay_rejects_non_admin() {
         let _admin = setup_test();
 
         // Create non-admin account
         let non_admin = account::create_account_for_test(@0x999);
 
         // Try to add relay as non-admin - should fail
-        intent_gmp::add_authorized_relay(&non_admin, @0x789);
+        intent_gmp::add_relay(&non_admin, @0x789);
     }
 
-    // 26. Test: RemoveAuthorizedRelay rejects non-admin
-    // Verifies that only the admin can remove authorized relays.
+    // 26. Test: RemoveRelay rejects non-admin
+    // Verifies that only the admin can remove relays.
     // Why: Relay management is security-critical; must be admin-only.
     #[test]
     #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
-    fun test_remove_authorized_relay_rejects_non_admin() {
+    fun test_remove_relay_rejects_non_admin() {
         let _admin = setup_test();
 
         // Create non-admin account
         let non_admin = account::create_account_for_test(@0x999);
 
         // Try to remove relay as non-admin - should fail
-        intent_gmp::remove_authorized_relay(&non_admin, ADMIN_ADDR);
+        intent_gmp::remove_relay(&non_admin, ADMIN_ADDR);
     }
 
     // 27. Test: DeliverMessage fails if outflow_validator not initialized
