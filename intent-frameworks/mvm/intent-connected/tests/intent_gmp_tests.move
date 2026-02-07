@@ -115,6 +115,12 @@ module mvmt_intent::intent_gmp_tests {
         assert!(after_second == 3, 5);
     }
 
+    // 16. Test: test_deliver_message_calls_receiver
+    // Verifies that deliver_message correctly calls the receiver module's lz_receive function.
+    // Why: The endpoint must route messages to the registered handler. Without this, GMP messages arrive but are never processed.
+    // TODO: Implement - requires setting up a mock receiver module and verifying CPI
+    // Placeholder: MVM delivery currently tested indirectly via test 24 (stores_in_both_handlers).
+
     // 17. Test: DeliverMessage rejects replay
     // Verifies that deliver_message rejects messages with a nonce <= the last processed nonce.
     // Why: Replay protection prevents attackers from re-submitting old messages.
@@ -369,7 +375,37 @@ module mvmt_intent::intent_gmp_tests {
         assert!(intent_inflow_escrow::has_requirements(intent_id), 2);
     }
 
-    // 25. Test: DeliverMessage fails if outflow_validator not initialized
+    // 25. Test: AddAuthorizedRelay rejects non-admin
+    // Verifies that only the admin can add authorized relays.
+    // Why: Relay management is security-critical; must be admin-only.
+    #[test]
+    #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
+    fun test_add_authorized_relay_rejects_non_admin() {
+        let _admin = setup_test();
+
+        // Create non-admin account
+        let non_admin = account::create_account_for_test(@0x999);
+
+        // Try to add relay as non-admin - should fail
+        intent_gmp::add_authorized_relay(&non_admin, @0x789);
+    }
+
+    // 26. Test: RemoveAuthorizedRelay rejects non-admin
+    // Verifies that only the admin can remove authorized relays.
+    // Why: Relay management is security-critical; must be admin-only.
+    #[test]
+    #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
+    fun test_remove_authorized_relay_rejects_non_admin() {
+        let _admin = setup_test();
+
+        // Create non-admin account
+        let non_admin = account::create_account_for_test(@0x999);
+
+        // Try to remove relay as non-admin - should fail
+        intent_gmp::remove_authorized_relay(&non_admin, ADMIN_ADDR);
+    }
+
+    // 27. Test: DeliverMessage fails if outflow_validator not initialized
     // Verifies that IntentRequirements delivery fails if intent_outflow_validator_impl is not initialized.
     // Why: No fallbacks - all handlers must be ready to receive messages.
     #[test]

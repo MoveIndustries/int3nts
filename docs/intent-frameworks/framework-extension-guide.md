@@ -182,25 +182,25 @@ All tests listed are VM-specific; generic tests are intentionally excluded becau
 
 Escrow test alignment for VM intent framework contracts:
 
-- See [`intent-frameworks/EXTENSION-CHECKLIST.md`](../../intent-frameworks/EXTENSION-CHECKLIST.md)
+- See [`intent-frameworks/extension-checklist.md`](../../intent-frameworks/extension-checklist.md)
 
 ### Trusted GMP
 
 Test alignment for the trusted-gmp service:
 
-- See [`trusted-gmp/tests/EXTENSION-CHECKLIST.md`](../../trusted-gmp/tests/EXTENSION-CHECKLIST.md)
+- See [`trusted-gmp/tests/extension-checklist.md`](../../trusted-gmp/tests/extension-checklist.md)
 
 ### Solver
 
 Test alignment for the solver:
 
-- See [`solver/tests/EXTENSION-CHECKLIST.md`](../../solver/tests/EXTENSION-CHECKLIST.md)
+- See [`solver/tests/extension-checklist.md`](../../solver/tests/extension-checklist.md)
 
 ### Frontend
 
 Test alignment for the frontend:
 
-- See [`frontend/src/EXTENSION-CHECKLIST.md`](../../frontend/src/EXTENSION-CHECKLIST.md)
+- See [`frontend/src/extension-checklist.md`](../../frontend/src/extension-checklist.md)
 
 ## Handling Platform Differences
 
@@ -236,7 +236,7 @@ If your platform has tests that don't exist in other frameworks, add them to the
 
 **Example: MVM has manual release tests 16-19 that don't apply to SVM**
 
-**Step 1: Add to checklist** (`intent-frameworks/EXTENSION-CHECKLIST.md`)
+**Step 1: Add to checklist** (`intent-frameworks/extension-checklist.md`)
 
 ```markdown
 | 16 | test_release_escrow_succeeds_after_fulfillment | ✅ | ⚠️ | N/A |

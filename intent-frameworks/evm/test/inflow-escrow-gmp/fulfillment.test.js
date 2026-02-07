@@ -53,7 +53,7 @@ describe("IntentInflowEscrow - Fulfillment", function () {
     );
   });
 
-  /// 1. Test: Valid Fulfillment Proof Release
+  /// 1. Test: test_valid_fulfillment_release: Valid Fulfillment Proof Release
   /// Verifies that solvers receive escrow funds when hub sends a valid FulfillmentProof.
   /// Why: Fulfillment is the core mechanism. Solvers must receive funds after hub confirms fulfillment.
   it("Should release escrow to solver with valid fulfillment proof", async function () {
@@ -72,7 +72,7 @@ describe("IntentInflowEscrow - Fulfillment", function () {
     expect(await escrow.isReleased(intentId)).to.equal(true);
   });
 
-  /// 2. Test: Fulfillment Without Requirements
+  /// 2. Test: test_fulfillment_without_escrow: Fulfillment Without Requirements
   /// Verifies that fulfillment proofs for unknown intents are rejected.
   /// Why: Security requirement - only valid intents with escrows should be fulfillable.
   it("Should revert fulfillment without escrow", async function () {
@@ -85,7 +85,7 @@ describe("IntentInflowEscrow - Fulfillment", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ESCROW_NOT_FOUND");
   });
 
-  /// 3. Test: Prevent Double Fulfillment
+  /// 3. Test: test_prevent_double_fulfillment: Prevent Double Fulfillment
   /// Verifies that the same escrow cannot be fulfilled twice.
   /// Why: Prevents double-spending - each escrow can only be released once.
   it("Should prevent double fulfillment", async function () {
@@ -100,7 +100,7 @@ describe("IntentInflowEscrow - Fulfillment", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ALREADY_RELEASED");
   });
 
-  /// 4. Test: Fulfillment Already Released (via cancel)
+  /// 4. Test: test_fulfillment_after_cancel: Fulfillment Already Released (via cancel)
   /// Verifies that fulfillment fails if escrow was already cancelled.
   /// Why: Once funds are returned via cancel, they cannot be released to solver.
   it("Should revert if escrow already released via cancel", async function () {
@@ -136,7 +136,7 @@ describe("IntentInflowEscrow - Fulfillment", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ALREADY_RELEASED");
   });
 
-  /// 5. Test: Escrow Does Not Exist
+  /// 5. Test: test_fulfillment_nonexistent_escrow: Escrow Does Not Exist
   /// Verifies that attempting to fulfill a non-existent escrow reverts.
   /// Why: Prevents fulfillment on non-existent escrows.
   it("Should revert if escrow does not exist", async function () {

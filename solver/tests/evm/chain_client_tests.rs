@@ -1,6 +1,6 @@
 //! Unit tests for EVM Connected chain client
 //!
-//! Test ordering matches EXTENSION-CHECKLIST.md for cross-VM synchronization.
+//! Test ordering matches extension-checklist.md for cross-VM synchronization.
 //! Tests marked N/A in the checklist are skipped in this file.
 
 use hex;

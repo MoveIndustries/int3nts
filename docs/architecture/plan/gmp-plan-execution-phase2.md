@@ -55,8 +55,8 @@
 - [x] Test Send emits correct event with payload
 - [x] Test send/receive flow end-to-end
 - [x] Test relay authorization and replay protection
-- [x] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with MVM test status (tests 13-15)
-- [x] Verify SVM and MVM test alignment in EXTENSION-CHECKLIST.md (all shared tests have matching status)
+- [x] Update `intent-frameworks/extension-checklist.md` with MVM test status (tests 13-15)
+- [x] Verify SVM and MVM test alignment in extension-checklist.md (all shared tests have matching status)
 
 **Test:**
 
@@ -90,7 +90,7 @@
 - [x] Send GMP message to hub via `lz_send`
 - [x] Emit `FulfillmentSucceeded` or `FulfillmentFailed` events
 - [x] Test all validation scenarios
-- [x] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with SVM OutflowValidator test status
+- [x] Update `intent-frameworks/extension-checklist.md` with SVM OutflowValidator test status
 
 **Test:**
 
@@ -124,7 +124,7 @@
 - [x] Send GMP message to hub via `lz_send`
 - [x] Emit `FulfillmentSucceeded` or `FulfillmentFailed` events
 - [x] Test all validation scenarios
-- [x] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with MVM OutflowValidator test status
+- [x] Update `intent-frameworks/extension-checklist.md` with MVM OutflowValidator test status
 
 **Test:**
 
@@ -159,7 +159,7 @@
 - [x] Send `EscrowConfirmation` GMP message back to hub on escrow creation
 - [x] ~~Add events module for GMP events~~ (using msg! logs - sufficient for Solana)
 - [x] Update tests for GMP config and EscrowConfirmation flow (added `tests/gmp.rs` with 13 tests)
-- [x] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with SVM InflowEscrow test status
+- [x] Update `intent-frameworks/extension-checklist.md` with SVM InflowEscrow test status
 
 **Test:**
 
@@ -187,7 +187,7 @@
 - [x] Send `EscrowConfirmation` GMP message back to hub on escrow creation via `gmp_sender::lz_send`
 - [x] Add routing in `intent_gmp` for inflow escrow messages
 - [x] Implement MVM tests 8, 12, 13 in `inflow_escrow_tests.move`
-- [x] Update `intent-frameworks/EXTENSION-CHECKLIST.md` with MVM InflowEscrow test status
+- [x] Update `intent-frameworks/extension-checklist.md` with MVM InflowEscrow test status
 
 **Test:**
 

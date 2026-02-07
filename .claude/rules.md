@@ -157,8 +157,8 @@ When adding tests for shared modules (e.g., `gmp_common`/`gmp-common`):
 - **Use identical test vectors**: Same inputs must produce same expected outputs across all chains
 - **Update test-vectors.json**: Cross-chain encoding tests reference `intent-frameworks/common/testing/gmp-encoding-test-vectors.json`
 - **Keep test counts in sync**: MVM and SVM should have matching test numbers for shared functionality
-- **CRITICAL - Update EXTENSION-CHECKLIST.md**: When adding, modifying, or removing tests, ALWAYS update the corresponding EXTENSION-CHECKLIST.md files. Checklists exist at:
-  - `solver/tests/EXTENSION-CHECKLIST.md` - Solver client tests
+- **CRITICAL - Update extension-checklist.md**: When adding, modifying, or removing tests, ALWAYS update the corresponding extension-checklist.md files. Checklists exist at:
+  - `solver/tests/extension-checklist.md` - Solver client tests
   - `docs/intent-frameworks/framework-extension-guide.md` - Full reference
   - When removing a function, also remove its tests AND update checklists to remove/mark as N/A
 

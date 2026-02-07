@@ -30,7 +30,7 @@ Based on the changes, ask the user questions in these categories:
 ### Completeness
 
 - Did you implement this across all relevant frameworks (MVM/EVM/SVM)?
-- Did you update all EXTENSION-CHECKLIST.md files?
+- Did you update all extension-checklist.md files?
 - Are there related files that should also be updated?
 
 ### Testing

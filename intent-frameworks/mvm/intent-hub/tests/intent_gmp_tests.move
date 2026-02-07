@@ -24,6 +24,7 @@ module mvmt_intent::intent_gmp_tests {
     use aptos_framework::account;
     use aptos_framework::timestamp;
     use mvmt_intent::intent_gmp_hub;
+    use mvmt_intent::intent_gmp;
     use mvmt_intent::gmp_common;
     use mvmt_intent::gmp_sender;
     use mvmt_intent::gmp_intent_state;
@@ -504,7 +505,47 @@ module mvmt_intent::intent_gmp_tests {
         assert!(result == test_intent_id(), 2);
     }
 
-    // 13. Test: bytes_to_bytes32 handles empty input
+    // ============================================================================
+    // RELAY MANAGEMENT ACCESS CONTROL TESTS
+    // ============================================================================
+
+    // 13. Test: AddAuthorizedRelay rejects non-admin
+    // Verifies that only the admin can add authorized relays.
+    // Why: Relay management is security-critical; must be admin-only.
+    #[test(admin = @mvmt_intent)]
+    #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
+    fun test_add_authorized_relay_rejects_non_admin(admin: &signer) {
+        intent_gmp_hub::initialize(admin);
+        intent_gmp::initialize(admin);
+
+        // Create non-admin account
+        let non_admin = account::create_account_for_test(@0x999);
+
+        // Try to add relay as non-admin - should fail
+        intent_gmp::add_authorized_relay(&non_admin, @0x789);
+    }
+
+    // 14. Test: RemoveAuthorizedRelay rejects non-admin
+    // Verifies that only the admin can remove authorized relays.
+    // Why: Relay management is security-critical; must be admin-only.
+    #[test(admin = @mvmt_intent)]
+    #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
+    fun test_remove_authorized_relay_rejects_non_admin(admin: &signer) {
+        intent_gmp_hub::initialize(admin);
+        intent_gmp::initialize(admin);
+
+        // Create non-admin account
+        let non_admin = account::create_account_for_test(@0x999);
+
+        // Try to remove relay as non-admin - should fail
+        intent_gmp::remove_authorized_relay(&non_admin, @mvmt_intent);
+    }
+
+    // ============================================================================
+    // HELPER FUNCTION TESTS
+    // ============================================================================
+
+    // 15. Test: bytes_to_bytes32 handles empty input
     // Verifies that empty input results in 32 zero bytes.
     #[test]
     fun test_bytes_to_bytes32_empty_input() {

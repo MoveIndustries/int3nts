@@ -1,7 +1,7 @@
 //! Unit tests for MVM Hub chain client
 //!
 //! These tests are MVM-only because the hub is always an MVM chain.
-//! Hub tests are NOT in EXTENSION-CHECKLIST.md (that's for connected chain tests only).
+//! Hub tests are NOT in extension-checklist.md (that's for connected chain tests only).
 //! Connected chain tests are in chain_client_tests.rs (synchronized across VMs).
 
 use serde_json::json;

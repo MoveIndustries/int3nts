@@ -1,6 +1,6 @@
 ---
 name: review-tests-all
-description: Review ALL test files in the entire codebase for correct comment/header format, check test coverage, and update EXTENSION-CHECKLIST.md for framework symmetry
+description: Review ALL test files in the entire codebase for correct comment/header format, check test coverage, and update extension-checklist.md for framework symmetry
 disable-model-invocation: true
 context: fork
 agent: Explore

@@ -5,7 +5,7 @@ This command reviews **ONLY new or modified test files** and performs four major
 1. **Review test file format**: Check new/modified test files for correct comment and header format
 2. **Review test code quality**: Check for magic numbers, proper constants, and code quality
 3. **Check test coverage**: Verify that any added code is well covered by tests
-4. **Review extension tests**: Check framework symmetry (MVM/EVM/SVM) and update EXTENSION-CHECKLIST.md files
+4. **Review extension tests**: Check framework symmetry (MVM/EVM/SVM) and update extension-checklist.md files
 
 ## Task 1: Review Test File Format (New/Modified Only)
 
@@ -218,15 +218,15 @@ Any added or modified code must be well covered by tests. This includes:
 
 ## Task 4: Review Extension Tests and Update Checklists
 
-### EXTENSION-CHECKLIST.md files
+### extension-checklist.md files
 
 There are 5 checklist files that track test symmetry across frameworks (MVM/EVM/SVM):
 
-1. `intent-frameworks/EXTENSION-CHECKLIST.md`
-2. `coordinator/tests/EXTENSION-CHECKLIST.md`
-3. `frontend/src/EXTENSION-CHECKLIST.md`
-4. `solver/tests/EXTENSION-CHECKLIST.md`
-5. `trusted-gmp/tests/EXTENSION-CHECKLIST.md`
+1. `intent-frameworks/extension-checklist.md`
+2. `coordinator/tests/extension-checklist.md`
+3. `frontend/src/extension-checklist.md`
+4. `solver/tests/extension-checklist.md`
+5. `trusted-gmp/tests/extension-checklist.md`
 
 ### What to check
 
@@ -238,7 +238,7 @@ Each checklist has tables showing which tests are:
 
 ### Steps for Task 4
 
-1. Read all 5 EXTENSION-CHECKLIST.md files
+1. Read all 5 extension-checklist.md files
 
 2. For new/modified tests only:
    - Check if they should be added to the checklist
@@ -340,9 +340,9 @@ If you find misalignment, refer the developer to the Framework Extension Guide f
 
 ### Test Ordering Requirement
 
-**CRITICAL: Test order in framework test files MUST match the order in EXTENSION-CHECKLIST.md.**
+**CRITICAL: Test order in framework test files MUST match the order in extension-checklist.md.**
 
-The EXTENSION-CHECKLIST.md tables define the canonical ordering of tests. When reviewing framework test files:
+The extension-checklist.md tables define the canonical ordering of tests. When reviewing framework test files:
 
 1. **Test functions must appear in the same order as listed in the checklist**
    - Test #1 from checklist should be the first test function in the file
@@ -355,7 +355,7 @@ The EXTENSION-CHECKLIST.md tables define the canonical ordering of tests. When r
    - Test numbers in the checklist serve as the source of truth for ordering
 
 3. **During review, verify:**
-   - Read the relevant EXTENSION-CHECKLIST.md section for the module being tested
+   - Read the relevant extension-checklist.md section for the module being tested
    - Check that tests in the file appear in the same sequence as the checklist rows
    - Report any ordering violations with the expected order from the checklist
 

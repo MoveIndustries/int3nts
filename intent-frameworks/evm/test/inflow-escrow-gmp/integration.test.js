@@ -32,7 +32,7 @@ describe("IntentInflowEscrow - Integration Tests", function () {
   // INTEGRATION TESTS
   // ============================================================================
 
-  /// 1. Test: Complete Deposit to Fulfillment Workflow
+  /// 1. Test: test_complete_deposit_to_fulfillment: Complete Deposit to Fulfillment Workflow
   /// Verifies the full workflow from requirements to escrow creation through fulfillment.
   /// Why: Integration test ensures all components work together correctly in the happy path.
   it("Should complete full deposit to fulfillment workflow", async function () {
@@ -91,7 +91,7 @@ describe("IntentInflowEscrow - Integration Tests", function () {
     expect(await token.balanceOf(requester.address)).to.equal(DEFAULT_AMOUNT * 99n);
   });
 
-  /// 2. Test: Multi-Token Scenarios
+  /// 2. Test: test_multi_token_scenarios: Multi-Token Scenarios
   /// Verifies that the escrow works with different ERC20 tokens.
   /// Why: The escrow must support any ERC20 token, not just a single token type.
   it("Should handle multiple different ERC20 tokens", async function () {
@@ -160,7 +160,7 @@ describe("IntentInflowEscrow - Integration Tests", function () {
     expect(await token3.balanceOf(escrow.target)).to.equal(amount3);
   });
 
-  /// 3. Test: Comprehensive Event Emission
+  /// 3. Test: test_comprehensive_event_emission: Comprehensive Event Emission
   /// Verifies that all events are emitted with correct parameters.
   /// Why: Events are critical for off-chain monitoring and indexing. Incorrect events break integrations.
   it("Should emit all events with correct parameters", async function () {
@@ -194,7 +194,7 @@ describe("IntentInflowEscrow - Integration Tests", function () {
     ).to.emit(escrow, "EscrowReleased");
   });
 
-  /// 4. Test: Complete Cancellation Workflow
+  /// 4. Test: test_complete_cancellation_workflow: Complete Cancellation Workflow
   /// Verifies the full workflow from escrow creation through cancellation after expiry.
   /// Why: Integration test ensures the cancellation flow works end-to-end after expiry.
   it("Should complete full cancellation workflow", async function () {
@@ -249,7 +249,7 @@ describe("IntentInflowEscrow - Integration Tests", function () {
     expect(await token.balanceOf(escrow.target)).to.equal(0);
   });
 
-  /// 5. Test: Requirements Before Escrow Requirement
+  /// 5. Test: test_requirements_before_escrow: Requirements Before Escrow Requirement
   /// Verifies that escrow creation requires prior requirements delivery.
   /// Why: GMP flow mandates hub sends requirements before escrow can be created.
   it("Should require requirements before escrow creation", async function () {
@@ -265,7 +265,7 @@ describe("IntentInflowEscrow - Integration Tests", function () {
     ).to.be.revertedWithCustomError(escrow, "E_REQUIREMENTS_NOT_FOUND");
   });
 
-  /// 6. Test: Full Lifecycle With Multiple Participants
+  /// 6. Test: test_full_lifecycle_multiple_participants: Full Lifecycle With Multiple Participants
   /// Verifies that multiple requesters can have independent escrows.
   /// Why: System must support concurrent users with independent escrow states.
   it("Should handle multiple participants with independent escrows", async function () {

@@ -30,7 +30,7 @@ describe("IntentInflowEscrow - Expiry Handling", function () {
     intentId = fixtures.intentId;
   });
 
-  /// 1. Test: Expired Escrow Cancellation
+  /// 1. Test: test_cancel_expired_escrow: Expired Escrow Cancellation
   /// Verifies that requesters can cancel escrows after expiry and reclaim funds.
   /// Why: Requesters need a way to reclaim funds if fulfillment doesn't occur before expiry.
   it("Should allow requester to cancel expired escrow", async function () {
@@ -76,7 +76,7 @@ describe("IntentInflowEscrow - Expiry Handling", function () {
     expect(await escrow.isCancelled(intentId)).to.equal(true);
   });
 
-  /// 2. Test: Expiry Timestamp Validation
+  /// 2. Test: test_expiry_timestamp_validation: Expiry Timestamp Validation
   /// Verifies that expiry timestamp is correctly stored from requirements.
   /// Why: Correct expiry from hub is critical for time-based cancellation logic.
   it("Should verify expiry timestamp is stored correctly from requirements", async function () {
@@ -114,7 +114,7 @@ describe("IntentInflowEscrow - Expiry Handling", function () {
     expect(escrowData.released).to.equal(false);
   });
 
-  /// 3. Test: GMP Fulfillment After Local Expiry
+  /// 3. Test: test_gmp_fulfillment_after_local_expiry: GMP Fulfillment After Local Expiry
   /// Verifies that GMP fulfillment proofs are honored regardless of local expiry.
   /// Why: Hub is source of truth. If hub confirms fulfillment, escrow must release even after local expiry.
   it("Should allow GMP fulfillment after local expiry (hub is source of truth)", async function () {

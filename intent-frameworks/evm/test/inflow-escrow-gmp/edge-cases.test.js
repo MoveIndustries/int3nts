@@ -30,7 +30,7 @@ describe("IntentInflowEscrow - Edge Cases", function () {
   // EDGE CASE TESTS
   // ============================================================================
 
-  /// 1. Test: Maximum Values
+  /// 1. Test: test_maximum_values: Maximum Values
   /// Verifies that createEscrowWithValidation handles maximum uint64 amount values.
   /// Why: Edge case testing ensures the contract handles boundary values correctly.
   /// Note: Amount is uint64 in GMP messages, not uint256.
@@ -66,7 +66,7 @@ describe("IntentInflowEscrow - Edge Cases", function () {
     expect(escrowData.amount).to.equal(maxAmount);
   });
 
-  /// 2. Test: Minimum Deposit Amount
+  /// 2. Test: test_minimum_deposit_amount: Minimum Deposit Amount
   /// Verifies edge cases around minimum deposit amounts (1 unit).
   /// Why: Ensures the contract accepts the minimum valid amount without rejecting it as zero.
   it("Should handle minimum deposit amount (1 unit)", async function () {
@@ -99,7 +99,7 @@ describe("IntentInflowEscrow - Edge Cases", function () {
     expect(escrowData.amount).to.equal(minAmount);
   });
 
-  /// 3. Test: Multiple Escrows Per Requester
+  /// 3. Test: test_multiple_escrows_per_requester: Multiple Escrows Per Requester
   /// Verifies that a requester can create multiple escrows with different intent IDs.
   /// Why: Requesters may need multiple concurrent escrows for different intents.
   it("Should allow requester to create multiple escrows", async function () {
@@ -133,7 +133,7 @@ describe("IntentInflowEscrow - Edge Cases", function () {
     }
   });
 
-  /// 4. Test: Gas Limit Scenarios
+  /// 4. Test: test_gas_limit_scenarios: Gas Limit Scenarios
   /// Verifies gas consumption for escrow creation.
   /// Why: Gas efficiency is critical for user experience.
   it("Should handle gas consumption for escrow operations", async function () {
@@ -176,7 +176,7 @@ describe("IntentInflowEscrow - Edge Cases", function () {
     });
   });
 
-  /// 5. Test: Concurrent Operations
+  /// 5. Test: test_concurrent_operations: Concurrent Operations
   /// Verifies that multiple simultaneous escrow operations can be handled correctly.
   /// Why: Real-world usage involves concurrent operations.
   it("Should handle concurrent escrow operations", async function () {

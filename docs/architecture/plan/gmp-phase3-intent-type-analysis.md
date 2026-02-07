@@ -146,9 +146,9 @@ Solver fulfills (fa_intent_inflow.fulfill_inflow_intent)
     → TYPE CHECK: metadata + amount only (no auth check)
 ```
 
-**Risk:** If someone bypasses `fa_intent_inflow.fulfill_inflow_intent` and calls `fa_intent::finish_fa_receiving_session_with_event` directly with a valid session + correct tokens, the intent completes with **no escrow confirmation check**. The authorization check lives solely in the wrapper.
+**Bypass path:** A solver can call `fa_intent::start_fa_offering_session` + `finish_fa_receiving_session_with_event` directly, skipping the `is_escrow_confirmed` check. `start_intent_session` is `public` and takes no signer; `start_fa_offering_session` only checks the reservation solver matches (if reserved). The escrow confirmation check lives solely in the wrapper.
 
-**Mitigation:** Obtaining a `Session<FALimitOrder>` requires calling `intent::start_session()`, which requires the solver to be registered. This is a meaningful barrier but is not an authorization check tied to the specific fulfillment.
+**Practical risk: LOW.** The bypass means a solver fulfills the intent *without* waiting for escrow confirmation. The solver delivers real tokens to the requester on hub — the requester still gets what they wanted. The solver risks their own money: if the escrow on the connected chain was never created, the solver won't get paid. This is a self-harming action, not a theft vector. For outflow (where the user's tokens are locked on hub), this would be critical — but for inflow, no user funds are at risk.
 
 ### OracleGuardedLimitOrder — Defense-in-Depth
 

@@ -272,7 +272,7 @@ module mvmt_intent::intent_gmp {
         };
     }
 
-    /// Add an authorized relay address.
+    /// Add an authorized relay address. Only the admin can call this.
     public entry fun add_authorized_relay(
         admin: &signer,
         relay_addr: address,
@@ -280,8 +280,8 @@ module mvmt_intent::intent_gmp {
         let admin_addr = signer::address_of(admin);
         let config = borrow_global_mut<EndpointConfig>(@mvmt_intent);
 
-        // Only existing authorized relays can add new ones
-        assert!(is_authorized_relay(&config.authorized_relays, admin_addr), E_UNAUTHORIZED_RELAY);
+        // Only admin can add relays
+        assert!(config.admin == admin_addr, E_UNAUTHORIZED_ADMIN);
 
         // Add if not already present
         if (!is_authorized_relay(&config.authorized_relays, relay_addr)) {
@@ -289,7 +289,7 @@ module mvmt_intent::intent_gmp {
         };
     }
 
-    /// Remove an authorized relay address.
+    /// Remove an authorized relay address. Only the admin can call this.
     public entry fun remove_authorized_relay(
         admin: &signer,
         relay_addr: address,
@@ -297,8 +297,8 @@ module mvmt_intent::intent_gmp {
         let admin_addr = signer::address_of(admin);
         let config = borrow_global_mut<EndpointConfig>(@mvmt_intent);
 
-        // Only existing authorized relays can remove
-        assert!(is_authorized_relay(&config.authorized_relays, admin_addr), E_UNAUTHORIZED_RELAY);
+        // Only admin can remove relays
+        assert!(config.admin == admin_addr, E_UNAUTHORIZED_ADMIN);
 
         // Find and remove
         let (found, index) = vector::index_of(&config.authorized_relays, &relay_addr);

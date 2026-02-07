@@ -158,13 +158,13 @@ For shared functionality that should exist across MVM/EVM/SVM:
 
 1. Check if all three have equivalent implementations
 2. Verify they use the same logic/algorithms
-3. Ensure test coverage is symmetric (check EXTENSION-CHECKLIST.md files)
+3. Ensure test coverage is symmetric (check extension-checklist.md files)
 
 ### What to do
 
 - Add missing implementations to achieve symmetry
 - Align logic across frameworks where appropriate
-- Update EXTENSION-CHECKLIST.md to reflect current state
+- Update extension-checklist.md to reflect current state
 
 ## Task 5: Documentation Debt
 

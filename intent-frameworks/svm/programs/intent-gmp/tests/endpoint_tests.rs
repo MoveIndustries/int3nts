@@ -554,6 +554,21 @@ mod integration {
         }
     }
 
+    /// Helper: create RemoveRelay instruction
+    fn create_remove_relay_ix(program_id: Pubkey, admin: Pubkey, relay: Pubkey) -> Instruction {
+        let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
+        let (relay_pda, _) = Pubkey::find_program_address(&[seeds::RELAY_SEED, relay.as_ref()], &program_id);
+        Instruction {
+            program_id,
+            accounts: vec![
+                AccountMeta::new_readonly(config_pda, false),
+                AccountMeta::new(relay_pda, false),
+                AccountMeta::new_readonly(admin, true),
+            ],
+            data: NativeGmpInstruction::RemoveRelay { relay }.try_to_vec().unwrap(),
+        }
+    }
+
     /// Helper: create SetTrustedRemote instruction
     fn create_set_trusted_remote_ix(
         program_id: Pubkey,
@@ -1280,5 +1295,58 @@ mod integration {
         // Should fail due to insufficient accounts
         let result = send_tx(&mut context, &relay, &[deliver_ix], &[]).await;
         assert!(result.is_err(), "Should fail with insufficient accounts for FulfillmentProof");
+    }
+
+    /// 27. Test: Non-admin cannot add relay
+    /// Verifies that only the admin can add authorized relays.
+    /// Why: Relay management is security-critical; must be admin-only.
+    #[tokio::test]
+    async fn test_add_relay_rejects_non_admin() {
+        let pt = program_test();
+        let mut context = pt.start_with_context().await;
+        let admin = context.payer.insecure_clone();
+        let non_admin = Keypair::new();
+        let program_id = gmp_program_id();
+
+        // Fund non-admin
+        let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &non_admin.pubkey(), 1_000_000_000);
+        send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
+
+        // Initialize endpoint
+        let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
+        send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
+
+        // Non-admin tries to add relay - should fail
+        let new_relay = Keypair::new();
+        let add_relay_ix = create_add_relay_ix(program_id, non_admin.pubkey(), non_admin.pubkey(), new_relay.pubkey());
+        let result = send_tx(&mut context, &non_admin, &[add_relay_ix], &[]).await;
+        assert!(result.is_err(), "Non-admin should not be able to add relay");
+    }
+
+    /// 28. Test: Non-admin cannot remove relay
+    /// Verifies that only the admin can remove authorized relays.
+    /// Why: Relay management is security-critical; must be admin-only.
+    #[tokio::test]
+    async fn test_remove_relay_rejects_non_admin() {
+        let pt = program_test();
+        let mut context = pt.start_with_context().await;
+        let admin = context.payer.insecure_clone();
+        let non_admin = Keypair::new();
+        let relay = Keypair::new();
+        let program_id = gmp_program_id();
+
+        // Fund non-admin
+        let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &non_admin.pubkey(), 1_000_000_000);
+        send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
+
+        // Initialize endpoint and add a relay as admin
+        let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
+        let add_relay_ix = create_add_relay_ix(program_id, admin.pubkey(), admin.pubkey(), relay.pubkey());
+        send_tx(&mut context, &admin, &[init_ix, add_relay_ix], &[]).await.unwrap();
+
+        // Non-admin tries to remove relay - should fail
+        let remove_relay_ix = create_remove_relay_ix(program_id, non_admin.pubkey(), relay.pubkey());
+        let result = send_tx(&mut context, &non_admin, &[remove_relay_ix], &[]).await;
+        assert!(result.is_err(), "Non-admin should not be able to remove relay");
     }
 }

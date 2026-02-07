@@ -7,7 +7,7 @@
 //! - Solver fulfills on hub → Hub sends fulfillment proof via GMP
 //! - SVM releases escrowed tokens to solver
 //!
-//! Test numbering matches intent-frameworks/EXTENSION-CHECKLIST.md "Inflow Escrow GMP Tests"
+//! Test numbering matches intent-frameworks/extension-checklist.md "Inflow Escrow GMP Tests"
 
 mod common;
 

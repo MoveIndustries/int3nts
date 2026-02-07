@@ -30,14 +30,14 @@ describe("IntentInflowEscrow - Initialization", function () {
     intentId = fixtures.intentId;
   });
 
-  /// 1. Test: GMP Endpoint Initialization
+  /// 1. Test: test_initialize_gmp_endpoint: GMP Endpoint Initialization
   /// Verifies that the escrow is deployed with the correct GMP endpoint address.
   /// Why: The GMP endpoint is critical for cross-chain message routing.
   it("Should initialize escrow with GMP endpoint address", async function () {
     expect(await escrow.gmpEndpoint()).to.equal(gmpEndpoint.target);
   });
 
-  /// 2. Test: Hub Chain Configuration
+  /// 2. Test: test_initialize_hub_chain_config: Hub Chain Configuration
   /// Verifies that the escrow is deployed with the correct hub chain ID and trusted address.
   /// Why: Hub chain configuration is required for validating incoming GMP messages.
   it("Should initialize escrow with hub chain configuration", async function () {
@@ -45,7 +45,7 @@ describe("IntentInflowEscrow - Initialization", function () {
     expect(await escrow.trustedHubAddr()).to.equal(TRUSTED_HUB_ADDR);
   });
 
-  /// 3. Test: Escrow Creation After Requirements
+  /// 3. Test: test_create_escrow_after_requirements: Escrow Creation After Requirements
   /// Verifies that requesters can create an escrow after receiving requirements.
   /// Why: Escrow creation is the first step after hub sends IntentRequirements.
   it("Should allow requester to create an escrow after requirements received", async function () {
@@ -77,7 +77,7 @@ describe("IntentInflowEscrow - Initialization", function () {
     expect(await escrow.hasEscrow(intentId)).to.equal(true);
   });
 
-  /// 4. Test: Duplicate Escrow Prevention
+  /// 4. Test: test_duplicate_escrow_prevention: Duplicate Escrow Prevention
   /// Verifies that attempting to create an escrow with an existing intent ID reverts.
   /// Why: Each intent ID must map to a single escrow to maintain state consistency.
   it("Should revert if escrow already exists", async function () {
@@ -112,7 +112,7 @@ describe("IntentInflowEscrow - Initialization", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ESCROW_ALREADY_CREATED");
   });
 
-  /// 5. Test: Zero Amount Prevention
+  /// 5. Test: test_zero_amount_prevention: Zero Amount Prevention
   /// Verifies that escrows cannot be created with zero amount.
   /// Why: Zero-amount escrows are invalid.
   it("Should revert if amount is zero", async function () {

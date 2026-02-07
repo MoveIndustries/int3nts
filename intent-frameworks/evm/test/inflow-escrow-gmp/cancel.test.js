@@ -55,7 +55,7 @@ describe("IntentInflowEscrow - Cancel", function () {
     );
   });
 
-  /// 1. Test: Cancellation Before Expiry Prevention
+  /// 1. Test: test_cancel_before_expiry: Cancellation Before Expiry Prevention
   /// Verifies that requesters cannot cancel escrows before expiry.
   /// Why: Funds must remain locked until expiry to give solvers time to fulfill.
   it("Should revert if escrow has not expired yet", async function () {
@@ -64,7 +64,7 @@ describe("IntentInflowEscrow - Cancel", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ESCROW_NOT_EXPIRED");
   });
 
-  /// 2. Test: Cancellation After Expiry
+  /// 2. Test: test_cancel_after_expiry: Cancellation After Expiry
   /// Verifies that requesters can cancel escrows after expiry and reclaim funds.
   /// Why: Requesters need a way to reclaim funds if fulfillment doesn't occur before expiry.
   it("Should allow requester to cancel and reclaim funds after expiry", async function () {
@@ -86,7 +86,7 @@ describe("IntentInflowEscrow - Cancel", function () {
     expect(await escrow.isCancelled(intentId)).to.equal(true);
   });
 
-  /// 3. Test: Unauthorized Cancellation Prevention
+  /// 3. Test: test_cancel_unauthorized: Unauthorized Cancellation Prevention
   /// Verifies that only the requester can cancel their escrow.
   /// Why: Security requirement - only the escrow creator should be able to cancel.
   it("Should revert if not requester", async function () {
@@ -98,7 +98,7 @@ describe("IntentInflowEscrow - Cancel", function () {
     ).to.be.revertedWithCustomError(escrow, "E_UNAUTHORIZED_REQUESTER");
   });
 
-  /// 4. Test: Cancellation After Fulfillment Prevention
+  /// 4. Test: test_cancel_after_fulfillment: Cancellation After Fulfillment Prevention
   /// Verifies that attempting to cancel an already-fulfilled escrow reverts.
   /// Why: Once funds are released via fulfillment, they cannot be cancelled.
   it("Should revert if already fulfilled", async function () {
@@ -121,7 +121,7 @@ describe("IntentInflowEscrow - Cancel", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ALREADY_RELEASED");
   });
 
-  /// 5. Test: Non-Existent Escrow Prevention
+  /// 5. Test: test_cancel_nonexistent_escrow: Non-Existent Escrow Prevention
   /// Verifies that canceling a non-existent escrow reverts.
   /// Why: Prevents invalid operations on non-existent escrows.
   it("Should revert if escrow does not exist", async function () {

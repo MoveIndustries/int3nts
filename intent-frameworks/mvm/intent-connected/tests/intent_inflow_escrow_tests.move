@@ -1006,7 +1006,17 @@ module mvmt_intent::intent_inflow_escrow_tests {
         assert!(intent_inflow_escrow::is_fulfilled(intent_id), 3);
     }
 
-    // 17. Test: Duplicate fulfillment proof is rejected
+    // 17. test_release_escrow_rejects_without_fulfillment - N/A
+    //     Why: MVM now auto-releases tokens on fulfillment proof receipt (see test 16).
+    //     There is no separate release_escrow call, so there is no way to call release
+    //     without fulfillment. The fulfillment proof IS the release trigger.
+
+    // 18. test_release_escrow_rejects_unauthorized_solver - N/A
+    //     Why: MVM now auto-releases tokens on fulfillment proof receipt (see test 16).
+    //     Solver validation happens at proof receipt time - the solver address comes from
+    //     the hub's signed GMP message, which is inherently authorized.
+
+    // 19. Test: Duplicate fulfillment proof is rejected (double release prevention)
     // Verifies that receiving the same FulfillmentProof twice fails.
     // Why: Prevents replay attacks where a duplicate GMP message could cause double-release.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]

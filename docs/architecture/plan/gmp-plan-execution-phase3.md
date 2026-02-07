@@ -1,10 +1,10 @@
 # Phase 3: EVM Expansion & Cross-Chain Architecture Alignment
 
-**Status:** In Progress (Commits 1-5 Complete, Commits 6-10 Pending)
+**Status:** Complete (6 commits)
 **Depends On:** Phase 2
 **Blocks:** Phase 4
 
-**Goal:** Add EVM connected chain support, separate MVM packages for hub vs connected chain deployment, align naming conventions across all three VMs, optimize the GMP escrow release flow, investigate intent type unification, and optimize SVM build performance.
+**Goal:** Add EVM connected chain support, separate MVM packages for hub vs connected chain deployment, align naming conventions across all three VMs, optimize the GMP escrow release flow, and document intent type differences.
 
 ---
 
@@ -114,61 +114,6 @@ Investigated whether hub intents can be unified into a single base type while ma
 
 ---
 
-### Commit 7: Prototype conditional oracle approach
-
-- [ ] Create test branch with `oracle_required` flag
-- [ ] Implement conditional check in finish functions
-- [ ] Write security tests (attempt bypass without flag)
-- [ ] Document findings
-- [ ] Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
-
----
-
-### Commit 8: Write intent unification recommendation document
-
-- [ ] Compare approaches with concrete code examples
-- [ ] Security analysis of each approach
-- [ ] Recommendation with rationale
-- [ ] Migration path if unification is recommended
-- [ ] Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
-
----
-
-### Commit 9: Profile SVM Docker build and document bottlenecks
-
-The SVM Docker build is slow. Suspected bottlenecks:
-
-1. **Solana CLI downloaded fresh every Docker run** (~200MB+)
-2. **Platform-tools downloaded for each cargo build-sbf call**
-3. **Toolchain re-registration happening 3 times** due to cargo-build-sbf bug workaround
-4. **No cargo cache between Docker runs**
-
-**Tasks:**
-
-- [ ] Time each phase (Solana install, platform-tools download, compilation)
-- [ ] Measure download sizes
-- [ ] Identify what's re-downloaded vs cached
-- [ ] Document findings
-- [ ] Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
-
-**Files to analyze:**
-
-- `intent-frameworks/svm/scripts/build-with-docker.sh`
-- `intent-frameworks/svm/scripts/build.sh`
-
----
-
-### Commit 10: Implement SVM build optimizations
-
-- [ ] Based on profiling results, implement improvements:
-  - Pre-built Docker image with Solana CLI?
-  - Volume mounts for caches (~/.cache/solana, cargo registry)?
-  - Single cargo build for all programs?
-  - Fix root cause of toolchain bug instead of workaround?
-- [ ] Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize
-
----
-
 ## Key Files
 
 - `intent-frameworks/evm/contracts/IntentGmp.sol`
@@ -204,9 +149,5 @@ The SVM Docker build is slow. Suspected bottlenecks:
 - [x] Native GMP relay supports all three chain types (MVM, SVM, EVM)
 - [x] Cross-chain E2E tests pass (MVM ↔ EVM outflow + inflow)
 - [x] MVM escrow auto-releases on FulfillmentProof (matches SVM behavior)
-- [ ] Intent unification: all three approaches analyzed with security implications
-- [ ] Intent unification: prototype of conditional oracle approach
-- [ ] Intent unification: final recommendation document written
-- [ ] SVM build: Docker build profiled and bottlenecks documented
-- [ ] SVM build: optimizations implemented (if beneficial)
+- [x] Intent type differences documented (unification not pursued — separate types justified by security model)
 - [x] All existing tests still pass (no regressions)

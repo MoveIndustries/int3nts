@@ -27,7 +27,7 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     intentId = fixtures.intentId;
   });
 
-  /// 1. Test: Zero Amount Rejection
+  /// 1. Test: test_zero_amount_rejection: Zero Amount Rejection
   /// Verifies that createEscrowWithValidation reverts when amount is zero.
   /// Why: Zero-amount escrows are meaningless and could cause accounting issues.
   it("Should revert with zero amount in createEscrow", async function () {
@@ -52,7 +52,7 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ZERO_AMOUNT");
   });
 
-  /// 2. Test: Insufficient Allowance Rejection
+  /// 2. Test: test_insufficient_allowance_rejection: Insufficient Allowance Rejection
   /// Verifies that createEscrowWithValidation reverts when ERC20 allowance is insufficient.
   /// Why: ERC20 transfers require explicit approval. Insufficient allowance must be rejected.
   it("Should revert with insufficient ERC20 allowance", async function () {
@@ -82,7 +82,7 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.reverted;
   });
 
-  /// 3. Test: Requirements Not Found
+  /// 3. Test: test_requirements_not_found: Requirements Not Found
   /// Verifies that createEscrowWithValidation reverts when no requirements exist.
   /// Why: Escrows can only be created after hub sends requirements.
   it("Should revert when requirements not found", async function () {
@@ -93,7 +93,7 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_REQUIREMENTS_NOT_FOUND");
   });
 
-  /// 4. Test: Amount Mismatch Rejection
+  /// 4. Test: test_amount_mismatch_rejection: Amount Mismatch Rejection
   /// Verifies that createEscrowWithValidation reverts when amount doesn't match requirements.
   /// Why: Amount must match what hub specified.
   it("Should revert with amount mismatch", async function () {
@@ -119,7 +119,7 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_AMOUNT_MISMATCH");
   });
 
-  /// 5. Test: Token Mismatch Rejection
+  /// 5. Test: test_token_mismatch_rejection: Token Mismatch Rejection
   /// Verifies that createEscrowWithValidation reverts when token doesn't match requirements.
   /// Why: Token must match what hub specified.
   it("Should revert with token mismatch", async function () {
@@ -149,7 +149,7 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_TOKEN_MISMATCH");
   });
 
-  /// 6. Test: Requester Mismatch Rejection
+  /// 6. Test: test_requester_mismatch_rejection: Requester Mismatch Rejection
   /// Verifies that only the correct requester can create escrow.
   /// Why: Security - only authorized requester can lock funds.
   it("Should revert with requester mismatch", async function () {
@@ -177,7 +177,7 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_REQUESTER_MISMATCH");
   });
 
-  /// 7. Test: Expired Intent Rejection
+  /// 7. Test: test_expired_intent_rejection: Expired Intent Rejection
   /// Verifies that escrows cannot be created after intent expires.
   /// Why: Expired intents should be rejected.
   it("Should revert with expired intent", async function () {
@@ -201,7 +201,7 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_INTENT_EXPIRED");
   });
 
-  /// 8. Test: Non-Existent Escrow Cancellation Rejection
+  /// 8. Test: test_cancel_nonexistent_escrow: Non-Existent Escrow Cancellation Rejection
   /// Verifies that cancel reverts for non-existent escrows.
   /// Why: Prevents cancellation of non-existent escrows.
   it("Should revert cancel on non-existent escrow", async function () {
@@ -212,7 +212,7 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ESCROW_NOT_FOUND");
   });
 
-  /// 9. Test: Duplicate Escrow Creation Rejection
+  /// 9. Test: test_duplicate_escrow_creation: Duplicate Escrow Creation Rejection
   /// Verifies that escrows with duplicate intent IDs are rejected.
   /// Why: Each intent ID must map to exactly one escrow.
   it("Should revert with duplicate escrow creation", async function () {
@@ -240,7 +240,7 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ESCROW_ALREADY_CREATED");
   });
 
-  /// 10. Test: Insufficient Token Balance Rejection
+  /// 10. Test: test_insufficient_token_balance: Insufficient Token Balance Rejection
   /// Verifies that escrow creation fails if requester has insufficient tokens.
   /// Why: Cannot deposit more tokens than available.
   it("Should revert with insufficient token balance", async function () {

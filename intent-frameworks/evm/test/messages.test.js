@@ -15,7 +15,7 @@ describe("Messages", function () {
   // ============================================================================
 
   describe("IntentRequirements", function () {
-    /// 1. Test: Encoded Size
+    /// 1. Test: test_intent_requirements_encode_size: Encoded Size
     /// Verifies IntentRequirements encodes to exactly 145 bytes.
     /// Why: Fixed-width encoding is required for cross-chain compatibility with MVM/SVM.
     it("should encode to 145 bytes", async function () {
@@ -33,7 +33,7 @@ describe("Messages", function () {
       expect((encoded.length - 2) / 2).to.equal(145);
     });
 
-    /// 2. Test: Discriminator Byte
+    /// 2. Test: test_intent_requirements_discriminator: Discriminator Byte
     /// Verifies IntentRequirements has 0x01 as first byte.
     /// Why: Message type discriminator must be at byte 0 for routing.
     it("should have 0x01 as discriminator byte", async function () {
@@ -51,7 +51,7 @@ describe("Messages", function () {
       expect(encoded.slice(0, 4)).to.equal("0x01");
     });
 
-    /// 3. Test: Encode/Decode Roundtrip
+    /// 3. Test: test_intent_requirements_roundtrip: Encode/Decode Roundtrip
     /// Verifies IntentRequirements can be encoded then decoded without data loss.
     /// Why: Roundtrip integrity is essential for cross-chain message handling.
     it("should roundtrip encode/decode", async function () {
@@ -77,7 +77,7 @@ describe("Messages", function () {
       expect(dExpiry).to.equal(expiry);
     });
 
-    /// 4. Test: Big-Endian Amount
+    /// 4. Test: test_intent_requirements_big_endian_amount: Big-Endian Amount
     /// Verifies amount_required is encoded as big-endian uint64.
     /// Why: Cross-chain encoding must match MVM/SVM byte ordering.
     it("should encode amount as big-endian uint64", async function () {
@@ -98,7 +98,7 @@ describe("Messages", function () {
       expect(amountHex).to.equal("0102030405060708");
     });
 
-    /// 5. Test: Big-Endian Expiry
+    /// 5. Test: test_intent_requirements_big_endian_expiry: Big-Endian Expiry
     /// Verifies expiry is encoded as big-endian uint64.
     /// Why: Cross-chain encoding must match MVM/SVM byte ordering.
     it("should encode expiry as big-endian uint64", async function () {
@@ -119,7 +119,7 @@ describe("Messages", function () {
       expect(expiryHex).to.equal("0a0b0c0d0e0f1011");
     });
 
-    /// 6. Test: Field Offsets
+    /// 6. Test: test_intent_requirements_field_offsets: Field Offsets
     /// Verifies all fields are at correct byte offsets.
     /// Why: Wire format must match MVM/SVM exactly for cross-chain compatibility.
     it("should have correct field offsets", async function () {
@@ -152,7 +152,7 @@ describe("Messages", function () {
       expect(hex.slice(274, 290)).to.equal("aabbccddeeff0011");
     });
 
-    /// 7. Test: EVM Address Encoding
+    /// 7. Test: test_intent_requirements_evm_address: EVM Address Encoding
     /// Verifies 20-byte EVM addresses are correctly padded to 32 bytes.
     /// Why: GMP uses 32-byte addresses; EVM addresses must be left-padded.
     it("should correctly encode EVM addresses to bytes32", async function () {
@@ -167,7 +167,7 @@ describe("Messages", function () {
   // ============================================================================
 
   describe("EscrowConfirmation", function () {
-    /// 8. Test: Encoded Size
+    /// 8. Test: test_escrow_confirmation_encode_size: Encoded Size
     /// Verifies EscrowConfirmation encodes to exactly 137 bytes.
     /// Why: Fixed-width encoding is required for cross-chain compatibility.
     it("should encode to 137 bytes", async function () {
@@ -184,7 +184,7 @@ describe("Messages", function () {
       expect((encoded.length - 2) / 2).to.equal(137);
     });
 
-    /// 9. Test: Discriminator Byte
+    /// 9. Test: test_escrow_confirmation_discriminator: Discriminator Byte
     /// Verifies EscrowConfirmation has 0x02 as first byte.
     /// Why: Message type discriminator must be at byte 0 for routing.
     it("should have 0x02 as discriminator byte", async function () {
@@ -201,7 +201,7 @@ describe("Messages", function () {
       expect(encoded.slice(0, 4)).to.equal("0x02");
     });
 
-    /// 10. Test: Encode/Decode Roundtrip
+    /// 10. Test: test_escrow_confirmation_roundtrip: Encode/Decode Roundtrip
     /// Verifies EscrowConfirmation can be encoded then decoded without data loss.
     /// Why: Roundtrip integrity is essential for cross-chain message handling.
     it("should roundtrip encode/decode", async function () {
@@ -225,7 +225,7 @@ describe("Messages", function () {
       expect(dCreatorAddr.toLowerCase()).to.equal(creatorAddr.toLowerCase());
     });
 
-    /// 11. Test: Big-Endian Amount
+    /// 11. Test: test_escrow_confirmation_big_endian_amount: Big-Endian Amount
     /// Verifies amount_escrowed is encoded as big-endian uint64.
     /// Why: Cross-chain encoding must match MVM/SVM byte ordering.
     it("should encode amount as big-endian uint64", async function () {
@@ -244,7 +244,7 @@ describe("Messages", function () {
       expect(amountHex).to.equal("0102030405060708");
     });
 
-    /// 12. Test: Field Offsets
+    /// 12. Test: test_escrow_confirmation_field_offsets: Field Offsets
     /// Verifies all fields are at correct byte offsets.
     /// Why: Wire format must match MVM/SVM exactly for cross-chain compatibility.
     it("should have correct field offsets", async function () {
@@ -280,7 +280,7 @@ describe("Messages", function () {
   // ============================================================================
 
   describe("FulfillmentProof", function () {
-    /// 13. Test: Encoded Size
+    /// 13. Test: test_fulfillment_proof_encode_size: Encoded Size
     /// Verifies FulfillmentProof encodes to exactly 81 bytes.
     /// Why: Fixed-width encoding is required for cross-chain compatibility.
     it("should encode to 81 bytes", async function () {
@@ -296,7 +296,7 @@ describe("Messages", function () {
       expect((encoded.length - 2) / 2).to.equal(81);
     });
 
-    /// 14. Test: Discriminator Byte
+    /// 14. Test: test_fulfillment_proof_discriminator: Discriminator Byte
     /// Verifies FulfillmentProof has 0x03 as first byte.
     /// Why: Message type discriminator must be at byte 0 for routing.
     it("should have 0x03 as discriminator byte", async function () {
@@ -312,7 +312,7 @@ describe("Messages", function () {
       expect(encoded.slice(0, 4)).to.equal("0x03");
     });
 
-    /// 15. Test: Encode/Decode Roundtrip
+    /// 15. Test: test_fulfillment_proof_roundtrip: Encode/Decode Roundtrip
     /// Verifies FulfillmentProof can be encoded then decoded without data loss.
     /// Why: Roundtrip integrity is essential for cross-chain message handling.
     it("should roundtrip encode/decode", async function () {
@@ -334,7 +334,7 @@ describe("Messages", function () {
       expect(dTimestamp).to.equal(timestamp);
     });
 
-    /// 16. Test: Big-Endian Fields
+    /// 16. Test: test_fulfillment_proof_big_endian_fields: Big-Endian Fields
     /// Verifies amount and timestamp are encoded as big-endian uint64.
     /// Why: Cross-chain encoding must match MVM/SVM byte ordering.
     it("should encode amount and timestamp as big-endian uint64", async function () {
@@ -355,7 +355,7 @@ describe("Messages", function () {
       expect(hex.slice(146, 162)).to.equal("0a0b0c0d0e0f1011");
     });
 
-    /// 17. Test: Field Offsets
+    /// 17. Test: test_fulfillment_proof_field_offsets: Field Offsets
     /// Verifies all fields are at correct byte offsets.
     /// Why: Wire format must match MVM/SVM exactly for cross-chain compatibility.
     it("should have correct field offsets", async function () {
@@ -388,7 +388,7 @@ describe("Messages", function () {
   // ============================================================================
 
   describe("peekMessageType", function () {
-    /// 18. Test: Peek IntentRequirements
+    /// 18. Test: test_peek_intent_requirements: Peek IntentRequirements
     /// Verifies peekMessageType returns 0x01 for IntentRequirements.
     /// Why: Message routing depends on correct type detection.
     it("should return 0x01 for IntentRequirements", async function () {
@@ -397,7 +397,7 @@ describe("Messages", function () {
       expect(msgType).to.equal(0x01);
     });
 
-    /// 19. Test: Peek EscrowConfirmation
+    /// 19. Test: test_peek_escrow_confirmation: Peek EscrowConfirmation
     /// Verifies peekMessageType returns 0x02 for EscrowConfirmation.
     /// Why: Message routing depends on correct type detection.
     it("should return 0x02 for EscrowConfirmation", async function () {
@@ -406,7 +406,7 @@ describe("Messages", function () {
       expect(msgType).to.equal(0x02);
     });
 
-    /// 20. Test: Peek FulfillmentProof
+    /// 20. Test: test_peek_fulfillment_proof: Peek FulfillmentProof
     /// Verifies peekMessageType returns 0x03 for FulfillmentProof.
     /// Why: Message routing depends on correct type detection.
     it("should return 0x03 for FulfillmentProof", async function () {
@@ -421,7 +421,7 @@ describe("Messages", function () {
   // ============================================================================
 
   describe("Error Conditions", function () {
-    /// 21. Test: Reject Wrong Discriminator (IntentRequirements)
+    /// 21. Test: test_reject_wrong_discriminator: Reject Wrong Discriminator (IntentRequirements)
     /// Verifies decode rejects payload with wrong message type.
     /// Why: Type safety prevents misrouting of messages.
     it("should reject wrong discriminator for IntentRequirements", async function () {
@@ -431,7 +431,7 @@ describe("Messages", function () {
       ).to.be.revertedWithCustomError(harness, "E_INVALID_MESSAGE_TYPE");
     });
 
-    /// 22. Test: Reject Wrong Length (IntentRequirements)
+    /// 22. Test: test_reject_wrong_length: Reject Wrong Length (IntentRequirements)
     /// Verifies decode rejects payload with wrong length.
     /// Why: Fixed-width encoding requires exact lengths.
     it("should reject wrong length for IntentRequirements", async function () {
@@ -440,7 +440,7 @@ describe("Messages", function () {
       ).to.be.revertedWithCustomError(harness, "E_INVALID_LENGTH");
     });
 
-    /// 23. Test: Reject Empty Buffer
+    /// 23. Test: test_reject_empty_buffer: Reject Empty Buffer
     /// Verifies decode rejects empty payload.
     /// Why: Empty payloads cannot be processed.
     it("should reject empty buffer for decode", async function () {
@@ -449,7 +449,7 @@ describe("Messages", function () {
       ).to.be.revertedWithCustomError(harness, "E_INVALID_LENGTH");
     });
 
-    /// 24. Test: Peek Reject Empty Buffer
+    /// 24. Test: test_peek_reject_empty_buffer: Peek Reject Empty Buffer
     /// Verifies peekMessageType rejects empty payload.
     /// Why: Cannot peek message type from empty buffer.
     it("should reject empty buffer for peek", async function () {
@@ -458,7 +458,7 @@ describe("Messages", function () {
       ).to.be.revertedWithCustomError(harness, "E_EMPTY_PAYLOAD");
     });
 
-    /// 25. Test: Peek Reject Unknown Type
+    /// 25. Test: test_peek_reject_unknown_type: Peek Reject Unknown Type
     /// Verifies peekMessageType rejects unknown message type.
     /// Why: Unknown types cannot be routed.
     it("should reject unknown message type for peek", async function () {
@@ -467,7 +467,7 @@ describe("Messages", function () {
       ).to.be.revertedWithCustomError(harness, "E_UNKNOWN_MESSAGE_TYPE");
     });
 
-    /// 26. Test: Reject Wrong Discriminator (EscrowConfirmation)
+    /// 26. Test: test_reject_wrong_discriminator_escrow_confirmation: Reject Wrong Discriminator (EscrowConfirmation)
     /// Verifies decode rejects payload with wrong message type.
     /// Why: Type safety prevents misrouting of messages.
     it("should reject wrong discriminator for EscrowConfirmation", async function () {
@@ -477,7 +477,7 @@ describe("Messages", function () {
       ).to.be.revertedWithCustomError(harness, "E_INVALID_MESSAGE_TYPE");
     });
 
-    /// 27. Test: Reject Wrong Discriminator (FulfillmentProof)
+    /// 27. Test: test_reject_wrong_discriminator_fulfillment_proof: Reject Wrong Discriminator (FulfillmentProof)
     /// Verifies decode rejects payload with wrong message type.
     /// Why: Type safety prevents misrouting of messages.
     it("should reject wrong discriminator for FulfillmentProof", async function () {
@@ -487,7 +487,7 @@ describe("Messages", function () {
       ).to.be.revertedWithCustomError(harness, "E_INVALID_MESSAGE_TYPE");
     });
 
-    /// 28. Test: Reject Wrong Length (EscrowConfirmation)
+    /// 28. Test: test_reject_wrong_length_escrow_confirmation: Reject Wrong Length (EscrowConfirmation)
     /// Verifies decode rejects payload with wrong length.
     /// Why: Fixed-width encoding requires exact lengths.
     it("should reject wrong length for EscrowConfirmation", async function () {
@@ -496,7 +496,7 @@ describe("Messages", function () {
       ).to.be.revertedWithCustomError(harness, "E_INVALID_LENGTH");
     });
 
-    /// 29. Test: Reject Wrong Length (FulfillmentProof)
+    /// 29. Test: test_reject_wrong_length_fulfillment_proof: Reject Wrong Length (FulfillmentProof)
     /// Verifies decode rejects payload with wrong length.
     /// Why: Fixed-width encoding requires exact lengths.
     it("should reject wrong length for FulfillmentProof", async function () {
@@ -505,7 +505,7 @@ describe("Messages", function () {
       ).to.be.revertedWithCustomError(harness, "E_INVALID_LENGTH");
     });
 
-    /// 30. Test: Reject Off-by-One Length
+    /// 30. Test: test_reject_off_by_one_length: Reject Off-by-One Length
     /// Verifies decode rejects payload with off-by-one length.
     /// Why: Strict length validation prevents buffer overflows.
     it("should reject off-by-one length", async function () {
@@ -522,7 +522,7 @@ describe("Messages", function () {
   // ============================================================================
 
   describe("Boundary Conditions", function () {
-    /// 34. Test: Max U64 Amount Roundtrip
+    /// 34. Test: test_max_u64_amount_roundtrip: Max U64 Amount Roundtrip
     /// Verifies large amounts roundtrip correctly.
     /// Why: Must support full uint64 range for token amounts.
     it("should roundtrip with large amount values", async function () {
@@ -543,7 +543,7 @@ describe("Messages", function () {
       expect(dTimestamp).to.equal(timestamp);
     });
 
-    /// 35. Test: Zero Solver Address Means Any
+    /// 35. Test: test_zero_solver_addr_means_any: Zero Solver Address Means Any
     /// Verifies zero solver address roundtrips correctly.
     /// Why: Zero address has special meaning (any solver can fulfill).
     it("should roundtrip with zero values", async function () {
@@ -571,11 +571,71 @@ describe("Messages", function () {
   });
 
   // ============================================================================
+  // Known Byte Sequences
+  // ============================================================================
+
+  describe("Known Byte Sequences", function () {
+    /// 31. Test: test_decode_known_intent_requirements_bytes: Decode Known IntentRequirements Bytes
+    /// Verifies decoding a hardcoded byte sequence produces the expected fields.
+    /// Why: Catches encoding regressions across releases.
+    /// TODO: Implement - requires known test vector bytes from gmp-encoding-test-vectors.json
+    it("should decode known IntentRequirements bytes");
+
+    /// 32. Test: test_decode_known_escrow_confirmation_bytes: Decode Known EscrowConfirmation Bytes
+    /// Verifies decoding a hardcoded byte sequence produces the expected fields.
+    /// Why: Catches encoding regressions across releases.
+    /// TODO: Implement - requires known test vector bytes from gmp-encoding-test-vectors.json
+    it("should decode known EscrowConfirmation bytes");
+
+    /// 33. Test: test_decode_known_fulfillment_proof_bytes: Decode Known FulfillmentProof Bytes
+    /// Verifies decoding a hardcoded byte sequence produces the expected fields.
+    /// Why: Catches encoding regressions across releases.
+    /// TODO: Implement - requires known test vector bytes from gmp-encoding-test-vectors.json
+    it("should decode known FulfillmentProof bytes");
+  });
+
+  // ============================================================================
+  // Cross-Chain Encoding Compatibility
+  // ============================================================================
+
+  describe("Cross-Chain Encoding Compatibility", function () {
+    /// 36. Test: test_cross_chain_encoding_intent_requirements: Cross-Chain Encoding IntentRequirements
+    /// Verifies encoding matches expected bytes from gmp-encoding-test-vectors.json.
+    /// Why: All VMs must produce identical bytes for cross-chain compatibility.
+    /// TODO: Implement - load test vectors from common/testing/gmp-encoding-test-vectors.json
+    it("should match cross-chain encoding for IntentRequirements");
+
+    /// 37. Test: test_cross_chain_encoding_escrow_confirmation: Cross-Chain Encoding EscrowConfirmation
+    /// Verifies encoding matches expected bytes from gmp-encoding-test-vectors.json.
+    /// Why: All VMs must produce identical bytes for cross-chain compatibility.
+    /// TODO: Implement - load test vectors from common/testing/gmp-encoding-test-vectors.json
+    it("should match cross-chain encoding for EscrowConfirmation");
+
+    /// 38. Test: test_cross_chain_encoding_fulfillment_proof: Cross-Chain Encoding FulfillmentProof
+    /// Verifies encoding matches expected bytes from gmp-encoding-test-vectors.json.
+    /// Why: All VMs must produce identical bytes for cross-chain compatibility.
+    /// TODO: Implement - load test vectors from common/testing/gmp-encoding-test-vectors.json
+    it("should match cross-chain encoding for FulfillmentProof");
+
+    /// 39. Test: test_cross_chain_encoding_intent_requirements_zeros: Cross-Chain Encoding IntentRequirements (Zeros)
+    /// Verifies encoding with all-zero fields matches expected bytes.
+    /// Why: Edge case - zero values must still produce valid fixed-width encoding.
+    /// TODO: Implement - load test vectors from common/testing/gmp-encoding-test-vectors.json
+    it("should match cross-chain encoding for IntentRequirements with zeros");
+
+    /// 40. Test: test_cross_chain_encoding_intent_requirements_max: Cross-Chain Encoding IntentRequirements (Max)
+    /// Verifies encoding with max values matches expected bytes.
+    /// Why: Edge case - maximum values must not overflow fixed-width fields.
+    /// TODO: Implement - load test vectors from common/testing/gmp-encoding-test-vectors.json
+    it("should match cross-chain encoding for IntentRequirements with max values");
+  });
+
+  // ============================================================================
   // Address Conversion
   // ============================================================================
 
   describe("Address Conversion", function () {
-    /// Test: addressToBytes32
+    /// 41. Test: test_address_to_bytes32: addressToBytes32
     /// Verifies 20-byte EVM addresses are correctly left-padded to 32 bytes.
     it("should convert address to bytes32 correctly", async function () {
       const addr = "0x1234567890123456789012345678901234567890";
@@ -583,7 +643,7 @@ describe("Messages", function () {
       expect(result).to.equal("0x0000000000000000000000001234567890123456789012345678901234567890");
     });
 
-    /// Test: bytes32ToAddress
+    /// 42. Test: test_bytes32_to_address: bytes32ToAddress
     /// Verifies 32-byte values are correctly truncated to 20-byte EVM addresses.
     it("should convert bytes32 to address correctly", async function () {
       const b32 = "0x0000000000000000000000001234567890123456789012345678901234567890";
@@ -591,7 +651,7 @@ describe("Messages", function () {
       expect(result.toLowerCase()).to.equal("0x1234567890123456789012345678901234567890");
     });
 
-    /// Test: Roundtrip Address Conversion
+    /// 43. Test: test_address_conversion_roundtrip: Roundtrip Address Conversion
     /// Verifies address conversion roundtrips without data loss.
     it("should roundtrip address conversion", async function () {
       const addr = "0x1234567890123456789012345678901234567890";
@@ -606,7 +666,7 @@ describe("Messages", function () {
   // ============================================================================
 
   describe("Constants", function () {
-    /// Test: Message Type Constants
+    /// 44. Test: test_message_type_constants: Message Type Constants
     /// Verifies message type constants match specification.
     it("should have correct message type constants", async function () {
       expect(await harness.MESSAGE_TYPE_INTENT_REQUIREMENTS()).to.equal(0x01);
@@ -614,7 +674,7 @@ describe("Messages", function () {
       expect(await harness.MESSAGE_TYPE_FULFILLMENT_PROOF()).to.equal(0x03);
     });
 
-    /// Test: Message Size Constants
+    /// 45. Test: test_message_size_constants: Message Size Constants
     /// Verifies message size constants match specification.
     it("should have correct message size constants", async function () {
       expect(await harness.INTENT_REQUIREMENTS_SIZE()).to.equal(145);

@@ -37,7 +37,7 @@ git diff --cached
 
 If staged changes include new, modified, or removed tests:
 
-1. Check if tests should be in `solver/tests/EXTENSION-CHECKLIST.md`
+1. Check if tests should be in `solver/tests/extension-checklist.md`
 2. If tests are in an extension checklist: verify if equivalent tests exist for other VM frameworks (MVM, EVM, SVM)
 3. If tests were removed: update checklists to remove or mark as N/A
 4. **STOP and inform user**: If checklist updates are needed, update the checklist then STOP. Do NOT proceed to commit. User must assess whether other VMs need equivalent tests first.
