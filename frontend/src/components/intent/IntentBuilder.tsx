@@ -677,7 +677,7 @@ export function IntentBuilder() {
   }, [savedDraftData?.intentId]);
 
   // Poll for fulfillment
-  // - Outflow: Check trusted-gmp approval (trusted-gmp confirms funds received on connected chain)
+  // - Outflow: Check coordinator events for fulfillment (GMP delivers FulfillmentProof to hub)
   // - Inflow: Check hub chain fulfillment events (solver fulfilled intent on hub chain)
   useEffect(() => {
     if (!transactionHash || !savedDraftData || pollingFulfillmentRef.current) return;
@@ -713,21 +713,27 @@ export function IntentBuilder() {
           }
           
           if (flowType === 'outflow') {
-            // Outflow: Check trusted-gmp approval (trusted-gmp confirms funds received on connected chain)
-            console.log('Checking approval status for outflow intent:', currentIntentId);
+            // Outflow: Check coordinator events for fulfillment (GMP delivers FulfillmentProof to hub)
+            console.log('Checking coordinator events for outflow intent:', currentIntentId);
 
-            const trustedGmpUrl = process.env.NEXT_PUBLIC_TRUSTED_GMP_URL || 'http://localhost:3334';
-            const response = await fetch(`${trustedGmpUrl}/approved/${currentIntentId}`);
-            const data = await response.json();
-            
-            console.log('Approval check response:', data);
-            
-            if (data.success && data.data?.approved) {
-              console.log('Intent approved!');
-              setIntentStatus('fulfilled');
-              setPollingFulfillment(false);
-              pollingFulfillmentRef.current = false;
-              return;
+            const eventsResponse = await coordinatorClient.getEvents();
+
+            if (eventsResponse.success && eventsResponse.data) {
+              const fulfillmentEvent = eventsResponse.data.fulfillment_events?.find(
+                (e: any) => {
+                  const normalizeId = (id: string) =>
+                    id?.replace(/^0x/i, '').toLowerCase().replace(/^0+/, '') || '0';
+                  return normalizeId(e.intent_id) === normalizeId(currentIntentId);
+                }
+              );
+
+              if (fulfillmentEvent) {
+                console.log('Found fulfillment event for outflow intent!');
+                setIntentStatus('fulfilled');
+                setPollingFulfillment(false);
+                pollingFulfillmentRef.current = false;
+                return;
+              }
             }
           } else {
             // Inflow: Check hub chain for fulfillment events

@@ -62,15 +62,15 @@
 
 **Tasks:**
 
-- [ ] Remove all direct trusted-gmp API calls from frontend:
+- [x] Remove all direct trusted-gmp API calls from frontend:
   - Remove `/approved/:intentId` polling (outflow approval check)
   - Remove `/public-key` call (no longer needed — GMP replaces signatures)
   - Remove `/approvals/:escrowId` call (inflow approval check)
-- [ ] Replace outflow completion tracking: poll coordinator `GET /events` for intent fulfillment/completion status instead of trusted-gmp `/approved/:intentId`
-- [ ] Replace inflow escrow release tracking: poll coordinator `GET /events` for `EscrowReleased` event instead of trusted-gmp `/approvals/:escrowId`
-- [ ] Remove `trusted_gmp_public_key` parameter from outflow intent creation flow
-- [ ] Use `ready_on_connected_chain` flag from coordinator events to show GMP delivery status
-- [ ] Remove trusted-gmp base URL configuration from frontend
+- [x] Replace outflow completion tracking: poll coordinator `GET /events` for intent fulfillment/completion status instead of trusted-gmp `/approved/:intentId`
+- [x] Replace inflow escrow release tracking: poll coordinator `GET /events` for `EscrowReleased` event instead of trusted-gmp `/approvals/:escrowId`
+- [x] Remove `trusted_gmp_public_key` parameter from outflow intent creation flow
+- [x] Use `ready_on_connected_chain` flag from coordinator events to show GMP delivery status
+- [x] Remove trusted-gmp base URL configuration from frontend
 
 **Test:**
 
