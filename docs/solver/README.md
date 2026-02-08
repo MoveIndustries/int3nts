@@ -62,7 +62,7 @@ solver/
 │   ├── acceptance.rs      # Token pair acceptance logic
 │   ├── config.rs          # Configuration management
 │   ├── crypto/            # Cryptographic operations (hashing, signing)
-│   └── coordinator_gmp_client.rs # HTTP client for coordinator (drafts) and trusted-gmp (approvals) APIs
+│   └── coordinator_client.rs # HTTP client for coordinator API (drafts, negotiation)
 ├── config/               # Configuration templates
 └── Cargo.toml
 ```
@@ -124,7 +124,7 @@ The solver automatically fulfills **inflow intents** (tokens locked on connected
 
 1. **Monitor Escrows**: Polls connected chain for escrow deposits matching tracked inflow intents
 2. **Fulfill Intent**: Calls hub chain `fulfill_inflow_intent` when escrow is detected
-3. **Release Escrow**: Polls trusted-gmp for approval signature, then releases escrow on connected chain
+3. **Release Escrow**: GMP delivers FulfillmentProof to connected chain, auto-releasing escrow to solver
 
 ### Supported Chains (Inflow)
 
@@ -138,9 +138,8 @@ The solver automatically fulfills **inflow intents** (tokens locked on connected
 
 The solver automatically fulfills **outflow intents** (tokens locked on hub, desired on connected chain):
 
-1. **Execute Transfer**: Transfers tokens on connected chain to requester's address
-2. **Get Trusted GMP Approval**: Calls trusted-gmp `/validate-outflow-fulfillment` with transaction hash
-3. **Fulfill Intent**: Calls hub chain `fulfill_outflow_intent` with trusted-gmp signature
+1. **Call Validation Contract**: Calls validation contract on connected chain (validates requirements, transfers tokens, sends GMP FulfillmentProof)
+2. **Hub Auto-Release**: Hub receives FulfillmentProof via GMP and auto-releases locked tokens to solver
 
 ### Supported Chains (Outflow)
 
@@ -255,7 +254,7 @@ The solver includes chain clients for interacting with different blockchain type
 
 - **Query Escrow Events**: `get_escrow_events()` - Queries connected MVM chain for escrow creation events
 - **Transfer with Intent ID**: `transfer_with_intent_id()` - Executes token transfer with embedded `intent_id`
-- **Complete Escrow**: `complete_escrow_from_fa()` - Releases escrow with trusted-gmp signature
+- **Complete Escrow**: `complete_escrow_from_fa()` - Releases escrow (auto-released via GMP FulfillmentProof)
 
 ### Connected EVM Client (`chains/connected_evm.rs`)
 

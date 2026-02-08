@@ -93,13 +93,13 @@
 
 **Tasks:**
 
-- [ ] Remove direct trusted-gmp API calls from solver:
+- [x] Remove direct trusted-gmp API calls from solver:
   - Remove `POST /validate-outflow-fulfillment` call (no longer needed — validation contract sends GMP message directly)
   - Remove any `/approvals` polling
-- [ ] Replace outflow completion tracking: use coordinator `GET /events` to check hub intent release status
-- [ ] Replace inflow escrow release tracking: use coordinator `GET /events` to check `EscrowReleased` event
-- [ ] Use `ready_on_connected_chain` flag from coordinator events before calling validation contracts
-- [ ] Remove trusted-gmp base URL configuration from solver
+- [x] Replace outflow completion tracking: use coordinator `GET /events` to check hub intent release status
+- [x] Replace inflow escrow release tracking: use coordinator `GET /events` to check `EscrowReleased` event
+- [x] Use `ready_on_connected_chain` flag from coordinator events before calling validation contracts
+- [x] Remove trusted-gmp base URL configuration from solver
 
 **Test:**
 

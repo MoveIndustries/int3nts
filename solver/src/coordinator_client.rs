@@ -1,7 +1,6 @@
-//! Coordinator / Trusted-GMP API Client
+//! Coordinator API Client
 //!
-//! HTTP client for communicating with the coordinator (drafts, negotiation) and
-//! trusted-gmp (validation, approval signatures). Same API response format for both.
+//! HTTP client for communicating with the coordinator (drafts, negotiation).
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -11,9 +10,8 @@ use std::time::Duration;
 // API RESPONSE WRAPPER
 // ============================================================================
 
-/// Standardized response structure from coordinator and trusted-gmp APIs.
+/// Standardized response structure from the coordinator API.
 ///
-/// Both services return this format:
 /// ```json
 /// {
 ///   "success": true|false,
@@ -87,27 +85,27 @@ pub struct SignatureResponse {
 // COORDINATOR CLIENT
 // ============================================================================
 
-/// HTTP client for communicating with the coordinator (drafts) and trusted-gmp (validation/approval).
+/// HTTP client for communicating with the coordinator.
 ///
 /// Uses blocking HTTP requests (reqwest blocking client).
 /// All methods return `Result` with appropriate error context.
-pub struct CoordinatorGmpClient {
-    /// Base URL of coordinator (drafts) or trusted-gmp (validation/approval), e.g. "http://127.0.0.1:3333" or "http://127.0.0.1:3334"
+pub struct CoordinatorClient {
+    /// Base URL of coordinator, e.g. "http://127.0.0.1:3333"
     base_url: String,
     /// HTTP client instance
     client: reqwest::blocking::Client,
 }
 
-impl CoordinatorGmpClient {
-    /// Create a new API client for coordinator or trusted-gmp.
+impl CoordinatorClient {
+    /// Create a new coordinator API client.
     ///
     /// # Arguments
     ///
-    /// * `base_url` - Base URL of coordinator (3333) or trusted-gmp (3334)
+    /// * `base_url` - Base URL of coordinator (e.g. "http://127.0.0.1:3333")
     ///
     /// # Returns
     ///
-    /// * `CoordinatorGmpClient` - New client instance
+    /// * `CoordinatorClient` - New client instance
     pub fn new(base_url: impl Into<String>) -> Self {
         let client = reqwest::blocking::Client::builder()
             .timeout(Duration::from_secs(30))
@@ -143,7 +141,7 @@ impl CoordinatorGmpClient {
 
         if !response.success {
             return Err(anyhow::anyhow!(
-                "Coordinator/Trusted-GMP API error: {}",
+                "Coordinator API error: {}",
                 response.error.unwrap_or_else(|| "Unknown error".to_string())
             ));
         }
@@ -194,13 +192,11 @@ impl CoordinatorGmpClient {
             }
 
             return Err(anyhow::anyhow!(
-                "Coordinator/Trusted-GMP API error: {}",
+                "Coordinator API error: {}",
                 response.error.unwrap_or_else(|| "Unknown error".to_string())
             ));
         }
 
         Ok(response.data.context("Missing data in successful response")?)
     }
-
 }
-
