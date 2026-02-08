@@ -1,12 +1,12 @@
 # Phase 4: Integration & Documentation
 
-**Status:** Blocked - Waiting for Phase 3 API work
-**Depends On:** Phase 3 (deferred API/WebSocket endpoints)
+**Status:** In Progress
+**Depends On:** Phase 3
 **Blocks:** None (Final Phase)
 
-**Note:** Phase 4 Commits 1-2 are blocked because they require Phase 3's coordinator API endpoints (REST API, WebSocket) which were deferred until frontend is ready. Commits 3-7 (deployment, testing, documentation) can potentially proceed independently.
+**What Phase 3 completed:** Readiness tracking for outflow intents (commit `f46eb3d`) - monitors IntentRequirementsReceived events and sets `ready_on_connected_chain` flag.
 
-**What Phase 3 completed:** Readiness tracking for outflow intents (commit `f46eb3d`) - monitors IntentRequirementsReceived events and sets `ready_on_connected_chain` flag. This enables basic frontend coordination without needing the full API.
+**Architecture principle:** The coordinator is the single API surface for frontends and solvers. Clients never poll trusted-gmp directly. Trusted-gmp is purely infrastructure (relay) — invisible to clients.
 
 ---
 
@@ -14,24 +14,63 @@
 
 > 📋 **Commit Conventions:** Before each commit, review `.claude/CLAUDE.md` and `.cursor/rules` for commit message format, test requirements, and coding standards.
 
-### Commit 1: Update frontend for GMP integration (BLOCKED)
+### Commit 1: Strip trusted-gmp client-facing API down to relay-only
 
-**Status:** Blocked - Requires Phase 4 coordinator API endpoints
+**Files:**
+
+- `trusted-gmp/src/api/generic.rs` (existing - route definitions)
+- `trusted-gmp/src/api/outflow_generic.rs` (remove)
+- `trusted-gmp/src/api/outflow_mvm.rs` (remove)
+- `trusted-gmp/src/api/outflow_evm.rs` (remove)
+- `trusted-gmp/src/api/outflow_svm.rs` (remove)
+- `trusted-gmp/src/api/inflow_generic.rs` (remove)
+
+**Tasks:**
+
+- [x] Remove all client-facing API endpoints:
+  - `POST /validate-outflow-fulfillment` (solver validated tx hash — now done on-chain by validation contract)
+  - `POST /validate-inflow-escrow` (escrow validation — now auto-releases via GMP FulfillmentProof)
+  - `POST /approval` (signature generation — GMP message is the proof)
+  - `GET /public-key` (frontend needed for intent creation — no signatures in GMP)
+  - `GET /approved/:intent_id` (frontend polled approval status — coordinator provides this)
+  - `GET /approvals` (listed all signatures — no signatures exist)
+  - `GET /approvals/:escrow_id` (specific escrow signature — no signatures exist)
+  - `GET /events` (coordinator has its own `/events`)
+- [x] Keep only:
+  - `GET /health` (ops monitoring of relay process)
+- [x] Remove dead code: outflow validation logic, inflow validation logic, signature generation, transaction parsing
+- [x] Update trusted-gmp tests to remove tests for deleted endpoints
+- [x] Verify relay functionality still works (MessageSent watching + deliverMessage calls)
+
+**Test:**
+
+```bash
+# Run all unit tests
+./testing-infra/run-all-unit-tests.sh
+```
+
+> ⚠️ **All unit tests must pass before proceeding to Commit 2.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+
+---
+
+### Commit 2: Remove trusted-gmp polling from frontend, use coordinator only
 
 **Files:**
 
 - `frontend/src/lib/coordinator.ts` (existing)
 - `frontend/src/lib/types.ts` (existing)
-- `frontend/src/config/chains.ts` (existing)
 
 **Tasks:**
 
-- [ ] Show GMP message status in intent details
-- [ ] Update status tracking for GMP-based intents
-- [ ] Display cross-chain message delivery progress
-- [ ] Test UI renders correctly for GMP flows
-
-**Blocked by:** Deferred API work from Phase 3 - needs `GET /intents`, `GET /escrows` endpoints to fetch intent status
+- [ ] Remove all direct trusted-gmp API calls from frontend:
+  - Remove `/approved/:intentId` polling (outflow approval check)
+  - Remove `/public-key` call (no longer needed — GMP replaces signatures)
+  - Remove `/approvals/:escrowId` call (inflow approval check)
+- [ ] Replace outflow completion tracking: poll coordinator `GET /events` for intent fulfillment/completion status instead of trusted-gmp `/approved/:intentId`
+- [ ] Replace inflow escrow release tracking: poll coordinator `GET /events` for `EscrowReleased` event instead of trusted-gmp `/approvals/:escrowId`
+- [ ] Remove `trusted_gmp_public_key` parameter from outflow intent creation flow
+- [ ] Use `ready_on_connected_chain` flag from coordinator events to show GMP delivery status
+- [ ] Remove trusted-gmp base URL configuration from frontend
 
 **Test:**
 
@@ -40,28 +79,27 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+> ⚠️ **All unit tests must pass before proceeding to Commit 2.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 2: Update solver SDK for GMP integration (BLOCKED)
-
-**Status:** Blocked - Requires Phase 4 coordinator API endpoints
+### Commit 3: Remove trusted-gmp polling from solver, use coordinator only
 
 **Files:**
 
 - `solver/src/coordinator_gmp_client.rs` (existing)
-- `solver/src/service/outflow.rs` (existing - GMP flow already implemented)
-- `solver/src/service/inflow.rs` (existing - GMP flow already implemented)
+- `solver/src/service/outflow.rs` (existing)
+- `solver/src/service/inflow.rs` (existing)
 
 **Tasks:**
 
-- [ ] **Note:** GMP flow already implemented in Phase 2 (solver calls validation contracts)
-- [ ] Add any remaining GMP status tracking
-- [ ] Integrate with coordinator API for GMP message status
-- [ ] Test fulfillment flows work correctly with GMP
-
-**Blocked by:** Deferred API work from Phase 3 - needs coordinator API to query intent/escrow status
+- [ ] Remove direct trusted-gmp API calls from solver:
+  - Remove `POST /validate-outflow-fulfillment` call (no longer needed — validation contract sends GMP message directly)
+  - Remove any `/approvals` polling
+- [ ] Replace outflow completion tracking: use coordinator `GET /events` to check hub intent release status
+- [ ] Replace inflow escrow release tracking: use coordinator `GET /events` to check `EscrowReleased` event
+- [ ] Use `ready_on_connected_chain` flag from coordinator events before calling validation contracts
+- [ ] Remove trusted-gmp base URL configuration from solver
 
 **Test:**
 
@@ -70,11 +108,11 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+> ⚠️ **All unit tests must pass before proceeding to Commit 4.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 3: Update deployment scripts for GMP (moved from Phase 2)
+### Commit 4: Update deployment scripts for GMP (moved from Phase 2)
 
 **Files:**
 
@@ -96,31 +134,6 @@
 
 # Verify deployments
 solana program show <INTENT_OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
-```
-
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
-
----
-
-### Commit 4: Add full cross-chain testnet integration test
-
-**Files:**
-
-- `testing-infra/ci-e2e/e2e-tests-gmp/full-flow-testnet.sh`
-
-**Tasks:**
-
-- [ ] Test complete outflow: MVM testnet → SVM devnet
-- [ ] Test complete inflow: MVM testnet ← SVM devnet
-- [ ] Test complete outflow: MVM testnet → Base Sepolia
-- [ ] Test complete inflow: MVM testnet ← Base Sepolia
-- [ ] Verify all GMP messages delivered correctly
-
-**Test:**
-
-```bash
-# Run all unit tests
-./testing-infra/run-all-unit-tests.sh
 ```
 
 > ⚠️ **CI e2e tests must pass before proceeding to Commit 5.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
@@ -148,7 +161,7 @@ solana program show <INTENT_OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
 # Documentation review - manual
 ```
 
-> ⚠️ **Documentation review before proceeding to Commit 6.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+> ⚠️ **Documentation review before proceeding to Commit 7.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -240,10 +253,10 @@ At the end of Phase 4, update:
 ## Exit Criteria
 
 - [ ] All 7 commits merged to feature branch
-- [ ] Frontend shows GMP status correctly
-- [ ] Solver uses validation contracts (GMP flow only)
-- [ ] Programs/modules deployed to testnets (Commit 3)
-- [ ] Full cross-chain testnet integration passes
+- [ ] Trusted-gmp stripped to relay-only (no client-facing API besides /health)
+- [ ] Frontend uses coordinator as single API (no direct trusted-gmp calls)
+- [ ] Solver uses coordinator as single API (no direct trusted-gmp calls)
+- [ ] Programs/modules deployed to testnets (Commit 4)
 - [ ] Documentation complete
 - [ ] Fee analysis complete (deferred from Phase 1)
 - [ ] Architecture confirmed: coordinator + trusted-gmp only (no monolithic signer)

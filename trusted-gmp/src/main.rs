@@ -3,8 +3,8 @@
 //! A trusted message relay service that watches for `MessageSent` events on source chains
 //! and delivers cross-chain messages by calling `deliver_message` on destination chains.
 //!
-//! This service replaces the legacy trusted-gmp validation API with native GMP messaging,
-//! enabling fully on-chain cross-chain intent validation.
+//! Trusted-gmp is a pure relay — invisible to clients. The coordinator is the single
+//! API surface for frontends and solvers.
 //!
 //! ## Security Requirements
 //!
@@ -16,7 +16,6 @@
 use anyhow::Result;
 use tracing::info;
 
-mod api;
 mod config;
 mod crypto;
 mod evm_client;

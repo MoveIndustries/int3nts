@@ -1,9 +1,7 @@
 //! Trusted GMP Service Library
 //!
-//! This crate provides message relay and validation services for cross-chain intents.
+//! This crate provides message relay services for cross-chain intents.
 //! It watches mock GMP endpoint events and delivers messages to destination contracts.
-
-pub mod api;
 pub mod config;
 pub mod crypto;
 pub mod evm_client;
