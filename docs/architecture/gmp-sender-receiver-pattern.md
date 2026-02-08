@@ -119,7 +119,7 @@ gmp_sender ← outflow_validator_impl
 
 ```text
 ┌─────────────────────────┐     ┌─────────────────────────┐
-│   native-gmp-endpoint   │     │   outflow-validator     │
+│   integrated-gmp-endpoint   │     │   outflow-validator     │
 │   (Program ID: ABC)     │     │   (Program ID: XYZ)     │
 │                         │     │                         │
 │   - Send instruction    │ ←── │  - CPI to Send          │
@@ -148,7 +148,7 @@ This makes it safe for any application module to import without creating cycles.
 By following LZ's pattern, our code structure mirrors what we'll use in production:
 
 - Same mental model
-- Easy to swap native GMP with real LZ endpoint
+- Easy to swap integrated GMP with real LZ endpoint
 - Consistent patterns across MVM and SVM
 
 ### 3. Single Responsibility
@@ -183,7 +183,7 @@ Each component can be tested independently:
 
 | File | Purpose |
 |------|---------|
-| [native-gmp-endpoint/](../../intent-frameworks/svm/programs/native-gmp-endpoint/) | GMP endpoint program (send + deliver) |
+| [integrated-gmp-endpoint/](../../intent-frameworks/svm/programs/integrated-gmp-endpoint/) | GMP endpoint program (send + deliver) |
 | [outflow-validator/](../../intent-frameworks/svm/programs/outflow-validator/) | Validator program (CPIs to endpoint) |
 
 ---

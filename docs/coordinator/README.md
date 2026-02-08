@@ -27,7 +27,7 @@ The coordinator tracks when intent requirements have been delivered to connected
 - **Outflow intents**: Marks intent as `ready_on_connected_chain: true` when solver can fulfill on connected chain
 - **Inflow intents**: Marks intent as ready when requester can create/fill escrow on connected chain
 
-This allows frontend applications to know when to proceed with the next step in the intent lifecycle, without needing to directly query the connected chain or Trusted GMP service.
+This allows frontend applications to know when to proceed with the next step in the intent lifecycle, without needing to directly query the connected chain or Integrated GMP service.
 
 ## Project Structure
 

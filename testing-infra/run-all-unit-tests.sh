@@ -12,13 +12,13 @@ COORDINATOR_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd coordina
 COORDINATOR_PASSED=$(echo "$COORDINATOR_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum+0}')
 COORDINATOR_FAILED=$(echo "$COORDINATOR_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
 
-echo "Running Trusted-GMP tests..."
-TRUSTED_GMP_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet 2>&1") || {
-    echo "Trusted-GMP tests failed:"
-    echo "$TRUSTED_GMP_TEST_OUTPUT"
+echo "Running Integrated-GMP tests..."
+INTEGRATED_GMP_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --quiet 2>&1") || {
+    echo "Integrated-GMP tests failed:"
+    echo "$INTEGRATED_GMP_TEST_OUTPUT"
 }
-TRUSTED_GMP_PASSED=$(echo "$TRUSTED_GMP_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum+0}')
-TRUSTED_GMP_FAILED=$(echo "$TRUSTED_GMP_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
+INTEGRATED_GMP_PASSED=$(echo "$INTEGRATED_GMP_TEST_OUTPUT" | grep -oE "[0-9]+ passed" | awk '{sum += $1} END {print sum+0}')
+INTEGRATED_GMP_FAILED=$(echo "$INTEGRATED_GMP_TEST_OUTPUT" | grep -oE "[0-9]+ failed" | awk '{sum += $1} END {print sum+0}')
 
 echo "Running Solver tests..."
 SOLVER_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet 2>&1") || {
@@ -72,7 +72,7 @@ echo ""
 echo "| Tests | Passed | Failed |"
 echo "|-------|--------|--------|"
 echo "| Coordinator | $COORDINATOR_PASSED | $COORDINATOR_FAILED |"
-echo "| Trusted-GMP | $TRUSTED_GMP_PASSED | $TRUSTED_GMP_FAILED |"
+echo "| Integrated-GMP | $INTEGRATED_GMP_PASSED | $INTEGRATED_GMP_FAILED |"
 echo "| Solver | $SOLVER_PASSED | $SOLVER_FAILED |"
 echo "| MVM | $MOVE_PASSED | $MOVE_FAILED |"
 echo "| EVM | $EVM_PASSED | $EVM_FAILED |"

@@ -47,7 +47,7 @@ module mvmt_intent::intent_outflow_validator {
 
     /// Receive and process IntentRequirements from hub.
     ///
-    /// Called by trusted-gmp relay when hub sends intent requirements.
+    /// Called by integrated-gmp relay when hub sends intent requirements.
     /// The connected chain stores these requirements and validates escrow creation against them.
     ///
     /// # Arguments

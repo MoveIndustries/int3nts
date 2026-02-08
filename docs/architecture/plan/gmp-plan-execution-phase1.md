@@ -27,12 +27,12 @@
   - MVM: `intent_as_escrow.move`, `fa_intent_outflow.move`, `fa_intent_inflow.move`
   - SVM: `intent_escrow` program (modify existing to add GMP support)
   - What triggers `lzSend()`? (contract logic on state change, not external caller)
-- [x] **Trusted-GMP relay design** - How it works in local/CI:
-  - Watches `MessageSent` events on native GMP endpoints
+- [x] **Integrated-GMP relay design** - How it works in local/CI:
+  - Watches `MessageSent` events on integrated GMP endpoints
   - Calls `deliver_message()` / `lzReceive()` on destination chain
   - Needs funded operator wallet per chain
 - [x] **Environment matrix** - What uses local vs LZ GMP endpoints:
-  - Local/CI: Native GMP endpoints + Trusted-GMP relay
+  - Local/CI: Integrated GMP endpoints + Integrated-GMP relay
   - Testnet: LZ GMP endpoints everywhere
   - Mainnet: LZ GMP endpoints everywhere
 
@@ -275,21 +275,21 @@ Connected chain functions (MVM as connected chain):
 
 ---
 
-### Commit 10: Add native GMP endpoint interfaces (SVM + MVM)
+### Commit 10: Add integrated GMP endpoint interfaces (SVM + MVM)
 
 **Files:**
 
-- `intent-frameworks/svm/programs/native-gmp-endpoint/Cargo.toml`
-- `intent-frameworks/svm/programs/native-gmp-endpoint/src/lib.rs` (interface only)
+- `intent-frameworks/svm/programs/integrated-gmp-endpoint/Cargo.toml`
+- `intent-frameworks/svm/programs/integrated-gmp-endpoint/src/lib.rs` (interface only)
 - `intent-frameworks/mvm/sources/gmp/intent_gmp.move` (interface only)
 
 **Tasks:**
 
 - [x] SVM: Define `send` instruction signature (emits event)
-- [x] SVM: Define `deliver_message` instruction for trusted-GMP relay
+- [x] SVM: Define `deliver_message` instruction for integrated-gmp relay
 - [x] SVM: Add stub implementations
 - [x] MVM: Define `lz_send()` function signature
-- [x] MVM: Define `deliver_message()` entry function for trusted-GMP relay
+- [x] MVM: Define `deliver_message()` entry function for integrated-gmp relay
 - [x] MVM: Add stub implementations
 
 **Test:**
@@ -304,7 +304,7 @@ Connected chain functions (MVM as connected chain):
 
 ### ~~Commit 11: Add fee estimation and document endpoint configuration~~ (Deferred)
 
-> **Moved to Phase 5, Commit 4.** Fee estimation is not needed now since local/CI testing uses native GMP endpoints which are fee-free. LZ fee analysis will be done when integrating with LZ endpoints for testnet/mainnet.
+> **Moved to Phase 5, Commit 4.** Fee estimation is not needed now since local/CI testing uses integrated GMP endpoints which are fee-free. LZ fee analysis will be done when integrating with LZ endpoints for testnet/mainnet.
 
 ---
 
@@ -325,6 +325,6 @@ Connected chain functions (MVM as connected chain):
 - [x] MVM message encoding matches spec (tested)
 - [x] Cross-chain encoding test passes (both produce identical bytes)
 - [x] All interfaces defined for SVM and MVM
-- [x] Native GMP endpoint interfaces defined for both chains
+- [x] Integrated GMP endpoint interfaces defined for both chains
 - [x] LZ research documented for both Solana and Movement
 - ~~[ ] Fee analysis complete~~ (Moved to Phase 5)

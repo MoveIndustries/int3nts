@@ -417,7 +417,7 @@ module mvmt_intent::fa_intent_with_oracle {
         witness: &OracleSignatureWitness,
         intent_id: address,
     ) {
-        // Trusted GMP signs the intent_id (BCS-encoded address) - the signature itself is the approval
+        // Integrated GMP signs the intent_id (BCS-encoded address) - the signature itself is the approval
         let message = bcs::to_bytes(&intent_id);
         assert!(
             ed25519::signature_verify_strict(&witness.signature, &requirement.public_key, message),

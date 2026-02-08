@@ -26,7 +26,7 @@ Search for code duplication across all implementation files (not tests):
 
 3. **Framework-specific duplication**:
    - Intent frameworks: Check `intent-frameworks/{mvm,evm,svm}/sources/` or `intent-frameworks/{mvm,evm,svm}/contracts/`
-   - Rust services: Check `coordinator/src/`, `trusted-gmp/src/`, `solver/src/`
+   - Rust services: Check `coordinator/src/`, `integrated-gmp/src/`, `solver/src/`
    - Frontend: Check `frontend/src/`
 
 ### How to identify

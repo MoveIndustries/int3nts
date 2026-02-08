@@ -1,4 +1,4 @@
-//! Instruction processor for the native GMP endpoint program.
+//! Instruction processor for the integrated GMP endpoint program.
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{

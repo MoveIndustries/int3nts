@@ -16,7 +16,7 @@ This directory contains scripts and configuration for deploying the Intent Frame
 ### Local Testing Scripts
 
 - **`run-coordinator-local.sh`** - Run coordinator service locally against testnets
-- **`run-trusted-gmp-local.sh`** - Run trusted-gmp service locally against testnets
+- **`run-integrated-gmp-local.sh`** - Run integrated-gmp service locally against testnets
 - **`run-solver-local.sh`** - Run solver service locally against testnets
 
 ### Configuration Files
@@ -55,14 +55,14 @@ Test the services locally before deploying to EC2:
 ./testing-infra/testnet/run-coordinator-local.sh --release
 ```
 
-#### Terminal 2: Start Trusted GMP
+#### Terminal 2: Start Integrated GMP
 
 (after coordinator is running)
 
 ```bash
-./testing-infra/testnet/run-trusted-gmp-local.sh
+./testing-infra/testnet/run-integrated-gmp-local.sh
 # Or with release build (faster):
-./testing-infra/testnet/run-trusted-gmp-local.sh --release
+./testing-infra/testnet/run-integrated-gmp-local.sh --release
 ```
 
 #### Terminal 3: Start Solver
@@ -85,7 +85,7 @@ Create `frontend/.env.local` with testnet values:
 
 ```bash
 NEXT_PUBLIC_COORDINATOR_URL=http://localhost:3333
-NEXT_PUBLIC_TRUSTED_GMP_URL=http://localhost:3334
+NEXT_PUBLIC_INTEGRATED_GMP_URL=http://localhost:3334
 ```
 
 Use the frontend UI to create and test intents (inflow and outflow) against the local services.
@@ -98,7 +98,7 @@ Note: chain-specific addresses and optional RPC/program overrides are configured
 # Check if coordinator is running
 curl -s http://localhost:3333/health | jq
 
-# Check if trusted-gmp is running
+# Check if integrated-gmp is running
 curl -s http://localhost:3334/health | jq
 ```
 
@@ -106,7 +106,7 @@ curl -s http://localhost:3334/health | jq
 
 - Coordinator and solver config files populated with deployed addresses:
   - `coordinator/config/coordinator_testnet.toml`
-  - `trusted-gmp/config/trusted-gmp_testnet.toml`
+  - `integrated-gmp/config/integrated-gmp_testnet.toml`
   - `solver/config/solver_testnet.toml`
 - `.env.testnet` in this directory with all required keys
 - Movement CLI profile configured (solver only)
@@ -118,6 +118,6 @@ All scripts read from:
 
 - `.env.testnet` - Private keys and addresses in this directory (gitignored)
 - `coordinator/config/coordinator_testnet.toml` - Coordinator service config (gitignored)
-- `trusted-gmp/config/trusted-gmp_testnet.toml` - Trusted GMP service config (gitignored)
+- `integrated-gmp/config/integrated-gmp_testnet.toml` - Integrated GMP service config (gitignored)
 - `solver/config/solver_testnet.toml` - Solver service config (gitignored)
 - `config/testnet-assets.toml` - Public asset addresses and decimals

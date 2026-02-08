@@ -76,7 +76,7 @@ Present a markdown table to the user:
 
 | # | Task | Status | Evidence | Missing |
 |---|------|--------|----------|---------|
-| 1 | Add NativeGmpRelay struct | DONE | native_gmp_relay.rs:139 | - |
+| 1 | Add NativeGmpRelay struct | DONE | integrated_gmp_relay.rs:139 | - |
 | 2 | Watch MVM events | DONE | poll_mvm_events() L195 | - |
 | 3 | Watch SVM events | STUBBED | poll_svm_events() logs debug only | Actual RPC polling |
 | 4 | Deliver messages | PARTIAL | deliver_to_mvm() exists | No actual tx submission |
@@ -112,7 +112,7 @@ Only after user approval, update the plan file to tick the approved boxes:
 ## Review Summary
 
 **Phase:** 2
-**Commit:** 9 - Implement native GMP relay in trusted-gmp
+**Commit:** 9 - Implement integrated GMP relay in integrated-gmp
 **Tasks reviewed:** 7
 **Status breakdown:**
 - DONE: 4
@@ -170,7 +170,7 @@ Claude: [Reads plan file, extracts tasks, searches codebase]
 
 | # | Task | Status | Evidence | Missing |
 |---|------|--------|----------|---------|
-| 1 | Add NativeGmpRelay struct | DONE | native_gmp_relay.rs:139 | - |
+| 1 | Add NativeGmpRelay struct | DONE | integrated_gmp_relay.rs:139 | - |
 | 2 | Watch MVM events | DONE | poll_mvm_events() L195-262 | - |
 | 3 | Watch SVM events | STUBBED | poll_svm_events() L265-283 | Only debug log, no RPC calls |
 | 4 | Deliver messages | PARTIAL | deliver_to_mvm() L331-375 | Logs "Would submit" instead of actual tx |

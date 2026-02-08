@@ -1,6 +1,6 @@
-//! Native GMP Endpoint Program (Native Solana)
+//! Integrated GMP Endpoint Program (Native Solana)
 //!
-//! A native GMP endpoint that can be used for local testing, CI, or production
+//! A integrated GMP endpoint that can be used for local testing, CI, or production
 //! with a trusted relay or DKG-based message verification.
 //!
 //! ## Purpose

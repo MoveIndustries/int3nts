@@ -4,7 +4,7 @@
 
 1. **Test Improvements**
    - Add timeout scenario tests
-   - Test with multiple concurrent intents (unit tests in `coordinator/tests/monitor_tests.rs`, `trusted-gmp/tests/monitor_tests.rs`)
+   - Test with multiple concurrent intents (unit tests in `coordinator/tests/monitor_tests.rs`, `integrated-gmp/tests/monitor_tests.rs`)
    - Add negative test cases (rejected intents, failed fulfillments)
 
 ## Documentation
@@ -18,14 +18,14 @@
 - Add more intent types and use cases
 - Optimize gas costs
 
-## Coordinator & Trusted-GMP
+## Coordinator & Integrated-GMP
 
 1. **Performance Testing**
-   - Load testing coordinator and trusted-gmp APIs
+   - Load testing coordinator and integrated-gmp APIs
    - Stress testing coordinator event monitoring
    - Memory usage monitoring (both services)
 
-2. **Validation Hardening (Trusted-GMP)**
+2. **Validation Hardening (Integrated-GMP)**
    - Add metadata and timeout checks
    - Support multiple concurrent intents robustly
    - Improve error handling and reporting
@@ -38,6 +38,6 @@
    - Consider using event streams or indexer integration
 
 4. **Feature Enhancements**
-   - Add "ok" endpoint for a given `intent_id` to signal escrow is satisfied so solver can commit on hub (trusted-gmp)
-   - Add support for more chain types (coordinator + trusted-gmp)
+   - Add "ok" endpoint for a given `intent_id` to signal escrow is satisfied so solver can commit on hub (integrated-gmp)
+   - Add support for more chain types (coordinator + integrated-gmp)
    - Add metrics and observability (both services)

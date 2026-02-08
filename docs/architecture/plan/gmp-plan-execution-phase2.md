@@ -4,7 +4,7 @@
 **Depends On:** Phase 1
 **Blocks:** Phase 3
 
-**Goal:** Build complete GMP support for all three chain types (MVM, SVM, EVM) including hub and connected chain implementations, native GMP relay, and cross-chain architecture alignment.
+**Goal:** Build complete GMP support for all three chain types (MVM, SVM, EVM) including hub and connected chain implementations, integrated GMP relay, and cross-chain architecture alignment.
 
 ---
 
@@ -14,12 +14,12 @@
 
 ### Part 1: MVM + SVM Core GMP Implementation (Commits 1-13)
 
-### Commit 1: Implement native GMP endpoint for Solana
+### Commit 1: Implement integrated GMP endpoint for Solana
 
 **Files:**
 
-- `intent-frameworks/svm/programs/native-gmp-endpoint/src/lib.rs` (already exists from Phase 1, extend)
-- `intent-frameworks/svm/programs/native-gmp-endpoint/tests/endpoint_tests.rs`
+- `intent-frameworks/svm/programs/integrated-gmp-endpoint/src/lib.rs` (already exists from Phase 1, extend)
+- `intent-frameworks/svm/programs/integrated-gmp-endpoint/tests/endpoint_tests.rs`
 
 **Tasks:**
 
@@ -41,7 +41,7 @@
 
 ---
 
-### Commit 2: Extend native GMP endpoint for Movement (MVM)
+### Commit 2: Extend integrated GMP endpoint for Movement (MVM)
 
 **Files:**
 
@@ -79,7 +79,7 @@
 
 **Tasks:**
 
-- [x] Implement GMP receive handler for native GMP endpoint
+- [x] Implement GMP receive handler for integrated GMP endpoint
 - [x] Implement `lz_receive` to receive intent requirements from hub
 - [x] **Idempotency check**: Before storing, check if requirements already exist for intent_id + step number
 - [x] **If requirements already exist → ignore duplicate message (idempotent)**
@@ -113,7 +113,7 @@
 
 **Tasks:**
 
-- [x] Implement GMP receive handler for native GMP endpoint
+- [x] Implement GMP receive handler for integrated GMP endpoint
 - [x] Implement `lz_receive` to receive intent requirements from hub
 - [x] **Idempotency check**: Before storing, check if requirements already exist for intent_id + step number
 - [x] **If requirements already exist → ignore duplicate message (idempotent)**
@@ -261,40 +261,40 @@ nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --d
 
 ---
 
-### Commit 9: Implement native GMP relay in trusted-gmp
+### Commit 9: Implement integrated GMP relay in integrated-gmp
 
 **Files:**
 
-- `trusted-gmp/src/native_gmp_relay.rs` (new)
-- `trusted-gmp/src/main.rs` (simplified to only run native GMP relay)
-- `trusted-gmp/src/lib.rs` (added native_gmp_relay module export)
+- `integrated-gmp/src/integrated_gmp_relay.rs` (new)
+- `integrated-gmp/src/main.rs` (simplified to only run integrated GMP relay)
+- `integrated-gmp/src/lib.rs` (added integrated_gmp_relay module export)
 
 **Tasks:**
 
 - [x] Add `NativeGmpRelay` struct
-- [x] Watch for `MessageSent` events on MVM native GMP endpoint
-- [x] Watch for `MessageSent` events on SVM native GMP endpoint
+- [x] Watch for `MessageSent` events on MVM integrated GMP endpoint
+- [x] Watch for `MessageSent` events on SVM integrated GMP endpoint
 - [x] Support configurable chain RPCs and endpoint addresses
-- [x] Make native GMP relay the default mode (no `--mode` flag needed)
+- [x] Make integrated GMP relay the default mode (no `--mode` flag needed)
 - [x] Add unit tests for event parsing (inline in module)
 
 **Test:**
 
 ```bash
-RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
+RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --quiet"
 ```
 
 > ⚠️ **CI e2e tests must pass before proceeding to Commit 10.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 10: Implement native GMP relay with MVM connected chain support
+### Commit 10: Implement integrated GMP relay with MVM connected chain support
 
 **Files:**
 
-- `trusted-gmp/src/native_gmp_relay.rs` (implement tx submission and MVM connected chain)
-- `trusted-gmp/src/main.rs` (simplify to only run native GMP relay)
-- `trusted-gmp/tests/native_gmp_relay_tests.rs` (add relay config tests)
+- `integrated-gmp/src/integrated_gmp_relay.rs` (implement tx submission and MVM connected chain)
+- `integrated-gmp/src/main.rs` (simplify to only run integrated GMP relay)
+- `integrated-gmp/tests/integrated_gmp_relay_tests.rs` (add relay config tests)
 - `testing-infra/ci-e2e/chain-hub/deploy-contracts.sh` (GMP initialization)
 - `testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh` (GMP initialization)
 - `intent-frameworks/svm/programs/*/src/error.rs` (fix naming)
@@ -305,9 +305,9 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 - [x] Add Move address derivation utilities to `generate_keys` and `util.sh`
 - [x] Update deployment scripts to initialize GMP modules with trusted remotes
 - [x] Fix SVM error variant naming (E_SCREAMING_CASE → UpperCamelCase)
-- [x] Update MVM e2e test environment to use native GMP endpoints (deploy scripts initialize GMP)
-- [x] Add MVM connected chain support to native GMP relay (bidirectional MVM ↔ MVM messaging)
-- [x] Simplify main.rs to only run native GMP relay (removed legacy mode)
+- [x] Update MVM e2e test environment to use integrated GMP endpoints (deploy scripts initialize GMP)
+- [x] Add MVM connected chain support to integrated GMP relay (bidirectional MVM ↔ MVM messaging)
+- [x] Simplify main.rs to only run integrated GMP relay (removed legacy mode)
 - [x] Add relay config tests for MVM connected chain extraction
 
 **Test:**
@@ -333,8 +333,8 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 - [x] Update solver outflow service to call `outflow_validator::fulfill_intent` on connected chain
   - Added `fulfill_outflow_via_gmp()` method to `ConnectedMvmClient`
   - Updated `OutflowService::execute_connected_transfer()` to use GMP flow for MVM
-  - Updated `OutflowService::run()` to skip trusted-gmp approval for GMP flow (hub auto-releases)
-- [x] Start native GMP relay in background during tests (already done via `start_trusted_gmp`)
+  - Updated `OutflowService::run()` to skip integrated-gmp approval for GMP flow (hub auto-releases)
+- [x] Start integrated GMP relay in background during tests (already done via `start_integrated_gmp`)
 - [x] Update `run-tests-outflow.sh` to use GMP flow (no changes needed - solver handles flow internally)
 - [x] Update `run-tests-inflow.sh` to use GMP flow (no changes needed - MVM inflow uses existing mechanism)
 - [x] Verify GMP messages are sent and received correctly (MVM hub ↔ MVM connected) - requires E2E testing in CI
@@ -359,7 +359,7 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 **Files:**
 
 - `testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh` (deploy GMP programs)
-- `testing-infra/ci-e2e/chain-connected-svm/configure-trusted-gmp.sh` (add GMP endpoint)
+- `testing-infra/ci-e2e/chain-connected-svm/configure-integrated-gmp.sh` (add GMP endpoint)
 - `intent-frameworks/svm/scripts/build.sh` (build all GMP programs)
 - `solver/src/config.rs` (add optional GMP program IDs to SvmChainConfig)
 - `solver/src/chains/connected_svm.rs` (add fulfill_outflow_via_gmp method)
@@ -367,11 +367,11 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 
 **Tasks:**
 
-- [x] Update SVM e2e test environment to use native GMP endpoints
-  - Build script now builds native-gmp-endpoint and outflow-validator
+- [x] Update SVM e2e test environment to use integrated GMP endpoints
+  - Build script now builds integrated-gmp-endpoint and outflow-validator
   - Deploy script deploys all 3 programs and configures trusted remotes
-  - Configure-trusted-gmp uses GMP endpoint program ID for relay
-- [x] Start native GMP relay in background during tests (already done via `start_trusted_gmp`)
+  - Configure-integrated-gmp uses GMP endpoint program ID for relay
+- [x] Start integrated GMP relay in background during tests (already done via `start_integrated_gmp`)
 - [x] Update outflow test to use GMP flow (solver calls validation contract)
   - Implemented `fulfill_outflow_via_gmp()` in ConnectedSvmClient (builds FulfillIntent tx directly)
   - OutflowService uses GMP-only flow for SVM (no fallback to direct transfer)
@@ -484,7 +484,7 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 
 **Files:**
 
-- `intent-frameworks/svm/programs/intent-gmp/` (renamed from native-gmp-endpoint)
+- `intent-frameworks/svm/programs/intent-gmp/` (renamed from integrated-gmp-endpoint)
 - `intent-frameworks/svm/programs/intent-outflow-validator/` (renamed from outflow-validator)
 - `intent-frameworks/svm/Cargo.toml`
 - `intent-frameworks/svm/scripts/build.sh`
@@ -492,7 +492,7 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 
 **Tasks:**
 
-- [x] Rename `native-gmp-endpoint` → `intent-gmp`
+- [x] Rename `integrated-gmp-endpoint` → `intent-gmp`
 - [x] Rename `outflow-validator` → `intent-outflow-validator`
 - [x] Update Cargo.toml workspace members
 - [x] Update Rust imports across all SVM programs
@@ -522,7 +522,7 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
 - `intent-frameworks/evm/contracts/IntentInflowEscrow.sol` (new)
 - `intent-frameworks/evm/contracts/gmp-common/Messages.sol` (new)
 - `intent-frameworks/evm/contracts/gmp-common/Endpoints.sol` (new)
-- `trusted-gmp/src/native_gmp_relay.rs` (extended for EVM)
+- `integrated-gmp/src/integrated_gmp_relay.rs` (extended for EVM)
 - `solver/src/chains/connected_evm.rs` (added fulfill_outflow_via_gmp)
 - `solver/src/service/outflow.rs` (EVM uses GMP flow)
 - E2E deployment and test scripts
@@ -543,12 +543,12 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
   - Auto-release on fulfillment proof receipt
   - Sends `EscrowConfirmation` back to hub on creation
 - [x] Create shared message encoding/decoding libraries in `gmp-common/`
-- [x] Extend native GMP relay for EVM (event parsing, message delivery)
+- [x] Extend integrated GMP relay for EVM (event parsing, message delivery)
 - [x] Update solver to use GMP flow for EVM (added `fulfill_outflow_via_gmp()`)
 - [x] Update E2E deployment scripts for EVM GMP contracts
 - [x] Update E2E tests for GMP flow (inflow + outflow)
 
-**Tests:** EVM 161 unit tests, Solver 149, Trusted-GMP 191
+**Tests:** EVM 161 unit tests, Solver 149, Integrated-GMP 191
 
 **Test:**
 
@@ -629,7 +629,7 @@ No code changes - documentation only
 ## Run All Tests
 
 ```bash
-# Run all unit tests (includes coordinator, trusted-gmp, solver, MVM, EVM, SVM, frontend)
+# Run all unit tests (includes coordinator, integrated-gmp, solver, MVM, EVM, SVM, frontend)
 ./testing-infra/run-all-unit-tests.sh
 ```
 
@@ -643,7 +643,7 @@ No code changes - documentation only
 - [x] SVM programs build and pass unit tests
 - [x] MVM modules build and pass unit tests (split into 3 packages)
 - [x] EVM contracts build and pass unit tests
-- [x] Native GMP relay works for MVM ↔ MVM, MVM ↔ SVM, MVM ↔ EVM
+- [x] Integrated GMP relay works for MVM ↔ MVM, MVM ↔ SVM, MVM ↔ EVM
 - [x] Cross-chain E2E tests pass for all chain combinations (outflow + inflow)
 - [x] MVM escrow auto-releases on FulfillmentProof (matches SVM/EVM behavior)
 - [x] Cross-chain architecture aligned across all three VMs (consistent naming, package structure)

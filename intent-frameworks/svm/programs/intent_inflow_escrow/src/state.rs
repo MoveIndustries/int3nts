@@ -139,7 +139,7 @@ pub struct GmpConfig {
     pub hub_chain_id: u32,
     /// The trusted hub address (32 bytes, for GMP message verification)
     pub trusted_hub_addr: [u8; 32],
-    /// The native GMP endpoint program ID (for CPI)
+    /// The integrated GMP endpoint program ID (for CPI)
     pub gmp_endpoint: Pubkey,
     /// PDA bump seed
     pub bump: u8,

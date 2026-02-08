@@ -1,4 +1,4 @@
-//! State definitions for the native GMP endpoint program.
+//! State definitions for the integrated GMP endpoint program.
 //!
 //! ## Discriminator Pattern
 //!

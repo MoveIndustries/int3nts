@@ -36,7 +36,7 @@
 | Topic | Finding |
 |-------|---------|
 | **LZ V2 on Aptos** | LZ V2 has full Aptos mainnet support. The integration uses native Move modules, not EVM-style contracts. |
-| **LZ V2 on Movement** | **Movement mainnet is supported** (EID 30325). **Movement testnet support is uncertain** -- may require using mock endpoints + Trusted GMP for testnet. Verify current status. |
+| **LZ V2 on Movement** | **Movement mainnet is supported** (EID 30325). **Movement testnet support is uncertain** -- may require using mock endpoints + Integrated GMP for testnet. Verify current status. |
 | **OApp Pattern** | Different from EVM. Move modules use friend functions and resource accounts rather than inheritance. OApp is a module that interacts with the LZ endpoint module via function calls. |
 | **lz_send / lz_receive** | Move does not have `msg.sender` or inheritance. `lz_send` is called via the LZ endpoint module. `lz_receive` is a function in your module called by the LZ executor via the endpoint. |
 | **Payload Format** | Raw bytes (`vector<u8>`). LZ wraps your payload in its own packet format. You encode/decode your application payload manually. |
@@ -536,7 +536,7 @@ fun get_resource_signer(): signer acquires OAppResourceAccount {
 | Network | Endpoint Address | Status |
 |---------|-----------------|--------|
 | **Movement Mainnet** | Unknown / To be confirmed | **VERIFY** - LZ has announced Movement mainnet support (EID 30325 is allocated). Check if endpoint is deployed. |
-| **Movement Testnet** | **NOT AVAILABLE** (as of early 2025) | LZ does not appear to have testnet support for Movement. Use mock endpoints + Trusted GMP for testnet. |
+| **Movement Testnet** | **NOT AVAILABLE** (as of early 2025) | LZ does not appear to have testnet support for Movement. Use mock endpoints + Integrated GMP for testnet. |
 
 ### 4.3 Relevant EVM Endpoint Addresses (for reference)
 
@@ -951,7 +951,7 @@ struct MessageSent has store, drop {
 }
 ```
 
-**Impact on int3nts:** The native GMP endpoint will emit events that the Trusted GMP relay watches. This aligns well with the Aptos event model.
+**Impact on int3nts:** The integrated GMP endpoint will emit events that the Integrated GMP relay watches. This aligns well with the Aptos event model.
 
 ### 8.8 BCS Serialization
 
@@ -1042,11 +1042,11 @@ Movement has its own RPC endpoints (different from Aptos):
 
 - **Status: Uncertain**
 - LZ may not have testnet support for Movement
-- **Recommendation:** Use native GMP endpoints + Trusted-GMP relay for testnet
+- **Recommendation:** Use integrated GMP endpoints + Integrated-GMP relay for testnet
 
 **Development:**
 
-- Use local Movement node + native GMP endpoints + Trusted-GMP relay
+- Use local Movement node + integrated GMP endpoints + Integrated-GMP relay
 - This is the same pattern described in `gmp-architecture-integration.md`
 
 **Known concern:** LZ engineers flagged potential "stuck in transit" scenarios with dual-adapter designs (L1 adapter + L2 adapter). Rate limit parameters must be precisely aligned between both sides.
@@ -1109,11 +1109,11 @@ Production (Movement mainnet as hub):
 
 Local/CI:
   - Mock GMP endpoints on each chain (local Movement, local Solana, local EVM)
-  - Trusted GMP relay service watches mock events and delivers messages
+  - Integrated GMP relay service watches mock events and delivers messages
   - Same contract code, different endpoint addresses
 
 Testnet:
-  - Movement testnet: Mock GMP endpoint + Trusted GMP relay
+  - Movement testnet: Mock GMP endpoint + Integrated GMP relay
     (because LZ likely not available on Movement testnet)
   - Solana devnet: Real LZ endpoint (EID 40168)
   - Base Sepolia: Real LZ endpoint (EID 40245)

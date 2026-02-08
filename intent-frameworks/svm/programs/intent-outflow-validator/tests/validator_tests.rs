@@ -389,7 +389,7 @@ async fn setup_requirements(
     send_tx(context, admin, &[lz_receive_ix], &[]).await.unwrap();
 }
 
-/// Creates a ProgramTest instance with outflow validator, SPL token, and native GMP endpoint.
+/// Creates a ProgramTest instance with outflow validator, SPL token, and integrated GMP endpoint.
 /// Required for happy path tests that need the full GMP CPI flow.
 fn program_test_with_spl_and_gmp() -> ProgramTest {
     let program_id = outflow_program_id();
@@ -412,7 +412,7 @@ fn program_test_with_spl_and_gmp() -> ProgramTest {
     pt
 }
 
-/// Initialize the native GMP endpoint.
+/// Initialize the integrated GMP endpoint.
 async fn initialize_gmp_endpoint(
     context: &mut solana_program_test::ProgramTestContext,
     admin: &Keypair,

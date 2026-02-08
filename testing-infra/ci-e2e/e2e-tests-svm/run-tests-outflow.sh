@@ -54,8 +54,8 @@ else
     log_and_echo " Step 1: Build bins and pre-pull docker images"
     log_and_echo "========================================"
     # Delete existing binaries to ensure fresh build
-    rm -f "$PROJECT_ROOT/target/debug/trusted-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
-    rm -f "$PROJECT_ROOT/target/release/trusted-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
+    rm -f "$PROJECT_ROOT/target/debug/integrated-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
+    rm -f "$PROJECT_ROOT/target/release/integrated-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
 
     pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
     ./scripts/build-with-docker.sh 2>&1 | tail -5
@@ -67,10 +67,10 @@ else
     popd > /dev/null
     log_and_echo "   ✅ Coordinator: coordinator"
 
-    pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
-    cargo build --bin trusted-gmp --bin generate_keys 2>&1 | tail -5
+    pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
+    cargo build --bin integrated-gmp --bin generate_keys 2>&1 | tail -5
     popd > /dev/null
-    log_and_echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys"
+    log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys"
 
     pushd "$PROJECT_ROOT/solver" > /dev/null
     cargo build --bin solver 2>&1 | tail -5
@@ -86,9 +86,9 @@ fi
 log_and_echo ""
 docker pull "$APTOS_DOCKER_IMAGE"
 
-log_and_echo " Step 2: Generating trusted-gmp keys..."
+log_and_echo " Step 2: Generating integrated-gmp keys..."
 log_and_echo "======================================="
-generate_trusted_gmp_keys
+generate_integrated_gmp_keys
 log_and_echo ""
 
 log_and_echo " Step 3: Setting up chains and deploying contracts..."
@@ -101,10 +101,10 @@ log_and_echo "======================================================"
 ./testing-infra/ci-e2e/chain-connected-svm/deploy-contract.sh
 
 log_and_echo ""
-log_and_echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
+log_and_echo " Step 4: Configuring and starting coordinator and integrated-gmp (for negotiation routing)..."
 log_and_echo "=========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-svm/start-coordinator.sh
-./testing-infra/ci-e2e/e2e-tests-svm/start-trusted-gmp.sh
+./testing-infra/ci-e2e/e2e-tests-svm/start-integrated-gmp.sh
 
 log_and_echo ""
 log_and_echo " Step 4b: Starting solver service..."
@@ -112,7 +112,7 @@ log_and_echo "======================================="
 ./testing-infra/ci-e2e/e2e-tests-svm/start-solver.sh
 
 ./testing-infra/ci-e2e/verify-solver-running.sh
-./testing-infra/ci-e2e/verify-trusted-gmp-running.sh
+./testing-infra/ci-e2e/verify-integrated-gmp-running.sh
 
 log_and_echo ""
 log_and_echo " Step 5: Testing OUTFLOW intents (hub chain → connected SVM chain)..."

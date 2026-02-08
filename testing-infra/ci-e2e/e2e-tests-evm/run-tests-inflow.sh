@@ -5,7 +5,7 @@
 # This script runs the mixed-chain E2E flow:
 # - Hub: Intent creation and fulfillment
 # - Chain 3 (EVM): Escrow operations
-# - Coordinator + Trusted-GMP: Negotiation routing and chain monitoring
+# - Coordinator + Integrated-GMP: Negotiation routing and chain monitoring
 
 set -eo pipefail
 
@@ -43,9 +43,9 @@ if [ "$SKIP_BUILD" = "true" ]; then
     log_and_echo " Step 1: Build if missing (--no-build)"
     log_and_echo "========================================"
     build_common_bins_if_missing
-    build_if_missing "$PROJECT_ROOT/trusted-gmp" "cargo build --bin get_approver_eth_address" \
-        "Trusted-GMP: get_approver_eth_address" \
-        "$PROJECT_ROOT/trusted-gmp/target/debug/get_approver_eth_address"
+    build_if_missing "$PROJECT_ROOT/integrated-gmp" "cargo build --bin get_approver_eth_address" \
+        "Integrated-GMP: get_approver_eth_address" \
+        "$PROJECT_ROOT/integrated-gmp/target/debug/get_approver_eth_address"
     build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin sign_intent" \
         "Solver: sign_intent" \
         "$PROJECT_ROOT/solver/target/debug/sign_intent"
@@ -53,18 +53,18 @@ else
     log_and_echo " Step 1: Build bins and pre-pull docker images"
     log_and_echo "========================================"
     # Delete existing binaries to ensure fresh build
-    rm -f "$PROJECT_ROOT/target/debug/trusted-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
-    rm -f "$PROJECT_ROOT/target/release/trusted-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
+    rm -f "$PROJECT_ROOT/target/debug/integrated-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
+    rm -f "$PROJECT_ROOT/target/release/integrated-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
 
     pushd "$PROJECT_ROOT/coordinator" > /dev/null
     cargo build --bin coordinator 2>&1 | tail -5
     popd > /dev/null
     log_and_echo "   ✅ Coordinator: coordinator"
 
-    pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
-    cargo build --bin trusted-gmp --bin generate_keys --bin get_approver_eth_address 2>&1 | tail -5
+    pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
+    cargo build --bin integrated-gmp --bin generate_keys --bin get_approver_eth_address 2>&1 | tail -5
     popd > /dev/null
-    log_and_echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys, get_approver_eth_address"
+    log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys, get_approver_eth_address"
 
     pushd "$PROJECT_ROOT/solver" > /dev/null
     cargo build --bin solver --bin sign_intent 2>&1 | tail -5
@@ -75,9 +75,9 @@ fi
 log_and_echo ""
 docker pull "$APTOS_DOCKER_IMAGE"
 
-log_and_echo " Step 2: Generating trusted-gmp keys..."
+log_and_echo " Step 2: Generating integrated-gmp keys..."
 log_and_echo "======================================="
-generate_trusted_gmp_keys
+generate_integrated_gmp_keys
 log_and_echo ""
 
 log_and_echo " Step 3: Setting up chains and deploying contracts..."
@@ -90,10 +90,10 @@ log_and_echo "======================================================"
 ./testing-infra/ci-e2e/chain-connected-evm/deploy-contract.sh
 
 log_and_echo ""
-log_and_echo " Step 4: Starting coordinator and trusted-gmp..."
+log_and_echo " Step 4: Starting coordinator and integrated-gmp..."
 log_and_echo "=========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-evm/start-coordinator.sh
-./testing-infra/ci-e2e/e2e-tests-evm/start-trusted-gmp.sh
+./testing-infra/ci-e2e/e2e-tests-evm/start-integrated-gmp.sh
 
 # Start solver service for automatic signing and fulfillment
 log_and_echo ""
@@ -101,9 +101,9 @@ log_and_echo " Step 4b: Starting solver service..."
 log_and_echo "======================================="
 ./testing-infra/ci-e2e/e2e-tests-evm/start-solver.sh
 
-# Verify solver and trusted-gmp started successfully
+# Verify solver and integrated-gmp started successfully
 ./testing-infra/ci-e2e/verify-solver-running.sh
-./testing-infra/ci-e2e/verify-trusted-gmp-running.sh
+./testing-infra/ci-e2e/verify-integrated-gmp-running.sh
 
 log_and_echo ""
 log_and_echo " Step 5: Submitting cross-chain intents via coordinator negotiation routing..."
@@ -128,7 +128,7 @@ log_and_echo "==========================================================="
 log_and_echo "   The solver service is running and will:"
 log_and_echo "   1. Detect the escrow on connected EVM chain"
 log_and_echo "   2. Fulfill the intent on hub chain"
-log_and_echo "   3. Trusted-GMP will detect fulfillment and generate approval"
+log_and_echo "   3. Integrated-GMP will detect fulfillment and generate approval"
 log_and_echo ""
 
 if ! wait_for_solver_fulfillment "$INTENT_ID" "inflow" 20; then

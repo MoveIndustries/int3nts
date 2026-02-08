@@ -42,7 +42,7 @@ module mvmt_intent::intent_escrow {
     /// - `requester_signer`: Signer of the escrow creator (requester who created the intent on hub chain)
     /// - `offered_asset`: Asset to be escrowed
     /// - `offered_chain_id`: Chain ID where the escrow is created (connected chain)
-    /// - `approver_public_key`: Public key of authorized trusted-gmp (approver)
+    /// - `approver_public_key`: Public key of authorized integrated-gmp (approver)
     /// - `expiry_time`: Unix timestamp when escrow expires
     /// - `intent_id`: Intent ID from the hub chain (for cross-chain matching)
     /// - `reservation`: Required reservation specifying which solver can claim the escrow

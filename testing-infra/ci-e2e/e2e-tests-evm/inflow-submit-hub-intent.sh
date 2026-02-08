@@ -14,7 +14,7 @@ cd "$PROJECT_ROOT"
 
 # Verify services are running before proceeding
 verify_coordinator_running
-verify_trusted_gmp_running
+verify_integrated_gmp_running
 verify_solver_running
 verify_solver_registered
 
@@ -137,7 +137,7 @@ RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_hub_addr')
 RETRIEVED_SOLVER_EVM=$(echo "$SIGNATURE_DATA" | jq -r '.solver_evm_addr // empty')
 
 if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
-    log_and_echo "❌ ERROR: Failed to retrieve signature from coordinator/trusted-gmp"
+    log_and_echo "❌ ERROR: Failed to retrieve signature from coordinator/integrated-gmp"
     log_and_echo ""
     log_and_echo " Diagnostics:"
     
@@ -165,8 +165,8 @@ if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
         log_and_echo "   ️  Solver log file not found: $SOLVER_LOG_FILE"
     fi
     
-    # Show coordinator and trusted-gmp logs
-    for f in "$PROJECT_ROOT/.tmp/e2e-tests/coordinator.log" "$PROJECT_ROOT/.tmp/e2e-tests/trusted-gmp.log"; do
+    # Show coordinator and integrated-gmp logs
+    for f in "$PROJECT_ROOT/.tmp/e2e-tests/coordinator.log" "$PROJECT_ROOT/.tmp/e2e-tests/integrated-gmp.log"; do
         if [ -f "$f" ]; then
             log_and_echo ""
             log_and_echo "    $(basename "$f") (last 30 lines):"
@@ -223,7 +223,7 @@ if [ $? -eq 0 ]; then
     
     if [ -n "$HUB_INTENT_ADDR" ] && [ "$HUB_INTENT_ADDR" != "null" ]; then
         log "     ✅ Hub intent stored at: $HUB_INTENT_ADDR"
-        log_and_echo "✅ Intent created (via coordinator/trusted-gmp negotiation)"
+        log_and_echo "✅ Intent created (via coordinator/integrated-gmp negotiation)"
     else
         log_and_echo "     ❌ ERROR: Could not verify hub intent address"
         exit 1
@@ -234,7 +234,7 @@ else
     log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
     cat "$LOG_FILE"
     log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
-    # Include service logs (coordinator, trusted-gmp, solver) for easier debugging
+    # Include service logs (coordinator, integrated-gmp, solver) for easier debugging
     display_service_logs "EVM inflow hub intent creation failed"
     exit 1
 fi

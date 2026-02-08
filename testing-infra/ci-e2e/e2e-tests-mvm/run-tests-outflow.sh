@@ -3,7 +3,7 @@
 # E2E Integration Test Runner - OUTFLOW
 # 
 # This script runs the outflow E2E tests that require Docker chains.
-# It sets up chains, deploys contracts, starts coordinator and trusted-gmp for negotiation routing,
+# It sets up chains, deploys contracts, starts coordinator and integrated-gmp for negotiation routing,
 # submits outflow intents via coordinator, then runs the tests.
 
 set -eo pipefail
@@ -46,18 +46,18 @@ else
     echo " Step 1: Build bins and pre-pull docker images"
     echo "========================================"
     # Delete existing binaries to ensure fresh build
-    rm -f "$PROJECT_ROOT/target/debug/trusted-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
-    rm -f "$PROJECT_ROOT/target/release/trusted-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
+    rm -f "$PROJECT_ROOT/target/debug/integrated-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
+    rm -f "$PROJECT_ROOT/target/release/integrated-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
 
     pushd "$PROJECT_ROOT/coordinator" > /dev/null
     cargo build --bin coordinator 2>&1 | tail -5
     popd > /dev/null
     echo "   ✅ Coordinator: coordinator"
 
-    pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
-    cargo build --bin trusted-gmp --bin generate_keys 2>&1 | tail -5
+    pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
+    cargo build --bin integrated-gmp --bin generate_keys 2>&1 | tail -5
     popd > /dev/null
-    echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys"
+    echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys"
 
     pushd "$PROJECT_ROOT/solver" > /dev/null
     cargo build --bin solver --bin sign_intent 2>&1 | tail -5
@@ -68,9 +68,9 @@ fi
 echo ""
 docker pull "$APTOS_DOCKER_IMAGE"
 
-echo " Step 2: Generating trusted-gmp keys..."
+echo " Step 2: Generating integrated-gmp keys..."
 echo "======================================="
-generate_trusted_gmp_keys
+generate_integrated_gmp_keys
 echo ""
 
 echo " Step 3: Setting up chains, deploying contracts, funding accounts"
@@ -86,10 +86,10 @@ echo "===================================================================="
 source "$PROJECT_ROOT/.tmp/chain-info.env"
 
 echo ""
-echo " Step 4: Configuring and starting coordinator and trusted-gmp (for negotiation routing)..."
+echo " Step 4: Configuring and starting coordinator and integrated-gmp (for negotiation routing)..."
 echo "=========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-coordinator.sh
-./testing-infra/ci-e2e/e2e-tests-mvm/start-trusted-gmp.sh
+./testing-infra/ci-e2e/e2e-tests-mvm/start-integrated-gmp.sh
 
 # Assert solver has USDcon before starting (should have 1 USDcon from deploy)
 assert_usdxyz_balance "solver-chain2" "2" "$USD_MVMCON_MODULE_ADDR" "1000000" "pre-solver-start"
@@ -101,9 +101,9 @@ echo " Step 4b: Starting solver service..."
 echo "======================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-solver.sh
 
-# Verify solver and trusted-gmp started successfully
+# Verify solver and integrated-gmp started successfully
 ./testing-infra/ci-e2e/verify-solver-running.sh
-./testing-infra/ci-e2e/verify-trusted-gmp-running.sh
+./testing-infra/ci-e2e/verify-integrated-gmp-running.sh
 
 echo ""
 echo " Step 5: Testing OUTFLOW intents (hub chain → connected chain)..."
@@ -129,7 +129,7 @@ echo "==========================================================="
 echo "   The solver service is running and will:"
 echo "   1. Detect the intent on hub chain"
 echo "   2. Transfer tokens to requester on connected MVM chain"
-echo "   3. Call trusted-gmp to validate and get approval signature"
+echo "   3. Call integrated-gmp to validate and get approval signature"
 echo "   4. Fulfill the hub intent with approval"
 echo ""
 

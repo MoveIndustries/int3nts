@@ -3,7 +3,7 @@
 > **⚠️ IMPORTANT: This file tracks VM-specific tests for the Coordinator service only.**
 >
 > The coordinator is a read-only service that monitors events and provides negotiation routing.
-> It does NOT perform validation or cryptographic signing - those functions are in the **Trusted GMP** service.
+> It does NOT perform validation or cryptographic signing - those functions are in the **Integrated GMP** service.
 
 This document tracks test alignment status for the coordinator. For the complete overview and other frameworks, see the [Framework Extension Guide](../../docs/intent-frameworks/framework-extension-guide.md#test-alignment-reference).
 

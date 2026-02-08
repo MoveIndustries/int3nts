@@ -1,4 +1,4 @@
-//! Error definitions for the native GMP endpoint program.
+//! Error definitions for the integrated GMP endpoint program.
 
 use solana_program::program_error::ProgramError;
 use thiserror::Error;

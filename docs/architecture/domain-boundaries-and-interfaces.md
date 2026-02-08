@@ -17,7 +17,7 @@ This document provides precise definitions of domain boundaries, external interf
 **Out of Scope**:
 
 - Asset custody (belongs to Escrow Domain)
-- Trusted GMP approval logic (belongs to Trusted GMP Domain)
+- Integrated GMP approval logic (belongs to Integrated GMP Domain)
 - Escrow-specific operations (belongs to Escrow Domain)
 
 ### External Interfaces
@@ -76,15 +76,15 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 **In Scope**:
 
 - Asset custody and fund locking on individual chains
-- Escrow creation with trusted-gmp public key
-- Escrow completion with trusted-gmp signature (signature itself is the approval)
+- Escrow creation with integrated-gmp public key
+- Escrow completion with integrated-gmp signature (signature itself is the approval)
 - Reserved solver address enforcement
 - Non-revocable requirement enforcement
 
 **Out of Scope**:
 
 - Intent creation logic (belongs to Intent Management Domain)
-- Coordinator monitoring and trusted-gmp validation (belongs to Coordinator and Trusted GMP Domains)
+- Coordinator monitoring and integrated-gmp validation (belongs to Coordinator and Integrated GMP Domains)
 - Cross-chain intent creation (belongs to Intent Management Domain)
 
 ### Escrow: External Interfaces
@@ -92,19 +92,19 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 **Public Entry Functions** (Move):
 
 - `create_escrow_from_fa()` - Create escrow from fungible asset
-- `complete_escrow_from_fa()` - Complete escrow with trusted-gmp signature (signature itself is the approval)
+- `complete_escrow_from_fa()` - Complete escrow with integrated-gmp signature (signature itself is the approval)
 
 **Public Functions** (Move):
 
-- `create_escrow()` - Create escrow with trusted-gmp requirement
+- `create_escrow()` - Create escrow with integrated-gmp requirement
 - `start_escrow_session()` - Start escrow session (solver takes escrowed assets)
-- `complete_escrow()` - Complete escrow with trusted-gmp signature (signature itself is the approval)
+- `complete_escrow()` - Complete escrow with integrated-gmp signature (signature itself is the approval)
 
 **Public Functions** (Solidity):
 
 - `createEscrow(uint256 intentId, address token, uint256 amount, address reservedSolver)` - Create and deposit escrow
 - `deposit(uint256 intentId, address token, uint256 amount)` - Additional deposit to escrow
-- `claim(uint256 intentId, bytes signature)` - Claim escrow with trusted-gmp signature (signature itself is the approval)
+- `claim(uint256 intentId, bytes signature)` - Claim escrow with integrated-gmp signature (signature itself is the approval)
 - `cancel(uint256 intentId)` - Cancel escrow after expiry
 
 **Events Emitted**:
@@ -124,7 +124,7 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 
 - Non-revocable enforcement logic (`revocable = false` requirement)
 - Reserved solver address validation
-- Trusted-gmp signature verification (Ed25519 for Move, ECDSA for EVM)
+- Integrated-gmp signature verification (Ed25519 for Move, ECDSA for EVM)
 - Expiry-based cancellation logic
 
 ### Escrow: Data Ownership
@@ -154,7 +154,7 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 
 - Intent creation (belongs to Intent Management Domain)
 - Escrow creation (belongs to Escrow Domain)
-- Trusted-gmp validation (belongs to Trusted GMP Domain)
+- Integrated-gmp validation (belongs to Integrated GMP Domain)
 
 **Note**: Settlement functionality is distributed across Intent Management and Escrow modules, not a separate structural module.
 
@@ -163,12 +163,12 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 **Public Entry Functions** (Move):
 
 - `fulfill_cross_chain_request_intent()` - Fulfill cross-chain intent (in fa_intent.move)
-- `complete_escrow_from_fa()` - Complete escrow with trusted-gmp signature (in intent_escrow_entry.move) - signature itself is the approval
+- `complete_escrow_from_fa()` - Complete escrow with integrated-gmp signature (in intent_escrow_entry.move) - signature itself is the approval
 
 **Public Functions** (Move):
 
 - `finish_fa_intent_session()` - Complete FA intent session (in fa_intent.move)
-- `complete_escrow()` - Complete escrow with trusted-gmp signature (in intent_escrow.move) - signature itself is the approval
+- `complete_escrow()` - Complete escrow with integrated-gmp signature (in intent_escrow.move) - signature itself is the approval
 
 **Public Functions** (Solidity):
 
@@ -178,7 +178,7 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 ### Settlement: Internal Components
 
 - Fulfillment validation logic (witness verification, condition checking)
-- Trusted-gmp signature verification
+- Integrated-gmp signature verification
 - Asset transfer execution
 - Expiry validation
 
@@ -212,9 +212,9 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 - Intent creation (belongs to Intent Management Domain)
 - Escrow creation (belongs to Escrow Domain)
 - Asset custody (belongs to Escrow Domain)
-- Cross-chain validation (belongs to Trusted GMP Domain)
-- Approval signature generation (belongs to Trusted GMP Domain)
-- Cryptographic operations (belongs to Trusted GMP Domain)
+- Cross-chain validation (belongs to Integrated GMP Domain)
+- Approval signature generation (belongs to Integrated GMP Domain)
+- Cryptographic operations (belongs to Integrated GMP Domain)
 
 ### Coordinator: External Interfaces
 
@@ -259,9 +259,9 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 
 ---
 
-## Trusted GMP: Boundaries and Interfaces
+## Integrated GMP: Boundaries and Interfaces
 
-### Trusted GMP: Domain Boundaries
+### Integrated GMP: Domain Boundaries
 
 **In Scope**:
 
@@ -278,12 +278,12 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 - Event monitoring and caching (belongs to Coordinator Domain)
 - Negotiation routing (belongs to Coordinator Domain)
 
-### Trusted GMP: External Interfaces
+### Integrated GMP: External Interfaces
 
 **REST API Endpoints**:
 
 - `GET /health` - Health check
-- `GET /public-key` - Get trusted-gmp public key
+- `GET /public-key` - Get integrated-gmp public key
 - `GET /approvals` - Get cached approval signatures
 - `GET /approvals/:escrow_id` - Get approval for specific escrow
 - `POST /approval` - Manually create approval signature
@@ -304,7 +304,7 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 - `ApprovalSignature` - Approval signature structure
 - `ValidationResult` - Validation result structure
 
-### Trusted GMP: Internal Components
+### Integrated GMP: Internal Components
 
 - Cross-chain event correlation logic (`intent_id` matching)
 - Chain ID validation (ensures escrow created on correct connected chain)
@@ -313,11 +313,11 @@ For comprehensive inter-domain interaction patterns, see [Inter-Domain Interacti
 - Configuration management
 - Blockchain RPC clients (MvmClient for Move VM chains, EvmClient for EVM chains)
 
-### Trusted GMP: Data Ownership
+### Integrated GMP: Data Ownership
 
-- **Approval Signatures**: Generated by Trusted GMP domain, cached for retrieval
-- **Configuration**: Owned by Trusted GMP domain, loaded from config files
+- **Approval Signatures**: Generated by Integrated GMP domain, cached for retrieval
+- **Configuration**: Owned by Integrated GMP domain, loaded from config files
 
-### Trusted GMP: Interaction Protocols
+### Integrated GMP: Interaction Protocols
 
 For comprehensive inter-domain interaction patterns, see [Inter-Domain Interaction Patterns and Dependencies](architecture-component-mapping.md#inter-domain-interaction-patterns-and-dependencies) in the architecture component mapping document.

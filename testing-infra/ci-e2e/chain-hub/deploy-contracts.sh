@@ -92,14 +92,14 @@ log ""
 log " Initializing intent registry..."
 initialize_intent_registry "intent-account-chain1" "$HUB_MODULE_ADDR" "$LOG_FILE"
 
-# Initialize native GMP endpoint for cross-chain messaging
+# Initialize integrated GMP endpoint for cross-chain messaging
 log ""
-log " Initializing native GMP endpoint..."
+log " Initializing integrated GMP endpoint..."
 if aptos move run --profile intent-account-chain1 --assume-yes \
     --function-id ${HUB_MODULE_ADDR}::intent_gmp::initialize >> "$LOG_FILE" 2>&1; then
-    log "   ✅ Native GMP endpoint initialized"
+    log "   ✅ Integrated GMP endpoint initialized"
 else
-    log "   ️ Native GMP endpoint may already be initialized (ignoring)"
+    log "   ️ Integrated GMP endpoint may already be initialized (ignoring)"
 fi
 
 # Initialize intent GMP hub for cross-chain intent messaging
@@ -134,15 +134,15 @@ fi
 
 # Fund the relay address and add as authorized relay
 log ""
-log " Setting up native GMP relay authorization..."
+log " Setting up integrated GMP relay authorization..."
 
-# Get the relay's Move address from trusted-gmp keys
-if [ -z "$E2E_TRUSTED_GMP_MOVE_ADDRESS" ]; then
-    load_trusted_gmp_keys
+# Get the relay's Move address from integrated-gmp keys
+if [ -z "$E2E_INTEGRATED_GMP_MOVE_ADDRESS" ]; then
+    load_integrated_gmp_keys
 fi
 
-if [ -n "$E2E_TRUSTED_GMP_MOVE_ADDRESS" ]; then
-    RELAY_ADDRESS="$E2E_TRUSTED_GMP_MOVE_ADDRESS"
+if [ -n "$E2E_INTEGRATED_GMP_MOVE_ADDRESS" ]; then
+    RELAY_ADDRESS="$E2E_INTEGRATED_GMP_MOVE_ADDRESS"
     log "   Relay address: $RELAY_ADDRESS"
 
     # Fund the relay address (transfer APT from deployer)
@@ -163,7 +163,7 @@ if [ -n "$E2E_TRUSTED_GMP_MOVE_ADDRESS" ]; then
         log "   ️ Could not add relay (may already be authorized)"
     fi
 else
-    log_and_echo "   ❌ ERROR: E2E_TRUSTED_GMP_MOVE_ADDRESS not set after loading keys"
+    log_and_echo "   ❌ ERROR: E2E_INTEGRATED_GMP_MOVE_ADDRESS not set after loading keys"
     exit 1
 fi
 

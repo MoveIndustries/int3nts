@@ -22,7 +22,7 @@ This checklist provides a comprehensive security review guide for the Intent Fra
 
 ## 1. Endpoint Abuse Prevention
 
-**Time: 1.5 days** | **Components: Coordinator/Trusted GMP API, Solver endpoints**
+**Time: 1.5 days** | **Components: Coordinator/Integrated GMP API, Solver endpoints**
 
 Assume every endpoint will be abused. Attackers don't follow happy paths.
 
@@ -47,7 +47,7 @@ Assume every endpoint will be abused. Attackers don't follow happy paths.
 
 | Component | File/Module | Checks |
 |-----------|-------------|--------|
-| Coordinator/Trusted GMP API | `coordinator/src/api/`, `trusted-gmp/src/api/` | Rate limits, input validation |
+| Coordinator/Integrated GMP API | `coordinator/src/api/`, `integrated-gmp/src/api/` | Rate limits, input validation |
 | Draft Intent Endpoint | `POST /draftintent` | Idempotency, rate limiting |
 | Signature Endpoint | `POST /draftintent/:id/signature` | FCFS protection, replay prevention |
 | Validation Endpoint | `POST /validate-outflow-fulfillment` | Input sanitization |
@@ -56,7 +56,7 @@ Assume every endpoint will be abused. Attackers don't follow happy paths.
 
 ## 2. Client Trust Elimination
 
-**Time: 1 day** | **Components: Trusted GMP, Move contracts**
+**Time: 1 day** | **Components: Integrated GMP, Move contracts**
 
 Frontend checks are for UX, not security. All security checks must be server-side.
 
@@ -85,14 +85,14 @@ Frontend checks are for UX, not security. All security checks must be server-sid
 | Component | Checks |
 |-----------|--------|
 | Move Contracts | `signer` verification, ownership checks |
-| Trusted GMP Service | Authorization middleware, signature verification |
+| Integrated GMP Service | Authorization middleware, signature verification |
 | Solver | Transaction signing, permission checks |
 
 ---
 
 ## 3. Auth Hardening
 
-**Time: 1.5 days** | **Components: Trusted GMP auth, signature verification**
+**Time: 1.5 days** | **Components: Integrated GMP auth, signature verification**
 
 Auth working once doesn't mean auth is safe. Test edge cases.
 
@@ -117,14 +117,14 @@ Auth working once doesn't mean auth is safe. Test edge cases.
 | Component | File | Checks |
 |-----------|------|--------|
 | Solver Registry | `intent-frameworks/mvm/intent-hub/sources/solver_registry.move` | Public key management |
-| Signature Verification | `trusted-gmp/src/crypto/` | Ed25519/ECDSA validation |
+| Signature Verification | `integrated-gmp/src/crypto/` | Ed25519/ECDSA validation |
 | Intent Creation | `create_inflow_intent`, `create_outflow_intent` | Solver signature verification |
 
 ---
 
 ## 4. Logging Infrastructure
 
-**Time: 1.5 days** | **Components: Trusted GMP, Solver**
+**Time: 1.5 days** | **Components: Integrated GMP, Solver**
 
 No logs means no answers. Not for bugs, not for breaches, not for refunds.
 
@@ -199,7 +199,7 @@ Third-party services will fail. Design for it.
 |---------|--------------|------------|
 | Chain RPC | Timeout, rate limit | Multiple providers, caching |
 | GMP Provider | Message delay | Timeout handling, retry |
-| Trusted GMP | Unavailable | Queue pending validations |
+| Integrated GMP | Unavailable | Queue pending validations |
 
 ---
 
@@ -241,7 +241,7 @@ API keys in code will leak. Not maybe. Will.
 
 | Secret | Location | Rotation Frequency |
 |--------|----------|-------------------|
-| Trusted GMP signing key | `.env` | Quarterly |
+| Integrated GMP signing key | `.env` | Quarterly |
 | Chain RPC API keys | `.env` | On compromise |
 | Solver private keys | Secure storage | As needed |
 

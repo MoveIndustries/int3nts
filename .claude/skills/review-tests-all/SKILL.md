@@ -31,7 +31,7 @@ Find ALL test files using these patterns:
 - `intent-frameworks/**/test/**/*.js`
 - `intent-frameworks/**/tests/**/*.move`
 - `coordinator/tests/**/*.rs`
-- `trusted-gmp/tests/**/*.rs`
+- `integrated-gmp/tests/**/*.rs`
 - `solver/tests/**/*.rs`
 - `frontend/src/**/*.test.ts`
 - `frontend/src/**/*.test.tsx`

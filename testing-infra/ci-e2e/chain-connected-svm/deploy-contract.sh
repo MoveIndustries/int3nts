@@ -91,11 +91,11 @@ sleep 10
 # ============================================================================
 log ""
 log " Initializing intent_inflow_escrow..."
-if [ -z "$E2E_TRUSTED_GMP_PUBLIC_KEY" ]; then
-    load_trusted_gmp_keys
+if [ -z "$E2E_INTEGRATED_GMP_PUBLIC_KEY" ]; then
+    load_integrated_gmp_keys
 fi
 
-SVM_APPROVER_PUBKEY=$(svm_base64_to_base58 "$E2E_TRUSTED_GMP_PUBLIC_KEY")
+SVM_APPROVER_PUBKEY=$(svm_base64_to_base58 "$E2E_INTEGRATED_GMP_PUBLIC_KEY")
 
 set +e
 init_success=0
@@ -124,7 +124,7 @@ log ""
 log " Initializing intent-gmp (chain_id=$SVM_CHAIN_ID)..."
 
 # Get relay pubkey for authorization
-SVM_RELAY_PUBKEY=$(svm_base64_to_base58 "$E2E_TRUSTED_GMP_PUBLIC_KEY")
+SVM_RELAY_PUBKEY=$(svm_base64_to_base58 "$E2E_INTEGRATED_GMP_PUBLIC_KEY")
 log "   Relay pubkey: $SVM_RELAY_PUBKEY"
 
 # Get hub module address as 32-byte hex for trusted remote
@@ -163,8 +163,8 @@ if [ "$gmp_init_success" -ne 1 ]; then
     exit 1
 fi
 
-# Add trusted-gmp relay as authorized relay
-log " Adding trusted-GMP relay to GMP endpoint..."
+# Add integrated-gmp relay as authorized relay
+log " Adding integrated-gmp relay to GMP endpoint..."
 nix develop "$PROJECT_ROOT/nix" -c bash -c "
 cd \"$PROGRAM_DIR\"
 cargo run -p intent_escrow_cli --quiet -- \
@@ -177,7 +177,7 @@ cargo run -p intent_escrow_cli --quiet -- \
     log_and_echo "❌ PANIC: Failed to add relay to GMP endpoint"
     exit 1
 }
-log "   ✅ Trusted-GMP relay added to GMP endpoint"
+log "   ✅ Integrated-GMP relay added to GMP endpoint"
 
 # Set hub as trusted remote (if hub module address available)
 if [ -n "$HUB_MODULE_ADDR_HEX" ]; then
@@ -366,19 +366,19 @@ else
 fi
 
 # ============================================================================
-# Fund trusted-GMP relay on SVM
+# Fund integrated-gmp relay on SVM
 # ============================================================================
 log ""
-log " Funding trusted-GMP relay on SVM..."
-load_trusted_gmp_keys
-if [ -z "$E2E_TRUSTED_GMP_PUBLIC_KEY" ]; then
-    log_and_echo "❌ PANIC: E2E_TRUSTED_GMP_PUBLIC_KEY not set"
+log " Funding integrated-gmp relay on SVM..."
+load_integrated_gmp_keys
+if [ -z "$E2E_INTEGRATED_GMP_PUBLIC_KEY" ]; then
+    log_and_echo "❌ PANIC: E2E_INTEGRATED_GMP_PUBLIC_KEY not set"
     exit 1
 fi
-RELAY_PUBKEY_BASE58=$(svm_base64_to_base58 "$E2E_TRUSTED_GMP_PUBLIC_KEY")
+RELAY_PUBKEY_BASE58=$(svm_base64_to_base58 "$E2E_INTEGRATED_GMP_PUBLIC_KEY")
 log "   Relay address: $RELAY_PUBKEY_BASE58"
 airdrop_svm "$RELAY_PUBKEY_BASE58" 10 "$SVM_RPC_URL"
-log "   ✅ Trusted-GMP relay funded on SVM"
+log "   ✅ Integrated-GMP relay funded on SVM"
 
 # ============================================================================
 # Save chain info

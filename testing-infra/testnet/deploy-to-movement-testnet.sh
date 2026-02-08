@@ -319,26 +319,26 @@ movement move run \
 
 echo ""
 
-# Initialize trusted-gmp config for outflow intents (on-chain approver public key)
-echo " Step 10: Initializing trusted-gmp (approver) config..."
+# Initialize integrated-gmp config for outflow intents (on-chain approver public key)
+echo " Step 10: Initializing integrated-gmp (approver) config..."
 
-if [ -z "$TRUSTED_GMP_PUBLIC_KEY" ]; then
-    echo "❌ ERROR: TRUSTED_GMP_PUBLIC_KEY not set in .env.testnet"
+if [ -z "$INTEGRATED_GMP_PUBLIC_KEY" ]; then
+    echo "❌ ERROR: INTEGRATED_GMP_PUBLIC_KEY not set in .env.testnet"
     exit 1
 fi
 
-TRUSTED_GMP_PUBLIC_KEY_HEX=$(echo "$TRUSTED_GMP_PUBLIC_KEY" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
+INTEGRATED_GMP_PUBLIC_KEY_HEX=$(echo "$INTEGRATED_GMP_PUBLIC_KEY" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
 movement move run \
   --profile "$TEMP_PROFILE" \
   --function-id "${DEPLOY_ADDR_FULL}::fa_intent_outflow::initialize_approver" \
-  --args "hex:${TRUSTED_GMP_PUBLIC_KEY_HEX}" \
+  --args "hex:${INTEGRATED_GMP_PUBLIC_KEY_HEX}" \
   --assume-yes
 
 if [ $? -ne 0 ]; then
-    echo "❌ ERROR: Failed to initialize trusted-gmp (approver) config"
+    echo "❌ ERROR: Failed to initialize integrated-gmp (approver) config"
     exit 1
 fi
-echo "   ✅ Trusted-gmp (approver) config initialized"
+echo "   ✅ Integrated-gmp (approver) config initialized"
 
 echo ""
 
@@ -358,7 +358,7 @@ echo "   1. coordinator/config/coordinator_testnet.toml:"
 echo "      intent_module_addr = \"$DEPLOY_ADDR_FULL\""
 echo "      (in the [hub_chain] section)"
 echo ""
-echo "   2. trusted-gmp/config/trusted-gmp_testnet.toml:"
+echo "   2. integrated-gmp/config/integrated-gmp_testnet.toml:"
 echo "      intent_module_addr = \"$DEPLOY_ADDR_FULL\""
 echo "      (in the [hub_chain] section)"
 echo ""

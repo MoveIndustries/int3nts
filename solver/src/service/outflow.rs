@@ -1,13 +1,13 @@
 //! Outflow Fulfillment Service
 //!
-//! Executes fulfillments on connected chains via the native GMP flow.
+//! Executes fulfillments on connected chains via the integrated GMP flow.
 //!
 //! GMP Flow (all chains: MVM, EVM, SVM):
 //! 1. Hub creates intent → sends IntentRequirements via GMP to connected chain
-//! 2. Native GMP relay delivers requirements to connected chain's outflow_validator
+//! 2. Integrated GMP relay delivers requirements to connected chain's outflow_validator
 //! 3. Solver calls `outflow_validator::fulfill_intent` on connected chain
 //! 4. outflow_validator transfers tokens and sends FulfillmentProof via GMP
-//! 5. Native GMP relay delivers FulfillmentProof to hub
+//! 5. Integrated GMP relay delivers FulfillmentProof to hub
 //! 6. Solver calls fulfill_outflow_intent on hub to claim locked tokens
 
 use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient, HubChainClient};
@@ -190,7 +190,7 @@ impl OutflowService {
     /// then executes `outflow_validator::fulfill_intent`.
     ///
     /// The hub sends IntentRequirements via GMP when the outflow intent is created.
-    /// The native GMP relay delivers them to the connected chain's `outflow_validator_impl`.
+    /// The integrated GMP relay delivers them to the connected chain's `outflow_validator_impl`.
     /// This function polls `has_outflow_requirements` until they arrive, then fulfills.
     async fn execute_mvm_gmp_fulfillment(
         &self,
@@ -354,7 +354,7 @@ impl OutflowService {
     /// `fulfill_outflow_intent` on the hub to claim locked tokens.
     ///
     /// After the solver fulfills on the connected chain, the connected chain sends a
-    /// FulfillmentProof via GMP. The native GMP relay delivers it to the hub. Once the
+    /// FulfillmentProof via GMP. The integrated GMP relay delivers it to the hub. Once the
     /// hub records the proof, the solver can call `fulfill_outflow_intent` to claim tokens.
     async fn wait_for_proof_and_fulfill_hub(
         &self,
@@ -466,7 +466,7 @@ impl OutflowService {
     /// 1. Polls for pending outflow intents and executes fulfillments on connected chain
     /// 2. Waits for FulfillmentProof delivery via GMP, then claims tokens on hub
     ///
-    /// All chains (MVM, EVM, SVM) use the native GMP flow.
+    /// All chains (MVM, EVM, SVM) use the integrated GMP flow.
     ///
     /// # Arguments
     ///

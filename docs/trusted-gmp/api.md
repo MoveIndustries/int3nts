@@ -1,6 +1,6 @@
-# Trusted GMP API
+# Integrated GMP API
 
-The trusted-gmp service is a pure relay with no client-facing API. The coordinator is the single API surface for frontends and solvers.
+The integrated-gmp service is a pure relay with no client-facing API. The coordinator is the single API surface for frontends and solvers.
 
 The only endpoint is for operational monitoring:
 

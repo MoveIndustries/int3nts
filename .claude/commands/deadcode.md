@@ -10,7 +10,7 @@ Systematically scan the codebase for dead code across all languages and componen
 
 Launch parallel agents to scan each language/component concurrently for maximum speed.
 
-## Task 1: Rust Dead Code (coordinator, trusted-gmp, solver, intent-frameworks/svm)
+## Task 1: Rust Dead Code (coordinator, integrated-gmp, solver, intent-frameworks/svm)
 
 Search for:
 
@@ -20,7 +20,7 @@ Search for:
 4. **Unused imports** - `use` statements and `#[allow(unused_imports)]`
 5. **Commented-out code blocks** - Blocks of code commented out with `//` or `/* */`
 6. **TODO/FIXME markers indicating abandoned work** - Incomplete implementations that were never finished
-7. **Duplicate code between coordinator and trusted-gmp** - These crates share similar MVM/EVM/SVM client code; check for identical functions that could be consolidated
+7. **Duplicate code between coordinator and integrated-gmp** - These crates share similar MVM/EVM/SVM client code; check for identical functions that could be consolidated
 8. **Test helpers marked `#[allow(dead_code)]`** - Verify each is actually called from at least one test
 
 ### How to check if a function is truly dead

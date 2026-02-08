@@ -45,11 +45,11 @@ TRUSTED_HUB_ADDR=$(printf "0x%064s" "$HUB_ADDR_CLEAN" | tr ' ' '0')
 log "   Hub Module Address: $HUB_MODULE_ADDR"
 log "   Trusted Hub Address (32 bytes): $TRUSTED_HUB_ADDR"
 
-# Load trusted-gmp keys for relay authorization
-load_trusted_gmp_keys
+# Load integrated-gmp keys for relay authorization
+load_integrated_gmp_keys
 
-# Get trusted-gmp Ethereum address (relay address)
-TEMP_CONFIG="$PROJECT_ROOT/.tmp/trusted-gmp-minimal.toml"
+# Get integrated-gmp Ethereum address (relay address)
+TEMP_CONFIG="$PROJECT_ROOT/.tmp/integrated-gmp-minimal.toml"
 mkdir -p "$(dirname "$TEMP_CONFIG")"
 cat > "$TEMP_CONFIG" << 'TMPEOF'
 [hub_chain]
@@ -58,9 +58,9 @@ rpc_url = "http://127.0.0.1:8080"
 chain_id = 1
 intent_module_addr = "0x1"
 
-[trusted_gmp]
-private_key_env = "E2E_TRUSTED_GMP_PRIVATE_KEY"
-public_key_env = "E2E_TRUSTED_GMP_PUBLIC_KEY"
+[integrated_gmp]
+private_key_env = "E2E_INTEGRATED_GMP_PRIVATE_KEY"
+public_key_env = "E2E_INTEGRATED_GMP_PUBLIC_KEY"
 polling_interval_ms = 2000
 validation_timeout_ms = 30000
 
@@ -70,24 +70,24 @@ port = 3334
 cors_origins = []
 TMPEOF
 
-export TRUSTED_GMP_CONFIG_PATH="$TEMP_CONFIG"
-CONFIG_PATH="$TRUSTED_GMP_CONFIG_PATH"
+export INTEGRATED_GMP_CONFIG_PATH="$TEMP_CONFIG"
+CONFIG_PATH="$INTEGRATED_GMP_CONFIG_PATH"
 
 # Use pre-built binary (must be built in Step 1)
-GET_APPROVER_ETH_BIN="$PROJECT_ROOT/trusted-gmp/target/debug/get_approver_eth_address"
+GET_APPROVER_ETH_BIN="$PROJECT_ROOT/integrated-gmp/target/debug/get_approver_eth_address"
 if [ ! -x "$GET_APPROVER_ETH_BIN" ]; then
     log_and_echo "❌ PANIC: get_approver_eth_address not built. Step 1 (build binaries) failed."
     exit 1
 fi
 
-APPROVER_ETH_OUTPUT=$(cd "$PROJECT_ROOT" && env HOME="${HOME}" TRUSTED_GMP_CONFIG_PATH="$CONFIG_PATH" "$GET_APPROVER_ETH_BIN" 2>&1 | tee -a "$LOG_FILE")
+APPROVER_ETH_OUTPUT=$(cd "$PROJECT_ROOT" && env HOME="${HOME}" INTEGRATED_GMP_CONFIG_PATH="$CONFIG_PATH" "$GET_APPROVER_ETH_BIN" 2>&1 | tee -a "$LOG_FILE")
 RELAY_ETH_ADDRESS=$(echo "$APPROVER_ETH_OUTPUT" | grep -E '^0x[a-fA-F0-9]{40}$' | head -1 | tr -d '\n')
 
 if [ -z "$RELAY_ETH_ADDRESS" ]; then
-    log_and_echo "❌ ERROR: Could not compute trusted-gmp EVM address from config"
+    log_and_echo "❌ ERROR: Could not compute integrated-gmp EVM address from config"
     log_and_echo "   Command output:"
     echo "$APPROVER_ETH_OUTPUT"
-    log_and_echo "   Check that E2E_TRUSTED_GMP_PRIVATE_KEY and E2E_TRUSTED_GMP_PUBLIC_KEY env vars are set"
+    log_and_echo "   Check that E2E_INTEGRATED_GMP_PRIVATE_KEY and E2E_INTEGRATED_GMP_PUBLIC_KEY env vars are set"
     exit 1
 fi
 

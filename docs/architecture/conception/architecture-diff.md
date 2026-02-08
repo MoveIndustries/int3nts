@@ -54,8 +54,8 @@ See [conception_outflow.md](conception_outflow.md) for the conceptual design.
 | Step | Function | Description |
 |------|----------|-------------|
 | Request-Intent Creation | `create_outflow_request_intent(offered_metadata, offered_amount, offered_chain_id, desired_metadata, desired_amount, desired_chain_id, expiry_time, intent_id, requester_addr_connected_chain, approver_public_key, solver, solver_signature)` | Creates reserved intent with escrow on Hub |
-| Validation | `POST /validate-outflow-fulfillment(transaction_hash, chain_type, intent_id)` | Trusted-gmp validates solver transfer |
-| Fulfillment | `fulfill_outflow_request_intent(intent, approver_signature_bytes)` | Solver claims escrow on Hub with trusted-gmp signature |
+| Validation | `POST /validate-outflow-fulfillment(transaction_hash, chain_type, intent_id)` | Integrated-gmp validates solver transfer |
+| Fulfillment | `fulfill_outflow_request_intent(intent, approver_signature_bytes)` | Solver claims escrow on Hub with integrated-gmp signature |
 
 **Events:**
 
@@ -75,10 +75,10 @@ See [conception_routerflow.md](conception_routerflow.md) for the conceptual desi
 
 ## Future Enhancements (All Flows)
 
-- **Multi-RPC Quorum**: Trusted-gmp uses multiple RPC endpoints with quorum validation (≥2 matching receipts) for enhanced security
+- **Multi-RPC Quorum**: Integrated-gmp uses multiple RPC endpoints with quorum validation (≥2 matching receipts) for enhanced security
 - **Protocol Fees**: Automatic fee deduction from escrow/hub transfers to solver
 - **Solver Collateral**: Solvers lock collateral that can be slashed (0.5-1%) if validation fails or intent expires
-- **Bypass/Trusted-gmp-gated Modes**: Alternative flow modes where trusted-gmp (or coordinator) commits transactions on behalf of users
+- **Bypass/Integrated-gmp-gated Modes**: Alternative flow modes where integrated-gmp (or coordinator) commits transactions on behalf of users
 
 ---
 
@@ -90,7 +90,7 @@ This section contains the detailed implementation diagram for the Router Flow, w
 sequenceDiagram
     participant Requester
     participant Hub as Hub Chain<br/>(Move)
-    participant TrustedGMP as Trusted-GMP<br/>(Rust)
+    participant TrustedGMP as Integrated-GMP<br/>(Rust)
     participant Source as Source Connected Chain<br/>(Move/EVM)
     participant Dest as Destination Connected Chain<br/>(Move/EVM)
     participant Solver
@@ -116,7 +116,7 @@ sequenceDiagram
     Solver->>Dest: Transfer tokens to requester_address_dest_chain<br/>(standard token transfer, not escrow)
     Dest->>Dest: Tokens received by requester
 
-    Note over Requester,Solver: Phase 4: Trusted-GMP Validation and Approval
+    Note over Requester,Solver: Phase 4: Integrated-GMP Validation and Approval
     Solver->>TrustedGMP: POST /validate-cross-chain-fulfillment<br/>(source_escrow_intent_id, dest_tx_hash, chain_types, intent_id)
     TrustedGMP->>Source: Query escrow by intent_id<br/>(verify escrow exists and matches)
     TrustedGMP->>Dest: Query transaction by hash<br/>(verify transfer occurred)

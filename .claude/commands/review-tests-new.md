@@ -47,7 +47,7 @@ All test functions must follow the documentation and section header rules define
    - `intent-frameworks/**/test/**/*.js`
    - `intent-frameworks/**/tests/**/*.move`
    - `coordinator/tests/**/*.rs`
-   - `trusted-gmp/tests/**/*.rs`
+   - `integrated-gmp/tests/**/*.rs`
    - `solver/tests/**/*.rs`
    - `frontend/src/**/*.test.ts`
    - `frontend/src/**/*.test.tsx`
@@ -226,7 +226,7 @@ There are 5 checklist files that track test symmetry across frameworks (MVM/EVM/
 2. `coordinator/tests/extension-checklist.md`
 3. `frontend/src/extension-checklist.md`
 4. `solver/tests/extension-checklist.md`
-5. `trusted-gmp/tests/extension-checklist.md`
+5. `integrated-gmp/tests/extension-checklist.md`
 
 ### What to check
 
@@ -289,7 +289,7 @@ Example:
 | File | Line | Value | Meaning | Suggested Constant |
 |------|------|-------|---------|--------------------|
 | `coordinator/src/config.rs` | 42 | `30` | polling interval seconds | `const POLLING_INTERVAL_SECS: u64 = 30;` |
-| `trusted-gmp/src/relay.rs` | 118 | `0x7a3b...` | contract address | `const GMP_CONTRACT_ADDR: &str = "0x7a3b...";` |
+| `integrated-gmp/src/relay.rs` | 118 | `0x7a3b...` | contract address | `const GMP_CONTRACT_ADDR: &str = "0x7a3b...";` |
 
 ### Part 3: Test Coverage Analysis (New/Modified Code Only)
 

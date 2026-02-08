@@ -1,6 +1,6 @@
 # Protocol Specification
 
-This document specifies the cross-chain intent protocol: how intents, escrows, coordinator, and trusted-gmp services work together across chains. For component-specific implementation details, see the component README files in the repository.
+This document specifies the cross-chain intent protocol: how intents, escrows, coordinator, and integrated-gmp services work together across chains. For component-specific implementation details, see the component README files in the repository.
 
 ## Table of Contents
 

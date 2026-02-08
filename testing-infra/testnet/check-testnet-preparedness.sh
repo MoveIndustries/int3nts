@@ -13,7 +13,7 @@
 #   - Ethereum Sepolia (ETH, USDC)
 # 
 # Assets Config: testing-infra/testnet/config/testnet-assets.toml
-# Service Configs: coordinator/config/coordinator_testnet.toml, trusted-gmp/config/trusted-gmp_testnet.toml, solver/config/solver_testnet.toml (gitignored)
+# Service Configs: coordinator/config/coordinator_testnet.toml, integrated-gmp/config/integrated-gmp_testnet.toml, solver/config/solver_testnet.toml (gitignored)
 # Keys: .env.testnet
 
 # Get the script directory and project root
@@ -729,7 +729,7 @@ fi
 
 echo ""
 echo "   Assets Config: $ASSETS_CONFIG_FILE"
-echo "   Service Configs: coordinator_testnet.toml, trusted-gmp_testnet.toml, solver_testnet.toml (gitignored)"
+echo "   Service Configs: coordinator_testnet.toml, integrated-gmp_testnet.toml, solver_testnet.toml (gitignored)"
 echo "   Keys:   $TESTNET_KEYS_FILE"
 echo ""
 if [ "$ready_count" -eq "$total_count" ]; then

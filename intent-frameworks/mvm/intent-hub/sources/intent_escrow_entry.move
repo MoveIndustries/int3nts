@@ -20,7 +20,7 @@ module mvmt_intent::intent_escrow_entry {
     /// - `offered_metadata`: Metadata of the token type to lock in escrow
     /// - `offered_amount`: Amount of tokens to lock in escrow
     /// - `offered_chain_id`: Chain ID where the escrow is created (connected chain)
-    /// - `approver_public_key`: Public key of authorized trusted-gmp (32 bytes as hex)
+    /// - `approver_public_key`: Public key of authorized integrated-gmp (32 bytes as hex)
     /// - `expiry_time`: Unix timestamp when escrow expires
     /// - `intent_id`: Intent ID from the hub chain (for cross-chain matching)
     /// - `reserved_solver`: Address of the solver who will receive funds when escrow is claimed

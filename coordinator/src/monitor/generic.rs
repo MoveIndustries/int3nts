@@ -106,7 +106,7 @@ pub struct IntentEvent {
 /// Escrow deposit event from the connected chain.
 ///
 /// This event is emitted when a solver deposits assets into an escrow
-/// on the connected chain. The trusted-gmp validates that this deposit
+/// on the connected chain. The integrated-gmp validates that this deposit
 /// fulfills the conditions specified in the original intent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscrowEvent {

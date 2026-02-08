@@ -202,14 +202,14 @@ echo ""
 echo " Initializing program with approver..."
 echo ""
 
-# Check for trusted-gmp public key (used as on-chain approver)
-if [ -z "$TRUSTED_GMP_PUBLIC_KEY" ]; then
-    echo "⚠️  WARNING: TRUSTED_GMP_PUBLIC_KEY not set in .env.testnet"
+# Check for integrated-gmp public key (used as on-chain approver)
+if [ -z "$INTEGRATED_GMP_PUBLIC_KEY" ]; then
+    echo "⚠️  WARNING: INTEGRATED_GMP_PUBLIC_KEY not set in .env.testnet"
     echo "   Skipping initialization - you'll need to run it manually later"
     echo ""
 else
-    # Convert trusted-gmp public key from base64 to base58 (Solana format)
-    TRUSTED_GMP_PUBKEY_BASE58=$(node -e "
+    # Convert integrated-gmp public key from base64 to base58 (Solana format)
+    INTEGRATED_GMP_PUBKEY_BASE58=$(node -e "
 // Inline base58 encoder
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 function b58encode(bytes) {
@@ -232,16 +232,16 @@ function b58encode(bytes) {
     }
     return digits.reverse().map(d => ALPHABET[d]).join('');
 }
-const base64Key = '$TRUSTED_GMP_PUBLIC_KEY';
+const base64Key = '$INTEGRATED_GMP_PUBLIC_KEY';
 const keyBytes = Buffer.from(base64Key, 'base64');
 console.log(b58encode(Array.from(keyBytes)));
 ")
 
-    if [ -z "$TRUSTED_GMP_PUBKEY_BASE58" ]; then
-        echo "❌ ERROR: Failed to convert trusted-gmp public key to base58"
+    if [ -z "$INTEGRATED_GMP_PUBKEY_BASE58" ]; then
+        echo "❌ ERROR: Failed to convert integrated-gmp public key to base58"
         echo "   Skipping initialization - you'll need to run it manually"
     else
-        echo " Trusted-GMP public key (base58): $TRUSTED_GMP_PUBKEY_BASE58"
+        echo " Integrated-GMP public key (base58): $INTEGRATED_GMP_PUBKEY_BASE58"
         
         # Recreate deployer keypair for initialization
         TEMP_KEYPAIR_DIR=$(mktemp -d)
@@ -286,7 +286,7 @@ console.log(JSON.stringify(b58decode('$SOLANA_DEPLOYER_PRIVATE_KEY')));
             "$CLI_BIN" initialize \
                 --program-id "$PROGRAM_ID" \
                 --payer "$DEPLOYER_KEYPAIR" \
-                --approver "$TRUSTED_GMP_PUBKEY_BASE58" \
+                --approver "$INTEGRATED_GMP_PUBKEY_BASE58" \
                 --rpc "$SOLANA_RPC_URL" && {
                 echo "✅ Program initialized with approver"
             } || {
@@ -317,7 +317,7 @@ echo "   2. coordinator/config/coordinator_testnet.toml"
 echo "      escrow_program_id = \"$PROGRAM_ID\""
 echo "      (in the [connected_chain_svm] section)"
 echo ""
-echo "   3. trusted-gmp/config/trusted-gmp_testnet.toml"
+echo "   3. integrated-gmp/config/integrated-gmp_testnet.toml"
 echo "      escrow_program_id = \"$PROGRAM_ID\""
 echo "      (in the [connected_chain_svm] section)"
 echo ""

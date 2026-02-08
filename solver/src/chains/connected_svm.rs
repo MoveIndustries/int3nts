@@ -85,7 +85,7 @@ pub struct ConnectedSvmClient {
     /// - EVM: read the private key from an env var at call time for the Hardhat signer.
     /// Here we keep the env var name and decode the base58 key when we need to sign.
     private_key_env: String,
-    /// Program ID of the native GMP endpoint (optional, for GMP flow)
+    /// Program ID of the integrated GMP endpoint (optional, for GMP flow)
     gmp_endpoint_program_id: Option<String>,
     /// Program ID of the outflow validator (optional, for GMP flow)
     outflow_validator_program_id: Option<String>,
@@ -182,7 +182,7 @@ impl ConnectedSvmClient {
     /// Checks if GMP outflow requirements have been delivered for an intent.
     ///
     /// This polls the outflow_validator's requirements PDA account to see if it exists.
-    /// The requirements are created when the native GMP relay delivers IntentRequirements.
+    /// The requirements are created when the integrated GMP relay delivers IntentRequirements.
     ///
     /// # Arguments
     ///

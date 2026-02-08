@@ -310,14 +310,14 @@ SVM: `intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_te
 
 ---
 
-## Native GMP Endpoint test alignment
+## Integrated GMP Endpoint test alignment
 
-Native GMP endpoint provides a standardized interface for cross-chain messaging. Can be used for local testing, CI, or production with your own relay infrastructure. In production, this can also be replaced by LZ's endpoint.
+Integrated GMP endpoint provides a standardized interface for cross-chain messaging. Can be used for local testing, CI, or production with your own relay infrastructure. In production, this can also be replaced by LZ's endpoint.
 
-### Native GMP Endpoint Interface Tests
+### Integrated GMP Endpoint Interface Tests
 
 MVM: `intent-frameworks/mvm/intent-connected/tests/intent_gmp_tests.move`
-EVM: `intent-frameworks/evm/test/native-gmp-endpoint/intent-gmp.test.js`
+EVM: `intent-frameworks/evm/test/integrated-gmp-endpoint/intent-gmp.test.js`
 SVM: `intent-frameworks/svm/programs/intent-gmp/tests/endpoint_tests.rs`
 
 | # | Test | MVM | EVM | SVM |

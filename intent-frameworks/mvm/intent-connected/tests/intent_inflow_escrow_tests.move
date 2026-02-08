@@ -1099,11 +1099,11 @@ module mvmt_intent::intent_inflow_escrow_tests {
     //     Why: SVM tests generic LzReceive instruction (variant index 1) routing based
     //     on message type. MVM receives messages through direct function calls to
     //     receive_intent_requirements/receive_fulfillment_proof, not via a generic
-    //     LzReceive dispatcher. Routing is handled by the native GMP endpoint calling
+    //     LzReceive dispatcher. Routing is handled by the integrated GMP endpoint calling
     //     the appropriate module function directly.
     //
     // 21. test_generic_lz_receive_routes_fulfillment_proof - N/A
-    //     Why: Same as test 20. MVM's native GMP endpoint routes messages directly to
+    //     Why: Same as test 20. MVM's integrated GMP endpoint routes messages directly to
     //     the appropriate handler functions rather than through a generic dispatcher
     //     instruction that peeks at message type and routes accordingly.
     //

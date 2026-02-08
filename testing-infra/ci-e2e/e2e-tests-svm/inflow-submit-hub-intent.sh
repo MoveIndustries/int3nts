@@ -12,7 +12,7 @@ setup_logging "submit-hub-intent-svm-inflow"
 cd "$PROJECT_ROOT"
 
 verify_coordinator_running
-verify_trusted_gmp_running
+verify_integrated_gmp_running
 verify_solver_running
 verify_solver_registered
 
@@ -78,7 +78,7 @@ log_and_echo ""
 
 log ""
 log " Starting coordinator-based negotiation routing..."
-log "   Flow: Requester → Coordinator/Trusted-GMP → Solver → Coordinator/Trusted-GMP → Requester"
+log "   Flow: Requester → Coordinator/Integrated-GMP → Solver → Coordinator/Integrated-GMP → Requester"
 
 log ""
 log "   Step 1: Requester submits draft intent to coordinator..."
@@ -104,7 +104,7 @@ RETRIEVED_SIGNATURE=$(echo "$SIGNATURE_DATA" | jq -r '.signature')
 RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_hub_addr')
 
 if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
-    log_and_echo "❌ ERROR: Failed to retrieve signature from coordinator/trusted-gmp"
+    log_and_echo "❌ ERROR: Failed to retrieve signature from coordinator/integrated-gmp"
     display_service_logs "SVM inflow draft signature missing"
     exit 1
 fi
@@ -130,7 +130,7 @@ if [ $? -eq 0 ]; then
         jq -r '.[0].events[] | select(.type | contains("LimitOrderEvent")) | .data.intent_addr' | head -n 1)
     if [ -n "$HUB_INTENT_ADDR" ] && [ "$HUB_INTENT_ADDR" != "null" ]; then
         log "     ✅ Hub intent stored at: $HUB_INTENT_ADDR"
-        log_and_echo "✅ Request-intent created (via coordinator/trusted-gmp negotiation)"
+        log_and_echo "✅ Request-intent created (via coordinator/integrated-gmp negotiation)"
     else
         log_and_echo "❌ ERROR: Could not verify hub intent address"
         exit 1

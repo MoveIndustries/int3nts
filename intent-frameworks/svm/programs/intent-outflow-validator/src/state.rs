@@ -62,7 +62,7 @@ pub struct ConfigAccount {
     pub discriminator: u8,
     /// The admin authority
     pub admin: Pubkey,
-    /// The trusted GMP endpoint program ID
+    /// The integrated GMP endpoint program ID
     pub gmp_endpoint: Pubkey,
     /// The hub chain ID (LZ endpoint ID)
     pub hub_chain_id: u32,

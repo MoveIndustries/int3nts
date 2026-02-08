@@ -176,7 +176,7 @@ module mvmt_intent::intent_outflow_validator_impl {
 
     /// Receive and store IntentRequirements from the hub.
     ///
-    /// Called by the native GMP endpoint when a message is delivered from the hub.
+    /// Called by the integrated GMP endpoint when a message is delivered from the hub.
     /// Implements idempotency: if requirements already exist, silently succeeds.
     ///
     /// # Arguments

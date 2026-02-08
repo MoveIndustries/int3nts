@@ -1,4 +1,4 @@
-//! Interface tests for the native GMP endpoint program.
+//! Interface tests for the integrated GMP endpoint program.
 //!
 //! These tests verify that instructions and state can be correctly serialized,
 //! and that the nonce tracking logic works correctly for replay protection.

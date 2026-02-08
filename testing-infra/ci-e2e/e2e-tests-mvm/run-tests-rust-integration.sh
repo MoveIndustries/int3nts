@@ -44,18 +44,18 @@ else
     echo " Step 1: Build bins and pre-pull docker images"
     echo "========================================"
     # Delete existing binaries to ensure fresh build
-    rm -f "$PROJECT_ROOT/target/debug/trusted-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
-    rm -f "$PROJECT_ROOT/target/release/trusted-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
+    rm -f "$PROJECT_ROOT/target/debug/integrated-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
+    rm -f "$PROJECT_ROOT/target/release/integrated-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
 
     pushd "$PROJECT_ROOT/coordinator" > /dev/null
     cargo build --bin coordinator 2>&1 | tail -5
     popd > /dev/null
     echo "   ✅ Coordinator: coordinator"
 
-    pushd "$PROJECT_ROOT/trusted-gmp" > /dev/null
-    cargo build --bin trusted-gmp --bin generate_keys 2>&1 | tail -5
+    pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
+    cargo build --bin integrated-gmp --bin generate_keys 2>&1 | tail -5
     popd > /dev/null
-    echo "   ✅ Trusted-GMP: trusted-gmp, generate_keys"
+    echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys"
 
     pushd "$PROJECT_ROOT/solver" > /dev/null
     cargo build --bin solver --bin sign_intent 2>&1 | tail -5
@@ -66,9 +66,9 @@ fi
 echo ""
 docker pull "$APTOS_DOCKER_IMAGE"
 
-echo " Step 2: Generating trusted-gmp keys..."
+echo " Step 2: Generating integrated-gmp keys..."
 echo "======================================="
-generate_trusted_gmp_keys
+generate_integrated_gmp_keys
 echo ""
 
 echo " Step 3: Setting up chains, deploying contracts, funding accounts"
@@ -84,7 +84,7 @@ echo ""
 echo " Step 4: Configuring and starting services..."
 echo "================================================"
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-coordinator.sh
-./testing-infra/ci-e2e/e2e-tests-mvm/start-trusted-gmp.sh
+./testing-infra/ci-e2e/e2e-tests-mvm/start-integrated-gmp.sh
 
 echo ""
 echo " Step 5: Running Rust integration tests..."

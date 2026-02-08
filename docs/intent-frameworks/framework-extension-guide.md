@@ -123,7 +123,7 @@ Each framework should have the following test files, matching the order and stru
 
 1. **initialization** - Basic setup and escrow creation
 2. **deposit** - Escrow creation and deposit functionality
-3. **claim** - Claiming escrow funds with trusted-gmp signatures
+3. **claim** - Claiming escrow funds with integrated-gmp signatures
 4. **cancel** - Cancellation and refund functionality
 5. **expiry** - Expiry timestamp handling and expired escrow behavior
 6. **cross-chain** - Intent ID conversion and cross-chain compatibility
@@ -184,11 +184,11 @@ Escrow test alignment for VM intent framework contracts:
 
 - See [`intent-frameworks/extension-checklist.md`](../../intent-frameworks/extension-checklist.md)
 
-### Trusted GMP
+### Integrated GMP
 
-Test alignment for the trusted-gmp service:
+Test alignment for the integrated-gmp service:
 
-- See [`trusted-gmp/tests/extension-checklist.md`](../../trusted-gmp/tests/extension-checklist.md)
+- See [`integrated-gmp/tests/extension-checklist.md`](../../integrated-gmp/tests/extension-checklist.md)
 
 ### Solver
 
@@ -384,7 +384,7 @@ When adding a new test to an existing framework:
 - [ ] Update env/config defaults and testnet scripts
 - [ ] Document solver setup and required env vars
 
-### Trusted GMP Integration
+### Integrated GMP Integration
 
 - [ ] Define chain type identifiers and config surface for the new framework
 - [ ] Add RPC client for chain queries and validation
@@ -396,7 +396,7 @@ When adding a new test to an existing framework:
 - [ ] Update API serialization/deserialization for new chain type
 - [ ] Add unit tests for validation helpers
 - [ ] Add monitoring tests for escrow + fulfillment ingestion
-- [ ] Document trusted-gmp setup and required env vars
+- [ ] Document integrated-gmp setup and required env vars
 
 ### Frontend Integration
 

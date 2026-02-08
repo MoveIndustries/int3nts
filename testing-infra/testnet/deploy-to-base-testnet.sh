@@ -35,9 +35,9 @@ if [ -z "$BASE_DEPLOYER_PRIVATE_KEY" ]; then
     exit 1
 fi
 
-if [ -z "$TRUSTED_GMP_EVM_PUBKEY_HASH" ]; then
-    echo "❌ ERROR: TRUSTED_GMP_EVM_PUBKEY_HASH not set in .env.testnet"
-    echo "   Run: nix develop ./nix -c bash -c 'cd trusted-gmp && TRUSTED_GMP_CONFIG_PATH=config/trusted-gmp_testnet.toml cargo run --bin get_approver_eth_address'"
+if [ -z "$INTEGRATED_GMP_EVM_PUBKEY_HASH" ]; then
+    echo "❌ ERROR: INTEGRATED_GMP_EVM_PUBKEY_HASH not set in .env.testnet"
+    echo "   Run: nix develop ./nix -c bash -c 'cd integrated-gmp && INTEGRATED_GMP_CONFIG_PATH=config/integrated-gmp_testnet.toml cargo run --bin get_approver_eth_address'"
     exit 1
 fi
 
@@ -59,7 +59,7 @@ fi
 
 echo " Configuration:"
 echo "   Deployer Address: $BASE_DEPLOYER_ADDR"
-echo "   Trusted-GMP EVM Pubkey Hash: $TRUSTED_GMP_EVM_PUBKEY_HASH"
+echo "   Integrated-GMP EVM Pubkey Hash: $INTEGRATED_GMP_EVM_PUBKEY_HASH"
 echo "   Network: Base Sepolia"
 echo "   RPC URL: $BASE_SEPOLIA_RPC_URL"
 echo ""
@@ -76,7 +76,7 @@ cd "$PROJECT_ROOT/intent-frameworks/evm"
 
 # Export environment variables for Hardhat
 export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"
-export APPROVER_ADDR="$TRUSTED_GMP_EVM_PUBKEY_HASH"
+export APPROVER_ADDR="$INTEGRATED_GMP_EVM_PUBKEY_HASH"
 export BASE_SEPOLIA_RPC_URL
 
 echo " Environment configured for Hardhat"
@@ -120,7 +120,7 @@ if [ -n "$CONTRACT_ADDR" ]; then
     echo "      escrow_contract_addr = \"$CONTRACT_ADDR\""
     echo "      (in the [connected_chain_evm] section)"
     echo ""
-    echo "   2. trusted-gmp/config/trusted-gmp_testnet.toml"
+    echo "   2. integrated-gmp/config/integrated-gmp_testnet.toml"
     echo "      escrow_contract_addr = \"$CONTRACT_ADDR\""
     echo "      (in the [connected_chain_evm] section)"
     echo ""
@@ -138,7 +138,7 @@ else
     echo ""
     echo " Update the following files:"
     echo "   - coordinator/config/coordinator_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
-    echo "   - trusted-gmp/config/trusted-gmp_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
+    echo "   - integrated-gmp/config/integrated-gmp_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
     echo "   - solver/config/solver_testnet.toml (escrow_contract_addr in [[connected_chain]] EVM section)"
     echo "   - frontend/.env.local (NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS)"
 fi

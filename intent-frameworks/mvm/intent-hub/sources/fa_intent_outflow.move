@@ -218,7 +218,7 @@ module mvmt_intent::fa_intent_outflow {
     /// - `expiry_time`: Unix timestamp when intent expires
     /// - `intent_id`: Intent ID for cross-chain linking
     /// - `requester_addr_connected_chain`: Address on connected chain where solver should send tokens
-    /// - `approver_public_key`: Public key of the trusted-gmp (approver) that will approve the connected chain transaction (32 bytes)
+    /// - `approver_public_key`: Public key of the integrated-gmp (approver) that will approve the connected chain transaction (32 bytes)
     /// - `solver`: Address of the solver authorized to fulfill this intent (must be registered)
     /// - `solver_addr_connected_chain`: Solver's address on the connected chain (used in GMP message for authorization)
     /// - `solver_signature`: Ed25519 signature from the solver authorizing this intent

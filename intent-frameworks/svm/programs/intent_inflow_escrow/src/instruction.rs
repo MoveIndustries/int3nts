@@ -54,7 +54,7 @@ pub enum EscrowInstruction {
         hub_chain_id: u32,
         /// The trusted hub address (32 bytes)
         trusted_hub_addr: [u8; 32],
-        /// The native GMP endpoint program ID
+        /// The integrated GMP endpoint program ID
         gmp_endpoint: Pubkey,
     },
 

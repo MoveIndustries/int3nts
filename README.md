@@ -7,7 +7,7 @@ A framework for creating cross-chain intents with the following components
 
 - [intent-frameworks](docs/intent-frameworks/README.md)
 - [coordinator](docs/coordinator/README.md)
-- [trusted-gmp](docs/trusted-gmp/README.md)
+- [integrated-gmp](docs/integrated-gmp/README.md)
 - [frontend](docs/frontend/README.md)
 - [solver tools](docs/solver/README.md)
 - [testing infrastructure](docs/testing-infra/README.md)
@@ -39,7 +39,7 @@ nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm install && npm tes
 ./intent-frameworks/svm/scripts/test.sh
 # Rust services
 RUST_LOG=off nix develop ./nix -c bash -c "cd coordinator && cargo test --quiet"
-RUST_LOG=off nix develop ./nix -c bash -c "cd trusted-gmp && cargo test --quiet"
+RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --quiet"
 RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet"
 # Frontend
 nix develop ./nix -c bash -c "cd frontend && npm install --legacy-peer-deps && npm test"

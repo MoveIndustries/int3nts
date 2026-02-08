@@ -89,7 +89,7 @@ module mvmt_intent::intent_gmp {
     // INITIALIZATION
     // ============================================================================
 
-    /// Initialize the native GMP endpoint (receiver).
+    /// Initialize the integrated GMP endpoint (receiver).
     /// Called once during deployment.
     /// Note: For sending, also initialize gmp_sender separately.
     public entry fun initialize(admin: &signer) {

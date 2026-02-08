@@ -1,4 +1,4 @@
-//! Instruction definitions for the native GMP endpoint program.
+//! Instruction definitions for the integrated GMP endpoint program.
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;

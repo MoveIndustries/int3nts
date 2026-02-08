@@ -1,14 +1,14 @@
-# Trusted GMP – Usage Guide
+# Integrated GMP – Usage Guide
 
-This guide covers how to configure and run the trusted-gmp relay service.
+This guide covers how to configure and run the integrated-gmp relay service.
 
 ## Overview
 
-The trusted-gmp service is a native GMP relay — it watches for `MessageSent` events on source chains and delivers messages to destination chains. It is invisible to clients; the coordinator is the single API surface.
+The integrated-gmp service is a integrated GMP relay — it watches for `MessageSent` events on source chains and delivers messages to destination chains. It is invisible to clients; the coordinator is the single API surface.
 
 ## Configuration
 
-File: `trusted-gmp/config/trusted-gmp.toml` (relative to project root)
+File: `integrated-gmp/config/integrated-gmp.toml` (relative to project root)
 
 ### Operator Wallet Keys
 
@@ -24,16 +24,16 @@ The relay needs operator wallet keys for each chain to submit `deliver_message` 
 
 ```bash
 # Default (local config)
-cargo run --bin trusted-gmp
+cargo run --bin integrated-gmp
 
 # Testnet config
-cargo run --bin trusted-gmp -- --testnet
+cargo run --bin integrated-gmp -- --testnet
 
 # Custom config path
-cargo run --bin trusted-gmp -- --config path/to/config.toml
+cargo run --bin integrated-gmp -- --config path/to/config.toml
 ```
 
-Environment variable `TRUSTED_GMP_CONFIG_PATH` overrides all flags.
+Environment variable `INTEGRATED_GMP_CONFIG_PATH` overrides all flags.
 
 ## GMP Message Flow
 

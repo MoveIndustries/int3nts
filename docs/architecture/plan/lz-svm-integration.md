@@ -603,12 +603,12 @@ intent-frameworks/svm/programs/
 │   │   │   └── lz_receive_types.rs # Account discovery for executor
 │   │   └── state/
 │   │       └── stored_requirements.rs
-├── native-gmp-endpoint/         # New program (local/CI only)
+├── integrated-gmp-endpoint/         # New program (local/CI only)
 │   ├── src/
 │   │   ├── lib.rs
 │   │   ├── instructions/
 │   │   │   ├── send.rs             # Emits MessageSent event
-│   │   │   └── deliver_message.rs  # Trusted-GMP calls this
+│   │   │   └── deliver_message.rs  # Integrated-GMP calls this
 │   │   └── state/
 │   │       └── config.rs
 └── gmp-common/                 # New crate (shared)
@@ -654,9 +654,9 @@ intent-frameworks/svm/programs/
    - <https://github.com/LZ-Labs/devtools/tree/main/examples/oapp-solana>
    - Focus on send, receive, and account discovery patterns
 
-3. **Build native-gmp-endpoint first** (as planned in Phase 1)
+3. **Build integrated-gmp-endpoint first** (as planned in Phase 1)
    - Implements the same CPI interface as the real LZ endpoint
-   - Emits `MessageSent` events for the Trusted-GMP relay
+   - Emits `MessageSent` events for the Integrated-GMP relay
    - Unblocks development immediately
 
 ---

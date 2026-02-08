@@ -420,7 +420,7 @@ impl HubChainClient {
     /// # Arguments
     ///
     /// * `intent_addr` - Object address of the intent to fulfill
-    /// * `approval_signature_bytes` - Trusted-gmp's Ed25519 signature as bytes (on-chain approval address)
+    /// * `approval_signature_bytes` - Integrated-gmp's Ed25519 signature as bytes (on-chain approval address)
     ///
     /// # Returns
     ///

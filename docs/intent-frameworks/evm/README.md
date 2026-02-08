@@ -1,14 +1,14 @@
 # EVM Intent Framework
 
-Escrow contract for cross-chain intents that releases funds to solvers when trusted-gmp signatures check out.
+Escrow contract for cross-chain intents that releases funds to solvers when integrated-gmp signatures check out.
 
 ## Overview
 
 The `IntentInflowEscrow` contract implements a secure escrow system:
 
 - Requesters deposit ERC20 tokens into escrows tied to intent IDs
-- Solvers can claim funds after providing a valid trusted-gmp signature
-- The trusted-gmp service signs approval messages off-chain after verifying cross-chain conditions
+- Solvers can claim funds after providing a valid integrated-gmp signature
+- The integrated-gmp service signs approval messages off-chain after verifying cross-chain conditions
 - Requesters can cancel and reclaim funds after expiry
 
 ## Architecture
@@ -18,13 +18,13 @@ ECDSA signature verification similar to the Aptos escrow system.
 Flow:
 
 1. Requester creates escrow and deposits funds atomically (must specify solver address)
-2. Trusted-gmp service monitors conditions and signs approval (off-chain)
-3. Anyone can claim with trusted-gmp signature (funds go to reserved solver)
+2. Integrated-gmp service monitors conditions and signs approval (off-chain)
+3. Anyone can claim with integrated-gmp signature (funds go to reserved solver)
 4. Requester can cancel and reclaim after expiry
 
 ## Signature Verification
 
-The trusted-gmp service signs the `intent_id` - the signature itself is the approval.
+The integrated-gmp service signs the `intent_id` - the signature itself is the approval.
 
 Message format:
 
@@ -33,7 +33,7 @@ messageHash = keccak256(intentId)
 ethSignedMessage = keccak256("\x19Ethereum Signed Message:\n32" || messageHash)
 ```
 
-The contract uses `ecrecover()` to verify the signature matches the authorized trusted-gmp address.
+The contract uses `ecrecover()` to verify the signature matches the authorized integrated-gmp address.
 
 ## Contract Interface
 
@@ -94,11 +94,11 @@ await escrow.connect(solver).claim(intentId, signature);
 
 ## Security Considerations
 
-- Signature verification: Only authorized trusted-gmp signatures accepted
+- Signature verification: Only authorized integrated-gmp signatures accepted
 - Intent ID binding: Prevents signature replay across escrows
 - Reentrancy protection: Uses OpenZeppelin's SafeERC20
 - Access control: Only requester can cancel (after expiry)
-- Immutable trusted-gmp address: Trusted-gmp address set in constructor
+- Immutable integrated-gmp address: Integrated-gmp address set in constructor
 - Solver reservation: Required at creation, prevents unauthorized recipients
 
 ## Testing

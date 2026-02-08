@@ -58,7 +58,7 @@ module mvmt_intent::intent_escrow_tests {
         let (escrowed_asset, session) = intent_escrow::start_escrow_session(solver, escrow_intent);
         primary_fungible_store::deposit(signer::address_of(solver), escrowed_asset);
         
-        // Trusted GMP signs the intent_id - the signature itself is the approval
+        // Integrated GMP signs the intent_id - the signature itself is the approval
         let intent_id = @0x1; // Same intent_id used when creating escrow
         let approver_signature = ed25519::sign_arbitrary_bytes(&approver_secret_key, bcs::to_bytes(&intent_id));
 
@@ -120,7 +120,7 @@ module mvmt_intent::intent_escrow_tests {
         let (escrowed_asset, session) = intent_escrow::start_escrow_session(solver, escrow_intent);
         primary_fungible_store::deposit(signer::address_of(solver), escrowed_asset);
         
-        // Trusted GMP signs a DIFFERENT intent_id (@0x2) instead of the escrow's intent_id (@0x1)
+        // Integrated GMP signs a DIFFERENT intent_id (@0x2) instead of the escrow's intent_id (@0x1)
         // This should cause signature verification to fail
         let wrong_intent_id = @0x2; // Different from escrow's intent_id (@0x1)
         let approver_signature = ed25519::sign_arbitrary_bytes(&approver_secret_key, bcs::to_bytes(&wrong_intent_id));
@@ -193,7 +193,7 @@ module mvmt_intent::intent_escrow_tests {
         let (escrowed_asset_b, session_b) = intent_escrow::start_escrow_session(solver, escrow_intent_b);
         primary_fungible_store::deposit(signer::address_of(solver), escrowed_asset_b);
         
-        // Trusted GMP creates a VALID signature for intent_id @0x1 (escrow A)
+        // Integrated GMP creates a VALID signature for intent_id @0x1 (escrow A)
         let intent_id_a = @0x1;
         let valid_signature_for_a = ed25519::sign_arbitrary_bytes(&approver_secret_key, bcs::to_bytes(&intent_id_a));
 

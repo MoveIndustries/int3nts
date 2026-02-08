@@ -256,7 +256,7 @@ module mvmt_intent::intent_inflow_escrow {
 
     /// Receive and store IntentRequirements from the hub.
     ///
-    /// Called by the native GMP endpoint when a message is delivered from the hub.
+    /// Called by the integrated GMP endpoint when a message is delivered from the hub.
     /// Implements idempotency: if requirements already exist, silently succeeds.
     ///
     /// # Arguments
@@ -468,7 +468,7 @@ module mvmt_intent::intent_inflow_escrow {
 
     /// Receive FulfillmentProof from the hub and auto-release escrow to solver.
     ///
-    /// Called by the native GMP endpoint when the hub reports that a solver
+    /// Called by the integrated GMP endpoint when the hub reports that a solver
     /// has fulfilled the intent on the hub. This marks the escrow as fulfilled
     /// AND immediately transfers tokens to the solver (single-step release).
     ///

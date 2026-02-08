@@ -12,7 +12,7 @@ git commit -m "<type of change>: <description>
 - <more detailed points if needed (optional)>
 - <more detailed points if needed (optional)>
 
-Tests pass: Coordinator <number>, Trusted-GMP <number>, Solver <number>, MVM <amount>, EVM <amount>, SVM <number>, Frontend <number>
+Tests pass: Coordinator <number>, Integrated-GMP <number>, Solver <number>, MVM <amount>, EVM <amount>, SVM <number>, Frontend <number>
 Tests delta: <component> +<new> -<removed>, <component> +<new> -<removed>, ..."
 ```
 
@@ -20,7 +20,7 @@ Tests delta: <component> +<new> -<removed>, <component> +<new> -<removed>, ..."
 
 - Count new test functions added in this commit (search for new `#[test]`, `#[tokio::test]`, `fun test_`, `it(`, `test(`, etc.)
 - Count test functions removed in this commit
-- Include the component/VM name: Coordinator, Trusted-GMP, Solver, MVM, EVM, SVM, Frontend
+- Include the component/VM name: Coordinator, Integrated-GMP, Solver, MVM, EVM, SVM, Frontend
 - Format per component: `<component> +<new>` (add `-<removed>` only if tests were removed)
 - Examples:
   - `MVM +3` (3 new MVM tests)
@@ -57,9 +57,9 @@ EOF
 - **Run tests before committing** ONLY if changes affect existing test code (e.g., adding new tests, modifying code that has tests)
 - **Do NOT run tests for:** project setup, documentation-only changes, configuration files, or other non-code changes
 - **If sandbox prevents test execution**, ask user for help or skip tests (don't include "Tests pass:" line)
-- **Only include test results** in commit message if tests were actually run, in the format: `Tests pass: Coordinator <number>, Trusted-GMP <number>, Solver <number>, MVM <amount>, EVM <amount>, SVM <number>, Frontend <number>` followed by `Tests delta: <component> +<new> -<removed>, ...`
+- **Only include test results** in commit message if tests were actually run, in the format: `Tests pass: Coordinator <number>, Integrated-GMP <number>, Solver <number>, MVM <amount>, EVM <amount>, SVM <number>, Frontend <number>` followed by `Tests delta: <component> +<new> -<removed>, ...`
 - **If tests were NOT run**, omit the "Tests pass:" line entirely from the commit message
-- **Display test summary table** after running tests using the commands in the next subsection, showing passed/total for each category (Coordinator, Trusted-GMP, Solver, MVM, EVM, SVM, Frontend)
+- **Display test summary table** after running tests using the commands in the next subsection, showing passed/total for each category (Coordinator, Integrated-GMP, Solver, MVM, EVM, SVM, Frontend)
 - Follow conventional commit format (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`)
 - Keep commit messages brief and professional
 - Do NOT mention subtask or task IDs in commit messages
@@ -89,7 +89,7 @@ cd intent-frameworks/svm && ./scripts/test.sh
 
 # Rust services
 cd coordinator && cargo test --quiet
-cd trusted-gmp && cargo test --quiet
+cd integrated-gmp && cargo test --quiet
 cd solver && cargo test --quiet
 
 # Frontend
@@ -126,7 +126,7 @@ This is a cross-chain intent framework enabling conditional asset transfers acro
 - **MVM/Move**: `docs/intent-frameworks/mvm/README.md`
 - **EVM/Solidity**: `docs/intent-frameworks/evm/README.md`
 - **SVM/Solana**: `docs/intent-frameworks/svm/README.md`
-- **Rust services**: `docs/coordinator/`, `docs/trusted-gmp/`, `docs/solver/`
+- **Rust services**: `docs/coordinator/`, `docs/integrated-gmp/`, `docs/solver/`
 - **Testing**: `docs/testing-infra/README.md`
 - **Coding standards**: `docs/codestandards.md`
 

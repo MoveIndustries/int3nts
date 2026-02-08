@@ -12,7 +12,7 @@ setup_logging "submit-hub-intent-svm-outflow"
 cd "$PROJECT_ROOT"
 
 verify_coordinator_running
-verify_trusted_gmp_running
+verify_integrated_gmp_running
 verify_solver_running
 verify_solver_registered
 
@@ -78,7 +78,7 @@ log_and_echo ""
 
 log ""
 log " Starting coordinator-based negotiation routing..."
-log "   Flow: Requester → Coordinator/Trusted-GMP → Solver → Coordinator/Trusted-GMP → Requester"
+log "   Flow: Requester → Coordinator/Integrated-GMP → Solver → Coordinator/Integrated-GMP → Requester"
 
 log ""
 log "   Step 1: Requester submits draft intent to coordinator..."
@@ -104,7 +104,7 @@ RETRIEVED_SIGNATURE=$(echo "$SIGNATURE_DATA" | jq -r '.signature')
 RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_hub_addr')
 
 if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
-    log_and_echo "❌ ERROR: Failed to retrieve signature from coordinator/trusted-gmp"
+    log_and_echo "❌ ERROR: Failed to retrieve signature from coordinator/integrated-gmp"
     display_service_logs "SVM outflow draft signature missing"
     exit 1
 fi
@@ -120,9 +120,9 @@ log "     Solver address: $RETRIEVED_SOLVER"
 
 SOLVER_SIGNATURE_HEX="${RETRIEVED_SIGNATURE#0x}"
 
-# Load trusted-gmp public key (Ed25519, base64) and convert to hex for Move
-load_trusted_gmp_keys
-APPROVER_PUBKEY_HEX=$(echo "$E2E_TRUSTED_GMP_PUBLIC_KEY" | base64 -d | xxd -p | tr -d '\n')
+# Load integrated-gmp public key (Ed25519, base64) and convert to hex for Move
+load_integrated_gmp_keys
+APPROVER_PUBKEY_HEX=$(echo "$E2E_INTEGRATED_GMP_PUBLIC_KEY" | base64 -d | xxd -p | tr -d '\n')
 log "     Approver public key (hex): $APPROVER_PUBKEY_HEX"
 
 aptos move run --profile requester-chain1 --assume-yes \
@@ -136,7 +136,7 @@ if [ $? -eq 0 ]; then
         jq -r '.[0].events[] | select(.type | contains("LimitOrderEvent")) | .data.intent_addr' | head -n 1)
     if [ -n "$HUB_INTENT_ADDR" ] && [ "$HUB_INTENT_ADDR" != "null" ]; then
         log "     ✅ Hub intent stored at: $HUB_INTENT_ADDR"
-        log_and_echo "✅ Request-intent created (via coordinator/trusted-gmp negotiation)"
+        log_and_echo "✅ Request-intent created (via coordinator/integrated-gmp negotiation)"
     else
         log_and_echo "❌ ERROR: Could not verify hub intent address"
         exit 1

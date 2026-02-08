@@ -9,7 +9,7 @@ For detailed field-by-field documentation, see:
 - [EVM Escrow documentation](../../docs/intent-frameworks/evm/README.md)
 - [SVM Escrow documentation](../../docs/intent-frameworks/svm/README.md)
 - [Rust coordinator structures](../../coordinator/src/monitor/mod.rs) - IntentEvent, EscrowEvent, FulfillmentEvent
-- [Rust trusted-gmp structures](../../trusted-gmp/src/monitor/mod.rs) - EscrowApproval
+- [Rust integrated-gmp structures](../../integrated-gmp/src/monitor/mod.rs) - EscrowApproval
 
 ## Overview
 
@@ -24,18 +24,18 @@ The Intent Framework uses data structures across three implementation languages 
 
 - **Hub Chain (Move)**: Intent creation and fulfillment with event emissions
 - **Connected Chains (Move/EVM)**: Escrow creation and release with event emissions
-- **Coordinator/Trusted GMP Services (Rust)**: Event monitoring, normalization, and cross-chain validation
+- **Coordinator/Integrated GMP Services (Rust)**: Event monitoring, normalization, and cross-chain validation
 
 ## Validation Domain: Normalized Event Structures
 
-The coordinator and trusted-gmp services normalize blockchain events from different chains into common Rust structures for cross-chain validation. These structures are architectural abstractions that enable unified processing of events from both Move and EVM chains.
+The coordinator and integrated-gmp services normalize blockchain events from different chains into common Rust structures for cross-chain validation. These structures are architectural abstractions that enable unified processing of events from both Move and EVM chains.
 
 **Key Normalization Patterns**:
 
 - **RequestIntentEvent** (`coordinator/src/monitor/mod.rs`) - Normalizes `LimitOrderEvent` from Move hub chain
 - **EscrowEvent** (`coordinator/src/monitor/mod.rs`) - Normalizes `OracleLimitOrderEvent` (Move) and `EscrowInitialized` (EVM) from connected chains
 - **FulfillmentEvent** (`coordinator/src/monitor/mod.rs`) - Normalizes `LimitOrderFulfillmentEvent` from hub chain
-- **EscrowApproval** (`trusted-gmp/src/monitor/mod.rs`) - Cryptographic approval structure for escrow release (trusted-gmp only)
+- **EscrowApproval** (`integrated-gmp/src/monitor/mod.rs`) - Cryptographic approval structure for escrow release (integrated-gmp only)
 - **ChainType** (`coordinator/src/monitor/mod.rs`) - Enum representing blockchain type (Mvm, Evm, Svm) for escrow events
 
 **Normalization Purpose**: These structures abstract away chain-specific differences (Move address types vs EVM address types, BCS vs ABI encoding) to enable unified cross-chain validation logic. See [`coordinator/src/monitor/mod.rs`](../../coordinator/src/monitor/mod.rs) for complete field definitions.
@@ -66,7 +66,7 @@ Solver addresses are preserved across chains:
 
 - **Hub Chain**: `TradeIntent.reservation: Option<IntentReserved>` - Optional reserved solver
 - **Connected Chain**: `Escrow.reservedSolver: address` - Always set, never address(0)
-- **Trusted GMP Validation**: Validates that fulfillment solver matches reserved solver before approval
+- **Integrated GMP Validation**: Validates that fulfillment solver matches reserved solver before approval
 
 ### Event Correlation Logic
 
@@ -83,7 +83,7 @@ Data structures are serialized differently depending on the chain and communicat
 
 - **Move Contracts**: BCS (Binary Canonical Serialization) for on-chain storage
 - **EVM Contracts**: ABI encoding for Solidity structs
-- **Coordinator/Trusted GMP Services**: JSON for REST API communication, base64 for signature encoding
+- **Coordinator/Integrated GMP Services**: JSON for REST API communication, base64 for signature encoding
 - **Cross-Chain Events**: JSON serialization for event data passed between chains
 
 ## State Transitions

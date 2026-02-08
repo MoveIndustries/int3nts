@@ -80,7 +80,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         // Register solver in registry
         solver_registry::register_solver(solver_signer, solver_public_key_bytes, @0x0, evm_addr, vector::empty<u8>());
         
-        // Generate approver (trusted-gmp) key pair (need secret key for signing intent_id later)
+        // Generate approver (integrated-gmp) key pair (need secret key for signing intent_id later)
         let (approver_secret_key, validated_approver_pk) = ed25519::generate_keys();
         let approver_public_key = ed25519::public_key_to_unvalidated(&validated_approver_pk);
         let approver_public_key_bytes = ed25519::unvalidated_public_key_to_bytes(&approver_public_key);

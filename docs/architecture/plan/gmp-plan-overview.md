@@ -2,7 +2,7 @@
 
 **Status:** In Progress (Phase 3 In Progress)
 **Date:** 2026-01-22
-**Summary:** Add Generic Message Passing (GMP) for cross-chain messaging. Production can use either Trusted GMP (our relay) or LZ. Validation moves on-chain; cross-chain messaging replaces approval signatures. Coordinator and Trusted GMP are assumed (already in place).
+**Summary:** Add Generic Message Passing (GMP) for cross-chain messaging. Production can use either Integrated GMP (our relay) or LZ. Validation moves on-chain; cross-chain messaging replaces approval signatures. Coordinator and Integrated GMP are assumed (already in place).
 
 > **🔷 GMP Protocol: LZ v2**
 >
@@ -15,34 +15,34 @@
 ### Current System (Given)
 
 - **Coordinator** – event monitoring, REST API, negotiation (no keys, cannot authorize releases)
-- **Trusted GMP** – off-chain signer; validates and signs (Ed25519/ECDSA) to authorize escrow releases. Used in local/CI; can steal funds if compromised.
+- **Integrated GMP** – off-chain signer; validates and signs (Ed25519/ECDSA) to authorize escrow releases. Used in local/CI; can steal funds if compromised.
 
 ### Proposed Addition: GMP
 
 Add **on-chain validation + GMP messaging** for cross-chain communication:
 
 - Validation logic moves into smart contracts on each chain
-- GMP handles cross-chain message delivery (either Trusted GMP relay or LZ v2)
+- GMP handles cross-chain message delivery (either Integrated GMP relay or LZ v2)
 - Contracts authenticate via GMP message verification instead of approval signatures
-- Coordinator unchanged (still no keys, UX only); Trusted GMP can be used in production or local/CI
+- Coordinator unchanged (still no keys, UX only); Integrated GMP can be used in production or local/CI
 
 ### Key Benefits
 
 | Benefit | Impact |
 |---------|--------|
-| **Flexible production options** | Production can use Trusted GMP relay or LZ; choice of trust model |
-| **Censorship resistance** | Permissionless GMP networks vs. our Trusted GMP signer |
+| **Flexible production options** | Production can use Integrated GMP relay or LZ; choice of trust model |
+| **Censorship resistance** | Permissionless GMP networks vs. our Integrated GMP signer |
 | **Decentralization** | Trust GMP validator networks instead of our service |
 | **Security** | Validation logic is transparent on-chain |
 | **Operational simplicity** | Coordinator only (no signer to run in production) |
 
 ### Key Trade-offs
 
-| Trade-off | Current (Trusted GMP signs) | With GMP |
+| Trade-off | Current (Integrated GMP signs) | With GMP |
 |-----------|-----------------------------|----------|
 | **Gas costs** | Low (signatures cheap) | Higher (GMP fees + on-chain validation) |
 | **Contract complexity** | Low | Medium (validation logic on-chain) |
-| **Infrastructure** | Coordinator + Trusted GMP | Coordinator + Trusted GMP relay or LZ |
+| **Infrastructure** | Coordinator + Integrated GMP | Coordinator + Integrated GMP relay or LZ |
 | **Flexibility** | Easy to update validation logic | Requires contract redeployment |
 
 ---
@@ -54,39 +54,39 @@ See execution phase documents for detailed implementation plan:
 - [Phase 1: Research & Design](gmp-plan-execution-phase1.md) ✅ **COMPLETE** - Interfaces, message schemas, wire format spec
 - [Phase 2: Complete GMP Implementation (MVM, SVM, EVM) & Architecture Alignment](gmp-plan-execution-phase2.md) ✅ **COMPLETE** - GMP for all three chains, native relay, package restructuring, naming alignment (19 commits)
 - [Phase 3: Coordinator Readiness Tracking](gmp-plan-execution-phase3.md) ✅ **COMPLETE** - Readiness tracking for outflow intents (commit f46eb3d)
-- [Phase 4: Integration & Documentation](gmp-plan-execution-phase4.md) 🔄 **IN PROGRESS** - Commit 1 done (stripped trusted-gmp API to relay-only). Remaining: frontend/solver cleanup, deployment, docs
+- [Phase 4: Integration & Documentation](gmp-plan-execution-phase4.md) 🔄 **IN PROGRESS** - Commit 1 done (stripped integrated-gmp API to relay-only). Remaining: frontend/solver cleanup, deployment, docs
 
 **Total Timeline:** ~1.5 weeks (testnet only)
 
-**Assumed starting point:** Coordinator and Trusted GMP already exist. This plan adds GMP messaging (using either Trusted GMP relay or LZ).
+**Assumed starting point:** Coordinator and Integrated GMP already exist. This plan adds GMP messaging (using either Integrated GMP relay or LZ).
 
 ---
 
-## Starting Point: Coordinator + Trusted GMP (Given)
+## Starting Point: Coordinator + Integrated GMP (Given)
 
 Current architecture (no change in this plan):
 
 ```text
 ┌─────────────────────────────────┐  ┌─────────────────────────────────┐
-│      COORDINATOR SERVICE        │  │      TRUSTED GMP SERVICE        │
+│      COORDINATOR SERVICE        │  │      INTEGRATED GMP SERVICE        │
 │  Event monitoring, REST API,   │  │  Signs approvals (Ed25519/ECDSA)│
 │  negotiation. NO KEYS.         │  │  Used in local/CI. HAS KEYS.    │
 │  🟢 Cannot steal funds          │  │  🔴 Can steal funds if compromised│
 └─────────────────────────────────┘  └─────────────────────────────────┘
 ```
 
-**After GMP (this plan):** Production uses LZ for cross-chain approval; Trusted GMP remains for local/CI only. Coordinator unchanged.
+**After GMP (this plan):** Production uses LZ for cross-chain approval; Integrated GMP remains for local/CI only. Coordinator unchanged.
 
 | Environment | Who authorizes releases | Trust |
 |-------------|-------------------------|--------|
-| **Local/CI (today & after)** | Trusted GMP (our signer) | 🔴 Our service |
+| **Local/CI (today & after)** | Integrated GMP (our signer) | 🔴 Our service |
 | **Production (after GMP)** | LZ DVNs | 🟡 GMP network |
 
 ---
 
 ## Architectural Changes
 
-This plan moves validation logic on-chain and uses GMP for cross-chain message delivery. The table below shows how each current approval-task (today done by Trusted GMP) maps to the GMP design.
+This plan moves validation logic on-chain and uses GMP for cross-chain message delivery. The table below shows how each current approval-task (today done by Integrated GMP) maps to the GMP design.
 
 ### Approval-Flow Task Migration
 
@@ -116,14 +116,14 @@ This plan moves validation logic on-chain and uses GMP for cross-chain message d
 
 ### Core Principle
 
-Replace **"our off-chain signer (Trusted GMP) validates and signs"** with **"on-chain validation + GMP messages"** in production.
+Replace **"our off-chain signer (Integrated GMP) validates and signs"** with **"on-chain validation + GMP messages"** in production.
 
 ### How It Works
 
-#### Current (Trusted GMP signs)
+#### Current (Integrated GMP signs)
 
 ```text
-Trusted GMP (off-chain) validates → Signs approval → Contract checks signature
+Integrated GMP (off-chain) validates → Signs approval → Contract checks signature
 ```
 
 #### After GMP (production)
@@ -153,10 +153,10 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 1. Hub: Requester creates intent (wants assets on hub), emits event
 2. Connected Chain: Requester creates escrow (offers their assets, reserved for solver) → emits `EscrowCreated` event
-3. **Trusted GMP**: Observes escrow event, validates (amount, token, reservation match intent)
+3. **Integrated GMP**: Observes escrow event, validates (amount, token, reservation match intent)
 4. Hub: Solver fulfills intent (provides desired assets to requester)
-5. **Trusted GMP**: Observes fulfillment event, validates, generates signature
-6. Connected Chain: Solver submits Trusted GMP signature → escrow releases requester's offering to solver
+5. **Integrated GMP**: Observes fulfillment event, validates, generates signature
+6. Connected Chain: Solver submits Integrated GMP signature → escrow releases requester's offering to solver
 
 #### GMP Flow
 
@@ -175,23 +175,23 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 | **Hub Intent Contract** | N/A | Add GMP receive handler for escrow confirmations | **NEW** - Add inbound handler |
 | **Hub Intent Contract** | Emits fulfillment event | Add GMP send on fulfillment | **MODIFY** - Add outbound message |
 | **Connected Chain Escrow** | Just locks funds + emits event | Add GMP receive handler for intent requirements | **NEW** - Add inbound handler |
-| **Connected Chain Escrow** | Validates via Trusted GMP signature | Validate requirements on-chain during creation | **MODIFY** - Move validation logic on-chain |
-| **Connected Chain Escrow** | Validates via Trusted GMP signature | Add GMP send on escrow creation | **NEW** - Add outbound message |
+| **Connected Chain Escrow** | Validates via Integrated GMP signature | Validate requirements on-chain during creation | **MODIFY** - Move validation logic on-chain |
+| **Connected Chain Escrow** | Validates via Integrated GMP signature | Add GMP send on escrow creation | **NEW** - Add outbound message |
 | **Connected Chain Escrow** | Requires signature for release | Add GMP receive handler for fulfillment proof | **NEW** - Add inbound handler |
 | **Connected Chain Escrow** | Uses `ed25519::verify_signature` | Use GMP message verification | **REPLACE** - Different auth mechanism |
-| **Trusted GMP (production)** | Observes, validates, signs | **Not used in production** | Production uses GMP only; Trusted GMP stays for local/CI |
+| **Integrated GMP (production)** | Observes, validates, signs | **Not used in production** | Production uses GMP only; Integrated GMP stays for local/CI |
 
 ### Outflow (Hub → Connected Chain)
 
 #### Current Flow
 
 1. Hub: Intent created (locks funds), emits event with requirements (recipient, amount, token, connected_chain_id)
-2. **Trusted GMP**: Observes intent event, caches it
+2. **Integrated GMP**: Observes intent event, caches it
 3. Connected Chain: Solver submits **arbitrary transaction** (ERC20 transfer, SPL transfer, etc.)
-4. **Trusted GMP**: Queries transaction by hash, parses arguments/logs, validates (recipient, amount, token, solver address)
-5. **Trusted GMP**: Queries hub solver registry for solver's connected-chain address
-6. **Trusted GMP**: Signs intent_id if valid
-7. Hub: Solver submits Trusted GMP signature → intent releases escrow
+4. **Integrated GMP**: Queries transaction by hash, parses arguments/logs, validates (recipient, amount, token, solver address)
+5. **Integrated GMP**: Queries hub solver registry for solver's connected-chain address
+6. **Integrated GMP**: Signs intent_id if valid
+7. Hub: Solver submits Integrated GMP signature → intent releases escrow
 
 #### GMP Flow
 
@@ -229,7 +229,7 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 | **Validation Contract** | N/A | Validate requirements and forward tokens to user | **NEW** - On-chain validation and forwarding |
 | **Validation Contract** | N/A | Send GMP message on success | **NEW** - Outbound message |
 | **Solver Flow** | Submit arbitrary tx → wait → submit signature | Approve contract (one-time) → Call validation contract function (transfer + validation + GMP send in one tx) | **REPLACE** - Different interaction pattern |
-| **Trusted GMP (production)** | Parses txs, validates, queries registry, signs | **Not used in production** | Production uses GMP; Trusted GMP for local/CI only |
+| **Integrated GMP (production)** | Parses txs, validates, queries registry, signs | **Not used in production** | Production uses GMP; Integrated GMP for local/CI only |
 
 ---
 
@@ -268,26 +268,26 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 |-----------|-------------|-----------------|
 | **Validation Logic** | Off-chain validation of 15+ checks | 🔴 **CRITICAL** - Bugs can cause fund loss |
 | **Signature Generation** | Ed25519/ECDSA signing of approvals | 🔴 **CRITICAL** - Wrong signature = wrong outcome |
-| **Private Key Management** | Secure storage of Trusted GMP keys | 🔴 **CRITICAL** - Key compromise = total system breach |
+| **Private Key Management** | Secure storage of Integrated GMP keys | 🔴 **CRITICAL** - Key compromise = total system breach |
 | **Transaction Parsing** | Extract data from arbitrary transactions | 🔴 **HIGH** - Parsing bugs can validate wrong data |
 | **Cross-Chain State Queries** | Query solver registry on hub | 🟡 **MEDIUM** - Must remain synced |
 
 ### What Remains (Given)
 
-**Coordinator** (unchanged by this plan): event monitoring, caching, REST API, negotiation. No keys. **Trusted GMP**: can be used for production relay or local/CI.
+**Coordinator** (unchanged by this plan): event monitoring, caching, REST API, negotiation. No keys. **Integrated GMP**: can be used for production relay or local/CI.
 
-| Function | Coordinator (given) | Trusted GMP (given) | After GMP (production) |
+| Function | Coordinator (given) | Integrated GMP (given) | After GMP (production) |
 |----------|---------------------|---------------------|-------------------------|
 | **Event monitoring / API** | ✅ YES | — | Coordinator only |
-| **Who authorizes releases** | — | Trusted GMP relay | Trusted GMP relay OR LZ |
-| **Production relay options** | — | ✅ YES | Trusted GMP relay OR LZ |
+| **Who authorizes releases** | — | Integrated GMP relay | Integrated GMP relay OR LZ |
+| **Production relay options** | — | ✅ YES | Integrated GMP relay OR LZ |
 
 ### Updated Infrastructure Complexity (After GMP)
 
-| Aspect | Current (Trusted GMP signs) | After GMP (production) | Impact |
+| Aspect | Current (Integrated GMP signs) | After GMP (production) | Impact |
 |--------|-----------------------------|------------------------|--------|
-| **Infrastructure YOU run** | Coordinator + Trusted GMP | Coordinator + (Trusted GMP relay OR LZ) | **Flexible relay choice** |
-| **Infrastructure SOMEONE runs** | Just you (signer) | You (Trusted GMP relay) OR GMP protocol operators | **Choice of trust model** |
+| **Infrastructure YOU run** | Coordinator + Integrated GMP | Coordinator + (Integrated GMP relay OR LZ) | **Flexible relay choice** |
+| **Infrastructure SOMEONE runs** | Just you (signer) | You (Integrated GMP relay) OR GMP protocol operators | **Choice of trust model** |
 | **Relay criticality in prod** | 🔴 **CRITICAL** | 🟡 **DEPENDS** (your relay or decentralized) | **Flexibility** |
 | **Security requirements** | 🔴 **MAXIMUM** (signer holds keys) | 🟢 **MINIMAL** (coordinator read-only) | **Massive improvement** |
 | **Censorship power** | 🔴 **HIGH** (can refuse to sign) | 🟢 **NONE** (permissionless GMP) | **Eliminated** |
@@ -298,10 +298,10 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 ### Trust Model Comparison
 
-| Aspect | Current (Trusted GMP signs) | After GMP (production) |
+| Aspect | Current (Integrated GMP signs) | After GMP (production) |
 |--------|-----------------------------|-------------------------|
-| **Authority source** | Our Trusted GMP private key | GMP protocol (LZ DVNs, relayers) |
-| **Validation location** | Off-chain (Trusted GMP) | On-chain (smart contracts) |
+| **Authority source** | Our Integrated GMP private key | GMP protocol (LZ DVNs, relayers) |
+| **Validation location** | Off-chain (Integrated GMP) | On-chain (smart contracts) |
 | **Censorship resistance** | ❌ Our signer can refuse | ✅ Permissionless GMP networks |
 | **Liveness dependency** | Our signer must be online | GMP network (highly redundant) |
 | **Security assumption** | Trust our signer + validation logic | Trust GMP + on-chain validation |
@@ -311,10 +311,10 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 ### Attack Surface Reduction
 
-**Current attack vectors (Trusted GMP as signer):**
+**Current attack vectors (Integrated GMP as signer):**
 
-- Trusted GMP private key theft
-- Trusted GMP service compromise
+- Integrated GMP private key theft
+- Integrated GMP service compromise
 - Validation logic bugs in off-chain code
 - Transaction parsing vulnerabilities
 - Cross-chain state desynchronization
@@ -335,11 +335,11 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 ## Cost Analysis
 
-### Current System Costs (Trusted GMP as signer)
+### Current System Costs (Integrated GMP as signer)
 
 | Component | Cost Type | Estimate |
 |-----------|-----------|----------|
-| **Coordinator + Trusted GMP** | Fixed monthly | $X/month (servers, monitoring) |
+| **Coordinator + Integrated GMP** | Fixed monthly | $X/month (servers, monitoring) |
 | **Development/Maintenance** | Ongoing | Y hours/month |
 | **Security Audits** | Periodic | High (signer is critical) |
 | **Key Management** | Operational | Security overhead |
@@ -388,11 +388,11 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 ---
 
-## Trusted GMP Mode: Local/CI GMP Alternative
+## Integrated GMP Mode: Local/CI GMP Alternative
 
 ### The Concept
 
-**The Trusted GMP Service** acts as a message relay for testing. It is used for:
+**The Integrated GMP Service** acts as a message relay for testing. It is used for:
 
 - **Local development** - No need for testnet GMP infrastructure
 - **CI testing** - Fast, deterministic message delivery
@@ -404,18 +404,18 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 | Environment | GMP Provider | Flow |
 |-------------|--------------|------|
 | **Production** | Real GMP (LZ) | Contract → `lzSend()` → [Real GMP DVNs + Executors] → `lzReceive()` → Destination |
-| **Local/CI/Testing** | Trusted GMP Service | Contract → `lzSend()` → [Mock endpoint emits event] → [Trusted GMP watches] → [Calls `lzReceive()`] → Destination |
+| **Local/CI/Testing** | Integrated GMP Service | Contract → `lzSend()` → [Mock endpoint emits event] → [Integrated GMP watches] → [Calls `lzReceive()`] → Destination |
 
 ### Key Principle
 
 **Contracts remain identical across all environments** - they use the same GMP interfaces. Only the underlying endpoint implementation differs:
 
 - **Production**: Real LZ endpoint
-- **Local/CI/Testing**: Mock endpoint + Trusted GMP service
+- **Local/CI/Testing**: Mock endpoint + Integrated GMP service
 
-### Trusted GMP Role (Given)
+### Integrated GMP Role (Given)
 
-| Aspect | Today (Trusted GMP signs) | After GMP – Local/CI | After GMP – Production |
+| Aspect | Today (Integrated GMP signs) | After GMP – Local/CI | After GMP – Production |
 |--------|---------------------------|------------------------|------------------------|
 | **Watches events** | Intent/escrow events | `MessageSent` (mock endpoints) | N/A – not used |
 | **Validates logic** | 15+ checks off-chain | ❌ None (contracts validate) | N/A |
@@ -425,17 +425,17 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 ### Implementation
 
-**Coordinator and Trusted GMP already exist as separate services:**
+**Coordinator and Integrated GMP already exist as separate services:**
 
 1. **Coordinator Service** - UX functions (event monitoring, API, negotiation) - NO KEYS, CANNOT STEAL FUNDS
-2. **Trusted GMP Service** - message relay for local/CI testing - REQUIRES FUNDED OPERATOR WALLET on each chain (private key in config, pays gas to call `lzReceive()`), CAN FORGE MESSAGES, CAN STEAL FUNDS
+2. **Integrated GMP Service** - message relay for local/CI testing - REQUIRES FUNDED OPERATOR WALLET on each chain (private key in config, pays gas to call `lzReceive()`), CAN FORGE MESSAGES, CAN STEAL FUNDS
 
 **Contracts use configurable GMP endpoint address:**
 
-- **Local/CI**: Mock endpoint → Trusted GMP service relays messages
+- **Local/CI**: Mock endpoint → Integrated GMP service relays messages
 - **Production**: Real LZ endpoint → LZ handles delivery
 
-> ⚠️ **Production only.** In production, contracts use GMP (no our signer). Trusted GMP remains for local/CI; current signature-based flow is deprecated for production.
+> ⚠️ **Production only.** In production, contracts use GMP (no our signer). Integrated GMP remains for local/CI; current signature-based flow is deprecated for production.
 
 ### Benefits
 
@@ -450,11 +450,11 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 | Environment | Movement | Solana | EVM |
 | ----------- | -------- | ------ | --- |
-| **Local/CI** | Mock + Trusted GMP | Mock + Trusted GMP | Mock + Trusted GMP |
-| **Testnet** | Mock + Trusted GMP (LZ not yet available) | Real LZ (devnet) | Real LZ (Base Sepolia) |
+| **Local/CI** | Mock + Integrated GMP | Mock + Integrated GMP | Mock + Integrated GMP |
+| **Testnet** | Mock + Integrated GMP (LZ not yet available) | Real LZ (devnet) | Real LZ (Base Sepolia) |
 | **Mainnet** | Real LZ | Real LZ | Real LZ |
 
-> **Note:** LZ does not yet support Movement testnet. Until LZ testnet support is available, Movement testnet uses mock endpoints + Trusted GMP (same as local/CI). Mainnet can use Trusted GMP relay or LZ.
+> **Note:** LZ does not yet support Movement testnet. Until LZ testnet support is available, Movement testnet uses mock endpoints + Integrated GMP (same as local/CI). Mainnet can use Integrated GMP relay or LZ.
 
 ---
 
@@ -465,7 +465,7 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 3. **Coordinator Role:** The coordinator handles negotiation/discovery - security doesn't depend on it, but UX does.
 4. **Failure Modes:** How to handle GMP message delivery failures or delays? ✅ **RESOLVED** - On-chain expiry handles stuck intents, idempotency handles duplicate messages
 5. **State Synchronization:** How to ensure intent requirements are always in sync across chains?
-6. **Trusted GMP Mode:** Use Trusted GMP for local/CI (mock GMP) so production contracts stay identical. ✅ **ASSUMED** – already in place.
+6. **Integrated GMP Mode:** Use Integrated GMP for local/CI (mock GMP) so production contracts stay identical. ✅ **ASSUMED** – already in place.
 
 ---
 
@@ -475,7 +475,7 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 Adding GMP so production does not use our signer is **FEASIBLE** but requires:
 
-- **On-chain validation** – move approval logic from Trusted GMP into contracts
+- **On-chain validation** – move approval logic from Integrated GMP into contracts
 - **GMP integration** – add cross-chain messaging to all contracts
 - **New validation contracts** – deploy on all connected chains
 - **Coordinator** – unchanged (already in place; no keys, no validation)
