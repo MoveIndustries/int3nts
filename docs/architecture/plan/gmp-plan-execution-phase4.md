@@ -116,16 +116,19 @@
 
 **Files:**
 
-- `intent-frameworks/svm/scripts/` (update existing deployment scripts)
-- `intent-frameworks/mvm/scripts/` (update existing deployment scripts)
-- `intent-frameworks/evm/scripts/` (update existing deployment scripts)
+- `intent-frameworks/svm/scripts/deploy.sh` (updated to deploy all 3 programs)
+- `intent-frameworks/svm/scripts/initialize-gmp.sh` (new — GMP endpoint, outflow validator, escrow GMP config, routing)
+- `intent-frameworks/svm/scripts/README.md` (updated with deployment workflow and new scripts)
+- `intent-frameworks/mvm/scripts/deploy-hub.sh` (new — deploy + initialize hub chain with GMP)
+- `intent-frameworks/mvm/scripts/deploy-connected.sh` (new — deploy + initialize connected chain with GMP)
+- `intent-frameworks/evm/scripts/deploy-gmp.js` (already complete — no changes needed)
 
 **Tasks:**
 
-- [ ] Update SVM deployment scripts to include GMP programs (intent-outflow-validator, intent-escrow with GMP config)
-- [ ] Update MVM deployment scripts to include GMP modules
-- [ ] Update EVM deployment scripts to include GMP contracts (IntentGmp, IntentOutflowValidator, IntentInflowEscrow) and trusted remote configuration
-- [ ] Add trusted remote configuration to all deployment scripts (SVM, MVM, EVM)
+- [x] Update SVM deployment scripts to include GMP programs (intent-outflow-validator, intent-escrow with GMP config)
+- [x] Update MVM deployment scripts to include GMP modules
+- [x] Update EVM deployment scripts to include GMP contracts (IntentGmp, IntentOutflowValidator, IntentInflowEscrow) and trusted remote configuration
+- [x] Add trusted remote configuration to all deployment scripts (SVM, MVM, EVM)
 - [ ] Deploy updated contracts/modules/programs to testnets
 - [ ] Verify cross-chain flow works on testnets (with integrated GMP relay)
 
