@@ -590,20 +590,43 @@ echo ""
 
 echo " Deployed Contracts"
 echo "---------------------"
+echo "   Legend:"
+echo "      Deployed:             Contract bytecode exists on-chain"
+echo "      On-chain Configured:  Contract state is set up (e.g., approver set)"
+echo "      Locally Configured:   Address is in local config file (TOML/.env)"
 
 # Check Movement Intent Module
 check_movement_module() {
     local module_addr="$1"
-    
+
     # Ensure address has 0x prefix
     if [[ ! "$module_addr" =~ ^0x ]]; then
         module_addr="0x${module_addr}"
     fi
-    
+
     # Query account modules to check if intent module exists
     local response=$(curl -s --max-time 10 "${MOVEMENT_RPC_URL}/accounts/${module_addr}/modules" 2>/dev/null)
-    
-    if echo "$response" | jq -e '.[].abi.name' 2>/dev/null | grep -q "intent"; then
+
+    if echo "$response" | jq -e '.[].abi.name' 2>/dev/null | grep -q "fa_intent"; then
+        echo "✅"
+    else
+        echo "❌"
+    fi
+}
+
+# Check Movement GMP Module (bundled with Intent Module at same address)
+check_movement_gmp_module() {
+    local module_addr="$1"
+
+    # Ensure address has 0x prefix
+    if [[ ! "$module_addr" =~ ^0x ]]; then
+        module_addr="0x${module_addr}"
+    fi
+
+    # Query account modules to check if intent_gmp module exists
+    local response=$(curl -s --max-time 10 "${MOVEMENT_RPC_URL}/accounts/${module_addr}/modules" 2>/dev/null)
+
+    if echo "$response" | jq -e '.[].abi.name' 2>/dev/null | grep -q "intent_gmp"; then
         echo "✅"
     else
         echo "❌"
@@ -672,21 +695,26 @@ check_movement_initialized() {
     fi
 }
 
-# Check EVM contract approver
-check_evm_approver() {
+# Check EVM escrow is configured (gmpEndpoint is set)
+check_evm_escrow_configured() {
     local contract_addr="$1"
-    local expected_approver="$2"
-    local rpc_url="$3"
+    local rpc_url="$2"
 
-    # approver() function selector: 0x4f078e6a (keccak256("approver()"))
-    # Actually for IntentInflowEscrow it might be different, let's use a simple code check
-    # We'll check if the contract has code (deployed) - full init check would need ABI
-    local code=$(curl -s --max-time 10 -X POST "$rpc_url" \
+    # Ensure address has 0x prefix
+    if [[ ! "$contract_addr" =~ ^0x ]]; then
+        contract_addr="0x${contract_addr}"
+    fi
+
+    # gmpEndpoint() function selector: 0xb2ed7d86 (keccak256("gmpEndpoint()")[0:4])
+    local data="0xb2ed7d86"
+
+    local result=$(curl -s --max-time 10 -X POST "$rpc_url" \
         -H "Content-Type: application/json" \
-        -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$contract_addr\",\"latest\"],\"id\":1}" \
+        -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_call\",\"params\":[{\"to\":\"$contract_addr\",\"data\":\"$data\"},\"latest\"],\"id\":1}" \
         | jq -r '.result // "0x"' 2>/dev/null)
 
-    if [ -n "$code" ] && [ "$code" != "0x" ] && [ ${#code} -gt 100 ]; then
+    # Check if result is non-zero address (gmpEndpoint is set)
+    if [ -n "$result" ] && [ "$result" != "0x" ] && [ "$result" != "0x0000000000000000000000000000000000000000000000000000000000000000" ]; then
         echo "✅"
     else
         echo "❌"
@@ -714,48 +742,152 @@ check_solana_escrow_initialized() {
     fi
 }
 
-# Movement Intent Module
-# Read from coordinator_testnet.toml (gitignored config file)
+# Check EVM GMP endpoint is configured (escrowHandler is set)
+check_evm_gmp_configured() {
+    local contract_addr="$1"
+    local rpc_url="$2"
+
+    # Ensure address has 0x prefix
+    if [[ ! "$contract_addr" =~ ^0x ]]; then
+        contract_addr="0x${contract_addr}"
+    fi
+
+    # escrowHandler() function selector: 0x87ad8f87 (keccak256("escrowHandler()")[0:4])
+    local data="0x87ad8f87"
+
+    local result=$(curl -s --max-time 10 -X POST "$rpc_url" \
+        -H "Content-Type: application/json" \
+        -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_call\",\"params\":[{\"to\":\"$contract_addr\",\"data\":\"$data\"},\"latest\"],\"id\":1}" \
+        | jq -r '.result // "0x"' 2>/dev/null)
+
+    # Check if result is non-zero address (escrowHandler is set)
+    # Zero address would be 0x0000000000000000000000000000000000000000000000000000000000000000
+    if [ -n "$result" ] && [ "$result" != "0x" ] && [ "$result" != "0x0000000000000000000000000000000000000000000000000000000000000000" ]; then
+        echo "✅"
+    else
+        echo "❌"
+    fi
+}
+
+# Read config files
 COORDINATOR_CONFIG="$PROJECT_ROOT/coordinator/config/coordinator_testnet.toml"
+INTEGRATED_GMP_CONFIG="$PROJECT_ROOT/integrated-gmp/config/integrated-gmp_testnet.toml"
+
+# Extract all config values first
 if [ -f "$COORDINATOR_CONFIG" ]; then
     MOVEMENT_INTENT_MODULE_ADDR=$(grep -A5 "\[hub_chain\]" "$COORDINATOR_CONFIG" | grep "intent_module_addr" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' || echo "")
-fi
-
-if [ -z "$MOVEMENT_INTENT_MODULE_ADDR" ] || [ "$MOVEMENT_INTENT_MODULE_ADDR" = "" ]; then
-    echo "   Movement Intent Module: ❌ Not configured (check coordinator/config/coordinator_testnet.toml)"
-else
-    deployed_status=$(check_movement_module "$MOVEMENT_INTENT_MODULE_ADDR")
-    init_status=$(check_movement_initialized "$MOVEMENT_INTENT_MODULE_ADDR" "fa_intent::ChainInfo")
-    echo "   Movement Intent Module ($MOVEMENT_INTENT_MODULE_ADDR)"
-    echo "             Deployed:    $deployed_status"
-    echo "             Initialized: $init_status"
-fi
-
-# Base Escrow Contract
-# Read from coordinator_testnet.toml (gitignored config file)
-if [ -f "$COORDINATOR_CONFIG" ]; then
     BASE_ESCROW_CONTRACT_ADDR=$(grep -A5 "\[connected_chain_evm\]" "$COORDINATOR_CONFIG" | grep "escrow_contract_addr" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' || echo "")
 fi
 
-if [ -z "$BASE_ESCROW_CONTRACT_ADDR" ] || [ "$BASE_ESCROW_CONTRACT_ADDR" = "" ]; then
-    echo "   Base Escrow Contract:   ❌ Not configured (check coordinator/config/coordinator_testnet.toml)"
-else
-    deployed_status=$(check_evm_contract "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL")
-    init_status=$(check_evm_approver "$BASE_ESCROW_CONTRACT_ADDR" "$INTEGRATED_GMP_EVM_PUBKEY_HASH" "$BASE_RPC_URL")
-    echo "   Base Escrow Contract ($BASE_ESCROW_CONTRACT_ADDR)"
-    echo "             Deployed:    $deployed_status"
-    echo "             Initialized: $init_status"
+if [ -f "$INTEGRATED_GMP_CONFIG" ]; then
+    BASE_GMP_ENDPOINT_ADDR=$(grep -A10 "\[connected_chain_evm\]" "$INTEGRATED_GMP_CONFIG" | grep "gmp_endpoint_addr" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' || echo "")
+    SOLANA_GMP_PROGRAM_ID=$(grep -A10 "\[connected_chain_svm\]" "$INTEGRATED_GMP_CONFIG" | grep "gmp_endpoint_program_id" | sed 's/.*= *"\(.*\)".*/\1/' | tr -d '"' || echo "")
 fi
 
-# Solana Intent Escrow Program
+# -----------------------------------------------------------------------------
+# Movement Bardock (Hub)
+# -----------------------------------------------------------------------------
+echo ""
+echo "   Movement Bardock (Hub)"
+echo "   ----------------------"
+
+# Intent Module (fa_intent)
+echo "   Intent Module (fa_intent):"
+if [ -z "$MOVEMENT_INTENT_MODULE_ADDR" ] || [ "$MOVEMENT_INTENT_MODULE_ADDR" = "" ]; then
+    echo "      Deployed:             ❌ (not locally configured)"
+    echo "      On-chain Configured:  ❌"
+    echo "      Locally Configured:   ❌ (not set in coordinator_testnet.toml)"
+else
+    deployed_status=$(check_movement_module "$MOVEMENT_INTENT_MODULE_ADDR")
+    init_status=$(check_movement_initialized "$MOVEMENT_INTENT_MODULE_ADDR" "fa_intent::ChainInfo")
+    echo "      Deployed:             $deployed_status"
+    echo "      On-chain Configured:  $init_status"
+    echo "      Locally Configured:   ✅ $MOVEMENT_INTENT_MODULE_ADDR"
+fi
+
+# GMP Module (intent_gmp) - bundled at same address as Intent Module
+echo "   GMP Module (intent_gmp):"
+if [ -z "$MOVEMENT_INTENT_MODULE_ADDR" ] || [ "$MOVEMENT_INTENT_MODULE_ADDR" = "" ]; then
+    echo "      Deployed:             ❌ (not locally configured)"
+    echo "      On-chain Configured:  ❌"
+    echo "      Locally Configured:   ❌ (same address as Intent Module)"
+else
+    deployed_status=$(check_movement_gmp_module "$MOVEMENT_INTENT_MODULE_ADDR")
+    init_status=$(check_movement_initialized "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp::EndpointConfig")
+    echo "      Deployed:             $deployed_status"
+    echo "      On-chain Configured:  $init_status"
+    echo "      Locally Configured:   ✅ (bundled at $MOVEMENT_INTENT_MODULE_ADDR)"
+fi
+
+# -----------------------------------------------------------------------------
+# Base Sepolia (EVM)
+# -----------------------------------------------------------------------------
+echo ""
+echo "   Base Sepolia (EVM)"
+echo "   ------------------"
+
+# Escrow Contract (IntentInflowEscrow)
+echo "   Escrow Contract (IntentInflowEscrow):"
+if [ -z "$BASE_ESCROW_CONTRACT_ADDR" ] || [ "$BASE_ESCROW_CONTRACT_ADDR" = "" ]; then
+    echo "      Deployed:             ❌ (not locally configured)"
+    echo "      On-chain Configured:  ❌"
+    echo "      Locally Configured:   ❌ (not set in coordinator_testnet.toml)"
+else
+    deployed_status=$(check_evm_contract "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL")
+    configured_status=$(check_evm_escrow_configured "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL")
+    echo "      Deployed:             $deployed_status"
+    echo "      On-chain Configured:  $configured_status (gmpEndpoint set)"
+    echo "      Locally Configured:   ✅ $BASE_ESCROW_CONTRACT_ADDR"
+fi
+
+# GMP Endpoint (IntentGmp)
+echo "   GMP Endpoint (IntentGmp):"
+if [ -z "$BASE_GMP_ENDPOINT_ADDR" ] || [ "$BASE_GMP_ENDPOINT_ADDR" = "" ]; then
+    echo "      Deployed:             ❌ (not locally configured)"
+    echo "      On-chain Configured:  ❌"
+    echo "      Locally Configured:   ❌ (not set in integrated-gmp_testnet.toml)"
+else
+    deployed_status=$(check_evm_contract "$BASE_GMP_ENDPOINT_ADDR" "$BASE_RPC_URL")
+    configured_status=$(check_evm_gmp_configured "$BASE_GMP_ENDPOINT_ADDR" "$BASE_RPC_URL")
+    echo "      Deployed:             $deployed_status"
+    echo "      On-chain Configured:  $configured_status (escrowHandler set)"
+    echo "      Locally Configured:   ✅ $BASE_GMP_ENDPOINT_ADDR"
+fi
+
+# -----------------------------------------------------------------------------
+# Solana Devnet (SVM)
+# -----------------------------------------------------------------------------
+echo ""
+echo "   Solana Devnet (SVM)"
+echo "   -------------------"
+
+# Escrow Program
+echo "   Escrow Program:"
 if [ -z "$SOLANA_PROGRAM_ID" ] || [ "$SOLANA_PROGRAM_ID" = "" ]; then
-    echo "   Solana Intent Escrow:   ❌ Not configured (set SOLANA_PROGRAM_ID in .env.testnet)"
+    echo "      Deployed:             ❌ (not locally configured)"
+    echo "      On-chain Configured:  ❌"
+    echo "      Locally Configured:   ❌ (not set in .env.testnet)"
 else
     deployed_status=$(check_solana_program "$SOLANA_PROGRAM_ID" "$SOLANA_RPC_URL")
     init_status=$(check_solana_escrow_initialized "$SOLANA_PROGRAM_ID" "$SOLANA_RPC_URL")
-    echo "   Solana Intent Escrow ($SOLANA_PROGRAM_ID)"
-    echo "             Deployed:    $deployed_status"
-    echo "             Initialized: $init_status"
+    echo "      Deployed:             $deployed_status"
+    echo "      On-chain Configured:  $init_status"
+    echo "      Locally Configured:   ✅ $SOLANA_PROGRAM_ID"
+fi
+
+# GMP Endpoint (intent-gmp program)
+echo "   GMP Endpoint (intent-gmp):"
+if [ -z "$SOLANA_GMP_PROGRAM_ID" ] || [ "$SOLANA_GMP_PROGRAM_ID" = "" ]; then
+    echo "      Deployed:             ❌ (not locally configured)"
+    echo "      On-chain Configured:  ❌"
+    echo "      Locally Configured:   ❌ (not set in integrated-gmp_testnet.toml)"
+else
+    deployed_status=$(check_solana_program "$SOLANA_GMP_PROGRAM_ID" "$SOLANA_RPC_URL")
+    # Use same check as escrow - if program has any accounts, it's initialized
+    init_status=$(check_solana_escrow_initialized "$SOLANA_GMP_PROGRAM_ID" "$SOLANA_RPC_URL")
+    echo "      Deployed:             $deployed_status"
+    echo "      On-chain Configured:  $init_status"
+    echo "      Locally Configured:   ✅ $SOLANA_GMP_PROGRAM_ID"
 fi
 
 echo ""
@@ -769,7 +901,7 @@ echo "----------"
 
 # Count readiness
 ready_count=0
-total_count=9
+total_count=11
 
 # Check balances
 if [ -n "$MOVEMENT_DEPLOYER_ADDR" ]; then
@@ -810,6 +942,10 @@ if [ -n "$BASE_ESCROW_CONTRACT_ADDR" ] && [ "$BASE_ESCROW_CONTRACT_ADDR" != "" ]
     ((ready_count++))
 fi
 
+if [ -n "$BASE_GMP_ENDPOINT_ADDR" ] && [ "$BASE_GMP_ENDPOINT_ADDR" != "" ]; then
+    ((ready_count++))
+fi
+
 # Check Solana balances and program
 if [ -n "$SOLANA_DEPLOYER_ADDR" ]; then
     balance=$(get_solana_balance "$SOLANA_DEPLOYER_ADDR" "$SOLANA_RPC_URL")
@@ -826,6 +962,10 @@ if [ -n "$SOLANA_REQUESTER_ADDR" ]; then
 fi
 
 if [ -n "$SOLANA_PROGRAM_ID" ]; then
+    ((ready_count++))
+fi
+
+if [ -n "$SOLANA_GMP_PROGRAM_ID" ] && [ "$SOLANA_GMP_PROGRAM_ID" != "" ]; then
     ((ready_count++))
 fi
 
