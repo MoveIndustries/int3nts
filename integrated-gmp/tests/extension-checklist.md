@@ -25,32 +25,6 @@ All tests listed here are VM-specific; generic tests are intentionally excluded 
 | 5 | test_error_handling_for_registry_query_failures | ✅ | ✅ | ✅ |
 | 6 | test_rejection_when_intent_has_no_solver | ✅ | ✅ | ✅ |
 
-## tests/*vm/validator_fulfillment_tests.rs
-
-| # | Test | MVM | EVM | SVM |
-| --- | ------ | ----- | ----- | ----- |
-| 1 | test_extract_mvm_fulfillment_params_success | ✅ | N/A | N/A |
-| 2 | test_extract_mvm_fulfillment_params_amount_as_number | ✅ | N/A | N/A |
-| 3 | test_extract_mvm_fulfillment_params_amount_as_decimal_string | ✅ | N/A | N/A |
-| 4 | test_extract_mvm_fulfillment_params_wrong_function | ✅ | N/A | N/A |
-| 5 | test_extract_mvm_fulfillment_params_missing_payload | ✅ | N/A | N/A |
-| 6 | test_extract_mvm_fulfillment_params_address_normalization | ✅ | N/A | N/A |
-| 7 | test_extract_evm_fulfillment_params_success | N/A | ✅ | N/A |
-| 8 | test_extract_evm_fulfillment_params_wrong_selector | N/A | ✅ | N/A |
-| 9 | test_extract_evm_fulfillment_params_insufficient_calldata | N/A | ✅ | N/A |
-| 10 | test_extract_evm_fulfillment_params_amount_exceeds_u64_max | N/A | ✅ | N/A |
-| 11 | test_extract_evm_fulfillment_params_amount_equals_u64_max | N/A | ✅ | N/A |
-| 12 | test_extract_evm_fulfillment_params_large_valid_amount | N/A | ✅ | N/A |
-| 13 | test_extract_evm_fulfillment_params_normalizes_intent_id_with_leading_zeros | N/A | ✅ | N/A |
-| 14 | test_validate_outflow_fulfillment_success | ✅ | ✅ | N/A |
-| 15 | test_validate_outflow_fulfillment_succeeds_with_normalized_intent_id | N/A | ✅ | N/A |
-| 16 | test_validate_outflow_fulfillment_fails_on_unsuccessful_tx | ✅ | ✅ | N/A |
-| 17 | test_validate_outflow_fulfillment_fails_on_intent_id_mismatch | ✅ | ✅ | N/A |
-| 18 | test_validate_outflow_fulfillment_fails_on_recipient_mismatch | ✅ | ✅ | N/A |
-| 19 | test_validate_outflow_fulfillment_fails_on_amount_mismatch | ✅ | ✅ | N/A |
-| 20 | test_validate_outflow_fulfillment_fails_on_solver_not_registered | ✅ | N/A | N/A |
-| 21 | test_validate_outflow_fulfillment_fails_on_solver_mismatch | N/A | ✅ | N/A |
-
 ## tests/*vm/crypto_tests.rs
 
 | # | Test | MVM | EVM | SVM |
@@ -142,15 +116,4 @@ All tests listed here are VM-specific; generic tests are intentionally excluded 
 | 17 | test_get_solver_public_key_errors_on_invalid_hex | ✅ | N/A | N/A |
 | 18 | test_get_solver_public_key_errors_on_http_error | ✅ | N/A | N/A |
 | 19 | test_get_solver_public_key_rejects_address_without_prefix | ✅ | N/A | N/A |
-| 20 | test_get_transaction_receipt_status_success | N/A | ✅ | N/A |
-| 21 | test_get_transaction_receipt_status_failure | N/A | ✅ | N/A |
-| 22 | test_get_transaction_receipt_status_not_found | N/A | ✅ | N/A |
-| 23 | test_get_all_escrows_parses_program_accounts | N/A | N/A | ✅ |
-
-## tests/svm_tests.rs (SVM-only)
-
-| # | Test | MVM | EVM | SVM |
-| --- | ------ | ----- | ----- | ----- |
-| 1 | test_extract_svm_fulfillment_params_success | N/A | N/A | ✅ |
-| 2 | test_extract_svm_fulfillment_params_requires_memo_first | N/A | N/A | ✅ |
-| 3 | test_extract_svm_fulfillment_params_rejects_invalid_intent_id | N/A | N/A | ✅ |
+| 20 | test_get_all_escrows_parses_program_accounts | N/A | N/A | ✅ |

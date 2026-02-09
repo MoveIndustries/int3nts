@@ -14,6 +14,6 @@ pub mod validator;
 // Re-export commonly used types
 pub use config::{ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, TrustedGmpConfig};
 pub use crypto::{ApprovalSignature, CryptoService};
-pub use monitor::{ChainType, EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent};
+pub use monitor::{ChainType, EscrowEvent, FulfillmentEvent, IntentEvent};
 pub use integrated_gmp_relay::{NativeGmpRelay, NativeGmpRelayConfig};
 pub use validator::{CrossChainValidator, ValidationResult};

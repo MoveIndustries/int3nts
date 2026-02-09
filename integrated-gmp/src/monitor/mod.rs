@@ -23,11 +23,12 @@ mod inflow_mvm;
 mod inflow_svm;
 
 // Re-export public types and functions
-pub use generic::{
-    ChainType, EscrowApproval, EscrowEvent, EventMonitor, FulfillmentEvent, IntentEvent,
-};
+pub use generic::{ChainType, EscrowEvent, FulfillmentEvent, IntentEvent};
+#[allow(unused_imports)] // Used in tests via integrated_gmp::monitor::EventMonitor
+pub use generic::EventMonitor;
 
 // Re-export utility functions (used in tests and API handlers)
+#[allow(unused_imports)] // Used in tests via integrated_gmp::monitor::normalize_intent_id
 pub use generic::normalize_intent_id;
 
 // Re-export poll_hub_events for testing

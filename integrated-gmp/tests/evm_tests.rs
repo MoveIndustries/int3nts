@@ -2,9 +2,6 @@
 //!
 //! This module includes all EVM-specific tests from the evm/ subdirectory.
 
-#[path = "evm/validator_fulfillment_tests.rs"]
-mod validator_fulfillment_tests;
-
 #[path = "evm/validator_tests.rs"]
 mod validator_tests;
 

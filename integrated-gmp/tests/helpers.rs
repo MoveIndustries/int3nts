@@ -423,8 +423,6 @@ pub fn create_default_mvm_transaction() -> MvmTransaction {
         hash: "0x123123".to_string(), // Transaction hash - arbitrary test value
         success: true,
         events: vec![],
-        payload: None, // Should be set explicitly in tests
-        sender: Some(DUMMY_SOLVER_ADDR_MVMCON.to_string()),
     }
 }
 

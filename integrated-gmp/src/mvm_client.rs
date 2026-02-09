@@ -159,12 +159,6 @@ pub struct MvmTransaction {
     pub success: bool,
     #[allow(dead_code)]
     pub events: Vec<MvmEvent>,
-    /// Transaction payload (contains function call information)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payload: Option<serde_json::Value>,
-    /// Transaction sender
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sender: Option<String>,
 }
 
 // ============================================================================
