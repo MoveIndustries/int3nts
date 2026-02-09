@@ -4,7 +4,7 @@
 **Depends On:** None
 **Blocks:** Phase 2
 
-**Goal:** Define the shared message format and interfaces that all chains will use. Research LZ integration for both Solana and Movement.
+**Goal:** Define the shared message format and interfaces that all chains will use. Research LZ v2 patterns as design reference for our integrated GMP interfaces.
 
 ---
 
@@ -21,8 +21,8 @@
 **Tasks:**
 
 - [x] **Message flow diagrams** - Document full flows for:
-  - Outflow: Hub intent created → LZ send → connected chain receives → solver fulfills → LZ send → hub releases
-  - Inflow: Hub intent created → LZ send → connected escrow created → LZ send → hub confirms → solver fulfills → LZ send → escrow releases
+  - Outflow: Hub intent created → GMP send → connected chain receives → solver fulfills → GMP send → hub releases
+  - Inflow: Hub intent created → GMP send → connected escrow created → GMP send → hub confirms → solver fulfills → GMP send → escrow releases
 - [x] **Integration points** - Identify which existing contracts need GMP hooks:
   - MVM: `intent_as_escrow.move`, `fa_intent_outflow.move`, `fa_intent_inflow.move`
   - SVM: `intent_escrow` program (modify existing to add GMP support)
@@ -31,10 +31,10 @@
   - Watches `MessageSent` events on integrated GMP endpoints
   - Calls `deliver_message()` / `lzReceive()` on destination chain
   - Needs funded operator wallet per chain
-- [x] **Environment matrix** - What uses local vs LZ GMP endpoints:
-  - Local/CI: Integrated GMP endpoints + Integrated-GMP relay
-  - Testnet: LZ GMP endpoints everywhere
-  - Mainnet: LZ GMP endpoints everywhere
+- [x] **Environment matrix** - All environments use integrated GMP:
+  - Local/CI: Integrated GMP endpoints + Integrated GMP relay
+  - Testnet: Integrated GMP endpoints + Integrated GMP relay
+  - Mainnet: Integrated GMP endpoints + Integrated GMP relay
 
 **Test:**
 
@@ -46,7 +46,7 @@
 
 ---
 
-### Commit 2: Research LZ integration for Solana and Movement
+### Commit 2: Research LZ v2 patterns as design reference for integrated GMP interfaces
 
 **Files:**
 
@@ -55,13 +55,13 @@
 
 **Tasks:**
 
-- [x] Research LZ's Solana integration (OApp pattern in native Rust)
-- [x] Research LZ's Movement/Aptos integration (OApp pattern in Move)
-- [x] Document endpoint addresses for Solana devnet/mainnet
-- [x] Document endpoint addresses for Movement testnet/mainnet (or confirm LZ not yet available)
-- [x] Document how message payloads are wrapped by LZ on each chain
+- [x] Research LZ's Solana OApp pattern as reference for our SVM integrated GMP endpoint
+- [x] Research LZ's Movement/Aptos OApp pattern as reference for our MVM integrated GMP endpoint
+- [x] Document LZ endpoint addresses for reference (Solana devnet/mainnet)
+- [x] Document LZ availability for Movement (not yet available — confirmed our integrated GMP approach)
+- [x] Document how LZ wraps message payloads (informed our wire format design)
 - [x] Document nonce tracking differences between chains
-- [x] Identify any chain-specific limitations or quirks
+- [x] Identify chain-specific limitations or quirks
 
 **Test:**
 
@@ -118,7 +118,7 @@
 - [x] Implement `IntentRequirements` encode/decode per wire format spec
 - [x] Implement `EscrowConfirmation` encode/decode per wire format spec
 - [x] Implement `FulfillmentProof` encode/decode per wire format spec
-- [x] Define GMP endpoint addresses (LZ devnet, LZ mainnet, local)
+- [x] Define GMP endpoint addresses (integrated GMP endpoints per environment)
 - [x] Test encoding matches documented wire format exactly
 - [x] Test decoding of known byte sequences
 
@@ -146,7 +146,7 @@
 - [x] Implement `IntentRequirements` encode/decode per wire format spec
 - [x] Implement `EscrowConfirmation` encode/decode per wire format spec
 - [x] Implement `FulfillmentProof` encode/decode per wire format spec
-- [x] Define GMP endpoint addresses (LZ testnet, LZ mainnet, local)
+- [x] Define GMP endpoint addresses (integrated GMP endpoints per environment)
 - [x] Test encoding matches documented wire format exactly
 - [x] Test decoding of known byte sequences (same test vectors as SVM)
 
@@ -304,7 +304,7 @@ Connected chain functions (MVM as connected chain):
 
 ### ~~Commit 11: Add fee estimation and document endpoint configuration~~ (Deferred)
 
-> **Moved to Phase 5, Commit 4.** Fee estimation is not needed now since local/CI testing uses integrated GMP endpoints which are fee-free. LZ fee analysis will be done when integrating with LZ endpoints for testnet/mainnet.
+> **Moved to Phase 4, Commit 5.** Fee estimation deferred. All environments use integrated GMP endpoints (no third-party GMP fees). Commit 5 covers integrated GMP relay configuration and operational costs.
 
 ---
 
@@ -326,5 +326,5 @@ Connected chain functions (MVM as connected chain):
 - [x] Cross-chain encoding test passes (both produce identical bytes)
 - [x] All interfaces defined for SVM and MVM
 - [x] Integrated GMP endpoint interfaces defined for both chains
-- [x] LZ research documented for both Solana and Movement
-- ~~[ ] Fee analysis complete~~ (Moved to Phase 5)
+- [x] LZ v2 patterns researched as design reference for both Solana and Movement
+- ~~[ ] Fee analysis complete~~ (Moved to Phase 4, Commit 5)

@@ -118,13 +118,15 @@
 
 - `intent-frameworks/svm/scripts/` (update existing deployment scripts)
 - `intent-frameworks/mvm/scripts/` (update existing deployment scripts)
+- `intent-frameworks/evm/scripts/` (update existing deployment scripts)
 
 **Tasks:**
 
 - [ ] Update SVM deployment scripts to include GMP programs (intent-outflow-validator, intent-escrow with GMP config)
 - [ ] Update MVM deployment scripts to include GMP modules
-- [ ] Add trusted remote configuration to deployment scripts
-- [ ] Deploy updated contracts/modules to testnets
+- [ ] Update EVM deployment scripts to include GMP contracts (IntentGmp, IntentOutflowValidator, IntentInflowEscrow) and trusted remote configuration
+- [ ] Add trusted remote configuration to all deployment scripts (SVM, MVM, EVM)
+- [ ] Deploy updated contracts/modules/programs to testnets
 - [ ] Verify cross-chain flow works on testnets (with integrated GMP relay)
 
 **Test:**
@@ -140,20 +142,21 @@ solana program show <INTENT_OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
 
 ---
 
-### Commit 5: Add fee estimation and endpoint configuration
+### Commit 5: Document integrated GMP endpoint configuration and operational costs
 
 **Files:**
 
 - `docs/architecture/plan/gmp-endpoints.md`
-- `docs/architecture/plan/gmp-fee-analysis.md`
+- `docs/architecture/plan/gmp-operational-costs.md`
 
 **Tasks:**
 
-- [ ] Document all GMP endpoint addresses (LZ for Solana and Movement, local for testing)
-- [ ] Document environment configuration (local/CI uses integrated GMP endpoints, testnet/mainnet use LZ)
-- [ ] Estimate LZ message fees for each route
-- [ ] Estimate on-chain validation gas costs
-- [ ] Compare costs to current Integrated GMP system
+- [ ] Document all integrated GMP endpoint addresses per chain (MVM, SVM, EVM) and per environment (local/CI, testnet, mainnet)
+- [ ] Document environment configuration (all environments use integrated GMP endpoints + relay)
+- [ ] Document integrated GMP relay configuration (chain RPCs, operator wallets, polling intervals)
+- [ ] Estimate on-chain validation gas costs per chain
+- [ ] Estimate relay operational costs (gas per `deliver_message()` call per chain)
+- [ ] Compare costs to previous system (off-chain signer)
 
 **Test:**
 
@@ -161,7 +164,7 @@ solana program show <INTENT_OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
 # Documentation review - manual
 ```
 
-> ⚠️ **Documentation review before proceeding to Commit 7.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
+> ⚠️ **Documentation review before proceeding to Commit 6.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
@@ -256,8 +259,8 @@ At the end of Phase 4, update:
 - [ ] Integrated-gmp stripped to relay-only (no client-facing API besides /health)
 - [ ] Frontend uses coordinator as single API (no direct integrated-gmp calls)
 - [ ] Solver uses coordinator as single API (no direct integrated-gmp calls)
-- [ ] Programs/modules deployed to testnets (Commit 4)
+- [ ] Programs/modules/contracts deployed to testnets for all chains: SVM, MVM, EVM (Commit 4)
 - [ ] Documentation complete
-- [ ] Fee analysis complete (deferred from Phase 1)
+- [ ] Integrated GMP endpoint configuration and operational cost analysis complete (deferred from Phase 1)
 - [ ] Architecture confirmed: coordinator + integrated-gmp only (no monolithic signer)
 - [ ] All conception documents reviewed and updated

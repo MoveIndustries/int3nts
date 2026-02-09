@@ -1,12 +1,12 @@
 # GMP Integration Proposal
 
-**Status:** In Progress (Phase 3 In Progress)
+**Status:** In Progress (Phase 4 In Progress)
 **Date:** 2026-01-22
-**Summary:** Add Generic Message Passing (GMP) for cross-chain messaging. Production can use either Integrated GMP (our relay) or LZ. Validation moves on-chain; cross-chain messaging replaces approval signatures. Coordinator and Integrated GMP are assumed (already in place).
+**Summary:** Add Generic Message Passing (GMP) for cross-chain messaging using Integrated GMP as the relay for all environments. Validation moves on-chain; cross-chain messaging replaces approval signatures. Coordinator and Integrated GMP are assumed (already in place).
 
-> **🔷 GMP Protocol: LZ v2**
+> **🔷 Design Standard: LZ v2 Compatibility**
 >
-> This proposal uses **LZ v2** as the GMP protocol. LZ provides the best cross-chain coverage (Movement/Aptos, EVM, Solana), mature integration, and flexible executor network. See [GMP Protocol Comparison](#gmp-protocol-comparison) for full analysis.
+> Contracts follow **LZ v2 conventions** (function naming: `lzSend()`/`lzReceive()`, OApp patterns, wire format) as a design reference. This ensures future LZ integration is a configuration change (swap endpoint address), not a code change. All current environments use the **Integrated GMP relay**.
 
 ---
 
@@ -22,27 +22,26 @@
 Add **on-chain validation + GMP messaging** for cross-chain communication:
 
 - Validation logic moves into smart contracts on each chain
-- GMP handles cross-chain message delivery (either Integrated GMP relay or LZ v2)
+- GMP handles cross-chain message delivery via Integrated GMP relay (LZ v2-compatible interfaces)
 - Contracts authenticate via GMP message verification instead of approval signatures
-- Coordinator unchanged (still no keys, UX only); Integrated GMP can be used in production or local/CI
+- Coordinator unchanged (still no keys, UX only)
 
 ### Key Benefits
 
 | Benefit | Impact |
 |---------|--------|
-| **Flexible production options** | Production can use Integrated GMP relay or LZ; choice of trust model |
-| **Censorship resistance** | Permissionless GMP networks vs. our Integrated GMP signer |
-| **Decentralization** | Trust GMP validator networks instead of our service |
-| **Security** | Validation logic is transparent on-chain |
-| **Operational simplicity** | Coordinator only (no signer to run in production) |
+| **Security** | Validation logic is transparent on-chain; no off-chain signing |
+| **Operational simplicity** | Coordinator + Integrated GMP relay (no signer logic) |
+| **LZ-ready** | LZ v2-compatible interfaces; future LZ integration is config-only |
+| **Transparency** | On-chain validation, auditable contracts |
 
 ### Key Trade-offs
 
 | Trade-off | Current (Integrated GMP signs) | With GMP |
 |-----------|-----------------------------|----------|
-| **Gas costs** | Low (signatures cheap) | Higher (GMP fees + on-chain validation) |
+| **Gas costs** | Low (signatures cheap) | Higher (on-chain validation + relay gas) |
 | **Contract complexity** | Low | Medium (validation logic on-chain) |
-| **Infrastructure** | Coordinator + Integrated GMP | Coordinator + Integrated GMP relay or LZ |
+| **Infrastructure** | Coordinator + Integrated GMP signer | Coordinator + Integrated GMP relay |
 | **Flexibility** | Easy to update validation logic | Requires contract redeployment |
 
 ---
@@ -58,7 +57,7 @@ See execution phase documents for detailed implementation plan:
 
 **Total Timeline:** ~1.5 weeks (testnet only)
 
-**Assumed starting point:** Coordinator and Integrated GMP already exist. This plan adds GMP messaging (using either Integrated GMP relay or LZ).
+**Assumed starting point:** Coordinator and Integrated GMP already exist. This plan adds GMP messaging using the Integrated GMP relay (with LZ v2-compatible interfaces).
 
 ---
 
@@ -75,12 +74,12 @@ Current architecture (no change in this plan):
 └─────────────────────────────────┘  └─────────────────────────────────┘
 ```
 
-**After GMP (this plan):** Production uses LZ for cross-chain approval; Integrated GMP remains for local/CI only. Coordinator unchanged.
+**After GMP (this plan):** On-chain contracts validate and send GMP messages. Integrated GMP becomes a relay (no signing, no off-chain validation). Coordinator unchanged.
 
 | Environment | Who authorizes releases | Trust |
 |-------------|-------------------------|--------|
-| **Local/CI (today & after)** | Integrated GMP (our signer) | 🔴 Our service |
-| **Production (after GMP)** | LZ DVNs | 🟡 GMP network |
+| **Before GMP** | Integrated GMP off-chain signer | 🔴 Our service signs approvals |
+| **After GMP (all environments)** | On-chain contracts via GMP messages, Integrated GMP relay delivers | 🟡 Our relay delivers, but validation is on-chain |
 
 ---
 
@@ -132,16 +131,9 @@ Integrated GMP (off-chain) validates → Signs approval → Contract checks sign
 On-chain contract validates → Sends GMP message → Receiving contract accepts via GMP
 ```
 
-### GMP Auto-Execution Support
+### GMP Message Delivery
 
-| GMP | Auto-Delivery to Destination | Auto-Initiation from Events | Who Triggers Source Call |
-|-----|------------------------------|----------------------------|--------------------------|
-| **LZ** | ✅ YES (Executors) | ❌ NO | Solver / User / Relayer |
-| **Wormhole** | ⚠️ PARTIAL (if configured) | ❌ NO | Solver / User / Relayer |
-| **Axelar** | ✅ YES (Gas Service) | ❌ NO | Solver / User / Relayer |
-| **CCIP** | ✅ YES (built-in) | ❌ NO | Solver / User / Relayer |
-
-**Key Insight:** GMPs provide auto-delivery to destination chains, but contracts must be explicitly called to initiate messages. This is not a problem - contracts call `lzSend()` / `gateway.callContract()` / etc. as part of their logic.
+**Key Insight:** Contracts must be explicitly called to initiate messages — contracts call `lzSend()` as part of their logic. The Integrated GMP relay watches for `MessageSent` events and delivers messages to destination chains by calling `lzReceive()` / `deliver_message()`.
 
 ---
 
@@ -179,7 +171,7 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 | **Connected Chain Escrow** | Validates via Integrated GMP signature | Add GMP send on escrow creation | **NEW** - Add outbound message |
 | **Connected Chain Escrow** | Requires signature for release | Add GMP receive handler for fulfillment proof | **NEW** - Add inbound handler |
 | **Connected Chain Escrow** | Uses `ed25519::verify_signature` | Use GMP message verification | **REPLACE** - Different auth mechanism |
-| **Integrated GMP (production)** | Observes, validates, signs | **Not used in production** | Production uses GMP only; Integrated GMP stays for local/CI |
+| **Integrated GMP** | Observes, validates, signs | Relay only (watches `MessageSent`, calls `deliver_message()`) | **REPLACE** - Signer becomes relay |
 
 ### Outflow (Hub → Connected Chain)
 
@@ -229,7 +221,7 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 | **Validation Contract** | N/A | Validate requirements and forward tokens to user | **NEW** - On-chain validation and forwarding |
 | **Validation Contract** | N/A | Send GMP message on success | **NEW** - Outbound message |
 | **Solver Flow** | Submit arbitrary tx → wait → submit signature | Approve contract (one-time) → Call validation contract function (transfer + validation + GMP send in one tx) | **REPLACE** - Different interaction pattern |
-| **Integrated GMP (production)** | Parses txs, validates, queries registry, signs | **Not used in production** | Production uses GMP; Integrated GMP for local/CI only |
+| **Integrated GMP** | Parses txs, validates, queries registry, signs | Relay only (watches `MessageSent`, calls `deliver_message()`) | **REPLACE** - Signer becomes relay |
 
 ---
 
@@ -274,23 +266,23 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 ### What Remains (Given)
 
-**Coordinator** (unchanged by this plan): event monitoring, caching, REST API, negotiation. No keys. **Integrated GMP**: can be used for production relay or local/CI.
+**Coordinator** (unchanged by this plan): event monitoring, caching, REST API, negotiation. No keys. **Integrated GMP**: relay for all environments.
 
-| Function | Coordinator (given) | Integrated GMP (given) | After GMP (production) |
+| Function | Coordinator (given) | Integrated GMP (before) | After GMP |
 |----------|---------------------|---------------------|-------------------------|
 | **Event monitoring / API** | ✅ YES | — | Coordinator only |
-| **Who authorizes releases** | — | Integrated GMP relay | Integrated GMP relay OR LZ |
-| **Production relay options** | — | ✅ YES | Integrated GMP relay OR LZ |
+| **Who authorizes releases** | — | Off-chain signer | On-chain contracts (relay delivers messages) |
+| **Message delivery** | — | N/A | Integrated GMP relay |
 
 ### Updated Infrastructure Complexity (After GMP)
 
-| Aspect | Current (Integrated GMP signs) | After GMP (production) | Impact |
+| Aspect | Current (Integrated GMP signs) | After GMP | Impact |
 |--------|-----------------------------|------------------------|--------|
-| **Infrastructure YOU run** | Coordinator + Integrated GMP | Coordinator + (Integrated GMP relay OR LZ) | **Flexible relay choice** |
-| **Infrastructure SOMEONE runs** | Just you (signer) | You (Integrated GMP relay) OR GMP protocol operators | **Choice of trust model** |
-| **Relay criticality in prod** | 🔴 **CRITICAL** | 🟡 **DEPENDS** (your relay or decentralized) | **Flexibility** |
-| **Security requirements** | 🔴 **MAXIMUM** (signer holds keys) | 🟢 **MINIMAL** (coordinator read-only) | **Massive improvement** |
-| **Censorship power** | 🔴 **HIGH** (can refuse to sign) | 🟢 **NONE** (permissionless GMP) | **Eliminated** |
+| **Infrastructure YOU run** | Coordinator + Integrated GMP signer | Coordinator + Integrated GMP relay | **Same services, simpler role** |
+| **Relay criticality** | 🔴 **CRITICAL** (signer = authority) | 🟡 **MEDIUM** (relay delivers, contracts validate) | **Reduced risk** |
+| **Security requirements** | 🔴 **MAXIMUM** (signer holds approval keys) | 🟡 **MODERATE** (relay has operator wallets for gas) | **Improvement** |
+| **Validation location** | Off-chain (Integrated GMP) | On-chain (contracts) | **Transparency** |
+| **LZ upgrade path** | N/A | Swap endpoint address to LZ (config change only) | **Future-ready** |
 
 ---
 
@@ -298,14 +290,13 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 ### Trust Model Comparison
 
-| Aspect | Current (Integrated GMP signs) | After GMP (production) |
+| Aspect | Current (Integrated GMP signs) | After GMP |
 |--------|-----------------------------|-------------------------|
-| **Authority source** | Our Integrated GMP private key | GMP protocol (LZ DVNs, relayers) |
+| **Authority source** | Our Integrated GMP private key (approval signer) | On-chain contracts (Integrated GMP relay delivers) |
 | **Validation location** | Off-chain (Integrated GMP) | On-chain (smart contracts) |
-| **Censorship resistance** | ❌ Our signer can refuse | ✅ Permissionless GMP networks |
-| **Liveness dependency** | Our signer must be online | GMP network (highly redundant) |
-| **Security assumption** | Trust our signer + validation logic | Trust GMP + on-chain validation |
-| **Key compromise impact** | 🔴 Total breach (our keys) | 🟢 No our keys in prod; worst case API DoS |
+| **Liveness dependency** | Our signer must be online | Our relay must be online (same liveness, less authority) |
+| **Security assumption** | Trust our signer + validation logic | Trust on-chain validation + our relay for delivery |
+| **Key compromise impact** | 🔴 Total breach (signer keys = approval authority) | 🟡 Relay keys = gas wallets only (cannot forge valid on-chain state) |
 | **Validation bug impact** | 🔴 Wrong signatures, funds lost | 🟡 Contract bug isolated, auditable |
 | **Transparency** | ❌ Off-chain logic | ✅ On-chain logic, transparent |
 
@@ -321,15 +312,18 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 
 **New attack vectors:**
 
-- GMP protocol vulnerability (mitigated by established protocols)
+- Integrated GMP relay compromise (relay has operator wallets; can deliver forged messages to integrated GMP endpoints)
 - On-chain validation logic bugs (mitigated by audits, formal verification)
 
-**Eliminated in production (with GMP):**
+**Eliminated (with GMP):**
 
-- ✅ No our signer key to steal in production
-- ✅ No off-chain validation logic bugs (on-chain only)
+- ✅ No off-chain validation logic (on-chain only)
 - ✅ No transaction parsing vulnerabilities (contracts enforce structure)
-- ✅ No key management for production signer
+- ✅ No approval signature generation (GMP messages replace signatures)
+
+**Remaining risk:**
+
+- ⚠️ Integrated GMP relay still has operator wallets and can forge messages (same trust model as before for delivery, but validation is now on-chain)
 
 ---
 
@@ -344,123 +338,96 @@ On-chain contract validates → Sends GMP message → Receiving contract accepts
 | **Security Audits** | Periodic | High (signer is critical) |
 | **Key Management** | Operational | Security overhead |
 
-### GMP System Costs
+### GMP System Costs (Integrated GMP relay)
 
 | Component | Cost Type | Estimate |
 |-----------|-----------|----------|
-| **GMP Fees** | Per-message variable | $0.10-$5 per message (varies by GMP and chains) |
-| **Gas Costs** | Per-transaction | Higher than current (on-chain validation) |
-| **Coordinator Infrastructure** | Fixed monthly | $X/month (reduced from current) |
-| **Development/Maintenance** | Ongoing | Reduced (simpler service) |
-| **Security Audits** | Periodic | Medium (contracts auditable, no keys) |
+| **Relay Gas Costs** | Per-message | Operator wallet pays gas for `deliver_message()` on each chain |
+| **On-chain Validation Gas** | Per-transaction | Higher than current (validation logic on-chain) |
+| **Coordinator + Relay Infrastructure** | Fixed monthly | $X/month (same services, simpler logic) |
+| **Development/Maintenance** | Ongoing | Reduced (relay is simpler than signer) |
+| **Security Audits** | Periodic | Medium (contracts auditable) |
 
-**Cost Shift:** From **fixed operational costs** to **variable per-use costs**.
-
----
-
-## GMP Protocol Comparison
-
-### Evaluation Criteria
-
-| Criterion | LZ | Axelar | Wormhole | CCIP |
-|-----------|-----------|--------|----------|------|
-| **Movement Support** | ✅ Aptos (similar) | ✅ Aptos | ✅ Aptos | ⚠️ Limited |
-| **Solana Support** | ✅ YES | ✅ YES | ✅ YES (native) | ⚠️ Expanding |
-| **EVM Support** | ✅ Excellent | ✅ Excellent | ✅ Excellent | ✅ Excellent |
-| **Auto-Execution** | ✅ Executors | ✅ Gas Service | ⚠️ Partial | ✅ Built-in |
-| **Message Fees** | Low-Medium | Medium | Low-Medium | Medium-High |
-| **Trust Model** | Oracle+Relayer | Validator Set | Guardian Network | Chainlink DON |
-| **Maturity** | High | High | High | High |
-
-### Decision: LZ v2
-
-**FINAL SELECTION:** LZ v2 has been selected as the GMP protocol for this implementation.
-
-**Rationale:**
-
-- Best cross-chain coverage (MVM, EVM, SVM)
-- Mature Aptos integration (similar to Movement)
-- Flexible executor network
-- Competitive fees
-- Strong ecosystem support
-
-**Note:** This decision is final. All implementation phases will use LZ v2.
+**Cost Shift:** Relay gas costs replace signature generation costs. No third-party GMP fees.
 
 ---
 
-## Integrated GMP Mode: Local/CI GMP Alternative
+## GMP Design Reference: LZ v2
+
+### Why LZ v2 as Reference Standard
+
+Contracts follow LZ v2 conventions as a design standard. This provides:
+
+- **Industry-standard interfaces** — `lzSend()` / `lzReceive()` naming, OApp patterns
+- **Future upgrade path** — swapping to real LZ endpoints is a config change (endpoint address), not a code change
+- **Proven patterns** — LZ's OApp architecture is battle-tested across Aptos, EVM, and Solana
+
+### Current Implementation
+
+All environments currently use the **Integrated GMP relay** with LZ v2-compatible integrated GMP endpoints. See [LZ SVM Integration Research](lz-svm-integration.md) and [LZ MVM Integration Research](lz-mvm-integration.md) for the design reference research that informed our interfaces.
+
+**Note:** LZ integration is not part of the current phases. All phases use Integrated GMP only.
+
+---
+
+## Integrated GMP Relay
 
 ### The Concept
 
-**The Integrated GMP Service** acts as a message relay for testing. It is used for:
-
-- **Local development** - No need for testnet GMP infrastructure
-- **CI testing** - Fast, deterministic message delivery
-- **Debugging** - Easier to trace and debug message flows
-- **Testing environments** - Full control over message delivery
+**The Integrated GMP Service** acts as the message relay for all environments. It watches for `MessageSent` events on integrated GMP endpoints and delivers messages to destination chains.
 
 ### How It Works
 
 | Environment | GMP Provider | Flow |
 |-------------|--------------|------|
-| **Production** | Real GMP (LZ) | Contract → `lzSend()` → [Real GMP DVNs + Executors] → `lzReceive()` → Destination |
-| **Local/CI/Testing** | Integrated GMP Service | Contract → `lzSend()` → [Mock endpoint emits event] → [Integrated GMP watches] → [Calls `lzReceive()`] → Destination |
+| **All environments** | Integrated GMP Service | Contract → `lzSend()` → [Integrated GMP endpoint emits event] → [Integrated GMP watches] → [Calls `lzReceive()`] → Destination |
 
 ### Key Principle
 
-**Contracts remain identical across all environments** - they use the same GMP interfaces. Only the underlying endpoint implementation differs:
+**Contracts use LZ v2-compatible interfaces** (`lzSend()`/`lzReceive()`). The Integrated GMP endpoints implement these interfaces. If LZ integration is added in the future, swapping to real LZ endpoints is a configuration change only.
 
-- **Production**: Real LZ endpoint
-- **Local/CI/Testing**: Mock endpoint + Integrated GMP service
+### Integrated GMP Role
 
-### Integrated GMP Role (Given)
-
-| Aspect | Today (Integrated GMP signs) | After GMP – Local/CI | After GMP – Production |
-|--------|---------------------------|------------------------|------------------------|
-| **Watches events** | Intent/escrow events | `MessageSent` (mock endpoints) | N/A – not used |
-| **Validates logic** | 15+ checks off-chain | ❌ None (contracts validate) | N/A |
-| **Action taken** | Generates signatures | Calls `lzReceive()` (mock) | N/A – LZ delivers |
-| **Private keys** | ✅ YES (signing) | ✅ YES (operator wallet per chain) | N/A |
-| **Can steal funds** | 🔴 YES | 🔴 YES (same risk in CI) | 🟡 LZ DVNs |
+| Aspect | Before GMP (Integrated GMP signs) | After GMP (Integrated GMP relays) |
+|--------|---------------------------|------------------------|
+| **Watches events** | Intent/escrow events | `MessageSent` events on integrated GMP endpoints |
+| **Validates logic** | 15+ checks off-chain | ❌ None (contracts validate on-chain) |
+| **Action taken** | Generates approval signatures | Calls `deliver_message()` / `lzReceive()` on destination |
+| **Private keys** | ✅ YES (approval signing keys) | ✅ YES (operator wallet per chain, gas only) |
+| **Can steal funds** | 🔴 YES (signer = authority) | 🔴 YES (can forge messages to integrated GMP endpoints) |
 
 ### Implementation
 
 **Coordinator and Integrated GMP already exist as separate services:**
 
 1. **Coordinator Service** - UX functions (event monitoring, API, negotiation) - NO KEYS, CANNOT STEAL FUNDS
-2. **Integrated GMP Service** - message relay for local/CI testing - REQUIRES FUNDED OPERATOR WALLET on each chain (private key in config, pays gas to call `lzReceive()`), CAN FORGE MESSAGES, CAN STEAL FUNDS
+2. **Integrated GMP Service** - message relay for all environments - REQUIRES FUNDED OPERATOR WALLET on each chain (private key in config, pays gas to call `deliver_message()`), CAN FORGE MESSAGES, CAN STEAL FUNDS
 
-**Contracts use configurable GMP endpoint address:**
-
-- **Local/CI**: Mock endpoint → Integrated GMP service relays messages
-- **Production**: Real LZ endpoint → LZ handles delivery
-
-> ⚠️ **Production only.** In production, contracts use GMP (no our signer). Integrated GMP remains for local/CI; current signature-based flow is deprecated for production.
+> ⚠️ **Trust model:** The Integrated GMP relay has the same trust level as the old signer — it can forge messages. The improvement is that validation logic is now on-chain and transparent, but the relay is still a trusted component. Future LZ integration would remove this trust requirement.
 
 ### Benefits
 
-- **Production-ready contracts** - same code path in all environments
-- **Fast local/CI tests** - message delivery in ~500ms vs 1-30s with real GMP
-- **Deterministic tests** - no flaky tests from network delays
-- **Cost efficient** - no testnet gas fees for every CI run
-- **Easier debugging** - full control over message delivery timing
-- **Local development** - developers can test without testnet GMP setup
+- **LZ-compatible contracts** — same code path, future LZ swap is config-only
+- **Fast message delivery** — ~500ms relay latency
+- **Deterministic tests** — no flaky tests from external network delays
+- **Cost efficient** — no third-party GMP fees
+- **Full control** — easier debugging, full control over message delivery timing
 
 ### Environment Configuration
 
 | Environment | Movement | Solana | EVM |
 | ----------- | -------- | ------ | --- |
-| **Local/CI** | Mock + Integrated GMP | Mock + Integrated GMP | Mock + Integrated GMP |
-| **Testnet** | Mock + Integrated GMP (LZ not yet available) | Real LZ (devnet) | Real LZ (Base Sepolia) |
-| **Mainnet** | Real LZ | Real LZ | Real LZ |
+| **Local/CI** | Integrated GMP endpoint + relay | Integrated GMP endpoint + relay | Integrated GMP endpoint + relay |
+| **Testnet** | Integrated GMP endpoint + relay | Integrated GMP endpoint + relay | Integrated GMP endpoint + relay |
+| **Mainnet** | Integrated GMP endpoint + relay | Integrated GMP endpoint + relay | Integrated GMP endpoint + relay |
 
-> **Note:** LZ does not yet support Movement testnet. Until LZ testnet support is available, Movement testnet uses mock endpoints + Integrated GMP (same as local/CI). Mainnet can use Integrated GMP relay or LZ.
+> **Note:** All environments use Integrated GMP. Contracts follow LZ v2 conventions so that future LZ integration is a configuration change (swap endpoint address).
 
 ---
 
 ## Open Questions
 
-1. **Gas Fee Economics:** Are GMP fees + on-chain validation costs acceptable for users?
+1. **Gas Fee Economics:** Are relay gas + on-chain validation costs acceptable for users?
 2. **Solver Adoption:** Will solvers adapt to calling validation contracts instead of arbitrary transactions?
 3. **Coordinator Role:** The coordinator handles negotiation/discovery - security doesn't depend on it, but UX does.
 4. **Failure Modes:** How to handle GMP message delivery failures or delays? ✅ **RESOLVED** - On-chain expiry handles stuck intents, idempotency handles duplicate messages
@@ -483,18 +450,18 @@ Adding GMP so production does not use our signer is **FEASIBLE** but requires:
 
 ### Key Benefits
 
-- ✅ **Production: no our signer** – no single key we operate
-- ✅ **Decentralize trust** – leverage GMP validator networks
-- ✅ **Transparency** – validation logic on-chain
-- ✅ **Security** – no our private keys in production
-- ✅ **Censorship resistance** – permissionless GMP execution
+- ✅ **On-chain validation** – approval logic moved from off-chain signer to contracts
+- ✅ **Transparency** – validation logic on-chain, auditable
+- ✅ **Simpler relay** – Integrated GMP relay only delivers messages, no validation/signing
+- ✅ **LZ-ready** – LZ v2-compatible interfaces; future LZ integration is config-only
+- ✅ **Reduced key exposure** – relay has gas wallets only, not approval authority
 
 ### Key Trade-offs
 
-- ⚠️ **Higher gas costs** - GMP fees + on-chain validation
+- ⚠️ **Higher gas costs** - on-chain validation + relay delivery gas
 - ⚠️ **Contract complexity** - moderate increase (~50-100 lines per contract)
 - ⚠️ **Development time** - ~1.5 weeks for testnet (with AI assistance)
-- ⚠️ **New dependencies** - rely on GMP protocol security
+- ⚠️ **Relay still trusted** - Integrated GMP relay can forge messages (same trust as before for delivery)
 - ⚠️ **Solver UX changes** - must use validation contracts
 
 ---

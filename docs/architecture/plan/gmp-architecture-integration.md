@@ -2,7 +2,7 @@
 
 **Status:** Draft
 **Date:** 2026-01-28
-**Purpose:** Map out exactly how LZ GMP replaces integrated-gmp signatures in our existing architecture.
+**Purpose:** Map out exactly how GMP messaging (via integrated GMP relay, with LZ v2-compatible interfaces) replaces integrated-gmp signatures in our existing architecture.
 
 ---
 
@@ -202,16 +202,13 @@ These apply to all `lzReceive()` handlers in both flows:
 - New: `receive_fulfillment_proof()`: Called by `lzReceive()`, auto-releases escrow
 - `complete_escrow()`: Remove signature verification; release now handled by `receive_fulfillment_proof()`
 
-**New: `layerzero/oapp.move`** - LZ OApp base:
+**New: `gmp/intent_gmp.move`** - GMP endpoint (LZ v2-compatible interface):
 
-- `lz_send()`: Encode and send message via LZ endpoint
-- `lz_receive()`: Entry point called by LZ endpoint, dispatches to handlers
+- `lz_send()`: Encode and send message via integrated GMP endpoint (LZ-compatible naming)
+- `lz_receive()`: Entry point called by relay via `deliver_message()`, dispatches to handlers
 - Trusted remote verification
 
-**New: `gmp/intent_gmp.move`** - Integrated GMP endpoint:
-
-- `send()`: Emits event (no real cross-chain)
-- `deliver_message()`: Integrated-GMP calls this to relay messages
+**Note:** The `intent_gmp.move` module listed above serves as both the LZ-compatible interface and the integrated GMP endpoint. `send()` emits `MessageSent` event, `deliver_message()` is called by the integrated GMP relay.
 
 ### SVM Connected Chain
 
@@ -253,7 +250,7 @@ Rationale:
 
 ## Integrated-GMP Relay Design
 
-In production, LZ handles message delivery. In local/CI, integrated-gmp relays messages between integrated GMP endpoints.
+The integrated GMP relay handles message delivery in all environments. It watches for `MessageSent` events on integrated GMP endpoints and delivers messages to destination chains.
 
 ### How It Works
 
@@ -299,16 +296,15 @@ In production, LZ handles message delivery. In local/CI, integrated-gmp relays m
 
 Contracts use the same GMP interface in all environments. Only the endpoint differs:
 
-- **Production**: LZ GMP endpoint → DVNs verify and deliver
-- **Local/CI**: Integrated GMP endpoint → Integrated-GMP watches and relays
+- **All environments**: Integrated GMP endpoint → Integrated GMP relay watches and delivers
 
 ```text
-// Same contract code in all environments:
+// Same contract code in all environments (LZ v2-compatible naming):
 lz_send(endpoint, dst_chain_id, destination, payload);
 
-// GMP endpoint is configured at deployment:
-// Production: 0x1a44076050125825900e736c501f859c50fE728c (LZ)
-// Local/CI:   <intent_gmp_address>
+// GMP endpoint is the integrated GMP endpoint address:
+// All environments: <intent_gmp_address>
+// Future LZ: swap to LZ endpoint address (config change only)
 ```
 
 ---
@@ -317,9 +313,11 @@ lz_send(endpoint, dst_chain_id, destination, payload);
 
 | Environment | MVM Hub | SVM Connected | EVM Connected | GMP Delivery |
 |-------------|---------|---------------|---------------|--------------|
-| **Local/CI** | Integrated GMP endpoint | Integrated GMP endpoint | Integrated GMP endpoint | Integrated-GMP relay |
-| **Testnet** | LZ GMP endpoint | LZ GMP endpoint (Solana devnet) | LZ GMP endpoint (Base Sepolia) | LZ DVNs + Executors |
-| **Mainnet** | LZ GMP endpoint | LZ GMP endpoint | LZ GMP endpoint | LZ DVNs + Executors |
+| **Local/CI** | Integrated GMP endpoint | Integrated GMP endpoint | Integrated GMP endpoint | Integrated GMP relay |
+| **Testnet** | Integrated GMP endpoint | Integrated GMP endpoint | Integrated GMP endpoint | Integrated GMP relay |
+| **Mainnet** | Integrated GMP endpoint | Integrated GMP endpoint | Integrated GMP endpoint | Integrated GMP relay |
+
+> **Note:** All environments use integrated GMP. Contracts follow LZ v2 conventions so that future LZ integration is a configuration change (swap endpoint address).
 
 ---
 
@@ -346,42 +344,30 @@ The caller of the transaction pays gas for `lzSend()`. This means:
 - **Requester pays** for `EscrowConfirmation` (part of escrow creation tx)
 - **Solver pays** for `FulfillmentProof` (part of fulfillment tx)
 
-LZ fees are paid in the transaction as well (msg.value on EVM, lamports on SVM).
+With integrated GMP, there are no third-party GMP fees. The relay operator pays gas for delivery on the destination chain.
 
 ---
 
 ## Summary: Architecture with GMP
 
 ```text
-PRODUCTION:
-┌──────────────────┐        LZ         ┌──────────────────┐
-│    MVM Hub        │ ◄─── GMP Messages ────► │  SVM/EVM         │
-│  Intent contracts │                          │  Escrow/Validator │
-│  + GMP endpoint   │                          │  + GMP endpoint   │
-└──────────────────┘                          └──────────────────┘
-        │
-        │ Coordinator (read-only)
-        │ Reads hub state only
-        │ Event monitoring, UX
-
-LOCAL/CI:
-┌──────────────────┐      Integrated-GMP Relay      ┌──────────────────┐
-│    MVM Hub        │ ◄─── deliver_message ───► │  SVM/EVM         │
-│  Intent contracts │                            │  Escrow/Validator │
-│  + GMP endpoint   │                            │  + GMP endpoint   │
-└──────────────────┘                            └──────────────────┘
+ALL ENVIRONMENTS:
+┌──────────────────┐      Integrated GMP Relay       ┌──────────────────┐
+│    MVM Hub        │ ◄─── deliver_message ────► │  SVM/EVM         │
+│  Intent contracts │                             │  Escrow/Validator │
+│  + GMP endpoint   │                             │  + GMP endpoint   │
+└──────────────────┘                             └──────────────────┘
         │
         │ Coordinator (read-only)
         │ Reads hub state only
         │ Event monitoring, UX
 ```
 
-**What's eliminated in production:**
+**What's eliminated (with GMP):**
 
-- Integrated-GMP service (no signer needed)
-- Approval signatures (GMP messages replace them)
+- Off-chain approval signing (GMP messages replace signatures)
 - Off-chain validation logic (moved on-chain)
-- Private key management (no keys in production)
+- Approval key management (relay has gas wallets only, not approval authority)
 
 **What remains in all environments:**
 

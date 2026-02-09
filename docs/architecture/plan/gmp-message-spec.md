@@ -16,7 +16,7 @@ Three message types flow between the hub (Movement) and connected chains (Solana
 | `EscrowConfirmation` | `0x02` | Connected → Hub | On escrow creation (inflow only) |
 | `FulfillmentProof` | `0x03` | Either direction | On fulfillment |
 
-All messages are the `message` field inside an LZ packet. LZ wraps them with its own header (nonce, srcEid, sender, dstEid, receiver, guid). We only define our application payload here.
+All messages are the application payload delivered by the integrated GMP relay. The wire format follows LZ v2 conventions (fixed-width, big-endian) for compatibility. The relay wraps messages with its own header (nonce, source chain, sender, destination chain, receiver). We only define our application payload here.
 
 ---
 
@@ -32,7 +32,7 @@ All messages are the `message` field inside an LZ packet. LZ wraps them with its
 1. **Simplicity.** No schema, no versioning overhead, no variable-length fields. Every message type has a fixed size.
 2. **Cross-chain compatible.** Move, Rust, and Solidity can all read/write fixed-width big-endian bytes without importing a serialization library.
 3. **Deterministic.** Same input always produces the same bytes. No field ordering ambiguity, no optional fields.
-4. **Small.** Our largest message is 145 bytes. Well within LZ packet limits and Solana transaction size constraints.
+4. **Small.** Our largest message is 145 bytes. Well within Solana transaction size constraints and compatible with LZ packet limits for future integration.
 
 ---
 

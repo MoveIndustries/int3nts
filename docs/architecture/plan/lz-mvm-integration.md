@@ -1,8 +1,8 @@
-# LZ V2: Movement/Aptos Integration Research
+# LZ V2: Movement/Aptos Integration Research (Design Reference)
 
-**Status:** Research
+**Status:** Complete (Design Reference — not an active integration target)
 **Date:** 2026-01-28
-**Purpose:** Document LZ V2's Aptos and Movement integration for cross-chain messaging in the int3nts GMP system.
+**Purpose:** Document LZ V2's Aptos/Movement OApp patterns as design reference for our integrated GMP endpoint interfaces. This research informed the `lzSend()`/`lzReceive()` naming conventions, nonce tracking, and trusted remote patterns used in our integrated GMP implementation. All environments currently use the Integrated GMP relay — LZ integration is not part of the current phases.
 
 > **IMPORTANT: Verify all addresses, EIDs, and API details before implementation.**
 > This document is based on research up to January 2026. Always cross-reference with:
