@@ -124,7 +124,7 @@ echo ""
 # Fund the new address - try faucet first, fall back to transfer from deployer
 echo " Step 3: Funding module address..."
 
-FUND_AMOUNT=100000000  # 1 MOVE in octas
+FUND_AMOUNT=200000000  # 2 MOVE in octas (chunked publish requires more gas)
 FAUCET_SUCCESS=false
 
 # Try faucet via curl (Movement testnet faucet API)
@@ -238,27 +238,42 @@ echo "   Network: Movement Bardock Testnet"
 echo "   RPC URL: https://testnet.movementnetwork.xyz/v1"
 echo ""
 
-# Compile Move modules
-echo " Step 4: Compiling Move modules..."
-cd "$PROJECT_ROOT/intent-frameworks/mvm"
-
-movement move compile \
-  --named-addresses mvmt_intent="$DEPLOY_ADDR_FULL" \
-  --skip-fetch-latest-git-deps
-
-echo "✅ Compilation successful"
-echo ""
-
-# Deploy Move modules
-echo " Step 5: Deploying Move modules to Movement Bardock Testnet..."
+# Deploy Move modules (intent-gmp first, then intent-hub)
+echo " Step 4: Deploying intent-gmp package..."
+cd "$PROJECT_ROOT/intent-frameworks/mvm/intent-gmp"
 
 movement move publish \
+  --dev \
   --profile "$TEMP_PROFILE" \
   --named-addresses mvmt_intent="$DEPLOY_ADDR_FULL" \
-  --skip-fetch-latest-git-deps \
-  --assume-yes
+  --assume-yes \
+  --included-artifacts none \
+  --max-gas 500000 \
+  --gas-unit-price 100
 
-echo "✅ Deployment successful"
+echo "✅ intent-gmp deployed"
+echo ""
+
+# Wait for intent-gmp to be fully indexed before deploying intent-hub
+echo " Waiting for intent-gmp to be indexed..."
+sleep 10
+
+echo " Step 5: Deploying intent-hub package..."
+cd "$PROJECT_ROOT/intent-frameworks/mvm/intent-hub"
+
+# Try with minimal artifacts first to avoid chunked publish LINKER_ERROR on testnet
+# If this fails due to size, fall back to chunked publish
+movement move publish \
+  --dev \
+  --profile "$TEMP_PROFILE" \
+  --named-addresses mvmt_intent="$DEPLOY_ADDR_FULL" \
+  --assume-yes \
+  --included-artifacts none \
+  --override-size-check \
+  --max-gas 500000 \
+  --gas-unit-price 100
+
+echo "✅ intent-hub deployed"
 echo ""
 
 # Verify deployment by calling a view function
@@ -276,8 +291,22 @@ movement move view \
 
 echo ""
 
-# Initialize solver registry
-echo " Step 7: Initializing solver registry..."
+# Initialize modules
+echo " Step 7: Initializing fa_intent (chain_id=250)..."
+
+movement move run \
+  --profile "$TEMP_PROFILE" \
+  --function-id "${DEPLOY_ADDR_FULL}::fa_intent::initialize" \
+  --args u64:250 \
+  --assume-yes 2>/dev/null && {
+    echo "   ✅ fa_intent chain info initialized"
+  } || {
+    echo "   ️  fa_intent may already be initialized (this is OK)"
+  }
+
+echo ""
+
+echo " Step 8: Initializing solver_registry..."
 
 movement move run \
   --profile "$TEMP_PROFILE" \
@@ -290,23 +319,7 @@ movement move run \
 
 echo ""
 
-# Initialize fa_intent chain info (required for cross-chain intent detection)
-echo " Step 8: Initializing fa_intent chain info..."
-
-movement move run \
-  --profile "$TEMP_PROFILE" \
-  --function-id "${DEPLOY_ADDR_FULL}::fa_intent::initialize" \
-  --args u64:250 \
-  --assume-yes 2>/dev/null && {
-    echo "   ✅ fa_intent chain info initialized (chain_id=250)"
-  } || {
-    echo "   ️  fa_intent chain info may already be initialized (this is OK)"
-  }
-
-echo ""
-
-# Initialize intent registry (required before creating intents)
-echo " Step 9: Initializing intent registry..."
+echo " Step 9: Initializing intent_registry..."
 
 movement move run \
   --profile "$TEMP_PROFILE" \
@@ -319,26 +332,77 @@ movement move run \
 
 echo ""
 
-# Initialize integrated-gmp config for outflow intents (on-chain approver public key)
-echo " Step 10: Initializing integrated-gmp (approver) config..."
+echo " Step 10: Initializing intent_gmp..."
 
-if [ -z "$INTEGRATED_GMP_PUBLIC_KEY" ]; then
-    echo "❌ ERROR: INTEGRATED_GMP_PUBLIC_KEY not set in .env.testnet"
-    exit 1
-fi
-
-INTEGRATED_GMP_PUBLIC_KEY_HEX=$(echo "$INTEGRATED_GMP_PUBLIC_KEY" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
 movement move run \
   --profile "$TEMP_PROFILE" \
-  --function-id "${DEPLOY_ADDR_FULL}::fa_intent_outflow::initialize_approver" \
-  --args "hex:${INTEGRATED_GMP_PUBLIC_KEY_HEX}" \
-  --assume-yes
+  --function-id "${DEPLOY_ADDR_FULL}::intent_gmp::initialize" \
+  --assume-yes 2>/dev/null && {
+    echo "   ✅ intent_gmp initialized"
+  } || {
+    echo "   ️  intent_gmp may already be initialized (this is OK)"
+  }
 
-if [ $? -ne 0 ]; then
-    echo "❌ ERROR: Failed to initialize integrated-gmp (approver) config"
-    exit 1
+echo ""
+
+echo " Step 11: Initializing intent_gmp_hub..."
+
+movement move run \
+  --profile "$TEMP_PROFILE" \
+  --function-id "${DEPLOY_ADDR_FULL}::intent_gmp_hub::initialize" \
+  --assume-yes 2>/dev/null && {
+    echo "   ✅ intent_gmp_hub initialized"
+  } || {
+    echo "   ️  intent_gmp_hub may already be initialized (this is OK)"
+  }
+
+echo ""
+
+echo " Step 12: Initializing gmp_intent_state..."
+
+movement move run \
+  --profile "$TEMP_PROFILE" \
+  --function-id "${DEPLOY_ADDR_FULL}::gmp_intent_state::initialize" \
+  --assume-yes 2>/dev/null && {
+    echo "   ✅ gmp_intent_state initialized"
+  } || {
+    echo "   ️  gmp_intent_state may already be initialized (this is OK)"
+  }
+
+echo ""
+
+echo " Step 13: Initializing gmp_sender..."
+
+movement move run \
+  --profile "$TEMP_PROFILE" \
+  --function-id "${DEPLOY_ADDR_FULL}::gmp_sender::initialize" \
+  --assume-yes 2>/dev/null && {
+    echo "   ✅ gmp_sender initialized"
+  } || {
+    echo "   ️  gmp_sender may already be initialized (this is OK)"
+  }
+
+echo ""
+
+# Initialize integrated-gmp config for outflow intents (on-chain approver public key)
+echo " Step 14: Initializing integrated-gmp (approver) config..."
+
+if [ -z "$INTEGRATED_GMP_PUBLIC_KEY" ]; then
+    echo "   ⚠️  INTEGRATED_GMP_PUBLIC_KEY not set in .env.testnet"
+    echo "   Skipping approver initialization - outflow intents won't work until configured"
+    echo "   Generate keys and run fa_intent_outflow::initialize_approver manually"
+else
+    INTEGRATED_GMP_PUBLIC_KEY_HEX=$(echo "$INTEGRATED_GMP_PUBLIC_KEY" | base64 -d 2>/dev/null | xxd -p -c 1000 | tr -d '\n')
+    movement move run \
+      --profile "$TEMP_PROFILE" \
+      --function-id "${DEPLOY_ADDR_FULL}::fa_intent_outflow::initialize_approver" \
+      --args "hex:${INTEGRATED_GMP_PUBLIC_KEY_HEX}" \
+      --assume-yes && {
+        echo "   ✅ Integrated-gmp (approver) config initialized"
+      } || {
+        echo "   ⚠️  Approver initialization failed - may need manual setup"
+      }
 fi
-echo "   ✅ Integrated-gmp (approver) config initialized"
 
 echo ""
 

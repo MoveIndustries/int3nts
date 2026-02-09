@@ -37,6 +37,9 @@ usdt_decimals = 6
 weth = "0x2fa1ab0e37fdd22cbf9da880826e9f79f06e8e5d9df9bce774b1f47b708fe121"
 weth_decimals = 8
 
+# WBTC on Movement Testnet - skipped (no paired FA metadata yet)
+# coinType: 0xa6cc575a28e9c97d1cec569392fe6f698c593990e7029ef49fed6740a36a31b0::tokens::WBTC
+
 # pyUSD on Movement Testnet (Paxos USD)
 # TODO: Update with actual pyUSD deployment address once deployed
 # pyusd = "0x..."

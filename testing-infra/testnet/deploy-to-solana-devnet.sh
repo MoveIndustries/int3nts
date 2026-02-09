@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Deploy SVM IntentEscrow to Solana Devnet
-# Reads keys from .env.testnet and deploys the program
+# Deploy SVM GMP Contracts to Solana Devnet
+# Deploys all 3 programs: intent_inflow_escrow, intent_gmp, intent_outflow_validator
+# Reads keys from .env.testnet and deploys the programs
 
 set -e
 
@@ -15,7 +16,7 @@ if [ -z "${IN_NIX_SHELL:-}" ]; then
     exec nix develop "$PROJECT_ROOT/nix" --command bash "$SCRIPT_DIR/deploy-to-solana-devnet.sh" "$@"
 fi
 
-echo " Deploying IntentEscrow to Solana Devnet"
+echo " Deploying GMP Contracts to Solana Devnet"
 echo "=========================================="
 echo ""
 
@@ -42,13 +43,24 @@ if [ -z "$SOLANA_DEPLOYER_ADDR" ]; then
     exit 1
 fi
 
+if [ -z "$MOVEMENT_INTENT_MODULE_ADDR" ]; then
+    echo "❌ ERROR: MOVEMENT_INTENT_MODULE_ADDR not set in .env.testnet"
+    echo "   This should be set to the deployed MVM hub intent module address"
+    exit 1
+fi
+
 # Solana devnet RPC
 SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://api.devnet.solana.com}"
+HUB_CHAIN_ID="${HUB_CHAIN_ID:-250}"  # Movement Bardock testnet chain ID
+SVM_CHAIN_ID="${SVM_CHAIN_ID:-4}"     # Solana devnet chain ID for GMP routing
 
 echo " Configuration:"
 echo "   Deployer Address: $SOLANA_DEPLOYER_ADDR"
 echo "   Network: Solana Devnet"
 echo "   RPC URL: $SOLANA_RPC_URL"
+echo "   Hub Chain ID: $HUB_CHAIN_ID"
+echo "   SVM Chain ID: $SVM_CHAIN_ID"
+echo "   Movement Intent Module: $MOVEMENT_INTENT_MODULE_ADDR"
 echo ""
 
 # Change to intent-frameworks/svm directory
@@ -146,60 +158,77 @@ if (( $(echo "$BALANCE < 2" | bc -l) )); then
 fi
 echo ""
 
-# Build the program
-echo " Building program..."
+# Build all programs
+echo " Building all programs..."
 ./scripts/build.sh
 
-PROGRAM_SO="$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_escrow.so"
-PROGRAM_KEYPAIR_PATH="$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_escrow-keypair.json"
+# Program paths
+ESCROW_SO="$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_inflow_escrow.so"
+ESCROW_KEYPAIR="$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_inflow_escrow-keypair.json"
+GMP_SO="$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_gmp.so"
+GMP_KEYPAIR="$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_gmp-keypair.json"
+OUTFLOW_SO="$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_outflow_validator.so"
+OUTFLOW_KEYPAIR="$PROJECT_ROOT/intent-frameworks/svm/target/deploy/intent_outflow_validator-keypair.json"
 
-if [ ! -f "$PROGRAM_SO" ]; then
-    echo "❌ ERROR: Program binary not found at $PROGRAM_SO"
-    rm -rf "$TEMP_KEYPAIR_DIR"
-    exit 1
-fi
+# Verify all binaries exist
+for SO_FILE in "$ESCROW_SO" "$GMP_SO" "$OUTFLOW_SO"; do
+    if [ ! -f "$SO_FILE" ]; then
+        echo "❌ ERROR: Program binary not found at $SO_FILE"
+        rm -rf "$TEMP_KEYPAIR_DIR"
+        exit 1
+    fi
+done
 
-# Create program keypair if it doesn't exist
-if [ ! -f "$PROGRAM_KEYPAIR_PATH" ]; then
-    echo " Creating program keypair..."
-    solana-keygen new -o "$PROGRAM_KEYPAIR_PATH" --no-bip39-passphrase --force
-fi
+# Helper: deploy a single program
+deploy_program() {
+    local name="$1"
+    local keypair="$2"
+    local so="$3"
 
-PROGRAM_ID=$(solana-keygen pubkey "$PROGRAM_KEYPAIR_PATH")
-echo " Program ID will be: $PROGRAM_ID"
+    echo " Deploying $name..."
+    solana program deploy \
+        --url "$SOLANA_RPC_URL" \
+        --keypair "$DEPLOYER_KEYPAIR" \
+        "$so" \
+        --program-id "$keypair"
+
+    local exit_code=$?
+    if [ $exit_code -ne 0 ]; then
+        echo "❌ ERROR: Failed to deploy $name (exit code: $exit_code)"
+        rm -rf "$TEMP_KEYPAIR_DIR"
+        exit 1
+    fi
+    echo "✅ $name deployed"
+}
+
+# Deploy all 3 programs
 echo ""
+echo " Deploying programs to Solana Devnet..."
+echo "======================================="
+deploy_program "intent_inflow_escrow" "$ESCROW_KEYPAIR" "$ESCROW_SO"
+deploy_program "intent_gmp" "$GMP_KEYPAIR" "$GMP_SO"
+deploy_program "intent_outflow_validator" "$OUTFLOW_KEYPAIR" "$OUTFLOW_SO"
 
-# Deploy the program
-echo " Deploying program to Solana Devnet..."
-solana program deploy \
-    --url "$SOLANA_RPC_URL" \
-    --keypair "$DEPLOYER_KEYPAIR" \
-    "$PROGRAM_SO" \
-    --program-id "$PROGRAM_KEYPAIR_PATH"
-
-DEPLOY_EXIT_CODE=$?
-
-# Clean up temporary keypair
-rm -rf "$TEMP_KEYPAIR_DIR"
-
-if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
-    echo "❌ Deployment failed with exit code $DEPLOY_EXIT_CODE"
-    exit 1
-fi
+# Get program IDs
+ESCROW_ID=$(solana-keygen pubkey "$ESCROW_KEYPAIR")
+GMP_ID=$(solana-keygen pubkey "$GMP_KEYPAIR")
+OUTFLOW_ID=$(solana-keygen pubkey "$OUTFLOW_KEYPAIR")
 
 echo ""
-echo " Deployment Complete!"
-echo "======================"
-echo ""
-echo " Deployed program ID: $PROGRAM_ID"
+echo " All Programs Deployed!"
+echo "========================"
+echo "  Escrow (SVM_PROGRAM_ID):          $ESCROW_ID"
+echo "  GMP Endpoint (SVM_GMP_ID):        $GMP_ID"
+echo "  Outflow Validator (SVM_OUTFLOW_ID): $OUTFLOW_ID"
 echo ""
 
 # =============================================================================
-# Initialize the program with approver public key
+# Initialize GMP components
 # =============================================================================
 
 echo ""
-echo " Initializing program with approver..."
+echo " Initializing GMP components..."
+echo "================================"
 echo ""
 
 # Check for integrated-gmp public key (used as on-chain approver)
@@ -242,87 +271,103 @@ console.log(b58encode(Array.from(keyBytes)));
         echo "   Skipping initialization - you'll need to run it manually"
     else
         echo " Integrated-GMP public key (base58): $INTEGRATED_GMP_PUBKEY_BASE58"
-        
-        # Recreate deployer keypair for initialization
-        TEMP_KEYPAIR_DIR=$(mktemp -d)
-        DEPLOYER_KEYPAIR="$TEMP_KEYPAIR_DIR/deployer.json"
-        
-        node -e "
-const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-function b58decode(str) {
-    const bytes = [];
-    for (let i = 0; i < str.length; i++) {
-        const idx = ALPHABET.indexOf(str[i]);
-        if (idx < 0) throw new Error('Invalid base58 character');
-        let carry = idx;
-        for (let j = 0; j < bytes.length; j++) {
-            carry += bytes[j] * 58;
-            bytes[j] = carry & 0xff;
-            carry >>= 8;
-        }
-        while (carry > 0) {
-            bytes.push(carry & 0xff);
-            carry >>= 8;
-        }
-    }
-    for (let i = 0; i < str.length && str[i] === '1'; i++) {
-        bytes.push(0);
-    }
-    return bytes.reverse();
-}
-console.log(JSON.stringify(b58decode('$SOLANA_DEPLOYER_PRIVATE_KEY')));
-" > "$DEPLOYER_KEYPAIR"
-        
+
         # Build CLI if needed
         CLI_BIN="$PROJECT_ROOT/intent-frameworks/svm/target/debug/intent_escrow_cli"
         if [ ! -x "$CLI_BIN" ]; then
             echo " Building CLI tool..."
             cd "$PROJECT_ROOT/intent-frameworks/svm"
             cargo build --bin intent_escrow_cli 2>/dev/null
+            cd "$PROJECT_ROOT/intent-frameworks/svm"
         fi
-        
-        if [ -x "$CLI_BIN" ]; then
-            echo " Running initialize command..."
+
+        if [ ! -x "$CLI_BIN" ]; then
+            echo "⚠️  CLI not built - skipping initialization"
+            echo "   Run manually: ./intent-frameworks/svm/scripts/initialize-gmp.sh"
+        else
+            # Pad hub address to 64 hex characters (32 bytes)
+            HUB_ADDR_CLEAN=$(echo "$MOVEMENT_INTENT_MODULE_ADDR" | sed 's/^0x//')
+            HUB_ADDR_PADDED=$(printf "%064s" "$HUB_ADDR_CLEAN" | tr ' ' '0')
+
+            echo " 1. Initializing escrow with approver..."
             "$CLI_BIN" initialize \
-                --program-id "$PROGRAM_ID" \
+                --program-id "$ESCROW_ID" \
                 --payer "$DEPLOYER_KEYPAIR" \
                 --approver "$INTEGRATED_GMP_PUBKEY_BASE58" \
-                --rpc "$SOLANA_RPC_URL" && {
-                echo "✅ Program initialized with approver"
-            } || {
-                INIT_EXIT=$?
-                if [ $INIT_EXIT -eq 0 ]; then
-                    echo "✅ Program initialized with approver"
-                else
-                    echo "⚠️  Initialization returned exit code $INIT_EXIT"
-                    echo "   This may be OK if the program was already initialized"
-                fi
-            }
-        else
-            echo "⚠️  CLI not built - skipping initialization"
-            echo "   Run manually: ./intent-frameworks/svm/scripts/initialize.sh"
+                --rpc "$SOLANA_RPC_URL" && echo "✅ Escrow initialized" || echo "⚠️  Escrow init may have failed (OK if already initialized)"
+
+            echo " 2. Initializing GMP endpoint..."
+            "$CLI_BIN" gmp-init \
+                --gmp-program-id "$GMP_ID" \
+                --payer "$DEPLOYER_KEYPAIR" \
+                --chain-id "$SVM_CHAIN_ID" \
+                --rpc "$SOLANA_RPC_URL" && echo "✅ GMP endpoint initialized" || echo "⚠️  GMP endpoint init may have failed (OK if already initialized)"
+
+            echo " 3. Setting hub as trusted remote..."
+            "$CLI_BIN" gmp-set-trusted-remote \
+                --gmp-program-id "$GMP_ID" \
+                --payer "$DEPLOYER_KEYPAIR" \
+                --src-chain-id "$HUB_CHAIN_ID" \
+                --trusted-addr "$HUB_ADDR_PADDED" \
+                --rpc "$SOLANA_RPC_URL" && echo "✅ Trusted remote set" || echo "⚠️  Trusted remote may have failed"
+
+            echo " 4. Initializing outflow validator..."
+            "$CLI_BIN" outflow-init \
+                --outflow-program-id "$OUTFLOW_ID" \
+                --payer "$DEPLOYER_KEYPAIR" \
+                --gmp-endpoint "$GMP_ID" \
+                --hub-chain-id "$HUB_CHAIN_ID" \
+                --hub-address "$HUB_ADDR_PADDED" \
+                --rpc "$SOLANA_RPC_URL" && echo "✅ Outflow validator initialized" || echo "⚠️  Outflow validator init may have failed"
+
+            echo " 5. Configuring escrow GMP..."
+            "$CLI_BIN" escrow-set-gmp-config \
+                --program-id "$ESCROW_ID" \
+                --payer "$DEPLOYER_KEYPAIR" \
+                --hub-chain-id "$HUB_CHAIN_ID" \
+                --hub-address "$HUB_ADDR_PADDED" \
+                --gmp-endpoint "$GMP_ID" \
+                --rpc "$SOLANA_RPC_URL" && echo "✅ Escrow GMP config set" || echo "⚠️  Escrow GMP config may have failed"
+
+            echo " 6. Setting GMP routing..."
+            "$CLI_BIN" gmp-set-routing \
+                --gmp-program-id "$GMP_ID" \
+                --payer "$DEPLOYER_KEYPAIR" \
+                --outflow-validator "$OUTFLOW_ID" \
+                --intent-escrow "$ESCROW_ID" \
+                --rpc "$SOLANA_RPC_URL" && echo "✅ GMP routing configured" || echo "⚠️  GMP routing may have failed"
         fi
-        
-        rm -rf "$TEMP_KEYPAIR_DIR"
     fi
 fi
 
+# Clean up temporary keypair
+rm -rf "$TEMP_KEYPAIR_DIR"
+
 echo ""
-echo " Update the following:"
+echo "========================================="
+echo " Deployment Complete!"
+echo "========================================="
+echo ""
+echo " Deployed Program IDs:"
+echo "   SOLANA_PROGRAM_ID=$ESCROW_ID"
+echo "   SOLANA_GMP_ID=$GMP_ID"
+echo "   SOLANA_OUTFLOW_ID=$OUTFLOW_ID"
+echo ""
+echo " Update the following files:"
 echo ""
 echo "   1. .env.testnet"
-echo "      SOLANA_PROGRAM_ID=$PROGRAM_ID"
+echo "      SOLANA_PROGRAM_ID=$ESCROW_ID"
 echo ""
 echo "   2. coordinator/config/coordinator_testnet.toml"
-echo "      escrow_program_id = \"$PROGRAM_ID\""
+echo "      escrow_program_id = \"$ESCROW_ID\""
 echo "      (in the [connected_chain_svm] section)"
 echo ""
 echo "   3. integrated-gmp/config/integrated-gmp_testnet.toml"
-echo "      escrow_program_id = \"$PROGRAM_ID\""
+echo "      escrow_program_id = \"$ESCROW_ID\""
 echo "      (in the [connected_chain_svm] section)"
 echo ""
 echo "   4. solver/config/solver_testnet.toml"
-echo "      escrow_program_id = \"$PROGRAM_ID\""
+echo "      escrow_program_id = \"$ESCROW_ID\""
 echo "      (in the [[connected_chain]] SVM section)"
 echo ""
 echo "   5. Run ./testing-infra/testnet/check-testnet-preparedness.sh to verify"

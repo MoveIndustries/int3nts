@@ -74,9 +74,19 @@ fi
 # Change to intent-frameworks/evm directory
 cd "$PROJECT_ROOT/intent-frameworks/evm"
 
+# Check for Movement hub module address
+if [ -z "$MOVEMENT_INTENT_MODULE_ADDR" ]; then
+    echo "❌ ERROR: MOVEMENT_INTENT_MODULE_ADDR not set in .env.testnet"
+    echo "   This should be set to the deployed MVM intent module address"
+    echo "   Example: MOVEMENT_INTENT_MODULE_ADDR=0x1b7c806f87339383d29b94fa481a2ea2ef50ac518f66cff419453c9a1154c8da"
+    exit 1
+fi
+
 # Export environment variables for Hardhat
 export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"
 export APPROVER_ADDR="$INTEGRATED_GMP_EVM_PUBKEY_HASH"
+export MOVEMENT_INTENT_MODULE_ADDR
+export HUB_CHAIN_ID="${HUB_CHAIN_ID:-250}"  # Movement Bardock testnet chain ID
 export BASE_SEPOLIA_RPC_URL
 
 echo " Environment configured for Hardhat"
@@ -94,7 +104,7 @@ fi
 echo " Deploying IntentEscrow contract..."
 echo "   (Run this script from within 'nix develop ./nix' shell)"
 echo ""
-DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network baseSepolia 2>&1)
+DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy-gmp.js --network baseSepolia 2>&1)
 DEPLOY_EXIT_CODE=$?
 
 # Show deployment output

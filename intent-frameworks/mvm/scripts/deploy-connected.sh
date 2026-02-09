@@ -64,7 +64,7 @@ echo "[deploy-connected.sh] Publishing intent-gmp..."
 cd intent-gmp
 movement move publish --dev --profile "$MVM_PROFILE" \
     --named-addresses mvmt_intent="$MVM_MODULE_ADDR" \
-    --assume-yes --max-gas 500000 --gas-unit-price 100
+    --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100
 echo "[deploy-connected.sh] intent-gmp published"
 
 # 2. Deploy intent-connected package (depends on intent-gmp)
@@ -72,7 +72,7 @@ echo "[deploy-connected.sh] Publishing intent-connected..."
 cd ../intent-connected
 movement move publish --dev --profile "$MVM_PROFILE" \
     --named-addresses mvmt_intent="$MVM_MODULE_ADDR" \
-    --assume-yes --max-gas 500000 --gas-unit-price 100
+    --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100
 echo "[deploy-connected.sh] intent-connected published"
 
 cd "$PROJECT_DIR"

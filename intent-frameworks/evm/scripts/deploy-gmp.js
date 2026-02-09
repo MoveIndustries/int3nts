@@ -8,8 +8,8 @@ const hre = require("hardhat");
 /// Deploys all GMP contracts and configures routing
 ///
 /// # Environment Variables
-/// - `HUB_CHAIN_ID`: Hub chain endpoint ID (default: 1)
-/// - `TRUSTED_HUB_ADDR`: Trusted hub address in 32-byte hex format (required)
+/// - `HUB_CHAIN_ID`: Hub chain endpoint ID (default: 250 for Movement Bardock)
+/// - `MOVEMENT_INTENT_MODULE_ADDR`: Movement intent module address in hex format (required)
 /// - `RELAY_ADDRESS`: Optional relay address to authorize (defaults to deployer)
 ///
 /// # Returns
@@ -23,25 +23,25 @@ async function main() {
   console.log("Deploying with account:", deployer.address);
 
   // Configuration
-  const hubChainId = parseInt(process.env.HUB_CHAIN_ID || "1");
-  const trustedHubAddrHex = process.env.TRUSTED_HUB_ADDR;
+  const hubChainId = parseInt(process.env.HUB_CHAIN_ID || "250");
+  const movementModuleAddrHex = process.env.MOVEMENT_INTENT_MODULE_ADDR;
   const relayAddress = process.env.RELAY_ADDRESS || deployer.address;
 
-  if (!trustedHubAddrHex) {
-    throw new Error("TRUSTED_HUB_ADDR environment variable required (32-byte hex, 0x-prefixed)");
+  if (!movementModuleAddrHex) {
+    throw new Error("MOVEMENT_INTENT_MODULE_ADDR environment variable required (hex, 0x-prefixed)");
   }
 
-  // Convert trusted hub address to bytes32
-  let trustedHubAddr = trustedHubAddrHex;
-  if (!trustedHubAddr.startsWith("0x")) {
-    trustedHubAddr = "0x" + trustedHubAddr;
+  // Convert Movement module address to bytes32
+  let movementModuleAddr = movementModuleAddrHex;
+  if (!movementModuleAddr.startsWith("0x")) {
+    movementModuleAddr = "0x" + movementModuleAddr;
   }
   // Pad to 64 hex characters (32 bytes)
-  trustedHubAddr = "0x" + trustedHubAddr.slice(2).padStart(64, '0');
+  movementModuleAddr = "0x" + movementModuleAddr.slice(2).padStart(64, '0');
 
   console.log("\nConfiguration:");
   console.log("  Hub Chain ID:", hubChainId);
-  console.log("  Trusted Hub Address:", trustedHubAddr);
+  console.log("  Movement Intent Module:", movementModuleAddr);
   console.log("  Relay Address:", relayAddress);
 
   // Deploy IntentGmp
@@ -59,7 +59,7 @@ async function main() {
     deployer.address,
     gmpEndpointAddress,
     hubChainId,
-    trustedHubAddr
+    movementModuleAddr
   );
   await escrowGmp.waitForDeployment();
   const escrowGmpAddress = await escrowGmp.getAddress();
@@ -72,7 +72,7 @@ async function main() {
     deployer.address,
     gmpEndpointAddress,
     hubChainId,
-    trustedHubAddr
+    movementModuleAddr
   );
   await outflowValidator.waitForDeployment();
   const outflowValidatorAddress = await outflowValidator.getAddress();
@@ -93,7 +93,7 @@ async function main() {
 
   // Set trusted remote for hub chain
   console.log("   Setting trusted remote for hub chain...");
-  await gmpEndpoint.setTrustedRemote(hubChainId, trustedHubAddr);
+  await gmpEndpoint.setTrustedRemote(hubChainId, movementModuleAddr);
   console.log("   Trusted remote set for chain", hubChainId);
 
   // Add relay if different from deployer
@@ -138,7 +138,7 @@ async function main() {
   console.log("  IntentOutflowValidator:", outflowValidatorAddress);
   console.log("\nConfiguration:");
   console.log("  Hub Chain ID:", hubChainId);
-  console.log("  Trusted Hub Address:", trustedHubAddr);
+  console.log("  Movement Intent Module:", movementModuleAddr);
   console.log("  Relay Address:", relayAddress);
 }
 

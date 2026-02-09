@@ -39,7 +39,7 @@ HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
 # Deploy intent-gmp package first (base layer)
 log "   - Deploying intent-gmp to Hub with address: $HUB_MODULE_ADDR"
 cd intent-frameworks/mvm/intent-gmp
-if aptos move publish --dev --profile intent-account-chain1 --named-addresses mvmt_intent=$HUB_MODULE_ADDR --assume-yes --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
+if aptos move publish --dev --profile intent-account-chain1 --named-addresses mvmt_intent=$HUB_MODULE_ADDR --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
     log "   ✅ intent-gmp deployment successful!"
 else
     log_and_echo "   ❌ intent-gmp deployment failed!"
@@ -51,10 +51,10 @@ else
 fi
 
 # Deploy intent-hub package (depends on intent-gmp)
-# Note: intent-hub exceeds 60KB limit, requires --chunked-publish
+# Using --included-artifacts none avoids chunked publish and linker issues
 log "   - Deploying intent-hub to Hub with address: $HUB_MODULE_ADDR"
 cd ../intent-hub
-if aptos move publish --dev --profile intent-account-chain1 --named-addresses mvmt_intent=$HUB_MODULE_ADDR --assume-yes --chunked-publish --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
+if aptos move publish --dev --profile intent-account-chain1 --named-addresses mvmt_intent=$HUB_MODULE_ADDR --assume-yes --included-artifacts none --override-size-check --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
     log "   ✅ intent-hub deployment successful!"
     log_and_echo "✅ Hub chain contracts deployed"
     # Save hub module address for connected chain to reference

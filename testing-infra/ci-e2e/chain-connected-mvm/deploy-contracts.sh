@@ -39,7 +39,7 @@ CHAIN2_ADDR=$(get_profile_address "intent-account-chain2")
 # Deploy intent-gmp package first (base layer)
 log "   - Deploying intent-gmp to Chain 2 with address: $CHAIN2_ADDR"
 cd intent-frameworks/mvm/intent-gmp
-if aptos move publish --dev --profile intent-account-chain2 --named-addresses mvmt_intent=$CHAIN2_ADDR --assume-yes --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
+if aptos move publish --dev --profile intent-account-chain2 --named-addresses mvmt_intent=$CHAIN2_ADDR --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
     log "   ✅ intent-gmp deployment successful!"
 else
     log_and_echo "   ❌ intent-gmp deployment failed!"
@@ -53,7 +53,7 @@ fi
 # Deploy intent-connected package (depends on intent-gmp)
 log "   - Deploying intent-connected to Chain 2 with address: $CHAIN2_ADDR"
 cd ../intent-connected
-if aptos move publish --dev --profile intent-account-chain2 --named-addresses mvmt_intent=$CHAIN2_ADDR --assume-yes --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
+if aptos move publish --dev --profile intent-account-chain2 --named-addresses mvmt_intent=$CHAIN2_ADDR --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
     log "   ✅ intent-connected deployment successful!"
     log_and_echo "✅ Connected chain contracts deployed"
 else

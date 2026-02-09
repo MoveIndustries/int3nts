@@ -51,16 +51,16 @@ echo "[deploy-hub.sh] Publishing intent-gmp..."
 cd intent-gmp
 movement move publish --dev --profile "$MVM_PROFILE" \
     --named-addresses mvmt_intent="$MVM_MODULE_ADDR" \
-    --assume-yes --max-gas 500000 --gas-unit-price 100
+    --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100
 echo "[deploy-hub.sh] intent-gmp published"
 
 # 2. Deploy intent-hub package (depends on intent-gmp)
-# Note: intent-hub exceeds 60KB limit, requires --chunked-publish
-echo "[deploy-hub.sh] Publishing intent-hub (chunked)..."
+# Using --included-artifacts none avoids chunked publish and linker issues
+echo "[deploy-hub.sh] Publishing intent-hub..."
 cd ../intent-hub
 movement move publish --dev --profile "$MVM_PROFILE" \
     --named-addresses mvmt_intent="$MVM_MODULE_ADDR" \
-    --assume-yes --chunked-publish --max-gas 500000 --gas-unit-price 100
+    --assume-yes --included-artifacts none --override-size-check --max-gas 500000 --gas-unit-price 100
 echo "[deploy-hub.sh] intent-hub published"
 
 cd "$PROJECT_DIR"

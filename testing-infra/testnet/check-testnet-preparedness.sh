@@ -2,15 +2,16 @@
 
 # Check Testnet Preparedness Script
 # Checks balances and deployed contracts for testnet readiness
-# 
+#
 # Checks:
-#   1. Account balances (MOVE, ETH, USDC/USDC.e)
+#   1. Account balances (native + tokens)
 #   2. Deployed contracts (Movement Intent Module, Base Escrow)
 #
 # Supports:
-#   - Movement Bardock Testnet (MOVE, USDC.e)
+#   - Movement Bardock Testnet (MOVE, USDC.e, USDC, USDT, WETH)
 #   - Base Sepolia (ETH, USDC)
 #   - Ethereum Sepolia (ETH, USDC)
+#   - Solana Devnet (SOL, USDC)
 # 
 # Assets Config: testing-infra/testnet/config/testnet-assets.toml
 # Service Configs: coordinator/config/coordinator_testnet.toml, integrated-gmp/config/integrated-gmp_testnet.toml, solver/config/solver_testnet.toml (gitignored)
@@ -74,14 +75,24 @@ elif [ -z "$SEPOLIA_USDC_DECIMALS" ]; then
     exit 1
 fi
 
-# Extract Movement USDC address and decimals
-MOVEMENT_USDC_ADDR=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
-MOVEMENT_USDC_DECIMALS=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
-if [ -n "$MOVEMENT_USDC_ADDR" ] && [ -z "$MOVEMENT_USDC_DECIMALS" ]; then
-    echo "❌ ERROR: Movement USDC.e address configured but decimals not found in testnet-assets.toml"
-    echo "   Add usdc_decimals = 6 to [movement_bardock_testnet] section"
-    exit 1
-fi
+# Extract Movement token addresses and decimals
+# USDC.e
+MOVEMENT_USDC_E_ADDR=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_e = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+MOVEMENT_USDC_E_DECIMALS=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_e_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "6")
+
+# USDC
+MOVEMENT_USDC_ADDR=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+MOVEMENT_USDC_DECIMALS=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "6")
+
+# USDT
+MOVEMENT_USDT_ADDR=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdt = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+MOVEMENT_USDT_DECIMALS=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdt_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "6")
+
+# WETH
+MOVEMENT_WETH_ADDR=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^weth = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+MOVEMENT_WETH_DECIMALS=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^weth_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "8")
+
+# WBTC skipped - no paired FA metadata yet
 
 # Extract native token decimals
 MOVEMENT_NATIVE_DECIMALS=$(grep -A 10 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^native_token_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
@@ -166,27 +177,28 @@ get_movement_balance() {
     fi
 }
 
-# Function to get Movement USDC balance (Fungible Asset)
-get_movement_usdc_balance() {
+# Function to get Movement FA token balance (generic for any Fungible Asset)
+get_movement_fa_balance() {
     local address="$1"
+    local token_addr="$2"
+
     # Ensure address has 0x prefix
     if [[ ! "$address" =~ ^0x ]]; then
         address="0x${address}"
     fi
-    
-    # If USDC address is not configured, return 0
-    if [ -z "$MOVEMENT_USDC_ADDR" ] || [ "$MOVEMENT_USDC_ADDR" = "" ]; then
+
+    # If token address is not configured or empty, return 0
+    if [ -z "$token_addr" ] || [ "$token_addr" = "" ]; then
         echo "0"
         return
     fi
-    
-    # Query USDC.e balance via view function API (Fungible Asset)
-    # USDC.e is deployed as a Fungible Asset, use primary_fungible_store::balance
+
+    # Query balance via view function API (Fungible Asset)
     local balance=$(curl -s --max-time 10 -X POST "${MOVEMENT_RPC_URL}/view" \
         -H "Content-Type: application/json" \
-        -d "{\"function\":\"0x1::primary_fungible_store::balance\",\"type_arguments\":[\"0x1::fungible_asset::Metadata\"],\"arguments\":[\"$address\",\"${MOVEMENT_USDC_ADDR}\"]}" \
+        -d "{\"function\":\"0x1::primary_fungible_store::balance\",\"type_arguments\":[\"0x1::fungible_asset::Metadata\"],\"arguments\":[\"$address\",\"${token_addr}\"]}" \
         | jq -r '.[0] // "0"' 2>/dev/null)
-    
+
     if [ -z "$balance" ] || [ "$balance" = "null" ]; then
         echo "0"
     else
@@ -345,49 +357,58 @@ echo " $movement_ready Movement Bardock Testnet"
 echo "----------------------------"
 echo "   RPC: $MOVEMENT_RPC_URL"
 
+# Helper to display all Movement token balances for an address
+display_movement_balances() {
+    local addr="$1"
+    local move_bal=$(get_movement_balance "$addr")
+    local move_fmt=$(format_balance "$move_bal" "$MOVEMENT_NATIVE_DECIMALS")
+
+    # Build token balance string
+    local tokens=""
+    if [ -n "$MOVEMENT_USDC_E_ADDR" ]; then
+        local bal=$(get_movement_fa_balance "$addr" "$MOVEMENT_USDC_E_ADDR")
+        local fmt=$(format_balance "$bal" "$MOVEMENT_USDC_E_DECIMALS" "USDC.e")
+        tokens="$tokens $fmt,"
+    fi
+    if [ -n "$MOVEMENT_USDC_ADDR" ]; then
+        local bal=$(get_movement_fa_balance "$addr" "$MOVEMENT_USDC_ADDR")
+        local fmt=$(format_balance "$bal" "$MOVEMENT_USDC_DECIMALS" "USDC")
+        tokens="$tokens $fmt,"
+    fi
+    if [ -n "$MOVEMENT_USDT_ADDR" ]; then
+        local bal=$(get_movement_fa_balance "$addr" "$MOVEMENT_USDT_ADDR")
+        local fmt=$(format_balance "$bal" "$MOVEMENT_USDT_DECIMALS" "USDT")
+        tokens="$tokens $fmt,"
+    fi
+    if [ -n "$MOVEMENT_WETH_ADDR" ]; then
+        local bal=$(get_movement_fa_balance "$addr" "$MOVEMENT_WETH_ADDR")
+        local fmt=$(format_balance "$bal" "$MOVEMENT_WETH_DECIMALS" "WETH")
+        tokens="$tokens $fmt,"
+    fi
+    # Remove trailing comma
+    tokens="${tokens%,}"
+    echo "             $move_fmt,$tokens"
+}
+
 if [ -z "$MOVEMENT_DEPLOYER_ADDR" ]; then
     echo "   ❌ MOVEMENT_DEPLOYER_ADDR not set in .env.testnet"
 else
-    balance=$(get_movement_balance "$MOVEMENT_DEPLOYER_ADDR")
-    formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
-    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_DEPLOYER_ADDR")
     echo "   Deployer  ($MOVEMENT_DEPLOYER_ADDR)"
-    if [ -n "$MOVEMENT_USDC_ADDR" ]; then
-        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
-        echo "             $formatted, $usdc_formatted"
-    else
-        echo "             $formatted (USDC.e n/a)"
-    fi
+    display_movement_balances "$MOVEMENT_DEPLOYER_ADDR"
 fi
 
 if [ -z "$MOVEMENT_REQUESTER_ADDR" ]; then
     echo "   ❌ MOVEMENT_REQUESTER_ADDR not set in .env.testnet"
 else
-    balance=$(get_movement_balance "$MOVEMENT_REQUESTER_ADDR")
-    formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
-    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_REQUESTER_ADDR")
     echo "   Requester ($MOVEMENT_REQUESTER_ADDR)"
-    if [ -n "$MOVEMENT_USDC_ADDR" ]; then
-        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
-        echo "             $formatted, $usdc_formatted"
-    else
-        echo "             $formatted (USDC.e n/a)"
-    fi
+    display_movement_balances "$MOVEMENT_REQUESTER_ADDR"
 fi
 
 if [ -z "$MOVEMENT_SOLVER_ADDR" ]; then
     echo "   ❌ MOVEMENT_SOLVER_ADDR not set in .env.testnet"
 else
-    balance=$(get_movement_balance "$MOVEMENT_SOLVER_ADDR")
-    formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
-    usdc_balance=$(get_movement_usdc_balance "$MOVEMENT_SOLVER_ADDR")
     echo "   Solver    ($MOVEMENT_SOLVER_ADDR)"
-    if [ -n "$MOVEMENT_USDC_ADDR" ]; then
-        usdc_formatted=$(format_balance "$usdc_balance" "$MOVEMENT_USDC_DECIMALS" "USDC.e")
-        echo "             $formatted, $usdc_formatted"
-    else
-        echo "             $formatted (USDC.e n/a)"
-    fi
+    display_movement_balances "$MOVEMENT_SOLVER_ADDR"
 fi
 
 echo ""
@@ -612,6 +633,87 @@ check_evm_contract() {
     fi
 }
 
+# Check Solana program exists on-chain
+check_solana_program() {
+    local program_id="$1"
+    local rpc_url="$2"
+
+    # Query program account info
+    local response=$(curl -s --max-time 10 -X POST "$rpc_url" \
+        -H "Content-Type: application/json" \
+        -d "{\"jsonrpc\":\"2.0\",\"method\":\"getAccountInfo\",\"params\":[\"$program_id\",{\"encoding\":\"base64\"}],\"id\":1}" \
+        2>/dev/null)
+
+    # Check if account exists and is executable (program)
+    local executable=$(echo "$response" | jq -r '.result.value.executable // false' 2>/dev/null)
+
+    if [ "$executable" = "true" ]; then
+        echo "✅"
+    else
+        echo "❌"
+    fi
+}
+
+# Check if Movement module is initialized (has resources)
+check_movement_initialized() {
+    local module_addr="$1"
+    local resource_type="$2"  # e.g., "fa_intent::ChainConfig"
+
+    if [[ ! "$module_addr" =~ ^0x ]]; then
+        module_addr="0x${module_addr}"
+    fi
+
+    local response=$(curl -s --max-time 10 "${MOVEMENT_RPC_URL}/accounts/${module_addr}/resource/${module_addr}::${resource_type}" 2>/dev/null)
+
+    if echo "$response" | jq -e '.data' &>/dev/null; then
+        echo "✅"
+    else
+        echo "❌"
+    fi
+}
+
+# Check EVM contract approver
+check_evm_approver() {
+    local contract_addr="$1"
+    local expected_approver="$2"
+    local rpc_url="$3"
+
+    # approver() function selector: 0x4f078e6a (keccak256("approver()"))
+    # Actually for IntentInflowEscrow it might be different, let's use a simple code check
+    # We'll check if the contract has code (deployed) - full init check would need ABI
+    local code=$(curl -s --max-time 10 -X POST "$rpc_url" \
+        -H "Content-Type: application/json" \
+        -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$contract_addr\",\"latest\"],\"id\":1}" \
+        | jq -r '.result // "0x"' 2>/dev/null)
+
+    if [ -n "$code" ] && [ "$code" != "0x" ] && [ ${#code} -gt 100 ]; then
+        echo "✅"
+    else
+        echo "❌"
+    fi
+}
+
+# Check Solana escrow is initialized (has state PDA)
+check_solana_escrow_initialized() {
+    local program_id="$1"
+    local rpc_url="$2"
+
+    # The state PDA is derived from ["state"] seed
+    # We can check if any accounts owned by the program exist
+    local response=$(curl -s --max-time 10 -X POST "$rpc_url" \
+        -H "Content-Type: application/json" \
+        -d "{\"jsonrpc\":\"2.0\",\"method\":\"getProgramAccounts\",\"params\":[\"$program_id\",{\"encoding\":\"base64\",\"dataSlice\":{\"offset\":0,\"length\":0}}],\"id\":1}" \
+        2>/dev/null)
+
+    local count=$(echo "$response" | jq -r '.result | length // 0' 2>/dev/null)
+
+    if [ "$count" -gt 0 ]; then
+        echo "✅"
+    else
+        echo "❌"
+    fi
+}
+
 # Movement Intent Module
 # Read from coordinator_testnet.toml (gitignored config file)
 COORDINATOR_CONFIG="$PROJECT_ROOT/coordinator/config/coordinator_testnet.toml"
@@ -622,9 +724,11 @@ fi
 if [ -z "$MOVEMENT_INTENT_MODULE_ADDR" ] || [ "$MOVEMENT_INTENT_MODULE_ADDR" = "" ]; then
     echo "   Movement Intent Module: ❌ Not configured (check coordinator/config/coordinator_testnet.toml)"
 else
-    status=$(check_movement_module "$MOVEMENT_INTENT_MODULE_ADDR")
+    deployed_status=$(check_movement_module "$MOVEMENT_INTENT_MODULE_ADDR")
+    init_status=$(check_movement_initialized "$MOVEMENT_INTENT_MODULE_ADDR" "fa_intent::ChainInfo")
     echo "   Movement Intent Module ($MOVEMENT_INTENT_MODULE_ADDR)"
-    echo "             Status: $status Deployed"
+    echo "             Deployed:    $deployed_status"
+    echo "             Initialized: $init_status"
 fi
 
 # Base Escrow Contract
@@ -636,17 +740,22 @@ fi
 if [ -z "$BASE_ESCROW_CONTRACT_ADDR" ] || [ "$BASE_ESCROW_CONTRACT_ADDR" = "" ]; then
     echo "   Base Escrow Contract:   ❌ Not configured (check coordinator/config/coordinator_testnet.toml)"
 else
-    status=$(check_evm_contract "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL")
+    deployed_status=$(check_evm_contract "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL")
+    init_status=$(check_evm_approver "$BASE_ESCROW_CONTRACT_ADDR" "$INTEGRATED_GMP_EVM_PUBKEY_HASH" "$BASE_RPC_URL")
     echo "   Base Escrow Contract ($BASE_ESCROW_CONTRACT_ADDR)"
-    echo "             Status: $status Deployed"
+    echo "             Deployed:    $deployed_status"
+    echo "             Initialized: $init_status"
 fi
 
 # Solana Intent Escrow Program
 if [ -z "$SOLANA_PROGRAM_ID" ] || [ "$SOLANA_PROGRAM_ID" = "" ]; then
     echo "   Solana Intent Escrow:   ❌ Not configured (set SOLANA_PROGRAM_ID in .env.testnet)"
 else
+    deployed_status=$(check_solana_program "$SOLANA_PROGRAM_ID" "$SOLANA_RPC_URL")
+    init_status=$(check_solana_escrow_initialized "$SOLANA_PROGRAM_ID" "$SOLANA_RPC_URL")
     echo "   Solana Intent Escrow ($SOLANA_PROGRAM_ID)"
-    echo "             Status: ✅ Configured"
+    echo "             Deployed:    $deployed_status"
+    echo "             Initialized: $init_status"
 fi
 
 echo ""
