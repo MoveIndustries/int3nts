@@ -67,10 +67,38 @@ pub async fn poll_evm_requirements_received(monitor: &EventMonitor) -> Result<us
     // This is a placeholder - in production, this should be the actual event signature
     let event_signature = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
+    // Get current block number first, then query last 1000 blocks
+    // (public RPCs have a max block range limit, typically 50000)
+    let block_request = JsonRpcRequest {
+        jsonrpc: "2.0".to_string(),
+        method: "eth_blockNumber".to_string(),
+        params: serde_json::json!([]),
+        id: 1,
+    };
+
+    let block_response: JsonRpcResponse<String> = client
+        .post(&connected_chain_evm.rpc_url)
+        .json(&block_request)
+        .send()
+        .await
+        .context("Failed to get block number")?
+        .json()
+        .await
+        .context("Failed to parse block number response")?;
+
+    let current_block = block_response
+        .result
+        .ok_or_else(|| anyhow::anyhow!("No block number returned"))?;
+    let current_block_num =
+        u64::from_str_radix(current_block.strip_prefix("0x").unwrap_or(&current_block), 16)
+            .unwrap_or(0);
+    let from_block = current_block_num.saturating_sub(connected_chain_evm.event_block_range);
+    let from_block_hex = format!("0x{:x}", from_block);
+
     // Query eth_getLogs for IntentRequirementsReceived events
     let params = serde_json::json!([{
         "address": connected_chain_evm.outflow_validator_contract_addr,
-        "fromBlock": "0x0",
+        "fromBlock": from_block_hex,
         "topics": [event_signature]
     }]);
 

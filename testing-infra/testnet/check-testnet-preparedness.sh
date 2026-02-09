@@ -801,7 +801,7 @@ else
     deployed_status=$(check_movement_module "$MOVEMENT_INTENT_MODULE_ADDR")
     init_status=$(check_movement_initialized "$MOVEMENT_INTENT_MODULE_ADDR" "fa_intent::ChainInfo")
     echo "      Deployed:             $deployed_status"
-    echo "      On-chain Configured:  $init_status"
+    echo "      On-chain Configured:  $init_status (ChainInfo set)"
     echo "      Locally Configured:   ✅ $MOVEMENT_INTENT_MODULE_ADDR"
 fi
 
@@ -815,7 +815,7 @@ else
     deployed_status=$(check_movement_gmp_module "$MOVEMENT_INTENT_MODULE_ADDR")
     init_status=$(check_movement_initialized "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp::EndpointConfig")
     echo "      Deployed:             $deployed_status"
-    echo "      On-chain Configured:  $init_status"
+    echo "      On-chain Configured:  $init_status (EndpointConfig set)"
     echo "      Locally Configured:   ✅ (bundled at $MOVEMENT_INTENT_MODULE_ADDR)"
 fi
 
@@ -871,7 +871,7 @@ else
     deployed_status=$(check_solana_program "$SOLANA_PROGRAM_ID" "$SOLANA_RPC_URL")
     init_status=$(check_solana_escrow_initialized "$SOLANA_PROGRAM_ID" "$SOLANA_RPC_URL")
     echo "      Deployed:             $deployed_status"
-    echo "      On-chain Configured:  $init_status"
+    echo "      On-chain Configured:  $init_status (state PDA exists)"
     echo "      Locally Configured:   ✅ $SOLANA_PROGRAM_ID"
 fi
 
@@ -886,7 +886,7 @@ else
     # Use same check as escrow - if program has any accounts, it's initialized
     init_status=$(check_solana_escrow_initialized "$SOLANA_GMP_PROGRAM_ID" "$SOLANA_RPC_URL")
     echo "      Deployed:             $deployed_status"
-    echo "      On-chain Configured:  $init_status"
+    echo "      On-chain Configured:  $init_status (config PDA exists)"
     echo "      Locally Configured:   ✅ $SOLANA_GMP_PROGRAM_ID"
 fi
 

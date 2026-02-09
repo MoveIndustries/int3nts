@@ -76,6 +76,13 @@ pub struct EvmChainConfig {
     pub outflow_validator_contract_addr: String,
     /// Chain ID (e.g., 31337 for Hardhat, 1 for Ethereum mainnet)
     pub chain_id: u64,
+    /// Number of blocks to query for events (default: 1000, max depends on RPC provider)
+    #[serde(default = "default_event_block_range")]
+    pub event_block_range: u64,
+}
+
+fn default_event_block_range() -> u64 {
+    1000
 }
 
 fn default_outflow_validator_addr() -> String {

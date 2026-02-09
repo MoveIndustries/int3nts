@@ -20,6 +20,7 @@ name = "Connected EVM Chain"
 rpc_url = "http://127.0.0.1:8545"
 chain_id = 31337
 escrow_contract_addr = "0x123"
+gmp_endpoint_addr = "0x123"  # IntentGmp contract address for GMP message routing
 approver_evm_pubkey_hash = "0x123"  # EVM address derived from integrated-gmp ECDSA key (on-chain approver address)
 
 # Connected SVM Chain Configuration
@@ -29,6 +30,7 @@ name = "Connected SVM Chain"
 rpc_url = "http://127.0.0.1:8899"
 chain_id = 1001
 escrow_program_id = "<your-svm-program-id>"
+gmp_endpoint_program_id = "<your-svm-gmp-program-id>"  # intent_gmp program ID for GMP message routing
 
 # Integrated GMP Configuration
 # Keys are loaded from environment variables at runtime (INTEGRATED_GMP_PRIVATE_KEY, INTEGRATED_GMP_PUBLIC_KEY)

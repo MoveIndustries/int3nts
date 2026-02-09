@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Deploy EVM IntentEscrow to Base Sepolia Testnet
-# Reads keys from .env.testnet and deploys the contract
+# Deploy EVM Intent Contracts to Base Sepolia Testnet
+# Deploys all 3 contracts: IntentGmp, IntentInflowEscrow, IntentOutflowValidator
+# Reads keys from .env.testnet and deploys/configures all contracts
 
 set -e
 
@@ -13,8 +14,9 @@ export PROJECT_ROOT
 # Source utilities from testing-infra (for CI testing infrastructure)
 source "$PROJECT_ROOT/testing-infra/ci-e2e/util.sh" 2>/dev/null || true
 
-echo " Deploying IntentEscrow to Base Sepolia Testnet"
-echo "=================================================="
+echo " Deploying EVM Contracts to Base Sepolia Testnet"
+echo "================================================="
+echo "   IntentGmp, IntentInflowEscrow, IntentOutflowValidator"
 echo ""
 
 # Load .env.testnet
@@ -100,11 +102,11 @@ if [ ! -d "node_modules" ]; then
     echo ""
 fi
 
-# Deploy contract (run from within nix develop ./nix shell)
-echo " Deploying IntentEscrow contract..."
+# Deploy contracts (run from within nix develop ./nix shell)
+echo " Deploying all 3 contracts..."
 echo "   (Run this script from within 'nix develop ./nix' shell)"
 echo ""
-DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy-gmp.js --network baseSepolia 2>&1)
+DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network baseSepolia 2>&1)
 DEPLOY_EXIT_CODE=$?
 
 # Show deployment output
@@ -119,36 +121,44 @@ echo ""
 echo " Deployment Complete!"
 echo "======================"
 echo ""
-CONTRACT_ADDR=$(echo "$DEPLOY_OUTPUT" | grep "Contract address:" | tail -1 | awk '{print $NF}' | tr -d '\n' || echo "")
 
-if [ -n "$CONTRACT_ADDR" ]; then
-    echo " Deployed contract address: $CONTRACT_ADDR"
+# Extract contract addresses from deployment output
+GMP_ENDPOINT_ADDR=$(echo "$DEPLOY_OUTPUT" | grep "IntentGmp:" | tail -1 | awk '{print $NF}' | tr -d '\n' || echo "")
+ESCROW_ADDR=$(echo "$DEPLOY_OUTPUT" | grep "IntentInflowEscrow:" | tail -1 | awk '{print $NF}' | tr -d '\n' || echo "")
+OUTFLOW_ADDR=$(echo "$DEPLOY_OUTPUT" | grep "IntentOutflowValidator:" | tail -1 | awk '{print $NF}' | tr -d '\n' || echo "")
+
+if [ -n "$GMP_ENDPOINT_ADDR" ] && [ -n "$ESCROW_ADDR" ]; then
+    echo " Deployed contract addresses:"
+    echo "   IntentGmp (GMP Endpoint):       $GMP_ENDPOINT_ADDR"
+    echo "   IntentInflowEscrow:             $ESCROW_ADDR"
+    echo "   IntentOutflowValidator:         $OUTFLOW_ADDR"
     echo ""
-    echo " Update the following files with this address:"
+    echo " Update the following files:"
     echo ""
     echo "   1. coordinator/config/coordinator_testnet.toml"
-    echo "      escrow_contract_addr = \"$CONTRACT_ADDR\""
+    echo "      escrow_contract_addr = \"$ESCROW_ADDR\""
     echo "      (in the [connected_chain_evm] section)"
     echo ""
     echo "   2. integrated-gmp/config/integrated-gmp_testnet.toml"
-    echo "      escrow_contract_addr = \"$CONTRACT_ADDR\""
+    echo "      escrow_contract_addr = \"$ESCROW_ADDR\""
+    echo "      gmp_endpoint_addr = \"$GMP_ENDPOINT_ADDR\""
     echo "      (in the [connected_chain_evm] section)"
     echo ""
     echo "   3. solver/config/solver_testnet.toml"
-    echo "      escrow_contract_addr = \"$CONTRACT_ADDR\""
+    echo "      escrow_contract_addr = \"$ESCROW_ADDR\""
     echo "      (in the [[connected_chain]] EVM section)"
     echo ""
     echo "   4. frontend/.env.local"
-    echo "      NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS=$CONTRACT_ADDR"
+    echo "      NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS=$ESCROW_ADDR"
     echo ""
     echo "   5. Run ./testing-infra/testnet/check-testnet-preparedness.sh to verify"
 else
-    echo "️  Could not extract contract address from output"
-    echo "   Please copy it manually from the deployment output above"
+    echo "️  Could not extract contract addresses from output"
+    echo "   Please copy them manually from the deployment output above"
     echo ""
     echo " Update the following files:"
     echo "   - coordinator/config/coordinator_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
-    echo "   - integrated-gmp/config/integrated-gmp_testnet.toml (escrow_contract_addr in [connected_chain_evm] section)"
+    echo "   - integrated-gmp/config/integrated-gmp_testnet.toml (escrow_contract_addr + gmp_endpoint_addr in [connected_chain_evm] section)"
     echo "   - solver/config/solver_testnet.toml (escrow_contract_addr in [[connected_chain]] EVM section)"
     echo "   - frontend/.env.local (NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS)"
 fi
