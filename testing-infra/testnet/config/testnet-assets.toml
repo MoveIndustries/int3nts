@@ -83,3 +83,15 @@ usdc_decimals = 6
 # pyusd = "0x..."
 # pyusd_decimals = 6
 
+# =============================================================================
+# SOLANA DEVNET
+# =============================================================================
+
+[solana_devnet]
+chain_id = 901
+rpc_url = "https://api.devnet.solana.com"
+
+# USDC on Solana Devnet (SPL token mint)
+usdc = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
+usdc_decimals = 6
+

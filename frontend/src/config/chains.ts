@@ -14,6 +14,7 @@ export interface ChainConfig {
   intentContractAddress?: string; // Intent contract address (for Movement hub chain)
   escrowContractAddress?: string; // Escrow contract address (for EVM chains)
   svmProgramId?: string; // Escrow program ID (for SVM chains)
+  svmGmpEndpointId?: string; // GMP endpoint program ID (for SVM chains)
 }
 
 // Chain configurations
@@ -38,6 +39,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     name: 'Solana Devnet',
     chainType: 'svm',
     svmProgramId: process.env.NEXT_PUBLIC_SVM_PROGRAM_ID,
+    svmGmpEndpointId: process.env.NEXT_PUBLIC_SVM_GMP_ENDPOINT_ID,
   },
   'base-sepolia': {
     id: 'base-sepolia',
@@ -130,5 +132,16 @@ export function getSvmProgramId(chainId: string): string {
     throw new Error(`SVM program ID not configured for chain: ${chainId}`);
   }
   return chainConfig.svmProgramId;
+}
+
+/**
+ * Get the SVM GMP endpoint program ID for a Solana chain.
+ */
+export function getSvmGmpEndpointId(chainId: string): string {
+  const chainConfig = CHAIN_CONFIGS[chainId];
+  if (!chainConfig?.svmGmpEndpointId) {
+    throw new Error(`SVM GMP endpoint ID not configured for chain: ${chainId}`);
+  }
+  return chainConfig.svmGmpEndpointId;
 }
 

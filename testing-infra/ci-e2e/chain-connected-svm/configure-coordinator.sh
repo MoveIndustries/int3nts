@@ -40,7 +40,7 @@ cat > "$TEMP_FILE" << EOF
 name = "Connected SVM Chain"
 rpc_url = "http://127.0.0.1:8899"
 escrow_program_id = "$SVM_PROGRAM_ID"
-chain_id = 4
+chain_id = 901
 EOF
 
 awk -v svm_section="$(cat $TEMP_FILE)" '

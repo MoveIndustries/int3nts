@@ -471,7 +471,7 @@ impl Processor {
                         send_data.push(5); // Send variant index
                         send_data.extend_from_slice(&config.hub_chain_id.to_le_bytes());
                         send_data.extend_from_slice(&config.trusted_hub_addr);
-                        send_data.extend_from_slice(&program_id.to_bytes()); // src_addr = escrow program ID
+                        send_data.extend_from_slice(&endpoint_program.key.to_bytes()); // src_addr = GMP endpoint program ID (must match hub's trusted remote)
                         send_data.extend_from_slice(&(payload.len() as u32).to_le_bytes());
                         send_data.extend_from_slice(&payload);
 

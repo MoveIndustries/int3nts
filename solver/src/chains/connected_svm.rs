@@ -330,12 +330,29 @@ impl ConnectedSvmClient {
         let recipient_token = get_associated_token_address(&recipient, &token_mint)?;
 
         // Derive GMP endpoint PDAs
+        let chain_id_bytes = hub_chain_id.to_le_bytes();
         let (gmp_config_pda, _) = Pubkey::find_program_address(
             &[b"config"],
             &gmp_endpoint_id,
         );
         let (gmp_nonce_out_pda, _) = Pubkey::find_program_address(
-            &[b"nonce_out", &hub_chain_id.to_le_bytes()],
+            &[b"nonce_out", &chain_id_bytes],
+            &gmp_endpoint_id,
+        );
+
+        // Read nonce account to derive message PDA.
+        // GMP Send creates a message account at ["message", chain_id, nonce].
+        // The nonce is the *current* value (before increment).
+        let current_nonce: u64 = match self.rpc_client.get_account_data(&gmp_nonce_out_pda) {
+            Ok(data) if data.len() >= 13 => {
+                // OutboundNonceAccount: discriminator(1) + dst_chain_id(4) + nonce(8) + bump(1)
+                u64::from_le_bytes(data[5..13].try_into().unwrap())
+            }
+            _ => 0, // Account doesn't exist yet; first Send will use nonce=0
+        };
+        let nonce_bytes = current_nonce.to_le_bytes();
+        let (message_pda, _) = Pubkey::find_program_address(
+            &[b"message", &chain_id_bytes, &nonce_bytes],
             &gmp_endpoint_id,
         );
 
@@ -367,6 +384,7 @@ impl ConnectedSvmClient {
                 AccountMeta::new_readonly(solver.pubkey(), true), // sender
                 AccountMeta::new(solver.pubkey(), true),          // payer
                 AccountMeta::new_readonly(system_program_id()?, false),
+                AccountMeta::new(message_pda, false),             // message account
             ],
             data: instruction_data,
         };

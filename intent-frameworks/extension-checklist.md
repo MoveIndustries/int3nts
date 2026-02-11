@@ -307,6 +307,9 @@ SVM: `intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_te
 | 16 | test_send_fulfillment_proof_to_hub | N/A | [x] | N/A |
 | 17 | test_tokens_transferred_to_requester | N/A | [x] | N/A |
 | 18 | test_complete_outflow_workflow | N/A | [x] | N/A |
+| 19 | test_update_hub_config_succeeds | [ ] | [ ] | [x] |
+| 20 | test_update_hub_config_rejects_non_admin | [ ] | [ ] | [x] |
+| 21 | test_update_hub_config_then_lz_receive | [ ] | [ ] | [x] |
 
 ---
 

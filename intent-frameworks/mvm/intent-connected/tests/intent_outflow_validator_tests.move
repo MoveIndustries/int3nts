@@ -671,4 +671,58 @@ module mvmt_intent::intent_outflow_validator_tests {
         let nonce = gmp_sender::get_next_nonce();
         assert!(nonce == 2, 6); // Should be 2 after one send (started at 1)
     }
+
+    // ============================================================================
+    // EVM-SPECIFIC TESTS (N/A for MVM)
+    // ============================================================================
+    //
+    // 14. test_initialize_rejects_zero_endpoint - N/A
+    //     Why: EVM checks GMP endpoint address is not zero during deployment.
+    //     MVM modules are initialized differently without address validation.
+    //     EVM: intent-frameworks/evm/test/outflow-validator.test.js
+    //
+    // 15. test_allow_any_solver_zero_address - N/A
+    //     Why: EVM tests zero-address solver allows any solver.
+    //     MVM covers this in test 13 (test_fulfill_intent_succeeds) which uses
+    //     create_zero_bytes32() as authorized_solver.
+    //     EVM: intent-frameworks/evm/test/outflow-validator.test.js
+    //
+    // 16. test_send_fulfillment_proof_to_hub - N/A
+    //     Why: EVM tests fulfillment sends GMP message with correct payload.
+    //     MVM covers this in test 13 (test_fulfill_intent_succeeds) which verifies
+    //     GMP nonce increment after fulfillment.
+    //     EVM: intent-frameworks/evm/test/outflow-validator.test.js
+    //
+    // 17. test_tokens_transferred_to_requester - N/A
+    //     Why: EVM tests tokens are transferred to the correct requester.
+    //     MVM covers this in test 12 and 13 which verify token balance changes.
+    //     EVM: intent-frameworks/evm/test/outflow-validator.test.js
+    //
+    // 18. test_complete_outflow_workflow - N/A
+    //     Why: EVM tests the complete outflow workflow end-to-end.
+    //     MVM covers this in test 13 (test_fulfill_intent_succeeds) which is
+    //     the full end-to-end workflow (init -> receive -> fulfill with GMP proof).
+    //     EVM: intent-frameworks/evm/test/outflow-validator.test.js
+
+    // ============================================================================
+    // UPDATE_HUB_CONFIG TESTS
+    // ============================================================================
+
+    // 19. Test: UpdateHubConfig succeeds with valid admin
+    // Verifies that the admin can update hub_chain_id and trusted_hub_addr.
+    // Why: Allows reconfiguring the outflow validator when hub addresses change.
+    // TODO: Implement - MVM has update_hub_config in intent_outflow_validator_impl
+    // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+
+    // 20. Test: UpdateHubConfig rejects non-admin signer
+    // Verifies that only the original admin can update config.
+    // Why: Prevents unauthorized reconfiguration of the hub trust relationship.
+    // TODO: Implement - MVM has update_hub_config in intent_outflow_validator_impl
+    // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+
+    // 21. Test: UpdateHubConfig allows LzReceive with new trusted address
+    // Verifies end-to-end: update config, then receive message from new hub address.
+    // Why: Ensures the updated config is used for GMP message validation.
+    // TODO: Implement - MVM has update_hub_config in intent_outflow_validator_impl
+    // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
 }

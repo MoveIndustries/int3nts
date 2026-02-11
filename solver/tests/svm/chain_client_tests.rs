@@ -28,7 +28,7 @@ fn test_new_accepts_valid_program_id() {
     let config = SvmChainConfig {
         name: "svm".to_string(),
         rpc_url: "http://127.0.0.1:8899".to_string(),
-        chain_id: 4,
+        chain_id: 901,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
         private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
         gmp_endpoint_program_id: None,
@@ -48,7 +48,7 @@ fn test_new_rejects_invalid_program_id() {
     let config = SvmChainConfig {
         name: "svm".to_string(),
         rpc_url: "http://127.0.0.1:8899".to_string(),
-        chain_id: 4,
+        chain_id: 901,
         escrow_program_id: "not-a-pubkey".to_string(),
         private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
         gmp_endpoint_program_id: None,
@@ -81,7 +81,7 @@ async fn test_fulfill_outflow_via_gmp_requires_config() {
     let config = SvmChainConfig {
         name: "svm".to_string(),
         rpc_url: "http://127.0.0.1:8899".to_string(),
-        chain_id: 4,
+        chain_id: 901,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
         private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
         gmp_endpoint_program_id: None,
@@ -202,7 +202,7 @@ async fn test_is_escrow_released_success() {
     let config = SvmChainConfig {
         name: "svm".to_string(),
         rpc_url,
-        chain_id: 4,
+        chain_id: 901,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
         private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
         gmp_endpoint_program_id: None,
@@ -231,7 +231,7 @@ async fn test_is_escrow_released_returns_false() {
     let config = SvmChainConfig {
         name: "svm".to_string(),
         rpc_url,
-        chain_id: 4,
+        chain_id: 901,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
         private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
         gmp_endpoint_program_id: None,
@@ -268,7 +268,7 @@ async fn test_is_escrow_released_rpc_error() {
     let config = SvmChainConfig {
         name: "svm".to_string(),
         rpc_url,
-        chain_id: 4,
+        chain_id: 901,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
         private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
         gmp_endpoint_program_id: None,

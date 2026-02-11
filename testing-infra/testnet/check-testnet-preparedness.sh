@@ -148,7 +148,7 @@ fi
 # Extract chain IDs for GMP trusted remote checks
 MOVEMENT_CHAIN_ID=$(grep -A 5 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^chain_id = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
 BASE_CHAIN_ID=$(grep -A 5 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^chain_id = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
-SVM_CHAIN_ID="${SVM_CHAIN_ID:-4}"  # Solana devnet chain ID (not in testnet-assets.toml)
+SVM_CHAIN_ID=$(grep -A 5 "^\[solana_devnet\]" "$ASSETS_CONFIG_FILE" | grep "^chain_id = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
 
 # Function to get Movement balance (MOVE tokens)
 # Uses the view function API to get balance (works with both CoinStore and FA systems)

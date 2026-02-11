@@ -59,4 +59,15 @@ pub enum OutflowInstruction {
     /// 7. `[]` GMP endpoint program (for sending message)
     /// 8+ Additional accounts required by GMP endpoint
     FulfillIntent { intent_id: [u8; 32] },
+
+    /// Update the hub chain configuration.
+    /// Only the admin who initialized the program can call this.
+    ///
+    /// Accounts expected:
+    /// 0. `[writable]` Config account (PDA: ["config"])
+    /// 1. `[signer]` Admin
+    UpdateHubConfig {
+        hub_chain_id: u32,
+        trusted_hub_addr: [u8; 32],
+    },
 }

@@ -150,7 +150,7 @@ describe('instruction builders', () => {
 
     expect(instruction.programId.toBase58()).toBe(PROGRAM_ID.toBase58());
     expect(instruction.keys).toHaveLength(9);
-    expect(instruction.data[0]).toBe(1);
+    expect(instruction.data[0]).toBe(3); // CreateEscrow variant index (Initialize=0, LzReceive=1, SetGmpConfig=2, CreateEscrow=3)
     expect(Buffer.from(instruction.data.subarray(1, 33))).toEqual(
       Buffer.from(svmHexToBytes(INTENT_ID))
     );
@@ -172,7 +172,7 @@ describe('instruction builders', () => {
     const keyBases = instruction.keys.map((key) => key.pubkey.toBase58());
     expect(keyBases).toContain(SYSVAR_INSTRUCTIONS_PUBKEY.toBase58());
     expect(keyBases).toContain(TOKEN_PROGRAM_ID.toBase58());
-    expect(instruction.data[0]).toBe(2);
+    expect(instruction.data[0]).toBe(4); // Claim variant index
   });
 
   /**
@@ -187,7 +187,7 @@ describe('instruction builders', () => {
       programId: PROGRAM_ID,
     });
 
-    expect(instruction.data[0]).toBe(3);
+    expect(instruction.data[0]).toBe(5); // Cancel variant index
     expect(Buffer.from(instruction.data.subarray(1))).toEqual(
       Buffer.from(svmHexToBytes(INTENT_ID))
     );

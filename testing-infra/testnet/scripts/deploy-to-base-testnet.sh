@@ -13,6 +13,7 @@ export PROJECT_ROOT
 
 # Source utilities from testing-infra (for CI testing infrastructure)
 source "$PROJECT_ROOT/testing-infra/ci-e2e/util.sh" 2>/dev/null || true
+source "$SCRIPT_DIR/../lib/env-utils.sh"
 
 echo " Deploying EVM Contracts to Base Sepolia Testnet"
 echo "================================================="
@@ -89,7 +90,7 @@ fi
 export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"
 export APPROVER_ADDR="$INTEGRATED_GMP_EVM_PUBKEY_HASH"
 export MOVEMENT_INTENT_MODULE_ADDR
-export HUB_CHAIN_ID="${HUB_CHAIN_ID:-250}"  # Movement Bardock testnet chain ID
+export HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet")
 export BASE_SEPOLIA_RPC_URL
 # Relay address for integrated-gmp (derived from ECDSA key, different from deployer)
 export RELAY_ADDRESS="${INTEGRATED_GMP_EVM_PUBKEY_HASH}"

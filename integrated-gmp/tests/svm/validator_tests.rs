@@ -24,7 +24,7 @@ fn create_test_intent(solver_addr: Option<String>) -> IntentEvent {
         desired_metadata: "{}".to_string(),
         expiry_time: 1000000,
         reserved_solver_addr: solver_addr,
-        connected_chain_id: Some(4),
+        connected_chain_id: Some(901),
         ..create_default_intent_mvm()
     }
 }

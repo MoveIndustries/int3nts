@@ -3,6 +3,7 @@
  */
 
 import {
+  Connection,
   PublicKey,
   SystemProgram,
   SYSVAR_INSTRUCTIONS_PUBKEY,
@@ -20,6 +21,8 @@ import { Buffer } from 'buffer';
 const STATE_SEED = 'state';
 const ESCROW_SEED = 'escrow';
 const VAULT_SEED = 'vault';
+const REQUIREMENTS_SEED = 'requirements';
+const GMP_CONFIG_SEED = 'gmp_config';
 
 // ============================================================================
 // Types
@@ -104,6 +107,55 @@ export function getSvmTokenAccount(mint: PublicKey, owner: PublicKey): PublicKey
   return getAssociatedTokenAddressSync(mint, owner);
 }
 
+/**
+ * Derive the requirements PDA for a given intent ID (GMP mode).
+ */
+export function getRequirementsPda(intentId: string, programId: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from(REQUIREMENTS_SEED), Buffer.from(svmHexToBytes(intentId))],
+    programId
+  );
+}
+
+/**
+ * Derive the GMP config PDA for the escrow program.
+ */
+export function getGmpConfigPda(programId: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([Buffer.from(GMP_CONFIG_SEED)], programId);
+}
+
+/**
+ * GMP parameters for CreateEscrow with EscrowConfirmation.
+ */
+export type CreateEscrowGmpParams = {
+  gmpEndpointProgramId: PublicKey;
+  hubChainId: number;
+  currentNonce: bigint;
+};
+
+/**
+ * Read the current outbound nonce for a destination chain from the GMP endpoint.
+ * Used to derive the message PDA for GMP Send CPI.
+ */
+export async function readGmpOutboundNonce(
+  connection: Connection,
+  gmpEndpointProgramId: PublicKey,
+  hubChainId: number,
+): Promise<bigint> {
+  const chainIdBytes = Buffer.alloc(4);
+  chainIdBytes.writeUInt32LE(hubChainId);
+  const [noncePda] = PublicKey.findProgramAddressSync(
+    [Buffer.from('nonce_out'), chainIdBytes],
+    gmpEndpointProgramId,
+  );
+  const accountInfo = await connection.getAccountInfo(noncePda);
+  if (accountInfo && accountInfo.data.length >= 13) {
+    // OutboundNonceAccount: discriminator(1) + dst_chain_id(4) + nonce(8) + bump(1)
+    return Buffer.from(accountInfo.data).readBigUInt64LE(5);
+  }
+  return BigInt(0);
+}
+
 // ============================================================================
 // Account Parsing
 // ============================================================================
@@ -161,7 +213,7 @@ function encodeCreateEscrowData(intentId: string, amount: bigint, expiryDuration
     expiryDuration === undefined ? Buffer.alloc(0) : encodeI64(expiryDuration);
 
   return Buffer.concat([
-    Buffer.from([1]), // EscrowInstruction::CreateEscrow
+    Buffer.from([3]), // EscrowInstruction::CreateEscrow (index 3: Initialize=0, LzReceive=1, SetGmpConfig=2, CreateEscrow=3)
     intentIdBytes,
     encodeU64(amount),
     Buffer.from([expiryTag]),
@@ -171,7 +223,7 @@ function encodeCreateEscrowData(intentId: string, amount: bigint, expiryDuration
 
 function encodeClaimData(intentId: string, signatureBytes: Uint8Array): Buffer {
   return Buffer.concat([
-    Buffer.from([2]), // EscrowInstruction::Claim
+    Buffer.from([4]), // EscrowInstruction::Claim (index 4)
     Buffer.from(svmHexToBytes(intentId)),
     Buffer.from(signatureBytes),
   ]);
@@ -179,7 +231,7 @@ function encodeClaimData(intentId: string, signatureBytes: Uint8Array): Buffer {
 
 function encodeCancelData(intentId: string): Buffer {
   return Buffer.concat([
-    Buffer.from([3]), // EscrowInstruction::Cancel
+    Buffer.from([5]), // EscrowInstruction::Cancel (index 5)
     Buffer.from(svmHexToBytes(intentId)),
   ]);
 }
@@ -200,24 +252,68 @@ export function buildCreateEscrowInstruction(params: {
   reservedSolver: PublicKey;
   expiryDuration?: number;
   programId?: PublicKey;
+  gmpParams?: CreateEscrowGmpParams;
 }): TransactionInstruction {
   const programId = params.programId ?? new PublicKey(getSvmProgramId('svm-devnet'));
   const [escrowPda] = getEscrowPda(params.intentId, programId);
   const [vaultPda] = getVaultPda(params.intentId, programId);
 
+  const keys = [
+    { pubkey: escrowPda, isSigner: false, isWritable: true },
+    { pubkey: params.requester, isSigner: true, isWritable: true },
+    { pubkey: params.tokenMint, isSigner: false, isWritable: false },
+    { pubkey: params.requesterToken, isSigner: false, isWritable: true },
+    { pubkey: vaultPda, isSigner: false, isWritable: true },
+    { pubkey: params.reservedSolver, isSigner: false, isWritable: false },
+    { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
+  ];
+
+  // Add GMP accounts for EscrowConfirmation (accounts 9-17)
+  if (params.gmpParams) {
+    const gmp = params.gmpParams;
+    const [requirementsPda] = getRequirementsPda(params.intentId, programId);
+    const [gmpConfigPda] = getGmpConfigPda(programId);
+
+    // GMP endpoint PDAs
+    const chainIdBytes = Buffer.alloc(4);
+    chainIdBytes.writeUInt32LE(gmp.hubChainId);
+    const [gmpEndpointConfigPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('config')],
+      gmp.gmpEndpointProgramId,
+    );
+    const [gmpNonceOutPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('nonce_out'), chainIdBytes],
+      gmp.gmpEndpointProgramId,
+    );
+    const nonceBytes = Buffer.alloc(8);
+    nonceBytes.writeBigUInt64LE(gmp.currentNonce);
+    const [messagePda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('message'), chainIdBytes, nonceBytes],
+      gmp.gmpEndpointProgramId,
+    );
+
+    keys.push(
+      // Account 9: Requirements PDA (writable - marks escrow_created=true)
+      { pubkey: requirementsPda, isSigner: false, isWritable: true },
+      // Account 10: GMP config PDA (escrow program's config)
+      { pubkey: gmpConfigPda, isSigner: false, isWritable: false },
+      // Account 11: GMP endpoint program
+      { pubkey: gmp.gmpEndpointProgramId, isSigner: false, isWritable: false },
+      // Accounts 12+: GMP Send CPI accounts
+      { pubkey: gmpEndpointConfigPda, isSigner: false, isWritable: false },  // config
+      { pubkey: gmpNonceOutPda, isSigner: false, isWritable: true },         // nonce_out
+      { pubkey: params.requester, isSigner: true, isWritable: false },       // sender
+      { pubkey: params.requester, isSigner: true, isWritable: true },        // payer
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
+      { pubkey: messagePda, isSigner: false, isWritable: true },             // message account
+    );
+  }
+
   return new TransactionInstruction({
     programId,
-    keys: [
-      { pubkey: escrowPda, isSigner: false, isWritable: true },
-      { pubkey: params.requester, isSigner: true, isWritable: true },
-      { pubkey: params.tokenMint, isSigner: false, isWritable: false },
-      { pubkey: params.requesterToken, isSigner: false, isWritable: true },
-      { pubkey: vaultPda, isSigner: false, isWritable: true },
-      { pubkey: params.reservedSolver, isSigner: false, isWritable: false },
-      { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-      { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-    ],
+    keys,
     data: encodeCreateEscrowData(params.intentId, params.amount, params.expiryDuration),
   });
 }

@@ -122,6 +122,18 @@ fn run() -> Result<(), Box<dyn Error>> {
         return handle_outflow_init(&client, &options, outflow_program_id);
     }
 
+    if command == "outflow-update-hub-config" {
+        let outflow_program_id = match options.get("outflow-program-id") {
+            Some(value) => parse_pubkey(value)?,
+            None => {
+                eprintln!("Error: --outflow-program-id is required for '{}'", command);
+                print_usage();
+                std::process::exit(1);
+            }
+        };
+        return handle_outflow_update_hub_config(&client, &options, outflow_program_id);
+    }
+
     // Escrow GMP config command
     if command == "escrow-set-gmp-config" {
         let program_id = match options.get("program-id") {
@@ -558,6 +570,37 @@ fn handle_outflow_init(
     Ok(())
 }
 
+fn handle_outflow_update_hub_config(
+    client: &RpcClient,
+    options: &HashMap<String, String>,
+    outflow_program_id: Pubkey,
+) -> Result<(), Box<dyn Error>> {
+    let payer = read_keypair(options, "payer")?;
+    let hub_chain_id = parse_u32(required_option(options, "hub-chain-id")?)?;
+    let trusted_hub_addr = parse_32_byte_hex(required_option(options, "hub-address")?)?;
+
+    let (config_pda, _config_bump) =
+        Pubkey::find_program_address(&[outflow_seeds::CONFIG_SEED], &outflow_program_id);
+
+    let ix = Instruction {
+        program_id: outflow_program_id,
+        accounts: vec![
+            AccountMeta::new(config_pda, false),
+            AccountMeta::new_readonly(payer.pubkey(), true), // admin (signer)
+        ],
+        data: OutflowInstruction::UpdateHubConfig {
+            hub_chain_id,
+            trusted_hub_addr,
+        }
+        .try_to_vec()?,
+    };
+
+    let signature = send_tx(client, &[ix], &payer, &[])?;
+    println!("Outflow UpdateHubConfig signature: {signature}");
+    println!("Config PDA: {config_pda}");
+    Ok(())
+}
+
 // ============================================================================
 // INSTRUCTION BUILDERS
 // ============================================================================
@@ -769,6 +812,9 @@ GMP Endpoint Commands:
 
 Outflow Validator Commands:
   outflow-init       --outflow-program-id <pubkey> --payer <keypair> --gmp-endpoint <pubkey>
+                     --hub-chain-id <u32> --hub-address <hex> [--rpc <url>]
+  outflow-update-hub-config
+                     --outflow-program-id <pubkey> --payer <keypair>
                      --hub-chain-id <u32> --hub-address <hex> [--rpc <url>]
         "#
     );

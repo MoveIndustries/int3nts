@@ -12,7 +12,7 @@
 #     - MOVEMENT_INTENT_MODULE_ADDR (from deploy-to-movement-testnet.sh)
 #     - MOVEMENT_MODULE_PRIVATE_KEY (from deploy-to-movement-testnet.sh)
 #     - BASE_GMP_ENDPOINT_ADDR + BASE_CHAIN_ID (from deploy-to-base-testnet.sh)
-#     - SOLANA_GMP_ID + SVM_CHAIN_ID (from deploy-to-solana-devnet.sh) [optional]
+#     - SOLANA_GMP_ID (from deploy-to-solana-devnet.sh) [optional]
 #     - INTEGRATED_GMP_MVM_ADDR (from get_relay_addresses) [optional, for relay auth]
 
 set -e
@@ -51,7 +51,7 @@ require_var "SOLANA_GMP_ID" "$SOLANA_GMP_ID" "Run deploy-to-solana-devnet.sh fir
 
 MODULE_ADDR="$MOVEMENT_INTENT_MODULE_ADDR"
 MOVEMENT_RPC_URL="https://testnet.movementnetwork.xyz/v1"
-SVM_CHAIN_ID="${SVM_CHAIN_ID:-4}"  # Solana devnet chain ID
+SVM_CHAIN_ID=$(get_chain_id "solana_devnet")
 
 # Create temporary Movement CLI profile with module admin key
 TEMP_PROFILE="movement-configure-$$"

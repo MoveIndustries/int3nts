@@ -30,6 +30,7 @@ name = "Connected SVM Chain"
 rpc_url = "http://127.0.0.1:8899"
 chain_id = 1001
 escrow_program_id = "<your-svm-program-id>"
+outflow_program_id = "<your-svm-outflow-program-id>"  # outflow_validator program ID for routing IntentRequirements
 gmp_endpoint_program_id = "<your-svm-gmp-program-id>"  # intent_gmp program ID for GMP message routing
 
 # Integrated GMP Configuration

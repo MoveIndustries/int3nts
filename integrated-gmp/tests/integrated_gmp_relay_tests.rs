@@ -422,7 +422,7 @@ fn test_relay_config_handles_missing_mvm_connected() {
     // SVM should still be extracted
     assert_eq!(
         relay_config.svm_chain_id,
-        Some(4),
+        Some(901),
         "SVM chain ID should still be extracted"
     );
 }

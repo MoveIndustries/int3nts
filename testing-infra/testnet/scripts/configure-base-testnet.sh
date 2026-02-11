@@ -41,7 +41,7 @@ require_var "MOVEMENT_INTENT_MODULE_ADDR" "$MOVEMENT_INTENT_MODULE_ADDR" "Run de
 require_var "ALCHEMY_BASE_SEPOLIA_API_KEY" "$ALCHEMY_BASE_SEPOLIA_API_KEY" "Get your free API key at: https://www.alchemy.com/"
 BASE_SEPOLIA_RPC_URL="https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_BASE_SEPOLIA_API_KEY}"
 
-HUB_CHAIN_ID="${HUB_CHAIN_ID:-250}"
+HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet")
 
 echo " Configuration:"
 echo "   GMP Endpoint:  $BASE_GMP_ENDPOINT_ADDR"

@@ -74,6 +74,8 @@ pub struct NativeGmpRelayConfig {
     pub svm_gmp_program_id: Option<String>,
     /// SVM intent escrow program ID (optional, for routing IntentRequirements)
     pub svm_escrow_program_id: Option<String>,
+    /// SVM outflow validator program ID (optional, for routing IntentRequirements)
+    pub svm_outflow_program_id: Option<String>,
     /// SVM chain ID (optional)
     pub svm_chain_id: Option<u32>,
     /// EVM RPC URL (optional, for EVM connected chain)
@@ -108,16 +110,17 @@ impl NativeGmpRelayConfig {
             };
 
         // Extract SVM connected chain config if present
-        let (svm_rpc_url, svm_gmp_program_id, svm_escrow_program_id, svm_chain_id) =
+        let (svm_rpc_url, svm_gmp_program_id, svm_escrow_program_id, svm_outflow_program_id, svm_chain_id) =
             if let Some(ref svm_config) = config.connected_chain_svm {
                 (
                     Some(svm_config.rpc_url.clone()),
                     svm_config.gmp_endpoint_program_id.clone(),
                     Some(svm_config.escrow_program_id.clone()),
+                    Some(svm_config.outflow_program_id.clone()),
                     Some(svm_config.chain_id as u32),
                 )
             } else {
-                (None, None, None, None)
+                (None, None, None, None, None)
             };
 
         // Extract EVM connected chain config if present
@@ -143,6 +146,7 @@ impl NativeGmpRelayConfig {
             svm_rpc_url,
             svm_gmp_program_id,
             svm_escrow_program_id,
+            svm_outflow_program_id,
             svm_chain_id,
             evm_rpc_url,
             evm_gmp_endpoint_addr,
@@ -678,8 +682,22 @@ impl NativeGmpRelay {
             );
 
             if let Err(e) = self.deliver_message(&message).await {
-                error!("Failed to deliver MVM {} message nonce={}: {:#}", chain_name, nonce, e);
-                // Don't advance past failed delivery
+                let err_str = format!("{:#}", e);
+                // Permanent errors: skip and advance past the message
+                if err_str.contains("E_UNTRUSTED_REMOTE")
+                    || err_str.contains("E_ALREADY_DELIVERED")
+                    || err_str.contains("AlreadyDelivered")
+                    || err_str.contains("Already delivered")
+                {
+                    warn!(
+                        "Permanent delivery failure for MVM {} nonce={}, skipping: {}",
+                        chain_name, nonce, err_str
+                    );
+                    new_last = nonce;
+                    continue;
+                }
+                error!("Failed to deliver MVM {} message nonce={}: {}", chain_name, nonce, err_str);
+                // Don't advance past transient failures
                 break;
             }
 
@@ -776,8 +794,20 @@ impl NativeGmpRelay {
                 );
 
                 if let Err(e) = self.deliver_message(&message).await {
-                    error!("Failed to deliver SVM message nonce={}: {:#}", nonce, e);
-                    // Don't advance past failed delivery
+                    let err_str = format!("{:#}", e);
+                    // Permanent errors: skip and advance past the message
+                    if err_str.contains("E_UNTRUSTED_REMOTE")
+                        || err_str.contains("E_ALREADY_DELIVERED")
+                    {
+                        warn!(
+                            "Permanent delivery failure for SVM nonce={}, skipping: {}",
+                            nonce, err_str
+                        );
+                        self.state.write().await.svm_next_nonce.insert(dst_chain_id, nonce + 1);
+                        continue;
+                    }
+                    error!("Failed to deliver SVM message nonce={}: {}", nonce, err_str);
+                    // Don't advance past transient failures
                     break;
                 }
 
@@ -941,10 +971,8 @@ impl NativeGmpRelay {
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         if !output.status.success() {
-            // Check if delivery was silently a no-op (already delivered).
-            // MVM deliver_message returns silently for duplicate messages, so this branch
-            // is for actual failures only.
-            error!(
+            // Log at debug; the caller decides severity (permanent vs transient).
+            debug!(
                 "MVM {} deliver_message failed: stderr={}, stdout={}",
                 chain_name, stderr, stdout
             );
@@ -1549,7 +1577,28 @@ impl NativeGmpRelay {
         );
         let (routing_pda, _) = Pubkey::find_program_address(&[b"routing"], &program_id);
 
-        // Get intent_escrow program for second destination (required for routing)
+        // Check if message was already delivered (delivered PDA already exists on-chain)
+        let rpc_client_check = RpcClient::new_with_commitment(
+            rpc_url.clone(),
+            CommitmentConfig::confirmed(),
+        );
+        if rpc_client_check.get_account(&delivered_pda).is_ok() {
+            info!(
+                "SVM: message already delivered (nonce={}, msg_type=0x{:02x}), skipping",
+                message.nonce, msg_type
+            );
+            return Ok(());
+        }
+
+        // Get outflow_validator program for destination_program_1 (required for routing IntentRequirements)
+        let outflow_program = if let Some(ref outflow_id) = self.config.svm_outflow_program_id {
+            Pubkey::from_str(outflow_id).context("Invalid SVM outflow program ID")?
+        } else {
+            // If no outflow configured, use dst_program as placeholder (routing won't be used)
+            dst_program
+        };
+
+        // Get intent_escrow program for destination_program_2 (required for routing)
         let escrow_program = if let Some(ref escrow_id) = self.config.svm_escrow_program_id {
             Pubkey::from_str(escrow_id).context("Invalid SVM escrow program ID")?
         } else {
@@ -1575,7 +1624,7 @@ impl NativeGmpRelay {
             AccountMeta::new(relay_pubkey, true),          // payer (signer)
             AccountMeta::new_readonly(SYSTEM_PROGRAM_ID, false),
             AccountMeta::new_readonly(routing_pda, false), // routing config (may not exist)
-            AccountMeta::new_readonly(dst_program, false), // destination program 1 (outflow_validator)
+            AccountMeta::new_readonly(outflow_program, false), // destination program 1 (outflow_validator)
             AccountMeta::new_readonly(escrow_program, false), // destination program 2 (intent_escrow)
         ];
 
@@ -1593,14 +1642,14 @@ impl NativeGmpRelay {
                 let mut intent_id = [0u8; 32];
                 intent_id.copy_from_slice(&payload[1..33]);
 
-                // Derive outflow-validator PDAs (dst_program is the outflow-validator)
+                // Derive outflow-validator PDAs
                 let (outflow_requirements_pda, _) = Pubkey::find_program_address(
                     &[b"requirements", &intent_id],
-                    &dst_program,
+                    &outflow_program,
                 );
                 let (outflow_config_pda, _) = Pubkey::find_program_address(
                     &[b"config"],
-                    &dst_program,
+                    &outflow_program,
                 );
 
                 // Derive intent_escrow PDAs (escrow_program is the intent_escrow)

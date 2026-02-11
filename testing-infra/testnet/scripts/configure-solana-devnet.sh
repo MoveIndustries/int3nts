@@ -54,7 +54,7 @@ require_var "SOLANA_PROGRAM_ID" "$SOLANA_PROGRAM_ID" "Run deploy-to-solana-devne
 require_var "SOLANA_OUTFLOW_ID" "$SOLANA_OUTFLOW_ID" "Run deploy-to-solana-devnet.sh first"
 
 SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://api.devnet.solana.com}"
-HUB_CHAIN_ID="${HUB_CHAIN_ID:-250}"
+HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet")
 
 echo " Configuration:"
 echo "   Hub Chain ID: $HUB_CHAIN_ID"
@@ -121,13 +121,11 @@ fi
 echo "   Deployer verified: $DERIVED_ADDR"
 echo ""
 
-# Build CLI if needed
+# Build CLI (always rebuild to pick up source changes)
 CLI_BIN="$PROJECT_ROOT/intent-frameworks/svm/target/debug/intent_escrow_cli"
-if [ ! -x "$CLI_BIN" ]; then
-    echo " Building CLI tool..."
-    cd "$PROJECT_ROOT/intent-frameworks/svm"
-    cargo build --bin intent_escrow_cli 2>/dev/null
-fi
+echo " Building CLI tool..."
+cd "$PROJECT_ROOT/intent-frameworks/svm"
+cargo build --bin intent_escrow_cli 2>/dev/null
 
 if [ ! -x "$CLI_BIN" ]; then
     echo "ERROR: CLI tool not built at $CLI_BIN"
@@ -142,73 +140,66 @@ echo " Cross-chain configuration..."
 echo ""
 
 echo " 1. Setting hub as trusted remote..."
-if ! "$CLI_BIN" gmp-set-trusted-remote \
+run_solana_idempotent "Set trusted remote" \
+    "$CLI_BIN" gmp-set-trusted-remote \
     --gmp-program-id "$SOLANA_GMP_ID" \
     --payer "$DEPLOYER_KEYPAIR" \
     --src-chain-id "$HUB_CHAIN_ID" \
     --trusted-addr "$HUB_ADDR_PADDED" \
-    --rpc "$SOLANA_RPC_URL"; then
-    echo "   Command failed, verifying on-chain state..."
-fi
-# TrustedRemoteAccount: disc=3 base64=Aw==, size=38
-verify_solana_has_account "$SOLANA_GMP_ID" "$SOLANA_RPC_URL" "Aw==" 38 \
-    "GMP trusted remote for hub (chain $HUB_CHAIN_ID)"
+    --rpc "$SOLANA_RPC_URL"
 
 echo " 2. Initializing outflow validator..."
-if ! "$CLI_BIN" outflow-init \
+run_solana_idempotent "Initialize outflow validator" \
+    "$CLI_BIN" outflow-init \
     --outflow-program-id "$SOLANA_OUTFLOW_ID" \
     --payer "$DEPLOYER_KEYPAIR" \
     --gmp-endpoint "$SOLANA_GMP_ID" \
     --hub-chain-id "$HUB_CHAIN_ID" \
     --hub-address "$HUB_ADDR_PADDED" \
-    --rpc "$SOLANA_RPC_URL"; then
-    echo "   Command failed, verifying on-chain state..."
-fi
-# ConfigAccount: disc=2 base64=Ag==, size=102
-verify_solana_has_account "$SOLANA_OUTFLOW_ID" "$SOLANA_RPC_URL" "Ag==" 102 \
-    "Outflow validator config"
+    --rpc "$SOLANA_RPC_URL"
+
+echo " 2b. Updating outflow validator hub config..."
+"$CLI_BIN" outflow-update-hub-config \
+    --outflow-program-id "$SOLANA_OUTFLOW_ID" \
+    --payer "$DEPLOYER_KEYPAIR" \
+    --hub-chain-id "$HUB_CHAIN_ID" \
+    --hub-address "$HUB_ADDR_PADDED" \
+    --rpc "$SOLANA_RPC_URL"
 
 echo " 3. Configuring escrow GMP..."
-if ! "$CLI_BIN" escrow-set-gmp-config \
+run_solana_idempotent "Configure escrow GMP" \
+    "$CLI_BIN" escrow-set-gmp-config \
     --program-id "$SOLANA_PROGRAM_ID" \
     --payer "$DEPLOYER_KEYPAIR" \
     --hub-chain-id "$HUB_CHAIN_ID" \
     --hub-address "$HUB_ADDR_PADDED" \
     --gmp-endpoint "$SOLANA_GMP_ID" \
-    --rpc "$SOLANA_RPC_URL"; then
-    echo "   Command failed, verifying on-chain state..."
-fi
-# GmpConfig: disc="GMPCONFG" base64=R01QQ09ORkc=, size=109
-verify_solana_has_account "$SOLANA_PROGRAM_ID" "$SOLANA_RPC_URL" "R01QQ09ORkc=" 109 \
-    "Escrow GMP config"
+    --rpc "$SOLANA_RPC_URL"
 
 echo " 4. Setting GMP routing..."
-if ! "$CLI_BIN" gmp-set-routing \
+run_solana_idempotent "Set GMP routing" \
+    "$CLI_BIN" gmp-set-routing \
     --gmp-program-id "$SOLANA_GMP_ID" \
     --payer "$DEPLOYER_KEYPAIR" \
     --outflow-validator "$SOLANA_OUTFLOW_ID" \
     --intent-escrow "$SOLANA_PROGRAM_ID" \
-    --rpc "$SOLANA_RPC_URL"; then
-    echo "   Command failed, verifying on-chain state..."
-fi
-# RoutingConfig: disc=6 base64=Bg==, size=66
-verify_solana_has_account "$SOLANA_GMP_ID" "$SOLANA_RPC_URL" "Bg==" 66 \
-    "GMP routing config"
+    --rpc "$SOLANA_RPC_URL"
 
-# 5. Add GMP relay authorization (optional)
-if [ -n "$INTEGRATED_GMP_SVM_ADDR" ]; then
-    echo " 5. Adding GMP relay: $INTEGRATED_GMP_SVM_ADDR"
-    if ! "$CLI_BIN" gmp-add-relay \
-        --gmp-program-id "$SOLANA_GMP_ID" \
-        --payer "$DEPLOYER_KEYPAIR" \
-        --relay "$INTEGRATED_GMP_SVM_ADDR" \
-        --rpc "$SOLANA_RPC_URL"; then
-        echo "   Command failed, verifying on-chain state..."
-    fi
-    # RelayAccount: disc=2 base64=Ag==, size=35
-    verify_solana_has_account "$SOLANA_GMP_ID" "$SOLANA_RPC_URL" "Ag==" 35 \
-        "GMP relay authorization for $INTEGRATED_GMP_SVM_ADDR"
-fi
+# 5. Add GMP relay authorization (required)
+require_var "INTEGRATED_GMP_SVM_ADDR" "$INTEGRATED_GMP_SVM_ADDR" \
+    "Set INTEGRATED_GMP_SVM_ADDR in .env.testnet (derive with: cd integrated-gmp && cargo run --bin get_relay_addresses)"
+echo " 5. Adding GMP relay: $INTEGRATED_GMP_SVM_ADDR"
+run_solana_idempotent "Add GMP relay" \
+    "$CLI_BIN" gmp-add-relay \
+    --gmp-program-id "$SOLANA_GMP_ID" \
+    --payer "$DEPLOYER_KEYPAIR" \
+    --relay "$INTEGRATED_GMP_SVM_ADDR" \
+    --rpc "$SOLANA_RPC_URL"
+# RelayAccount layout: disc(1) + relay_pubkey(32) + is_authorized(1) + bump(1) = 35 bytes
+# Verify the specific relay pubkey at offset 1 (base58 encoding is the default for memcmp)
+verify_solana_has_account "$SOLANA_GMP_ID" "$SOLANA_RPC_URL" "Ag==" 35 \
+    "GMP relay authorization for $INTEGRATED_GMP_SVM_ADDR" \
+    1 "$INTEGRATED_GMP_SVM_ADDR"
 
 # Clean up
 rm -rf "$TEMP_KEYPAIR_DIR"

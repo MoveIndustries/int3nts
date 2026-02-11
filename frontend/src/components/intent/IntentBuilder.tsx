@@ -8,7 +8,7 @@ import { coordinatorClient } from '@/lib/coordinator';
 import type { DraftIntentRequest, DraftIntentSignature } from '@/lib/types';
 import { generateIntentId } from '@/lib/types';
 import { SUPPORTED_TOKENS, type TokenConfig, toSmallestUnits } from '@/config/tokens';
-import { CHAIN_CONFIGS, getChainType, getHubChainConfig, isHubChain } from '@/config/chains';
+import { CHAIN_CONFIGS, getChainType, getHubChainConfig, getSvmGmpEndpointId, isHubChain } from '@/config/chains';
 import { fetchTokenBalance, type TokenBalance } from '@/lib/balances';
 import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
 import { PublicKey } from '@solana/web3.js';
@@ -19,6 +19,7 @@ import {
   getSvmTokenAccount,
   svmHexToPubkey,
   svmPubkeyToHex,
+  readGmpOutboundNonce,
 } from '@/lib/svm-escrow';
 import { fetchSolverSvmAddress, getSvmConnection, sendSvmTransaction } from '@/lib/svm-transactions';
 
@@ -1077,7 +1078,8 @@ export function IntentBuilder() {
           if (!signature.solver_svm_addr) {
             throw new Error('Solver has no SVM address registered. The solver must register with an SVM address to fulfill SVM inflow intents.');
           }
-          const solverAddrConnectedChainHex = svmPubkeyToHex(signature.solver_svm_addr);
+          // Coordinator returns SVM address as 0x-prefixed hex already
+          const solverAddrConnectedChainHex = signature.solver_svm_addr;
 
           functionName = `${INTENT_MODULE_ADDR}::fa_intent_inflow::create_inflow_intent_entry`;
           functionArguments = [
@@ -1135,7 +1137,8 @@ export function IntentBuilder() {
           if (!signature.solver_svm_addr) {
             throw new Error('Solver has no SVM address registered. The solver must register with an SVM address to fulfill SVM outflow intents.');
           }
-          const solverAddrConnectedChainHex = svmPubkeyToHex(signature.solver_svm_addr);
+          // Coordinator returns SVM address as 0x-prefixed hex already
+          const solverAddrConnectedChainHex = signature.solver_svm_addr;
 
           functionName = `${INTENT_MODULE_ADDR}::fa_intent_outflow::create_outflow_intent_entry`;
           functionArguments = [
@@ -1324,6 +1327,15 @@ export function IntentBuilder() {
         const reservedSolver = svmHexToPubkey(solverSvmHex);
         console.log('SVM Escrow: Reserved solver pubkey:', reservedSolver.toBase58());
         const amount = BigInt(savedDraftData.offeredAmount);
+
+        // Read GMP nonce for EscrowConfirmation message PDA
+        const connection = getSvmConnection();
+        const gmpEndpointId = new PublicKey(getSvmGmpEndpointId('svm-devnet'));
+        const hubChainId = getHubChainConfig().chainId;
+        console.log('SVM Escrow: Reading GMP nonce for hub chain', hubChainId);
+        const currentNonce = await readGmpOutboundNonce(connection, gmpEndpointId, hubChainId);
+        console.log('SVM Escrow: Current GMP outbound nonce:', currentNonce.toString());
+
         const createIx = buildCreateEscrowInstruction({
           intentId: savedDraftData.intentId,
           amount,
@@ -1331,9 +1343,12 @@ export function IntentBuilder() {
           requesterToken,
           tokenMint,
           reservedSolver,
+          gmpParams: {
+            gmpEndpointProgramId: gmpEndpointId,
+            hubChainId,
+            currentNonce,
+          },
         });
-
-        const connection = getSvmConnection();
         const signatureHash = await sendSvmTransaction({
           wallet: svmWallet,
           connection,

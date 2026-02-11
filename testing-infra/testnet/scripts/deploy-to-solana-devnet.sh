@@ -16,6 +16,8 @@ if [ -z "${IN_NIX_SHELL:-}" ]; then
     exec nix develop "$PROJECT_ROOT/nix" --command bash "$SCRIPT_DIR/deploy-to-solana-devnet.sh" "$@"
 fi
 
+source "$SCRIPT_DIR/../lib/env-utils.sh"
+
 echo " Deploying GMP Contracts to Solana Devnet"
 echo "=========================================="
 echo ""
@@ -53,8 +55,8 @@ fi
 
 # Solana devnet RPC
 SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://api.devnet.solana.com}"
-HUB_CHAIN_ID="${HUB_CHAIN_ID:-250}"  # Movement Bardock testnet chain ID
-SVM_CHAIN_ID="${SVM_CHAIN_ID:-4}"     # Solana devnet chain ID for GMP routing
+HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet")
+SVM_CHAIN_ID=$(get_chain_id "solana_devnet")
 
 echo " Configuration:"
 echo "   Deployer Address: $SOLANA_DEPLOYER_ADDR"
@@ -274,14 +276,11 @@ console.log(b58encode(Array.from(keyBytes)));
     else
         echo " Integrated-GMP public key (base58): $INTEGRATED_GMP_PUBKEY_BASE58"
 
-        # Build CLI if needed
+        # Build CLI (always rebuild to pick up source changes)
         CLI_BIN="$PROJECT_ROOT/intent-frameworks/svm/target/debug/intent_escrow_cli"
-        if [ ! -x "$CLI_BIN" ]; then
-            echo " Building CLI tool..."
-            cd "$PROJECT_ROOT/intent-frameworks/svm"
-            cargo build --bin intent_escrow_cli 2>/dev/null
-            cd "$PROJECT_ROOT/intent-frameworks/svm"
-        fi
+        echo " Building CLI tool..."
+        cd "$PROJECT_ROOT/intent-frameworks/svm"
+        cargo build --bin intent_escrow_cli 2>/dev/null
 
         if [ ! -x "$CLI_BIN" ]; then
             echo "CLI not built - skipping initialization"

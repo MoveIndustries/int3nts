@@ -493,6 +493,31 @@ fn create_fulfill_intent_ix_with_gmp(
     }
 }
 
+/// Builds an UpdateHubConfig instruction with the correct account layout.
+/// Derives the config PDA and sets up admin as signer.
+fn create_update_hub_config_ix(
+    program_id: Pubkey,
+    admin: Pubkey,
+    hub_chain_id: u32,
+    trusted_hub_addr: [u8; 32],
+) -> solana_sdk::instruction::Instruction {
+    let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
+
+    let instruction = OutflowInstruction::UpdateHubConfig {
+        hub_chain_id,
+        trusted_hub_addr,
+    };
+
+    solana_sdk::instruction::Instruction {
+        program_id,
+        accounts: vec![
+            solana_sdk::instruction::AccountMeta::new(config_pda, false),
+            solana_sdk::instruction::AccountMeta::new_readonly(admin, true),
+        ],
+        data: instruction.try_to_vec().unwrap(),
+    }
+}
+
 /// Gets the token balance for an account.
 async fn get_token_balance(
     context: &mut solana_program_test::ProgramTestContext,
@@ -1137,4 +1162,207 @@ async fn test_fulfill_intent_succeeds() {
     );
     let stored: IntentRequirementsAccount = read_account(&mut context, requirements_pda).await;
     assert!(stored.fulfilled, "Requirements should be marked fulfilled");
+}
+
+// ============================================================================
+// EVM-SPECIFIC TESTS (N/A for SVM)
+// ============================================================================
+//
+// 14. test_initialize_rejects_zero_endpoint - N/A
+//     Why: EVM checks that GMP endpoint address is not zero during deployment.
+//     SVM uses Pubkey which has no equivalent zero-check constraint at init time.
+//     EVM: intent-frameworks/evm/test/outflow-validator.test.js
+//
+// 15. test_allow_any_solver_zero_address - N/A
+//     Why: EVM tests that zero-address solver in requirements allows any solver.
+//     SVM covers this in test 13 (test_fulfill_intent_succeeds) which uses
+//     Pubkey::default() (zero) as authorized_solver.
+//     EVM: intent-frameworks/evm/test/outflow-validator.test.js
+//
+// 16. test_send_fulfillment_proof_to_hub - N/A
+//     Why: EVM tests that fulfillment sends GMP message with correct payload.
+//     SVM covers this in test 13 (test_fulfill_intent_succeeds) which includes
+//     the full GMP CPI flow via integrated GMP endpoint.
+//     EVM: intent-frameworks/evm/test/outflow-validator.test.js
+//
+// 17. test_tokens_transferred_to_requester - N/A
+//     Why: EVM tests that tokens are transferred to the correct requester.
+//     SVM covers this in test 13 (test_fulfill_intent_succeeds) which verifies
+//     token balances after fulfillment.
+//     EVM: intent-frameworks/evm/test/outflow-validator.test.js
+//
+// 18. test_complete_outflow_workflow - N/A
+//     Why: EVM tests the complete outflow workflow end-to-end.
+//     SVM covers this in test 13 (test_fulfill_intent_succeeds) which is already
+//     the full end-to-end workflow (init -> receive -> fulfill with GMP proof).
+//     EVM: intent-frameworks/evm/test/outflow-validator.test.js
+
+// ============================================================================
+// UPDATE_HUB_CONFIG TESTS
+// ============================================================================
+
+/// 19. Test: UpdateHubConfig succeeds with valid admin
+/// Verifies that the admin can update hub_chain_id and trusted_hub_addr.
+/// Why: Allows reconfiguring the outflow validator when hub addresses change.
+#[tokio::test]
+async fn test_update_hub_config_succeeds() {
+    let pt = program_test();
+    let mut context = pt.start_with_context().await;
+    let admin = context.payer.insecure_clone();
+    let program_id = outflow_program_id();
+
+    // Initialize first
+    let init_ix = create_initialize_ix(
+        program_id,
+        admin.pubkey(),
+        gmp_endpoint_id(),
+        HUB_CHAIN_ID,
+        trusted_hub_addr(),
+    );
+    send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
+
+    // Verify original config
+    let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
+    let config: ConfigAccount = read_account(&mut context, config_pda).await;
+    assert_eq!(config.hub_chain_id, HUB_CHAIN_ID);
+    assert_eq!(config.trusted_hub_addr, trusted_hub_addr());
+
+    // Update hub config with new values
+    let new_chain_id = 99999u32;
+    let mut new_hub_addr = [0u8; 32];
+    new_hub_addr[0] = 0xCC;
+    new_hub_addr[31] = 0xDD;
+
+    let update_ix = create_update_hub_config_ix(
+        program_id,
+        admin.pubkey(),
+        new_chain_id,
+        new_hub_addr,
+    );
+    send_tx(&mut context, &admin, &[update_ix], &[]).await.unwrap();
+
+    // Verify config was updated
+    let config: ConfigAccount = read_account(&mut context, config_pda).await;
+    assert_eq!(config.hub_chain_id, new_chain_id);
+    assert_eq!(config.trusted_hub_addr, new_hub_addr);
+    // Verify admin and gmp_endpoint are unchanged
+    assert_eq!(config.admin, admin.pubkey());
+    assert_eq!(config.gmp_endpoint, gmp_endpoint_id());
+}
+
+/// 20. Test: UpdateHubConfig rejects non-admin signer
+/// Verifies that only the original admin can update config.
+/// Why: Prevents unauthorized reconfiguration of the hub trust relationship.
+#[tokio::test]
+async fn test_update_hub_config_rejects_non_admin() {
+    let pt = program_test();
+    let mut context = pt.start_with_context().await;
+    let admin = context.payer.insecure_clone();
+    let program_id = outflow_program_id();
+
+    // Initialize with admin
+    let init_ix = create_initialize_ix(
+        program_id,
+        admin.pubkey(),
+        gmp_endpoint_id(),
+        HUB_CHAIN_ID,
+        trusted_hub_addr(),
+    );
+    send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
+
+    // Try to update with a different signer
+    let impostor = Keypair::new();
+    let update_ix = create_update_hub_config_ix(
+        program_id,
+        impostor.pubkey(),
+        99999,
+        [0xFFu8; 32],
+    );
+    let result = send_tx(&mut context, &admin, &[update_ix], &[&impostor]).await;
+    assert!(result.is_err(), "Non-admin should be rejected");
+
+    // Verify config was NOT changed
+    let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
+    let config: ConfigAccount = read_account(&mut context, config_pda).await;
+    assert_eq!(config.hub_chain_id, HUB_CHAIN_ID);
+    assert_eq!(config.trusted_hub_addr, trusted_hub_addr());
+}
+
+/// 21. Test: UpdateHubConfig allows LzReceive with new trusted address
+/// Verifies end-to-end: update config, then receive message from new hub address.
+/// Why: Ensures the updated config is used for GMP message validation.
+#[tokio::test]
+async fn test_update_hub_config_then_lz_receive() {
+    let pt = program_test();
+    let mut context = pt.start_with_context().await;
+    let admin = context.payer.insecure_clone();
+    let program_id = outflow_program_id();
+
+    // Initialize with original hub config
+    let init_ix = create_initialize_ix(
+        program_id,
+        admin.pubkey(),
+        gmp_endpoint_id(),
+        HUB_CHAIN_ID,
+        trusted_hub_addr(),
+    );
+    send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
+
+    // Update to new hub address and chain ID
+    let new_chain_id = 250u32; // Movement chain ID
+    let mut new_hub_addr = [0u8; 32];
+    new_hub_addr[0] = 0x0A;
+    new_hub_addr[31] = 0x94;
+
+    let update_ix = create_update_hub_config_ix(
+        program_id,
+        admin.pubkey(),
+        new_chain_id,
+        new_hub_addr,
+    );
+    send_tx(&mut context, &admin, &[update_ix], &[]).await.unwrap();
+
+    // LzReceive with OLD hub address should now fail
+    let intent_id = test_intent_id();
+    let requirements = IntentRequirements {
+        intent_id,
+        requester_addr: admin.pubkey().to_bytes(),
+        amount_required: 1_000_000,
+        token_addr: Pubkey::new_unique().to_bytes(),
+        solver_addr: [0u8; 32],
+        expiry: FAR_FUTURE_EXPIRY,
+    };
+    let payload = requirements.encode().to_vec();
+
+    let lz_receive_old = create_lz_receive_ix(
+        program_id,
+        admin.pubkey(),
+        HUB_CHAIN_ID,        // old chain ID
+        trusted_hub_addr(),   // old hub addr
+        payload.clone(),
+        intent_id,
+    );
+    let result = send_tx(&mut context, &admin, &[lz_receive_old], &[]).await;
+    assert!(result.is_err(), "Old hub address should be rejected after update");
+
+    // LzReceive with NEW hub address should succeed
+    let lz_receive_new = create_lz_receive_ix(
+        program_id,
+        admin.pubkey(),
+        new_chain_id,    // new chain ID
+        new_hub_addr,    // new hub addr
+        payload,
+        intent_id,
+    );
+    send_tx(&mut context, &admin, &[lz_receive_new], &[]).await.unwrap();
+
+    // Verify requirements were stored
+    let (requirements_pda, _) = Pubkey::find_program_address(
+        &[seeds::REQUIREMENTS_SEED, &intent_id],
+        &program_id,
+    );
+    let stored: IntentRequirementsAccount = read_account(&mut context, requirements_pda).await;
+    assert_eq!(stored.intent_id, intent_id);
+    assert_eq!(stored.amount_required, 1_000_000);
+    assert!(!stored.fulfilled);
 }

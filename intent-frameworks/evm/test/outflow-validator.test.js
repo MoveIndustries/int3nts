@@ -363,6 +363,30 @@ describe("IntentOutflowValidator", function () {
   });
 
   // ============================================================================
+  // Update Hub Config
+  // ============================================================================
+
+  describe("Update Hub Config", function () {
+    /// 19. Test: test_update_hub_config_succeeds: UpdateHubConfig Succeeds
+    /// Verifies that the admin can update hub_chain_id and trusted_hub_addr.
+    /// Why: Allows reconfiguring the outflow validator when hub addresses change.
+    /// TODO: Implement - EVM has updateHubConfig in IntentOutflowValidator
+    /// SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+
+    /// 20. Test: test_update_hub_config_rejects_non_admin: UpdateHubConfig Rejects Non-Admin
+    /// Verifies that only the admin can update config.
+    /// Why: Prevents unauthorized reconfiguration of the hub trust relationship.
+    /// TODO: Implement - EVM has updateHubConfig with onlyOwner modifier
+    /// SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+
+    /// 21. Test: test_update_hub_config_then_lz_receive: UpdateHubConfig Then LzReceive
+    /// Verifies end-to-end: update config, then receive message from new hub address.
+    /// Why: Ensures the updated config is used for GMP message validation.
+    /// TODO: Implement - EVM has updateHubConfig in IntentOutflowValidator
+    /// SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+  });
+
+  // ============================================================================
   // Helper Functions
   // ============================================================================
 

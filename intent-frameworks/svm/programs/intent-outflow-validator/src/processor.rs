@@ -53,6 +53,13 @@ pub fn process_instruction(
             msg!("Instruction: FulfillIntent");
             process_fulfill_intent(program_id, accounts, intent_id)
         }
+        OutflowInstruction::UpdateHubConfig {
+            hub_chain_id,
+            trusted_hub_addr,
+        } => {
+            msg!("Instruction: UpdateHubConfig");
+            process_update_hub_config(program_id, accounts, hub_chain_id, trusted_hub_addr)
+        }
     }
 }
 
@@ -376,7 +383,7 @@ fn process_fulfill_intent(
     send_data.push(5); // Send variant index
     send_data.extend_from_slice(&config.hub_chain_id.to_le_bytes());
     send_data.extend_from_slice(&config.trusted_hub_addr);
-    send_data.extend_from_slice(&program_id.to_bytes()); // src_addr = outflow-validator program ID
+    send_data.extend_from_slice(&gmp_endpoint_program.key.to_bytes()); // src_addr = GMP endpoint (trusted remote on hub)
     send_data.extend_from_slice(&(payload.len() as u32).to_le_bytes());
     send_data.extend_from_slice(&payload);
 
@@ -399,5 +406,49 @@ fn process_fulfill_intent(
     invoke(&cpi_instruction, &gmp_accounts)?;
 
     msg!("FulfillmentProof sent to hub");
+    Ok(())
+}
+
+/// Update the hub chain configuration.
+/// Only the admin who initialized the program can call this.
+fn process_update_hub_config(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    hub_chain_id: u32,
+    trusted_hub_addr: [u8; 32],
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    let config_account = next_account_info(account_info_iter)?;
+    let admin = next_account_info(account_info_iter)?;
+
+    // Verify admin is signer
+    if !admin.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Verify config PDA
+    let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], program_id);
+    if config_account.key != &config_pda {
+        return Err(OutflowError::InvalidPda.into());
+    }
+
+    // Load config and verify admin matches
+    let mut config = ConfigAccount::try_from_slice(&config_account.data.borrow())
+        .map_err(|_| OutflowError::InvalidAccountOwner)?;
+
+    if config.admin != *admin.key {
+        msg!("Unauthorized: signer is not admin");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Update config
+    config.hub_chain_id = hub_chain_id;
+    config.trusted_hub_addr = trusted_hub_addr;
+    config.serialize(&mut &mut config_account.data.borrow_mut()[..])?;
+
+    msg!(
+        "OutflowValidator hub config updated: hub_chain_id={}",
+        hub_chain_id,
+    );
     Ok(())
 }

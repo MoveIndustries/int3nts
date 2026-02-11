@@ -186,7 +186,7 @@ pub fn build_test_config_with_svm() -> Config {
     config.connected_chain_svm = Some(SvmChainConfig {
         name: "Connected SVM Chain".to_string(),
         rpc_url: "http://127.0.0.1:8899".to_string(),
-        chain_id: 4,
+        chain_id: 901,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
     });
     config
@@ -263,7 +263,7 @@ pub fn create_default_intent_evm() -> IntentEvent {
 #[allow(dead_code)]
 pub fn create_default_intent_svm() -> IntentEvent {
     IntentEvent {
-        connected_chain_id: Some(4), // SVM chain ID (matches build_test_config_with_svm)
+        connected_chain_id: Some(901), // SVM chain ID (matches build_test_config_with_svm)
         requester_addr_connected_chain: Some(DUMMY_REQUESTER_ADDR_SVM.to_string()), // SVM address format (base58)
         ..create_default_intent_mvm()
     }
