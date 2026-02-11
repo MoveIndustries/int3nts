@@ -13,7 +13,7 @@ import { fetchTokenBalance, type TokenBalance } from '@/lib/balances';
 import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
 import { PublicKey } from '@solana/web3.js';
 import { INTENT_MODULE_ADDR, hexToBytes, padEvmAddressToMove } from '@/lib/move-transactions';
-import { INTENT_ESCROW_ABI, ERC20_ABI, intentIdToEvmFormat, getEscrowContractAddress } from '@/lib/escrow';
+import { INTENT_ESCROW_ABI, ERC20_ABI, intentIdToEvmBytes32, getEscrowContractAddress, checkHasRequirements } from '@/lib/escrow';
 import {
   buildCreateEscrowInstruction,
   getSvmTokenAccount,
@@ -243,6 +243,10 @@ export function IntentBuilder() {
   const [escrowHash, setEscrowHash] = useState<string | null>(null);
   const [approvingToken, setApprovingToken] = useState(false);
   const [creatingEscrow, setCreatingEscrow] = useState(false);
+
+  // GMP requirements delivery state (for EVM inflow intents)
+  const [requirementsDelivered, setRequirementsDelivered] = useState(false);
+  const [pollingRequirements, setPollingRequirements] = useState(false);
   
   // Wagmi hooks for escrow creation
   const { writeContract: writeApprove, data: approveHash, error: approveError, isPending: isApprovePending, reset: resetApprove } = useWriteContract();
@@ -374,6 +378,53 @@ export function IntentBuilder() {
     intentStatus,
   });
 
+  // Poll for GMP requirements delivery on EVM connected chain (inflow only).
+  // The escrow contract rejects createEscrow until IntentRequirements arrive via GMP.
+  useEffect(() => {
+    if (!transactionHash || !savedDraftData || escrowHash) return;
+    // Only for inflow on EVM chains
+    const isInflow = !isHubChainId(savedDraftData.offeredChainId);
+    const chainKey = Object.entries(CHAIN_CONFIGS).find(
+      ([, config]) => String(config.chainId) === savedDraftData.offeredChainId
+    )?.[0] || null;
+    if (!isInflow || !chainKey || getChainType(chainKey) !== 'evm') {
+      setRequirementsDelivered(true); // SVM/MVM don't need this gate
+      return;
+    }
+
+    let cancelled = false;
+    setPollingRequirements(true);
+    setRequirementsDelivered(false);
+
+    const poll = async () => {
+      let attempts = 0;
+      const maxAttempts = 60; // 60 * 3s = 3 minutes
+      while (!cancelled && attempts < maxAttempts) {
+        try {
+          const delivered = await checkHasRequirements(chainKey, savedDraftData.intentId);
+          if (delivered) {
+            if (!cancelled) {
+              console.log('GMP requirements delivered to EVM chain');
+              setRequirementsDelivered(true);
+              setPollingRequirements(false);
+            }
+            return;
+          }
+        } catch (err) {
+          console.warn('Error checking hasRequirements:', err);
+        }
+        attempts++;
+        await new Promise(r => setTimeout(r, 3000));
+      }
+      if (!cancelled) {
+        setPollingRequirements(false);
+      }
+    };
+
+    poll();
+    return () => { cancelled = true; };
+  }, [transactionHash, savedDraftData, escrowHash]);
+
   // Restore draft ID from localStorage after mount (to avoid hydration mismatch)
   useEffect(() => {
     setMounted(true);
@@ -478,6 +529,8 @@ export function IntentBuilder() {
     setEscrowHash(null);
     setApprovingToken(false);
     setCreatingEscrow(false);
+    setRequirementsDelivered(false);
+    setPollingRequirements(false);
     resetApprove();
     resetEscrow();
     if (typeof window !== 'undefined') {
@@ -1322,14 +1375,7 @@ export function IntentBuilder() {
       const tokenAddress = effectiveOfferedToken.metadata as `0x${string}`;
       // Use amount from savedDraftData since offeredAmount state might be stale
       const amount = BigInt(savedDraftData.offeredAmount);
-      const intentIdEvm = intentIdToEvmFormat(savedDraftData.intentId);
-      
-      // Get solver's EVM address from signature response (required for inflow escrows)
-      if (!signature.solver_evm_addr) {
-        throw new Error('Solver has no EVM address registered. The solver must register with an EVM address to fulfill inflow intents.');
-      }
-      const solverAddress = signature.solver_evm_addr;
-      console.log('Solver EVM address:', solverAddress);
+      const intentIdEvm = intentIdToEvmBytes32(savedDraftData.intentId);
 
       // First approve token (approve a large amount to avoid repeated approvals)
       const approveAmount = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'); // max uint256
@@ -1374,21 +1420,15 @@ export function IntentBuilder() {
       const escrowAddress = getEscrowContractAddress(offeredToken.chain);
       const tokenAddress = offeredToken.metadata as `0x${string}`;
       const amount = BigInt(toSmallestUnits(parseFloat(offeredAmount), offeredToken.decimals));
-      const intentIdEvm = intentIdToEvmFormat(savedDraftData.intentId);
-      
-      // Get solver's EVM address from signature response (required for inflow escrows)
-      if (!signature.solver_evm_addr) {
-        throw new Error('Solver has no EVM address registered. The solver must register with an EVM address to fulfill inflow intents.');
-      }
-      const solverAddress = signature.solver_evm_addr;
-      
-      console.log('Creating escrow:', { escrowAddress, tokenAddress, amount: amount.toString(), intentIdEvm: intentIdEvm.toString(), solverAddress });
+      const intentIdEvm = intentIdToEvmBytes32(savedDraftData.intentId);
+
+      console.log('Creating escrow:', { escrowAddress, tokenAddress, amount: amount.toString(), intentIdEvm });
 
       writeCreateEscrow({
         address: escrowAddress,
         abi: INTENT_ESCROW_ABI,
-        functionName: 'createEscrow',
-        args: [intentIdEvm, tokenAddress, amount, solverAddress as `0x${string}`],
+        functionName: 'createEscrowWithValidation',
+        args: [intentIdEvm, tokenAddress, amount],
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create escrow');
@@ -1666,22 +1706,24 @@ export function IntentBuilder() {
             <button
               type="button"
               onClick={handleCreateEscrow}
-              disabled={approvingToken || creatingEscrow || isApproving || isCreatingEscrow || isApprovePending || isEscrowPending || !escrowWalletReady}
+              disabled={approvingToken || creatingEscrow || isApproving || isCreatingEscrow || isApprovePending || isEscrowPending || !escrowWalletReady || (!escrowRequiresSvm && !requirementsDelivered)}
               className="w-full px-4 py-2 rounded text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {escrowRequiresSvm
                 ? creatingEscrow
                   ? 'Sending...'
                   : 'Create Escrow on SVM'
-                : isApprovePending
-                  ? 'Confirm in wallet...'
-                  : approvingToken || isApproving
-                    ? 'Approving token...'
-                    : isEscrowPending
-                      ? 'Confirm escrow in wallet...'
-                      : creatingEscrow || isCreatingEscrow
-                        ? 'Sending...'
-                        : 'Create Escrow on EVM'}
+                : pollingRequirements
+                  ? 'Waiting for GMP relay...'
+                  : isApprovePending
+                    ? 'Confirm in wallet...'
+                    : approvingToken || isApproving
+                      ? 'Approving token...'
+                      : isEscrowPending
+                        ? 'Confirm escrow in wallet...'
+                        : creatingEscrow || isCreatingEscrow
+                          ? 'Sending...'
+                          : 'Create Escrow on EVM'}
             </button>
           )}
           {(!isHubChainId(savedDraftData?.offeredChainId)) && transactionHash && escrowHash && (

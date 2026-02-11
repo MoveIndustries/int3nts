@@ -163,9 +163,9 @@ impl InflowService {
         if let Some(client) = &self.evm_client {
             match client.get_block_number().await {
                 Ok(current_block) => {
-                    // Look back 200 blocks (~7 minutes on Base)
-                    let from_block = if current_block > 200 {
-                        current_block - 200
+                    // Alchemy free tier limits eth_getLogs to 10-block range; cap to 9
+                    let from_block = if current_block > 9 {
+                        current_block - 9
                     } else {
                         0
                     };
@@ -174,7 +174,7 @@ impl InflowService {
                         "Querying EVM chain for escrow events (from_block={}, current_block={})",
                         from_block, current_block
                     );
-                    match client.get_escrow_events(Some(from_block), None).await {
+                    match client.get_escrow_events(Some(from_block), Some(current_block)).await {
                         Ok(events) => {
                             if !events.is_empty() {
                                 info!("Found {} EVM escrow events", events.len());
