@@ -18,7 +18,7 @@ verify_solver_registered
 
 INTENT_ID="0x$(openssl rand -hex 32)"
 
-CONNECTED_CHAIN_ID=4
+CONNECTED_CHAIN_ID=901
 HUB_CHAIN_ID=1
 
 HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")

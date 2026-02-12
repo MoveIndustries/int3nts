@@ -27,7 +27,7 @@ INTENT_ID="0x$(openssl rand -hex 32)"
 # ============================================================================
 # SECTION 2: GET ADDRES AND CONFIGURATION
 # ============================================================================
-CONNECTED_CHAIN_ID=3
+CONNECTED_CHAIN_ID=31337
 HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
 TEST_TOKENS_HUB=$(get_profile_address "test-tokens-chain1")
 REQUESTER_HUB_ADDR=$(get_profile_address "requester-chain1")

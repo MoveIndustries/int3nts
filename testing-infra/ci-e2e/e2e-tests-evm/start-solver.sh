@@ -72,7 +72,7 @@ generate_solver_config_evm() {
     local hub_rpc="${CHAIN1_URL:-http://127.0.0.1:8080/v1}"
     local evm_rpc="${EVM_RPC_URL:-http://127.0.0.1:8545}"
     local hub_chain_id="${HUB_CHAIN_ID:-1}"
-    local evm_chain_id="${EVM_CHAIN_ID:-3}"
+    local evm_chain_id="${EVM_CHAIN_ID:-31337}"
     local module_addr="0x${chain1_addr}"
     local escrow_contract="${escrow_addr}"
     local solver_addr="0x${solver_chain1_addr}"

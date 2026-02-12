@@ -21,8 +21,8 @@ verify_solver_registered
 # Generate a random intent_id that will be used for both hub and escrow
 INTENT_ID="0x$(openssl rand -hex 32)"
 
-# EVM mode: CONNECTED_CHAIN_ID=3
-CONNECTED_CHAIN_ID=3
+# EVM mode: CONNECTED_CHAIN_ID=31337 (matches Hardhat default network chain ID)
+CONNECTED_CHAIN_ID=31337
 
 # Get addresses
 HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")

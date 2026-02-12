@@ -53,7 +53,7 @@ cat > "$TEMP_FILE" << EOF
 name = "Connected EVM Chain"
 rpc_url = "http://127.0.0.1:8545"
 escrow_contract_addr = "$CONTRACT_ADDR"
-chain_id = 3
+chain_id = 31337
 approver_evm_pubkey_hash = "$APPROVER_ADDR"
 gmp_endpoint_addr = "$GMP_ENDPOINT"
 outflow_validator_addr = "$OUTFLOW_VALIDATOR"
