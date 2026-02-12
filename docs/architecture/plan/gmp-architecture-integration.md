@@ -206,7 +206,7 @@ These apply to all `lzReceive()` handlers in both flows:
 
 - `lz_send()`: Encode and send message via integrated GMP endpoint (LZ-compatible naming)
 - `lz_receive()`: Entry point called by relay via `deliver_message()`, dispatches to handlers
-- Trusted remote verification
+- Remote GMP endpoint verification
 
 **Note:** The `intent_gmp.move` module listed above serves as both the LZ-compatible interface and the integrated GMP endpoint. `send()` emits `MessageSent` event, `deliver_message()` is called by the integrated GMP relay.
 

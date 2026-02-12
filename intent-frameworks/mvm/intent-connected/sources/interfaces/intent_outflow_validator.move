@@ -59,8 +59,8 @@ module mvmt_intent::intent_outflow_validator {
     /// - Decoded IntentRequirements struct
     ///
     /// # Aborts
-    /// - EINVALID_SOURCE_CHAIN: If source chain is not the trusted hub
-    /// - EINVALID_SOURCE_ADDRESS: If source address is not the trusted hub program
+    /// - EINVALID_SOURCE_CHAIN: If source chain is not the hub
+    /// - EINVALID_SOURCE_ADDRESS: If source address is not the hub GMP endpoint
     public fun receive_intent_requirements(
         src_chain_id: u32,
         _src_address: vector<u8>,
@@ -80,7 +80,7 @@ module mvmt_intent::intent_outflow_validator {
             expiry: gmp_common::intent_requirements_expiry(&msg),
         });
 
-        // TODO: Validate source chain and address are the trusted hub
+        // TODO: Validate source chain and address are the hub GMP endpoint
         // TODO: Store requirements for later validation during escrow creation
 
         msg

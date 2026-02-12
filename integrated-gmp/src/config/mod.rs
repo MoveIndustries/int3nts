@@ -31,7 +31,7 @@ pub struct Config {
     #[serde(default)]
     pub connected_chain_svm: Option<SvmChainConfig>,
     /// Integrated GMP configuration (keys, timeouts, etc.)
-    pub integrated_gmp: TrustedGmpConfig,
+    pub integrated_gmp: IntegratedGmpConfig,
     /// API server configuration (host, port, CORS settings)
     pub api: ApiConfig,
 }
@@ -105,7 +105,7 @@ pub struct SvmChainConfig {
 /// Keys are loaded from environment variables at runtime for security.
 /// The config file contains the environment variable names, not the actual keys.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TrustedGmpConfig {
+pub struct IntegratedGmpConfig {
     /// Environment variable name containing Ed25519 private key (base64 encoded)
     /// Default: "INTEGRATED_GMP_PRIVATE_KEY"
     #[serde(default = "default_private_key_env")]
@@ -128,7 +128,7 @@ fn default_public_key_env() -> String {
     "INTEGRATED_GMP_PUBLIC_KEY".to_string()
 }
 
-impl TrustedGmpConfig {
+impl IntegratedGmpConfig {
     /// Loads the private key from the environment variable.
     ///
     /// # Returns
@@ -306,7 +306,7 @@ impl Config {
                 escrow_module_addr: None,
             },
             connected_chain_mvm: None, // Optional connected Move VM chain configuration
-            integrated_gmp: TrustedGmpConfig {
+            integrated_gmp: IntegratedGmpConfig {
                 private_key_env: "INTEGRATED_GMP_PRIVATE_KEY".to_string(),
                 public_key_env: "INTEGRATED_GMP_PUBLIC_KEY".to_string(),
                 polling_interval_ms: 2000,

@@ -16,7 +16,7 @@ For general use cases applicable to all flows, see [conception_generic.md](conce
 sequenceDiagram
     participant Requester
     participant Hub as Hub Chain
-    participant TrustedGMP as Integrated-GMP
+    participant IntegratedGMP as Integrated-GMP
     participant Connected as Connected Chain
     participant Solver
 
@@ -28,20 +28,20 @@ sequenceDiagram
 
     Note over Requester,Solver: Intent creation on Hub
     Requester->>Hub: Create reserved intent
-    Hub->>TrustedGMP: Request-intent event
+    Hub->>IntegratedGMP: Request-intent event
 
     Note over Requester,Solver: Escrow on Connected Chain
     Requester->>Connected: Create escrow (locks tokens)
-    Connected->>TrustedGMP: Escrow event
+    Connected->>IntegratedGMP: Escrow event
 
     Note over Requester,Solver: Solver fulfillment (+ collateral release)
     Solver->>Hub: Fulfill intent
     Hub->>Hub: Release collateral
-    Hub->>TrustedGMP: Fulfillment event
+    Hub->>IntegratedGMP: Fulfillment event
 
     Note over Requester,Solver: Integrated-GMP validation and approval
-    TrustedGMP->>TrustedGMP: Validate fulfillment conditions
-    TrustedGMP->>Solver: Generate approval signature
+    IntegratedGMP->>IntegratedGMP: Validate fulfillment conditions
+    IntegratedGMP->>Solver: Generate approval signature
 
     Note over Requester,Solver: Escrow release
     Solver->>Connected: Release escrow (with integrated-gmp signature)

@@ -167,8 +167,8 @@ impl NativeGmpRelayConfig {
 pub struct GmpMessage {
     /// Source chain ID
     pub src_chain_id: u32,
-    /// Source address (32 bytes, hex encoded with 0x prefix)
-    pub src_addr: String,
+    /// Remote GMP endpoint address (32 bytes, hex encoded with 0x prefix)
+    pub remote_gmp_endpoint_addr: String,
     /// Destination chain ID
     pub dst_chain_id: u32,
     /// Destination address (32 bytes, hex encoded with 0x prefix)
@@ -666,10 +666,10 @@ impl NativeGmpRelay {
 
             let message = GmpMessage {
                 src_chain_id,
-                // Use the module address (where GMP contracts are deployed) as src_addr,
+                // Use the module address (where GMP contracts are deployed) as remote_gmp_endpoint_addr,
                 // not the individual sender. The destination chain's intent_gmp
-                // trusts the source chain's module address, not individual senders.
-                src_addr: normalize_address(module_addr),
+                // validates the source chain's module address as the remote GMP endpoint, not individual senders.
+                remote_gmp_endpoint_addr: normalize_address(module_addr),
                 dst_chain_id,
                 dst_addr: format!("0x{}", dst_addr_hex),
                 payload: format!("0x{}", payload_hex),
@@ -678,13 +678,13 @@ impl NativeGmpRelay {
 
             info!(
                 "MVM {} outbox: nonce={}, src={}, dst_chain={}",
-                chain_name, nonce, message.src_addr, message.dst_chain_id
+                chain_name, nonce, message.remote_gmp_endpoint_addr, message.dst_chain_id
             );
 
             if let Err(e) = self.deliver_message(&message).await {
                 let err_str = format!("{:#}", e);
                 // Permanent errors: skip and advance past the message
-                if err_str.contains("E_UNTRUSTED_REMOTE")
+                if err_str.contains("E_UNKNOWN_REMOTE_GMP_ENDPOINT")
                     || err_str.contains("E_ALREADY_DELIVERED")
                     || err_str.contains("AlreadyDelivered")
                     || err_str.contains("Already delivered")
@@ -781,7 +781,7 @@ impl NativeGmpRelay {
                 // Build GmpMessage from the on-chain data
                 let message = GmpMessage {
                     src_chain_id: svm_chain_id,
-                    src_addr: format!("0x{}", hex::encode(msg.src_addr)),
+                    remote_gmp_endpoint_addr: format!("0x{}", hex::encode(msg.remote_gmp_endpoint_addr)),
                     dst_chain_id: msg.dst_chain_id,
                     dst_addr: format!("0x{}", hex::encode(msg.dst_addr)),
                     payload: format!("0x{}", hex::encode(&msg.payload)),
@@ -790,13 +790,13 @@ impl NativeGmpRelay {
 
                 info!(
                     "SVM outbox: nonce={}, src={}, dst_chain={}",
-                    nonce, message.src_addr, message.dst_chain_id
+                    nonce, message.remote_gmp_endpoint_addr, message.dst_chain_id
                 );
 
                 if let Err(e) = self.deliver_message(&message).await {
                     let err_str = format!("{:#}", e);
                     // Permanent errors: skip and advance past the message
-                    if err_str.contains("E_UNTRUSTED_REMOTE")
+                    if err_str.contains("E_UNKNOWN_REMOTE_GMP_ENDPOINT")
                         || err_str.contains("E_ALREADY_DELIVERED")
                     {
                         warn!(
@@ -837,12 +837,12 @@ impl NativeGmpRelay {
         // Parse nonce
         let nonce: u64 = event.nonce.parse().context("Invalid nonce")?;
 
-        // Source address is the sender
-        let src_addr = normalize_address(&event.sender);
+        // Source address is the sender (remote GMP endpoint address)
+        let remote_gmp_endpoint_addr = normalize_address(&event.sender);
 
         Ok(GmpMessage {
             src_chain_id,
-            src_addr,
+            remote_gmp_endpoint_addr,
             dst_chain_id,
             dst_addr,
             payload,
@@ -918,7 +918,7 @@ impl NativeGmpRelay {
         );
 
         // Parse addresses and payload to hex format (strip 0x if present)
-        let src_addr_hex = message.src_addr.strip_prefix("0x").unwrap_or(&message.src_addr);
+        let remote_gmp_endpoint_addr_hex = message.remote_gmp_endpoint_addr.strip_prefix("0x").unwrap_or(&message.remote_gmp_endpoint_addr);
         let payload_hex = message.payload.strip_prefix("0x").unwrap_or(&message.payload);
 
         // Convert base64 private key to hex for CLI
@@ -934,9 +934,9 @@ impl NativeGmpRelay {
         );
 
         // Build CLI arguments
-        // Function signature: deliver_message_entry(relay: &signer, src_chain_id: u32, src_addr: vector<u8>, payload: vector<u8>)
+        // Function signature: deliver_message_entry(relay: &signer, src_chain_id: u32, remote_gmp_endpoint_addr: vector<u8>, payload: vector<u8>)
         let src_chain_id_arg = format!("u32:{}", message.src_chain_id);
-        let src_addr_arg = format!("hex:{}", src_addr_hex);
+        let remote_gmp_endpoint_addr_arg = format!("hex:{}", remote_gmp_endpoint_addr_hex);
         let payload_arg = format!("hex:{}", payload_hex);
 
         // Normalize RPC URL (strip trailing /v1 if present for CLI)
@@ -961,7 +961,7 @@ impl NativeGmpRelay {
                 &function_id,
                 "--args",
                 &src_chain_id_arg,
-                &src_addr_arg,
+                &remote_gmp_endpoint_addr_arg,
                 &payload_arg,
             ])
             .output()
@@ -1061,7 +1061,7 @@ impl NativeGmpRelay {
         // ABI-encode deliverMessage(uint32,bytes32,bytes)
         let calldata = evm_encode_deliver_message(
             message.src_chain_id,
-            &message.src_addr,
+            &message.remote_gmp_endpoint_addr,
             &message.payload,
         )?;
 
@@ -1252,7 +1252,7 @@ impl NativeGmpRelay {
 
         Some(GmpMessage {
             src_chain_id: evm_chain_id,
-            src_addr: gmp_addr,
+            remote_gmp_endpoint_addr: gmp_addr,
             dst_chain_id,
             dst_addr,
             payload,
@@ -1547,8 +1547,8 @@ impl NativeGmpRelay {
         let relay_keypair = self.load_svm_keypair()?;
         let relay_pubkey = relay_keypair.pubkey();
 
-        // Parse source address (32 bytes)
-        let src_addr = parse_32_byte_address(&message.src_addr)?;
+        // Parse remote GMP endpoint address (32 bytes)
+        let remote_gmp_endpoint_addr = parse_32_byte_address(&message.remote_gmp_endpoint_addr)?;
 
         // Parse destination address (the receiving program on SVM - e.g., outflow-validator)
         let dst_program = parse_svm_pubkey(&message.dst_addr)?;
@@ -1560,8 +1560,8 @@ impl NativeGmpRelay {
         let (config_pda, _) = Pubkey::find_program_address(&[b"config"], &program_id);
         let (relay_pda, _) =
             Pubkey::find_program_address(&[b"relay", relay_pubkey.as_ref()], &program_id);
-        let (trusted_remote_pda, _) = Pubkey::find_program_address(
-            &[b"trusted_remote", &message.src_chain_id.to_le_bytes()],
+        let (remote_gmp_endpoint_pda, _) = Pubkey::find_program_address(
+            &[b"remote_gmp_endpoint", &message.src_chain_id.to_le_bytes()],
             &program_id,
         );
         // Derive delivered message PDA from payload (intent_id + msg_type)
@@ -1608,7 +1608,7 @@ impl NativeGmpRelay {
 
         // Build base accounts for DeliverMessage
         // Account order (updated for intent_id-based dedup):
-        // 0. Config, 1. Relay, 2. TrustedRemote, 3. DeliveredMessage, 4. RelaySigner, 5. Payer
+        // 0. Config, 1. Relay, 2. RemoteGmpEndpoint, 3. DeliveredMessage, 4. RelaySigner, 5. Payer
         // Track if we need to create an ATA before delivering the message (for FulfillmentProof)
         // Tuple: (ata, owner, mint, token_program, associated_token_program)
         #[allow(clippy::type_complexity)]
@@ -1618,7 +1618,7 @@ impl NativeGmpRelay {
         let mut accounts = vec![
             AccountMeta::new_readonly(config_pda, false),
             AccountMeta::new_readonly(relay_pda, false),
-            AccountMeta::new_readonly(trusted_remote_pda, false),
+            AccountMeta::new_readonly(remote_gmp_endpoint_pda, false),
             AccountMeta::new(delivered_pda, false),
             AccountMeta::new_readonly(relay_pubkey, true), // signer
             AccountMeta::new(relay_pubkey, true),          // payer (signer)
@@ -1772,7 +1772,7 @@ impl NativeGmpRelay {
         // Build DeliverMessage instruction
         let instruction_data = SvmDeliverMessageInstruction {
             src_chain_id: message.src_chain_id,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         };
 
@@ -1834,8 +1834,8 @@ impl NativeGmpRelay {
             .send_and_confirm_transaction(&transaction)
             .map_err(|e| {
                 error!(
-                    "SVM DeliverMessage failed: {}. Accounts: config={}, relay={}, trusted_remote={}, delivered={}, dst_program={}",
-                    e, config_pda, relay_pda, trusted_remote_pda, delivered_pda, dst_program
+                    "SVM DeliverMessage failed: {}. Accounts: config={}, relay={}, remote_gmp_endpoint={}, delivered={}, dst_program={}",
+                    e, config_pda, relay_pda, remote_gmp_endpoint_pda, delivered_pda, dst_program
                 );
                 e
             })
@@ -1885,14 +1885,14 @@ impl NativeGmpRelay {
 #[derive(BorshSerialize)]
 struct SvmDeliverMessageInstruction {
     src_chain_id: u32,
-    src_addr: [u8; 32],
+    remote_gmp_endpoint_addr: [u8; 32],
     payload: Vec<u8>,
 }
 
 impl SvmDeliverMessageInstruction {
     fn try_to_vec(&self) -> Result<Vec<u8>> {
         // Instruction discriminator: DeliverMessage is variant 6 in the enum
-        // (Initialize=0, AddRelay=1, RemoveRelay=2, SetTrustedRemote=3, SetRouting=4, Send=5, DeliverMessage=6)
+        // (Initialize=0, AddRelay=1, RemoveRelay=2, SetRemoteGmpEndpointAddr=3, SetRouting=4, Send=5, DeliverMessage=6)
         let mut data = vec![6u8];
         data.extend(
             borsh::to_vec(self).context("Failed to serialize instruction data")?,
@@ -2083,7 +2083,7 @@ fn evm_event_topic(signature: &str) -> String {
 /// Returns the full calldata (selector + encoded params) as a hex string with 0x prefix.
 fn evm_encode_deliver_message(
     src_chain_id: u32,
-    src_addr: &str,
+    remote_gmp_endpoint_addr: &str,
     payload: &str,
 ) -> Result<String> {
     // Function selector: keccak256("deliverMessage(uint32,bytes32,bytes)")[0:4]
@@ -2092,15 +2092,15 @@ fn evm_encode_deliver_message(
     let hash = hasher.finalize();
     let selector = &hash[..4];
 
-    // Parse src_addr to 32 bytes
-    let src_addr_bytes = parse_32_byte_address(src_addr)?;
+    // Parse remote_gmp_endpoint_addr to 32 bytes
+    let remote_gmp_endpoint_addr_bytes = parse_32_byte_address(remote_gmp_endpoint_addr)?;
 
     // Parse payload to bytes
     let payload_bytes = hex_to_bytes(payload)?;
 
     // ABI encoding: (uint32, bytes32, bytes)
     // Word 0: srcChainId (uint32, left-padded to 32 bytes)
-    // Word 1: srcAddr (bytes32)
+    // Word 1: remoteGmpEndpointAddr (bytes32)
     // Word 2: offset to payload (= 96 = 3 * 32, after the 3 head words)
     // Word 3: payload length
     // Word 4+: payload data (right-padded to 32-byte boundary)
@@ -2114,8 +2114,8 @@ fn evm_encode_deliver_message(
     word[28..32].copy_from_slice(&src_chain_id.to_be_bytes());
     data.extend_from_slice(&word);
 
-    // Word 1: srcAddr
-    data.extend_from_slice(&src_addr_bytes);
+    // Word 1: remoteGmpEndpointAddr
+    data.extend_from_slice(&remote_gmp_endpoint_addr_bytes);
 
     // Word 2: offset to payload (96 = 0x60, after 3 head words)
     let mut word = [0u8; 32];

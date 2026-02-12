@@ -41,14 +41,14 @@ module mvmt_intent::fa_intent_inflow_tests {
         // Initialize GMP modules for cross-chain messaging
         gmp_intent_state::init_for_test(mvmt_intent);
         gmp_sender::init_for_test(mvmt_intent);
-        // Use dst_chain_id = 2 (connected chain) with a dummy trusted remote address
-        let dummy_trusted_remote = vector::empty<u8>();
+        // Use dst_chain_id = 2 (connected chain) with a dummy remote GMP endpoint address
+        let dummy_remote_gmp_endpoint = vector::empty<u8>();
         let i = 0;
         while (i < 32) {
-            vector::push_back(&mut dummy_trusted_remote, 0xAB);
+            vector::push_back(&mut dummy_remote_gmp_endpoint, 0xAB);
             i = i + 1;
         };
-        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_trusted_remote);
+        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_remote_gmp_endpoint);
 
         // Create test fungible assets
         let (offered_metadata, _) = mvmt_intent::test_utils::register_and_mint_tokens(aptos_framework, requestor, 0);
@@ -136,13 +136,13 @@ module mvmt_intent::fa_intent_inflow_tests {
         // Initialize GMP modules for cross-chain messaging
         gmp_intent_state::init_for_test(mvmt_intent);
         gmp_sender::init_for_test(mvmt_intent);
-        let dummy_trusted_remote = vector::empty<u8>();
+        let dummy_remote_gmp_endpoint = vector::empty<u8>();
         let i = 0;
         while (i < 32) {
-            vector::push_back(&mut dummy_trusted_remote, 0xAB);
+            vector::push_back(&mut dummy_remote_gmp_endpoint, 0xAB);
             i = i + 1;
         };
-        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_trusted_remote);
+        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_remote_gmp_endpoint);
 
         // Create test fungible assets
         let (offered_metadata, _) = mvmt_intent::test_utils::register_and_mint_tokens(aptos_framework, requestor, 0);
@@ -239,13 +239,13 @@ module mvmt_intent::fa_intent_inflow_tests {
         // Initialize GMP modules for cross-chain messaging
         gmp_intent_state::init_for_test(mvmt_intent);
         gmp_sender::init_for_test(mvmt_intent);
-        let dummy_trusted_remote = vector::empty<u8>();
+        let dummy_remote_gmp_endpoint = vector::empty<u8>();
         let i = 0;
         while (i < 32) {
-            vector::push_back(&mut dummy_trusted_remote, 0xAB);
+            vector::push_back(&mut dummy_remote_gmp_endpoint, 0xAB);
             i = i + 1;
         };
-        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_trusted_remote);
+        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_remote_gmp_endpoint);
 
         // Create test fungible assets for cross-chain swap
         // Source FA (locked on connected chain) and desired FA (requested on hub chain)
@@ -507,13 +507,13 @@ module mvmt_intent::fa_intent_inflow_tests {
         // Initialize GMP modules for cross-chain messaging
         gmp_intent_state::init_for_test(mvmt_intent);
         gmp_sender::init_for_test(mvmt_intent);
-        let dummy_trusted_remote = vector::empty<u8>();
+        let dummy_remote_gmp_endpoint = vector::empty<u8>();
         let i = 0;
         while (i < 32) {
-            vector::push_back(&mut dummy_trusted_remote, 0xAB);
+            vector::push_back(&mut dummy_remote_gmp_endpoint, 0xAB);
             i = i + 1;
         };
-        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_trusted_remote);
+        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_remote_gmp_endpoint);
 
         // Create test fungible assets for cross-chain swap
         let (offered_metadata, _) = mvmt_intent::test_utils::register_and_mint_tokens(aptos_framework, requestor, 0);

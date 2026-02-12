@@ -96,13 +96,13 @@ if [ -n "$SVM_RELAY_PUBKEY" ]; then
         --rpc "$SVM_RPC_URL"
 fi
 
-# 3. Set hub as trusted remote
-echo "[initialize-gmp.sh] Setting hub (chain_id=$HUB_CHAIN_ID) as trusted remote..."
-"$CLI_BIN" gmp-set-trusted-remote \
+# 3. Set hub as remote GMP endpoint
+echo "[initialize-gmp.sh] Setting hub (chain_id=$HUB_CHAIN_ID) as remote GMP endpoint..."
+"$CLI_BIN" gmp-set-remote-gmp-endpoint-addr \
     --gmp-program-id "$SVM_GMP_ENDPOINT_ID" \
     --payer "$SVM_PAYER_KEYPAIR" \
     --src-chain-id "$HUB_CHAIN_ID" \
-    --trusted-addr "$HUB_ADDR_PADDED" \
+    --addr "$HUB_ADDR_PADDED" \
     --rpc "$SVM_RPC_URL"
 
 # 4. Initialize outflow validator

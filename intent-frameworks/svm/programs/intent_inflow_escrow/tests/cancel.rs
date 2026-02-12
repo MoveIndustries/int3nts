@@ -3,7 +3,7 @@ mod common;
 use common::{
     create_cancel_ix, create_escrow_ix, create_lz_receive_fulfillment_proof_ix,
     create_lz_receive_requirements_ix, generate_intent_id, get_token_balance, program_test,
-    read_escrow, setup_basic_env, DUMMY_HUB_CHAIN_ID, DUMMY_TRUSTED_HUB_ADDR,
+    read_escrow, setup_basic_env, DUMMY_HUB_CHAIN_ID, DUMMY_HUB_GMP_ENDPOINT_ADDR,
 };
 use gmp_common::messages::{FulfillmentProof, IntentRequirements};
 use intent_inflow_escrow::state::seeds;
@@ -245,7 +245,7 @@ async fn test_revert_if_already_claimed() {
     let intent_id = [5u8; 32];
     let amount = 1_000_000u64;
     let src_chain_id = DUMMY_HUB_CHAIN_ID;
-    let src_addr = DUMMY_TRUSTED_HUB_ADDR;
+    let remote_gmp_endpoint_addr = DUMMY_HUB_GMP_ENDPOINT_ADDR;
 
     let (escrow_pda, _) =
         Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
@@ -273,7 +273,7 @@ async fn test_revert_if_already_claimed() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         requirements_payload,
     );
 
@@ -326,7 +326,7 @@ async fn test_revert_if_already_claimed() {
         env.gmp_config_pda,
         gmp_caller.pubkey(),
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         proof_payload,
     );
 

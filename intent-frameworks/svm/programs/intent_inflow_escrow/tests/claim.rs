@@ -3,7 +3,7 @@ mod common;
 use common::{
     create_escrow_ix, create_lz_receive_fulfillment_proof_ix, create_lz_receive_requirements_ix,
     generate_intent_id, get_token_balance, program_test, read_escrow, read_requirements,
-    setup_basic_env, DUMMY_HUB_CHAIN_ID, DUMMY_TRUSTED_HUB_ADDR,
+    setup_basic_env, DUMMY_HUB_CHAIN_ID, DUMMY_HUB_GMP_ENDPOINT_ADDR,
 };
 use gmp_common::messages::{FulfillmentProof, IntentRequirements};
 use intent_inflow_escrow::state::seeds;
@@ -65,7 +65,7 @@ async fn test_claim_with_valid_fulfillment_proof() {
     let intent_id = [2u8; 32];
     let amount = 500_000u64;
     let src_chain_id = DUMMY_HUB_CHAIN_ID;
-    let src_addr = DUMMY_TRUSTED_HUB_ADDR;
+    let remote_gmp_endpoint_addr = DUMMY_HUB_GMP_ENDPOINT_ADDR;
 
     // Derive PDAs
     let (escrow_pda, _) =
@@ -93,7 +93,7 @@ async fn test_claim_with_valid_fulfillment_proof() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         requirements_payload,
     );
 
@@ -171,7 +171,7 @@ async fn test_claim_with_valid_fulfillment_proof() {
         env.gmp_config_pda, // PDA - must be derived, cannot be a DUMMY constant
         gmp_caller.pubkey(),
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         proof_payload,
     );
 
@@ -226,7 +226,7 @@ async fn test_revert_fulfillment_without_requirements() {
     let intent_id = generate_intent_id();
     let amount = 1_000_000u64;
     let src_chain_id = DUMMY_HUB_CHAIN_ID;
-    let src_addr = DUMMY_TRUSTED_HUB_ADDR;
+    let remote_gmp_endpoint_addr = DUMMY_HUB_GMP_ENDPOINT_ADDR;
 
     // Create escrow without requirements
     let create_ix = create_escrow_ix(
@@ -275,7 +275,7 @@ async fn test_revert_fulfillment_without_requirements() {
         env.gmp_config_pda, // PDA - must be derived, cannot be a DUMMY constant
         gmp_caller.pubkey(),
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         proof_payload,
     );
 
@@ -302,7 +302,7 @@ async fn test_prevent_double_fulfillment() {
     let intent_id = [3u8; 32];
     let amount = 500_000u64;
     let src_chain_id = DUMMY_HUB_CHAIN_ID;
-    let src_addr = DUMMY_TRUSTED_HUB_ADDR;
+    let remote_gmp_endpoint_addr = DUMMY_HUB_GMP_ENDPOINT_ADDR;
 
     let (escrow_pda, _) =
         Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
@@ -330,7 +330,7 @@ async fn test_prevent_double_fulfillment() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         requirements_payload,
     );
 
@@ -378,7 +378,7 @@ async fn test_prevent_double_fulfillment() {
         env.gmp_config_pda, // PDA - must be derived, cannot be a DUMMY constant
         gmp_caller.pubkey(),
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         proof_payload.clone(),
     );
 
@@ -404,7 +404,7 @@ async fn test_prevent_double_fulfillment() {
         env.gmp_config_pda, // PDA - must be derived, cannot be a DUMMY constant
         gmp_caller.pubkey(),
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         proof_payload,
     );
 
@@ -440,7 +440,7 @@ async fn test_revert_if_escrow_does_not_exist() {
     let intent_id = generate_intent_id();
     let amount = 1_000_000u64;
     let src_chain_id = DUMMY_HUB_CHAIN_ID;
-    let src_addr = DUMMY_TRUSTED_HUB_ADDR;
+    let remote_gmp_endpoint_addr = DUMMY_HUB_GMP_ENDPOINT_ADDR;
 
     let (escrow_pda, _) =
         Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
@@ -468,7 +468,7 @@ async fn test_revert_if_escrow_does_not_exist() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         requirements_payload,
     );
 
@@ -494,7 +494,7 @@ async fn test_revert_if_escrow_does_not_exist() {
         env.gmp_config_pda, // PDA - must be derived, cannot be a DUMMY constant
         gmp_caller.pubkey(),
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         proof_payload,
     );
 

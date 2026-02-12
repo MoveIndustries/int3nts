@@ -37,8 +37,8 @@ pub enum EscrowInstruction {
     LzReceive {
         /// Source chain ID
         src_chain_id: u32,
-        /// Source address (trusted hub address)
-        src_addr: [u8; 32],
+        /// Source address (hub GMP endpoint address)
+        remote_gmp_endpoint_addr: [u8; 32],
         /// GMP payload (message type in first byte determines routing)
         payload: Vec<u8>,
     },
@@ -52,8 +52,8 @@ pub enum EscrowInstruction {
     SetGmpConfig {
         /// The hub chain ID (LZ endpoint ID)
         hub_chain_id: u32,
-        /// The trusted hub address (32 bytes)
-        trusted_hub_addr: [u8; 32],
+        /// The hub GMP endpoint address (32 bytes)
+        hub_gmp_endpoint_addr: [u8; 32],
         /// The integrated GMP endpoint program ID
         gmp_endpoint: Pubkey,
     },
@@ -118,8 +118,8 @@ pub enum EscrowInstruction {
     LzReceiveRequirements {
         /// Source chain ID
         src_chain_id: u32,
-        /// Source address (trusted hub address)
-        src_addr: [u8; 32],
+        /// Source address (hub GMP endpoint address)
+        remote_gmp_endpoint_addr: [u8; 32],
         /// GMP payload (IntentRequirements message)
         payload: Vec<u8>,
     },
@@ -137,8 +137,8 @@ pub enum EscrowInstruction {
     LzReceiveFulfillmentProof {
         /// Source chain ID
         src_chain_id: u32,
-        /// Source address (trusted hub address)
-        src_addr: [u8; 32],
+        /// Source address (hub GMP endpoint address)
+        remote_gmp_endpoint_addr: [u8; 32],
         /// GMP payload (FulfillmentProof message)
         payload: Vec<u8>,
     },

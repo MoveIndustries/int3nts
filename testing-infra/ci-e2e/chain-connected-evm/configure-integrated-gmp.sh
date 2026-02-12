@@ -32,10 +32,13 @@ OUTFLOW_VALIDATOR="${OUTFLOW_VALIDATOR_ADDR:-}"
 log_and_echo "   EVM GMP Endpoint: $GMP_ENDPOINT"
 log_and_echo "   EVM Outflow Validator: $OUTFLOW_VALIDATOR"
 
-# Get integrated-gmp Ethereum address (Hardhat account 0; on-chain approver)
-log "   - Getting integrated-gmp Ethereum address (Hardhat account 0)..."
-APPROVER_ADDR=$(get_hardhat_account_address "0")
-log_and_echo "   EVM Approver: $APPROVER_ADDR"
+# Use the relay's actual ECDSA-derived EVM address (saved by deploy-contract.sh)
+APPROVER_ADDR="${RELAY_ETH_ADDRESS:-}"
+if [ -z "$APPROVER_ADDR" ]; then
+    log_and_echo "   ERROR: RELAY_ETH_ADDRESS not found in chain-info.env. Run deploy-contract.sh first."
+    exit 1
+fi
+log_and_echo "   EVM Approver (relay): $APPROVER_ADDR"
 
 # Config file path (created by chain-hub/configure-integrated-gmp.sh)
 INTEGRATED_GMP_E2E_CI_TESTING_CONFIG="$PROJECT_ROOT/integrated-gmp/config/integrated-gmp-e2e-ci-testing.toml"

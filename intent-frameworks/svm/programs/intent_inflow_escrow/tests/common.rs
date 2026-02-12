@@ -37,8 +37,8 @@ pub fn test_program_id() -> Pubkey {
 /// Dummy hub chain ID for testing GMP functionality
 pub const DUMMY_HUB_CHAIN_ID: u32 = 1;
 
-/// Dummy trusted hub address for testing GMP functionality
-pub const DUMMY_TRUSTED_HUB_ADDR: [u8; 32] = [0u8; 32];
+/// Dummy hub GMP endpoint address for testing GMP functionality
+pub const DUMMY_HUB_GMP_ENDPOINT_ADDR: [u8; 32] = [0u8; 32];
 
 // ============================================================================
 // TEST HARNESS HELPERS
@@ -318,7 +318,7 @@ pub fn create_set_gmp_config_ix(
     gmp_config_pda: Pubkey,
     admin: Pubkey,
     hub_chain_id: u32,
-    trusted_hub_addr: [u8; 32],
+    hub_gmp_endpoint_addr: [u8; 32],
     gmp_endpoint: Pubkey,
 ) -> Instruction {
     Instruction {
@@ -330,7 +330,7 @@ pub fn create_set_gmp_config_ix(
         ],
         data: EscrowInstruction::SetGmpConfig {
             hub_chain_id,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
             gmp_endpoint,
         }
         .try_to_vec()
@@ -346,7 +346,7 @@ pub fn create_lz_receive_requirements_ix(
     gmp_caller: Pubkey,
     payer: Pubkey,
     src_chain_id: u32,
-    src_addr: [u8; 32],
+    remote_gmp_endpoint_addr: [u8; 32],
     payload: Vec<u8>,
 ) -> Instruction {
     Instruction {
@@ -360,7 +360,7 @@ pub fn create_lz_receive_requirements_ix(
         ],
         data: EscrowInstruction::LzReceiveRequirements {
             src_chain_id,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         }
         .try_to_vec()
@@ -378,7 +378,7 @@ pub fn create_lz_receive_fulfillment_proof_ix(
     gmp_config_pda: Pubkey,
     gmp_caller: Pubkey,
     src_chain_id: u32,
-    src_addr: [u8; 32],
+    remote_gmp_endpoint_addr: [u8; 32],
     payload: Vec<u8>,
 ) -> Instruction {
     Instruction {
@@ -394,7 +394,7 @@ pub fn create_lz_receive_fulfillment_proof_ix(
         ],
         data: EscrowInstruction::LzReceiveFulfillmentProof {
             src_chain_id,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         }
         .try_to_vec()
@@ -411,7 +411,7 @@ pub fn create_lz_receive_generic_requirements_ix(
     gmp_caller: Pubkey,
     payer: Pubkey,
     src_chain_id: u32,
-    src_addr: [u8; 32],
+    remote_gmp_endpoint_addr: [u8; 32],
     payload: Vec<u8>,
 ) -> Instruction {
     Instruction {
@@ -425,7 +425,7 @@ pub fn create_lz_receive_generic_requirements_ix(
         ],
         data: EscrowInstruction::LzReceive {
             src_chain_id,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         }
         .try_to_vec()
@@ -444,7 +444,7 @@ pub fn create_lz_receive_generic_fulfillment_ix(
     gmp_config_pda: Pubkey,
     gmp_caller: Pubkey,
     src_chain_id: u32,
-    src_addr: [u8; 32],
+    remote_gmp_endpoint_addr: [u8; 32],
     payload: Vec<u8>,
 ) -> Instruction {
     Instruction {
@@ -460,7 +460,7 @@ pub fn create_lz_receive_generic_fulfillment_ix(
         ],
         data: EscrowInstruction::LzReceive {
             src_chain_id,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         }
         .try_to_vec()
@@ -503,7 +503,7 @@ pub struct TestEnv {
     /// on-chain. A hardcoded "dummy" address would fail PDA validation.
     pub gmp_config_pda: Pubkey,
     pub hub_chain_id: u32,
-    pub trusted_hub_addr: [u8; 32],
+    pub hub_gmp_endpoint_addr: [u8; 32],
 }
 
 /// Helper: Create a baseline environment used by most tests
@@ -556,7 +556,7 @@ pub async fn setup_basic_env(context: &mut ProgramTestContext) -> TestEnv {
         gmp_config_pda,
         requester.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         gmp_endpoint,
     );
 
@@ -574,7 +574,7 @@ pub async fn setup_basic_env(context: &mut ProgramTestContext) -> TestEnv {
         state_pda,
         gmp_config_pda,
         hub_chain_id: DUMMY_HUB_CHAIN_ID,
-        trusted_hub_addr: DUMMY_TRUSTED_HUB_ADDR,
+        hub_gmp_endpoint_addr: DUMMY_HUB_GMP_ENDPOINT_ADDR,
     }
 }
 

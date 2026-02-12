@@ -91,7 +91,7 @@ LZ V2 solves this by **separating send and receive into distinct components**:
 │                         │     │  (receiver)             │
 │   - lz_send()           │     │  - deliver_message()    │
 │   - MessageSent event   │     │  - route_message()      │
-│   - nonce tracking      │     │  - trusted remotes      │
+│   - nonce tracking      │     │  - remote GMP endpoints      │
 │                         │     │  - replay protection    │
 │   NO APP IMPORTS        │     │  IMPORTS APPS           │
 └─────────────────────────┘     └─────────────────────────┘

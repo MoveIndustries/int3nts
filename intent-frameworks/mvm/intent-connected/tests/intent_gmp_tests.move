@@ -26,13 +26,13 @@ module mvmt_intent::intent_gmp_tests {
         gmp_sender::initialize(&admin);
         intent_gmp::initialize(&admin);
         // Initialize connected chain modules
-        let trusted_hub_addr = create_test_32bytes(0x01);
-        intent_outflow_validator_impl::initialize(&admin, HUB_CHAIN_ID, copy trusted_hub_addr);
-        intent_inflow_escrow::initialize(&admin, HUB_CHAIN_ID, trusted_hub_addr);
+        let hub_gmp_endpoint_addr = create_test_32bytes(0x01);
+        intent_outflow_validator_impl::initialize(&admin, HUB_CHAIN_ID, copy hub_gmp_endpoint_addr);
+        intent_inflow_escrow::initialize(&admin, HUB_CHAIN_ID, hub_gmp_endpoint_addr);
         admin
     }
 
-    fun create_test_trusted_remote(): vector<u8> {
+    fun create_test_remote_gmp_endpoint(): vector<u8> {
         let addr = vector::empty<u8>();
         let i = 0;
         while (i < 32) {
@@ -128,12 +128,12 @@ module mvmt_intent::intent_gmp_tests {
     fun test_deliver_message_rejects_replay() {
         let admin = setup_test();
 
-        // Setup trusted remote (must match the hub addr used in module initialization)
-        let trusted_addr = create_test_32bytes(0x01);
-        intent_gmp::set_trusted_remote(
+        // Setup remote GMP endpoint (must match the hub addr used in module initialization)
+        let addr = create_test_32bytes(0x01);
+        intent_gmp::set_remote_gmp_endpoint_addr(
             &admin,
             HUB_CHAIN_ID,
-            copy trusted_addr,
+            copy addr,
         );
 
         // Create valid payload
@@ -143,7 +143,7 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp::deliver_message(
             &admin,
             HUB_CHAIN_ID,
-            copy trusted_addr,
+            copy addr,
             copy payload,
         );
 
@@ -155,7 +155,7 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp::deliver_message(
             &admin,
             HUB_CHAIN_ID,
-            trusted_addr,
+            addr,
             payload,
         );
 
@@ -174,13 +174,13 @@ module mvmt_intent::intent_gmp_tests {
         // Create unauthorized account
         let unauthorized = account::create_account_for_test(@0x999);
 
-        // Setup trusted remote (using admin from setup)
+        // Setup remote GMP endpoint (using admin from setup)
         let admin = account::create_account_for_test(ADMIN_ADDR);
-        let trusted_addr = create_test_trusted_remote();
-        intent_gmp::set_trusted_remote(
+        let addr = create_test_remote_gmp_endpoint();
+        intent_gmp::set_remote_gmp_endpoint_addr(
             &admin,
             HUB_CHAIN_ID,
-            copy trusted_addr,
+            copy addr,
         );
 
         // Create valid payload
@@ -190,7 +190,7 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp::deliver_message(
             &unauthorized,
             HUB_CHAIN_ID,
-            trusted_addr,
+            addr,
             payload,
         );
     }
@@ -202,12 +202,12 @@ module mvmt_intent::intent_gmp_tests {
     fun test_deliver_message_authorized_relay() {
         let admin = setup_test();
 
-        // Setup trusted remote (must match the hub addr used in module initialization)
-        let trusted_addr = create_test_32bytes(0x01);
-        intent_gmp::set_trusted_remote(
+        // Setup remote GMP endpoint (must match the hub addr used in module initialization)
+        let addr = create_test_32bytes(0x01);
+        intent_gmp::set_remote_gmp_endpoint_addr(
             &admin,
             HUB_CHAIN_ID,
-            copy trusted_addr,
+            copy addr,
         );
 
         // Add new relay
@@ -224,83 +224,83 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp::deliver_message(
             &new_relay,
             HUB_CHAIN_ID,
-            trusted_addr,
+            addr,
             payload,
         );
     }
 
-    // 20. Test: DeliverMessage rejects untrusted remote
-    // Verifies that deliver_message aborts when the source address is not trusted for the chain.
-    // Why: Messages from untrusted sources could be malicious; only trusted sources are accepted.
+    // 20. Test: DeliverMessage rejects unknown remote GMP endpoint
+    // Verifies that deliver_message aborts when the source address is not a known remote GMP endpoint for the chain.
+    // Why: Messages from unknown sources could be malicious; only known remote GMP endpoints are accepted.
     #[test]
     #[expected_failure(abort_code = 4, location = mvmt_intent::intent_gmp)]
-    fun test_deliver_message_rejects_untrusted_remote() {
+    fun test_deliver_message_rejects_unknown_remote_gmp_endpoint() {
         let admin = setup_test();
 
-        // Setup trusted remote
-        let trusted_addr = create_test_trusted_remote();
-        intent_gmp::set_trusted_remote(
+        // Setup remote GMP endpoint
+        let addr = create_test_remote_gmp_endpoint();
+        intent_gmp::set_remote_gmp_endpoint_addr(
             &admin,
             HUB_CHAIN_ID,
-            trusted_addr,
+            addr,
         );
 
-        // Create different (untrusted) source address
-        let untrusted_addr = create_test_32bytes(0xFF);
+        // Create different (unknown) source address
+        let unknown_addr = create_test_32bytes(0xFF);
 
         // Create valid payload
         let payload = create_test_payload_intent_requirements();
 
-        // Try to deliver from untrusted source - should fail
+        // Try to deliver from unknown source - should fail
         intent_gmp::deliver_message(
             &admin,
             HUB_CHAIN_ID,
-            untrusted_addr,
+            unknown_addr,
             payload,
         );
     }
 
-    // 21. Test: DeliverMessage rejects no trusted remote configured
-    // Verifies that deliver_message aborts when no trusted remote is set for the source chain.
-    // Why: If no trusted remote exists, all messages from that chain should be rejected.
+    // 21. Test: DeliverMessage rejects no remote GMP endpoint configured
+    // Verifies that deliver_message aborts when no remote GMP endpoint is set for the source chain.
+    // Why: If no remote GMP endpoint exists, all messages from that chain should be rejected.
     #[test]
     #[expected_failure(abort_code = 5, location = mvmt_intent::intent_gmp)]
-    fun test_deliver_message_rejects_no_trusted_remote() {
+    fun test_deliver_message_rejects_no_remote_gmp_endpoint() {
         let admin = setup_test();
 
-        // Don't set any trusted remote
+        // Don't set any remote GMP endpoint
 
         // Create payload
         let payload = create_test_payload_intent_requirements();
-        let src_addr = create_test_32bytes(0x01);
+        let remote_gmp_endpoint_addr = create_test_32bytes(0x01);
 
-        // Try to deliver without trusted remote configured - should fail
+        // Try to deliver without remote GMP endpoint configured - should fail
         intent_gmp::deliver_message(
             &admin,
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
     }
 
-    // 22. Test: SetTrustedRemote rejects non-admin
-    // Verifies that only the admin can configure trusted remotes.
-    // Why: Trusted remote configuration is security-critical; must be admin-only.
+    // 22. Test: SetRemoteGmpEndpointAddr rejects non-admin
+    // Verifies that only the admin can configure remote GMP endpoint addresses.
+    // Why: Remote GMP endpoint configuration is security-critical; must be admin-only.
     #[test]
     #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
-    fun test_set_trusted_remote_unauthorized() {
+    fun test_set_remote_gmp_endpoint_addr_unauthorized() {
         let _admin = setup_test();
 
         // Create non-admin account
         let non_admin = account::create_account_for_test(@0x999);
 
-        let trusted_addr = create_test_trusted_remote();
+        let addr = create_test_remote_gmp_endpoint();
 
-        // Try to set trusted remote as non-admin - should fail
-        intent_gmp::set_trusted_remote(
+        // Try to set remote GMP endpoint as non-admin - should fail
+        intent_gmp::set_remote_gmp_endpoint_addr(
             &non_admin,
             HUB_CHAIN_ID,
-            trusted_addr,
+            addr,
         );
     }
 
@@ -316,12 +316,12 @@ module mvmt_intent::intent_gmp_tests {
     fun test_deliver_message_different_msg_type_succeeds() {
         let admin = setup_test();
 
-        // Setup trusted remote (must match the hub addr used in module initialization)
-        let trusted_addr = create_test_32bytes(0x01);
-        intent_gmp::set_trusted_remote(
+        // Setup remote GMP endpoint (must match the hub addr used in module initialization)
+        let addr = create_test_32bytes(0x01);
+        intent_gmp::set_remote_gmp_endpoint_addr(
             &admin,
             HUB_CHAIN_ID,
-            copy trusted_addr,
+            copy addr,
         );
 
         // Step 1: Deliver IntentRequirements (0x01) for intent 0x11...11 - succeeds
@@ -329,7 +329,7 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp::deliver_message(
             &admin,
             HUB_CHAIN_ID,
-            copy trusted_addr,
+            copy addr,
             payload_req,
         );
 
@@ -349,7 +349,7 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp::deliver_message(
             &admin,
             HUB_CHAIN_ID,
-            trusted_addr,
+            addr,
             payload_proof,
         );
     }
@@ -361,12 +361,12 @@ module mvmt_intent::intent_gmp_tests {
     fun test_deliver_intent_requirements_stores_in_both_handlers() {
         let admin = setup_test();
 
-        // Setup trusted remote (use the hub address that modules are configured with)
-        let trusted_hub_addr = create_test_32bytes(0x01);
-        intent_gmp::set_trusted_remote(
+        // Setup remote GMP endpoint (use the hub address that modules are configured with)
+        let hub_gmp_endpoint_addr = create_test_32bytes(0x01);
+        intent_gmp::set_remote_gmp_endpoint_addr(
             &admin,
             HUB_CHAIN_ID,
-            copy trusted_hub_addr,
+            copy hub_gmp_endpoint_addr,
         );
 
         // Create IntentRequirements payload
@@ -377,7 +377,7 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp::deliver_message(
             &admin,
             HUB_CHAIN_ID,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
             payload,
         );
 
@@ -430,12 +430,12 @@ module mvmt_intent::intent_gmp_tests {
         gmp_sender::initialize(&admin);
         intent_gmp::initialize(&admin);
 
-        // Setup trusted remote
-        let trusted_hub_addr = create_test_32bytes(0x01);
-        intent_gmp::set_trusted_remote(
+        // Setup remote GMP endpoint
+        let hub_gmp_endpoint_addr = create_test_32bytes(0x01);
+        intent_gmp::set_remote_gmp_endpoint_addr(
             &admin,
             HUB_CHAIN_ID,
-            copy trusted_hub_addr,
+            copy hub_gmp_endpoint_addr,
         );
 
         // Create IntentRequirements payload
@@ -445,7 +445,7 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp::deliver_message(
             &admin,
             HUB_CHAIN_ID,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
             payload,
         );
     }

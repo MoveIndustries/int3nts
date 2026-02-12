@@ -145,7 +145,7 @@ if [[ "$SEPOLIA_RPC_URL" == *"ALCHEMY_API_KEY"* ]]; then
     fi
 fi
 
-# Extract chain IDs for GMP trusted remote checks
+# Extract chain IDs for remote GMP endpoint checks
 MOVEMENT_CHAIN_ID=$(grep -A 5 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^chain_id = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
 BASE_CHAIN_ID=$(grep -A 5 "^\[base_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^chain_id = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
 SVM_CHAIN_ID=$(grep -A 5 "^\[solana_devnet\]" "$ASSETS_CONFIG_FILE" | grep "^chain_id = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
@@ -725,9 +725,9 @@ check_movement_initialized() {
     fi
 }
 
-# Check if a GMP trusted remote is set for a given chain ID
-# Uses the view function to call get_trusted_remote(chain_id)
-check_gmp_trusted_remote() {
+# Check if a remote GMP endpoint is set for a given chain ID
+# Uses the view function to call get_remote_gmp_endpoint(chain_id)
+check_gmp_remote_endpoint() {
     local module_addr="$1"
     local module_name="$2"  # e.g., "intent_gmp" or "intent_gmp_hub"
     local chain_id="$3"
@@ -738,7 +738,7 @@ check_gmp_trusted_remote() {
 
     local response=$(curl -s --max-time 10 -X POST "${MOVEMENT_RPC_URL}/view" \
         -H "Content-Type: application/json" \
-        -d "{\"function\":\"${module_addr}::${module_name}::get_trusted_remote\",\"type_arguments\":[],\"arguments\":[$chain_id]}" \
+        -d "{\"function\":\"${module_addr}::${module_name}::get_remote_gmp_endpoint\",\"type_arguments\":[],\"arguments\":[$chain_id]}" \
         2>/dev/null)
 
     # Response is [value] where value may be a string ("0x...") or array (["0x..."])
@@ -775,9 +775,9 @@ check_evm_nonzero_result() {
     fi
 }
 
-# Check EVM trusted remote for a given chain ID
-# Calls getTrustedRemotes(uint32) → selector 0x0ea9197f, returns bytes32[] (dynamic array)
-check_evm_has_trusted_remote() {
+# Check EVM remote GMP endpoint for a given chain ID
+# Calls getRemoteGmpEndpointAddrs(uint32) → selector 0xfaa36825, returns bytes32[] (dynamic array)
+check_evm_has_remote_gmp_endpoint() {
     local contract_addr="$1"
     local rpc_url="$2"
     local chain_id="$3"
@@ -787,14 +787,14 @@ check_evm_has_trusted_remote() {
     fi
 
     local chain_id_hex=$(printf "%064x" "$chain_id")
-    local data="0x0ea9197f${chain_id_hex}"
+    local data="0xfaa36825${chain_id_hex}"
 
     local result=$(curl -s --max-time 10 -X POST "$rpc_url" \
         -H "Content-Type: application/json" \
         -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_call\",\"params\":[{\"to\":\"$contract_addr\",\"data\":\"$data\"},\"latest\"],\"id\":1}" \
         | jq -r '.result // "0x"' 2>/dev/null)
 
-    # getTrustedRemotes returns a dynamic bytes32 array, ABI-encoded as:
+    # getRemoteGmpEndpointAddrs returns a dynamic bytes32 array, ABI-encoded as:
     #   0x20 (offset) + length (32 bytes) + element0 (32 bytes) + ...
     # Empty array: offset + length=0 → 0x0000...0020 0000...0000 (128 hex chars)
     # Extract first element: skip offset (64 chars) + length (64 chars) = chars 130..194
@@ -1047,12 +1047,12 @@ if [ -z "$MOVEMENT_INTENT_MODULE_ADDR" ] || [ "$MOVEMENT_INTENT_MODULE_ADDR" = "
 else
     deployed_status=$(check_movement_gmp_module "$MOVEMENT_INTENT_MODULE_ADDR"); mark "$deployed_status"
     init_status=$(check_movement_initialized "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp::EndpointConfig"); mark "$init_status"
-    tr_base=$(check_gmp_trusted_remote "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp" "$BASE_CHAIN_ID"); mark "$tr_base"
-    tr_svm=$(check_gmp_trusted_remote "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp" "$SVM_CHAIN_ID"); mark "$tr_svm"
+    tr_base=$(check_gmp_remote_endpoint "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp" "$BASE_CHAIN_ID"); mark "$tr_base"
+    tr_svm=$(check_gmp_remote_endpoint "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp" "$SVM_CHAIN_ID"); mark "$tr_svm"
     print_check "Deployed" "$deployed_status" "" "      " "module bytecode on-chain"
     print_check "EndpointConfig" "$init_status" "" "      " "GMP endpoint initialized with chain ID"
-    print_check "Trusted Remote (Base Sepolia $BASE_CHAIN_ID)" "$tr_base" "hex" "      " "only accepts GMP from this Base address"
-    print_check "Trusted Remote (Solana Devnet $SVM_CHAIN_ID)" "$tr_svm" "hex" "      " "only accepts GMP from this Solana address"
+    print_check "Remote GMP Endpoint (Base Sepolia $BASE_CHAIN_ID)" "$tr_base" "hex" "      " "only accepts GMP from this Base address"
+    print_check "Remote GMP Endpoint (Solana Devnet $SVM_CHAIN_ID)" "$tr_svm" "hex" "      " "only accepts GMP from this Solana address"
     if [ -n "$INTEGRATED_GMP_MVM_ADDR" ]; then
         relay_auth=$(check_mvm_relay_authorized "$MOVEMENT_INTENT_MODULE_ADDR" "$INTEGRATED_GMP_MVM_ADDR"); mark "$relay_auth"
         print_check "Relay Authorized ${GREY}($INTEGRATED_GMP_MVM_ADDR)${NC}" "$relay_auth" "" "      " "relay can deliver cross-chain messages"
@@ -1067,11 +1067,11 @@ if [ -z "$MOVEMENT_INTENT_MODULE_ADDR" ] || [ "$MOVEMENT_INTENT_MODULE_ADDR" = "
     echo "      ❌ GmpHubConfig"
 else
     hub_init=$(check_movement_initialized "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp_hub::GmpHubConfig"); mark "$hub_init"
-    hub_tr_base=$(check_gmp_trusted_remote "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp_hub" "$BASE_CHAIN_ID"); mark "$hub_tr_base"
-    hub_tr_svm=$(check_gmp_trusted_remote "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp_hub" "$SVM_CHAIN_ID"); mark "$hub_tr_svm"
+    hub_tr_base=$(check_gmp_remote_endpoint "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp_hub" "$BASE_CHAIN_ID"); mark "$hub_tr_base"
+    hub_tr_svm=$(check_gmp_remote_endpoint "$MOVEMENT_INTENT_MODULE_ADDR" "intent_gmp_hub" "$SVM_CHAIN_ID"); mark "$hub_tr_svm"
     print_check "GmpHubConfig" "$hub_init" "" "      " "hub routing for cross-chain messages"
-    print_check "Trusted Remote (Base Sepolia $BASE_CHAIN_ID)" "$hub_tr_base" "hex" "      " "only accepts GMP from this Base address"
-    print_check "Trusted Remote (Solana Devnet $SVM_CHAIN_ID)" "$hub_tr_svm" "hex" "      " "only accepts GMP from this Solana address"
+    print_check "Remote GMP Endpoint (Base Sepolia $BASE_CHAIN_ID)" "$hub_tr_base" "hex" "      " "only accepts GMP from this Base address"
+    print_check "Remote GMP Endpoint (Solana Devnet $SVM_CHAIN_ID)" "$hub_tr_svm" "hex" "      " "only accepts GMP from this Solana address"
 fi
 
 # GMP Sender (gmp_sender)
@@ -1105,7 +1105,7 @@ else
     print_check "Deployed" "$deployed_status" "" "      " "contract bytecode on-chain"
     print_check "gmpEndpoint" "$gmp_ep" "address" "      " "GMP contract for cross-chain messaging"
     print_check "hubChainId" "$hub_cid" "uint" "      " "hub chain for outbound messages"
-    print_check "trustedHubAddr" "$hub_addr" "hex" "      " "hub address trusted for inbound messages"
+    print_check "hubGmpEndpointAddr" "$hub_addr" "hex" "      " "hub GMP endpoint address for inbound messages"
     echo -e "      ✅ Locally Configured: ${GREY}$BASE_ESCROW_CONTRACT_ADDR${NC}"
 fi
 
@@ -1119,11 +1119,11 @@ else
     deployed_status=$(check_evm_contract "$BASE_GMP_ENDPOINT_ADDR" "$BASE_RPC_URL"); mark "$deployed_status"
     escrow_h=$(check_evm_nonzero_result "$BASE_GMP_ENDPOINT_ADDR" "$BASE_RPC_URL" "0x87ad8f87"); mark "$escrow_h"
     outflow_h=$(check_evm_nonzero_result "$BASE_GMP_ENDPOINT_ADDR" "$BASE_RPC_URL" "0xa80693bc"); mark "$outflow_h"
-    tr_hub=$(check_evm_has_trusted_remote "$BASE_GMP_ENDPOINT_ADDR" "$BASE_RPC_URL" "$MOVEMENT_CHAIN_ID"); mark "$tr_hub"
+    tr_hub=$(check_evm_has_remote_gmp_endpoint "$BASE_GMP_ENDPOINT_ADDR" "$BASE_RPC_URL" "$MOVEMENT_CHAIN_ID"); mark "$tr_hub"
     print_check "Deployed" "$deployed_status" "" "      " "contract bytecode on-chain"
     print_check "escrowHandler" "$escrow_h" "address" "      " "receives inbound token transfers"
     print_check "outflowHandler" "$outflow_h" "address" "      " "validates outbound fulfillments"
-    print_check "Trusted Remote (Movement $MOVEMENT_CHAIN_ID)" "$tr_hub" "hex" "      " "only accepts GMP from this hub address"
+    print_check "Remote GMP Endpoint (Movement $MOVEMENT_CHAIN_ID)" "$tr_hub" "hex" "      " "only accepts GMP from this hub address"
     if [ -n "$GMP_RELAY_EVM_ADDR" ]; then
         relay_auth=$(check_evm_relay_authorized "$BASE_GMP_ENDPOINT_ADDR" "$BASE_RPC_URL" "$GMP_RELAY_EVM_ADDR"); mark "$relay_auth"
         print_check "Relay Authorized ${GREY}($GMP_RELAY_EVM_ADDR)${NC}" "$relay_auth" "" "      " "relay can deliver cross-chain messages"
@@ -1166,13 +1166,13 @@ else
     deployed_status=$(check_solana_program "$SOLANA_GMP_PROGRAM_ID" "$SOLANA_RPC_URL"); mark "$deployed_status"
     # ConfigAccount: disc=1 base64=AQ==, size=38
     config_pda=$(check_solana_has_account "$SOLANA_GMP_PROGRAM_ID" "$SOLANA_RPC_URL" "AQ==" 38); mark "$config_pda"
-    # TrustedRemoteAccount: disc=3 base64=Aw==, size=38
-    trusted_remote=$(check_solana_has_account "$SOLANA_GMP_PROGRAM_ID" "$SOLANA_RPC_URL" "Aw==" 38); mark "$trusted_remote"
+    # RemoteGmpEndpoint: disc=3 base64=Aw==, size=38
+    remote_gmp_endpoint=$(check_solana_has_account "$SOLANA_GMP_PROGRAM_ID" "$SOLANA_RPC_URL" "Aw==" 38); mark "$remote_gmp_endpoint"
     # RoutingConfig: disc=6 base64=Bg==, size=66
     routing_cfg=$(check_solana_has_account "$SOLANA_GMP_PROGRAM_ID" "$SOLANA_RPC_URL" "Bg==" 66); mark "$routing_cfg"
     print_check "Deployed" "$deployed_status" "" "      " "program executable on-chain"
     print_check "Config PDA" "$config_pda" "" "      " "endpoint config with chain ID"
-    print_check "Trusted Remote (Movement $MOVEMENT_CHAIN_ID)" "$trusted_remote" "" "      " "only accepts GMP from this hub address"
+    print_check "Remote GMP Endpoint (Movement $MOVEMENT_CHAIN_ID)" "$remote_gmp_endpoint" "" "      " "only accepts GMP from this hub address"
     print_check "Routing Config" "$routing_cfg" "" "      " "routes to escrow and outflow programs"
     if [ -n "$INTEGRATED_GMP_SVM_ADDR" ]; then
         relay_auth=$(check_solana_relay_authorized "$SOLANA_GMP_PROGRAM_ID" "$SOLANA_RPC_URL" "$INTEGRATED_GMP_SVM_ADDR"); mark "$relay_auth"

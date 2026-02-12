@@ -43,7 +43,7 @@ module mvmt_intent::intent_inflow_escrow_tests {
     // ============================================================================
 
     /// 1. Test: SetGmpConfig creates/updates GMP configuration
-    /// Verifies that admin can set GMP config with hub chain ID, trusted hub address, and endpoint.
+    /// Verifies that admin can set GMP config with hub chain ID, hub GMP endpoint address, and endpoint.
     /// Why: GMP config is required for source validation in all GMP message handlers.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent)]
     fun test_set_gmp_config(aptos_framework: &signer, admin: &signer) {
@@ -53,7 +53,7 @@ module mvmt_intent::intent_inflow_escrow_tests {
 
     /// 2. Test: SetGmpConfig rejects unauthorized caller
     /// Verifies that only admin can update GMP config after initial setup.
-    /// Why: GMP config controls trusted sources - must be admin-only.
+    /// Why: GMP config controls authorized sources - must be admin-only.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent)]
     fun test_set_gmp_config_rejects_unauthorized(aptos_framework: &signer, admin: &signer) {
         // TODO: Implement

@@ -117,8 +117,8 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp_hub::initialize(admin);
         gmp_sender::initialize(admin);
 
-        // Set trusted remote for destination chain
-        intent_gmp_hub::set_trusted_remote(admin, DUMMY_CHAIN_ID, test_solver_addr());
+        // Set remote GMP endpoint for destination chain
+        intent_gmp_hub::set_remote_gmp_endpoint_addr(admin, DUMMY_CHAIN_ID, test_solver_addr());
 
         let intent_id = test_intent_id();
         let requester = test_requester_addr();
@@ -206,8 +206,8 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp_hub::initialize(admin);
         gmp_sender::initialize(admin);
 
-        // Set trusted remote for destination chain
-        intent_gmp_hub::set_trusted_remote(admin, DUMMY_CHAIN_ID, test_solver_addr());
+        // Set remote GMP endpoint for destination chain
+        intent_gmp_hub::set_remote_gmp_endpoint_addr(admin, DUMMY_CHAIN_ID, test_solver_addr());
 
         let intent_id = test_intent_id();
         let solver = test_solver_addr();
@@ -271,7 +271,7 @@ module mvmt_intent::intent_gmp_tests {
     // RECEIVE ESCROW CONFIRMATION TESTS
     // ============================================================================
 
-    // 5. Test: receive_escrow_confirmation decodes valid payload from trusted source
+    // 5. Test: receive_escrow_confirmation decodes valid payload from known remote GMP endpoint
     // Verifies that the function correctly decodes an EscrowConfirmation message with source validation.
     #[test(admin = @mvmt_intent)]
     fun test_receive_escrow_confirmation_decodes_payload(admin: &signer) {
@@ -282,9 +282,9 @@ module mvmt_intent::intent_gmp_tests {
         // Register the intent so confirm_escrow can find it
         gmp_intent_state::register_inflow_intent(test_intent_id(), @0x0, DUMMY_CHAIN_ID, x"0000000000000000000000000000000000000000000000000000000000000000");
 
-        // Set trusted remote
+        // Set remote GMP endpoint
         let src_address = test_src_address();
-        intent_gmp_hub::set_trusted_remote(admin, DUMMY_CHAIN_ID, src_address);
+        intent_gmp_hub::set_remote_gmp_endpoint_addr(admin, DUMMY_CHAIN_ID, src_address);
 
         // Create a valid EscrowConfirmation payload
         let msg = gmp_common::new_escrow_confirmation(
@@ -325,9 +325,9 @@ module mvmt_intent::intent_gmp_tests {
         // Before: escrow is NOT confirmed
         assert!(!gmp_intent_state::is_escrow_confirmed(copy intent_id), 1);
 
-        // Set trusted remote and receive EscrowConfirmation
+        // Set remote GMP endpoint and receive EscrowConfirmation
         let src_address = test_src_address();
-        intent_gmp_hub::set_trusted_remote(admin, DUMMY_CHAIN_ID, src_address);
+        intent_gmp_hub::set_remote_gmp_endpoint_addr(admin, DUMMY_CHAIN_ID, src_address);
 
         let msg = gmp_common::new_escrow_confirmation(
             copy intent_id,
@@ -348,16 +348,16 @@ module mvmt_intent::intent_gmp_tests {
         assert!(gmp_intent_state::is_escrow_confirmed(intent_id), 2);
     }
 
-    // 7. Test: receive_escrow_confirmation rejects untrusted source
-    // Verifies that messages from untrusted sources are rejected.
+    // 7. Test: receive_escrow_confirmation rejects unknown remote GMP endpoint
+    // Verifies that messages from unknown remote GMP endpoints are rejected.
     #[test(admin = @mvmt_intent)]
     #[expected_failure(abort_code = 0x50003, location = mvmt_intent::intent_gmp_hub)]
-    fun test_receive_escrow_confirmation_rejects_untrusted_source(admin: &signer) {
+    fun test_receive_escrow_confirmation_rejects_unknown_source(admin: &signer) {
         // Initialize config
         intent_gmp_hub::initialize(admin);
 
-        // Set trusted remote to a different address
-        intent_gmp_hub::set_trusted_remote(admin, DUMMY_CHAIN_ID, test_token_addr());
+        // Set remote GMP endpoint to a different address
+        intent_gmp_hub::set_remote_gmp_endpoint_addr(admin, DUMMY_CHAIN_ID, test_token_addr());
 
         // Create payload
         let msg = gmp_common::new_escrow_confirmation(
@@ -369,10 +369,10 @@ module mvmt_intent::intent_gmp_tests {
         );
         let payload = gmp_common::encode_escrow_confirmation(&msg);
 
-        // Try to receive from untrusted source (should abort)
+        // Try to receive from unknown source (should abort)
         intent_gmp_hub::receive_escrow_confirmation(
             DUMMY_CHAIN_ID,
-            test_src_address(), // Different from trusted address
+            test_src_address(), // Different from configured remote GMP endpoint address
             payload,
         );
     }
@@ -381,16 +381,16 @@ module mvmt_intent::intent_gmp_tests {
     // RECEIVE FULFILLMENT PROOF TESTS
     // ============================================================================
 
-    // 8. Test: receive_fulfillment_proof decodes valid payload from trusted source
+    // 8. Test: receive_fulfillment_proof decodes valid payload from known remote GMP endpoint
     // Verifies that the function correctly decodes a FulfillmentProof message with source validation.
     #[test(admin = @mvmt_intent)]
     fun test_receive_fulfillment_proof_decodes_payload(admin: &signer) {
         // Initialize config
         intent_gmp_hub::initialize(admin);
 
-        // Set trusted remote
+        // Set remote GMP endpoint
         let src_address = test_src_address();
-        intent_gmp_hub::set_trusted_remote(admin, DUMMY_CHAIN_ID, src_address);
+        intent_gmp_hub::set_remote_gmp_endpoint_addr(admin, DUMMY_CHAIN_ID, src_address);
 
         // Create a valid FulfillmentProof payload
         let msg = gmp_common::new_fulfillment_proof(
@@ -415,16 +415,16 @@ module mvmt_intent::intent_gmp_tests {
         assert!(gmp_common::fulfillment_proof_timestamp(&decoded) == DUMMY_TIMESTAMP, 4);
     }
 
-    // 9. Test: receive_fulfillment_proof rejects untrusted source
-    // Verifies that messages from untrusted sources are rejected.
+    // 9. Test: receive_fulfillment_proof rejects unknown remote GMP endpoint
+    // Verifies that messages from unknown remote GMP endpoints are rejected.
     #[test(admin = @mvmt_intent)]
     #[expected_failure(abort_code = 0x50003, location = mvmt_intent::intent_gmp_hub)]
-    fun test_receive_fulfillment_proof_rejects_untrusted_source(admin: &signer) {
+    fun test_receive_fulfillment_proof_rejects_unknown_source(admin: &signer) {
         // Initialize config
         intent_gmp_hub::initialize(admin);
 
-        // Set trusted remote to a different address
-        intent_gmp_hub::set_trusted_remote(admin, DUMMY_CHAIN_ID, test_token_addr());
+        // Set remote GMP endpoint to a different address
+        intent_gmp_hub::set_remote_gmp_endpoint_addr(admin, DUMMY_CHAIN_ID, test_token_addr());
 
         // Create payload
         let msg = gmp_common::new_fulfillment_proof(
@@ -435,10 +435,10 @@ module mvmt_intent::intent_gmp_tests {
         );
         let payload = gmp_common::encode_fulfillment_proof(&msg);
 
-        // Try to receive from untrusted source (should abort)
+        // Try to receive from unknown source (should abort)
         intent_gmp_hub::receive_fulfillment_proof(
             DUMMY_CHAIN_ID,
-            test_src_address(), // Different from trusted address
+            test_src_address(), // Different from configured remote GMP endpoint address
             payload,
         );
     }
@@ -577,9 +577,9 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp_hub::initialize(admin);
         gmp_sender::initialize(admin);
 
-        // Set trusted remote
+        // Set remote GMP endpoint
         let remote_addr = test_solver_addr();
-        intent_gmp_hub::set_trusted_remote(admin, DUMMY_CHAIN_ID, remote_addr);
+        intent_gmp_hub::set_remote_gmp_endpoint_addr(admin, DUMMY_CHAIN_ID, remote_addr);
 
         let intent_id = test_intent_id();
         let requester = test_requester_addr();
@@ -630,9 +630,9 @@ module mvmt_intent::intent_gmp_tests {
         intent_gmp_hub::initialize(admin);
         gmp_sender::initialize(admin);
 
-        // Set trusted remote
+        // Set remote GMP endpoint
         let remote_addr = test_src_address();
-        intent_gmp_hub::set_trusted_remote(admin, DUMMY_CHAIN_ID, remote_addr);
+        intent_gmp_hub::set_remote_gmp_endpoint_addr(admin, DUMMY_CHAIN_ID, remote_addr);
 
         let intent_id = test_intent_id();
         let solver = test_solver_addr();

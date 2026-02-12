@@ -64,7 +64,7 @@ fn test_initialize_instruction_roundtrip() {
     let instruction = OutflowInstruction::Initialize {
         gmp_endpoint: original_endpoint,
         hub_chain_id: original_chain_id,
-        trusted_hub_addr: original_addr,
+        hub_gmp_endpoint_addr: original_addr,
     };
 
     // Roundtrip: borsh could corrupt values due to field ordering, byte width,
@@ -76,7 +76,7 @@ fn test_initialize_instruction_roundtrip() {
         OutflowInstruction::Initialize {
             gmp_endpoint: deser_endpoint,
             hub_chain_id: deser_chain_id,
-            trusted_hub_addr: deser_hub_addr,
+            hub_gmp_endpoint_addr: deser_hub_addr,
         } => {
             assert_eq!(deser_endpoint, original_endpoint);
             assert_eq!(deser_chain_id, original_chain_id);
@@ -96,7 +96,7 @@ fn test_receive_instruction_roundtrip() {
 
     let instruction = OutflowInstruction::LzReceive {
         src_chain_id: original_chain_id,
-        src_addr: original_addr,
+        remote_gmp_endpoint_addr: original_addr,
         payload: original_payload.clone(),
     };
 
@@ -106,7 +106,7 @@ fn test_receive_instruction_roundtrip() {
     match deserialized {
         OutflowInstruction::LzReceive {
             src_chain_id: deser_chain_id,
-            src_addr: deser_addr,
+            remote_gmp_endpoint_addr: deser_addr,
             payload: deser_payload,
         } => {
             assert_eq!(deser_chain_id, original_chain_id);
@@ -201,7 +201,7 @@ fn test_config_account_roundtrip() {
     assert_eq!(deserialized.admin, original_admin);
     assert_eq!(deserialized.gmp_endpoint, original_endpoint);
     assert_eq!(deserialized.hub_chain_id, original_chain_id);
-    assert_eq!(deserialized.trusted_hub_addr, original_hub_addr);
+    assert_eq!(deserialized.hub_gmp_endpoint_addr, original_hub_addr);
     assert_eq!(deserialized.bump, original_bump);
 }
 

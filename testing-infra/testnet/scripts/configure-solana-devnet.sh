@@ -6,7 +6,7 @@
 # to the Movement hub. Must be run AFTER all deployments are complete.
 #
 # Steps:
-#   1. Set hub as trusted remote on GMP endpoint
+#   1. Set hub as remote GMP endpoint on GMP endpoint
 #   2. Initialize outflow validator with hub config
 #   3. Configure escrow GMP with hub address
 #   4. Set GMP routing between programs
@@ -139,13 +139,13 @@ HUB_ADDR_PADDED=$(pad_address_32 "$MOVEMENT_INTENT_MODULE_ADDR")
 echo " Cross-chain configuration..."
 echo ""
 
-echo " 1. Setting hub as trusted remote..."
-run_solana_idempotent "Set trusted remote" \
-    "$CLI_BIN" gmp-set-trusted-remote \
+echo " 1. Setting hub as remote GMP endpoint..."
+run_solana_idempotent "Set remote GMP endpoint" \
+    "$CLI_BIN" gmp-set-remote-gmp-endpoint-addr \
     --gmp-program-id "$SOLANA_GMP_ID" \
     --payer "$DEPLOYER_KEYPAIR" \
     --src-chain-id "$HUB_CHAIN_ID" \
-    --trusted-addr "$HUB_ADDR_PADDED" \
+    --addr "$HUB_ADDR_PADDED" \
     --rpc "$SOLANA_RPC_URL"
 
 echo " 2. Initializing outflow validator..."

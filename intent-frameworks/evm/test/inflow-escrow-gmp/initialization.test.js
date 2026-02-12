@@ -6,7 +6,7 @@ const {
   getExpiryTimestamp,
   deliverRequirements,
   HUB_CHAIN_ID,
-  TRUSTED_HUB_ADDR,
+  HUB_GMP_ENDPOINT_ADDR,
   DEFAULT_AMOUNT
 } = require("./helpers/setup");
 
@@ -38,11 +38,11 @@ describe("IntentInflowEscrow - Initialization", function () {
   });
 
   /// 2. Test: test_initialize_hub_chain_config: Hub Chain Configuration
-  /// Verifies that the escrow is deployed with the correct hub chain ID and trusted address.
+  /// Verifies that the escrow is deployed with the correct hub chain ID and hub GMP endpoint address.
   /// Why: Hub chain configuration is required for validating incoming GMP messages.
   it("Should initialize escrow with hub chain configuration", async function () {
     expect(await escrow.hubChainId()).to.equal(HUB_CHAIN_ID);
-    expect(await escrow.trustedHubAddr()).to.equal(TRUSTED_HUB_ADDR);
+    expect(await escrow.hubGmpEndpointAddr()).to.equal(HUB_GMP_ENDPOINT_ADDR);
   });
 
   /// 3. Test: test_create_escrow_after_requirements: Escrow Creation After Requirements

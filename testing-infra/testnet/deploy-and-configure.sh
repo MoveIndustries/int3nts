@@ -8,9 +8,9 @@
 #   3. Solana Devnet (connected SVM chain)
 #
 # Phase 2 - Configure cross-chain links:
-#   4. Movement: set trusted remotes for Base and Solana
+#   4. Movement: set remote GMP endpoints for Base and Solana
 #   5. Base Sepolia: configure contracts
-#   6. Solana: set trusted remotes + routing
+#   6. Solana: set remote GMP endpoints + routing
 #
 # When run via this script, deploy outputs are read from logs and propagated
 # into the environment automatically between steps — no manual update needed

@@ -35,21 +35,21 @@ module mvmt_intent::intent_gmp_hub {
     const E_ESCROW_MISMATCH: u64 = 6;
     const E_ALREADY_CONFIRMED: u64 = 7;
     const E_ALREADY_FULFILLED: u64 = 8;
-    const E_TRUSTED_REMOTE_NOT_FOUND: u64 = 9;
+    const E_REMOTE_GMP_ENDPOINT_NOT_FOUND: u64 = 9;
 
     // ============================================================================
     // STATE
     // ============================================================================
 
     /// Configuration for GMP hub operations.
-    /// Maps destination chain IDs to their trusted program addresses.
+    /// Maps destination chain IDs to their remote GMP endpoint addresses.
     struct GmpHubConfig has key {
-        /// Admin address (can update trusted remotes)
+        /// Admin address (can update remote GMP endpoints)
         admin: address,
-        /// Maps chain_id -> list of trusted program addresses (32 bytes each)
-        /// Changed from single address to vector to support multiple trusted sources per chain
+        /// Maps chain_id -> list of remote GMP endpoint addresses (32 bytes each)
+        /// Changed from single address to vector to support multiple sources per chain
         /// (e.g., both outflow-validator and intent-escrow on SVM)
-        trusted_remotes: SimpleMap<u32, vector<vector<u8>>>,
+        remote_gmp_endpoint_addrs: SimpleMap<u32, vector<vector<u8>>>,
     }
 
     // ============================================================================
@@ -120,14 +120,14 @@ module mvmt_intent::intent_gmp_hub {
 
         move_to(admin, GmpHubConfig {
             admin: admin_addr,
-            trusted_remotes: simple_map::new(),
+            remote_gmp_endpoint_addrs: simple_map::new(),
         });
     }
 
-    /// Set a trusted remote program address for a destination chain.
-    /// This replaces all existing trusted addresses for the chain with a single address.
+    /// Set a remote GMP endpoint address for a destination chain.
+    /// This replaces all existing remote GMP endpoint addresses for the chain with a single address.
     /// Only admin can call this.
-    public entry fun set_trusted_remote(
+    public entry fun set_remote_gmp_endpoint_addr(
         admin: &signer,
         chain_id: u32,
         remote_addr: vector<u8>,
@@ -144,22 +144,22 @@ module mvmt_intent::intent_gmp_hub {
         let addrs = vector::empty<vector<u8>>();
         vector::push_back(&mut addrs, remote_addr);
 
-        // Add or update the trusted remote
-        if (simple_map::contains_key(&config.trusted_remotes, &chain_id)) {
-            *simple_map::borrow_mut(&mut config.trusted_remotes, &chain_id) = addrs;
+        // Add or update the remote GMP endpoint
+        if (simple_map::contains_key(&config.remote_gmp_endpoint_addrs, &chain_id)) {
+            *simple_map::borrow_mut(&mut config.remote_gmp_endpoint_addrs, &chain_id) = addrs;
         } else {
-            simple_map::add(&mut config.trusted_remotes, chain_id, addrs);
+            simple_map::add(&mut config.remote_gmp_endpoint_addrs, chain_id, addrs);
         }
     }
 
-    /// Add a trusted remote program address for a chain without replacing existing ones.
+    /// Add a remote GMP endpoint address for a chain without replacing existing ones.
     /// Only admin can call this.
     ///
     /// # Arguments
     /// - `admin`: The admin signer
     /// - `chain_id`: Chain endpoint ID (e.g., Solana = 30168)
-    /// - `remote_addr`: Trusted remote address (32 bytes) to add
-    public entry fun add_trusted_remote(
+    /// - `remote_addr`: Remote GMP endpoint address (32 bytes) to add
+    public entry fun add_remote_gmp_endpoint_addr(
         admin: &signer,
         chain_id: u32,
         remote_addr: vector<u8>,
@@ -173,8 +173,8 @@ module mvmt_intent::intent_gmp_hub {
         );
 
         // Add to existing set or create new entry
-        if (simple_map::contains_key(&config.trusted_remotes, &chain_id)) {
-            let addrs = simple_map::borrow_mut(&mut config.trusted_remotes, &chain_id);
+        if (simple_map::contains_key(&config.remote_gmp_endpoint_addrs, &chain_id)) {
+            let addrs = simple_map::borrow_mut(&mut config.remote_gmp_endpoint_addrs, &chain_id);
             // Only add if not already present
             if (!is_in_address_list(addrs, &remote_addr)) {
                 vector::push_back(addrs, remote_addr);
@@ -182,7 +182,7 @@ module mvmt_intent::intent_gmp_hub {
         } else {
             let addrs = vector::empty<vector<u8>>();
             vector::push_back(&mut addrs, remote_addr);
-            simple_map::add(&mut config.trusted_remotes, chain_id, addrs);
+            simple_map::add(&mut config.remote_gmp_endpoint_addrs, chain_id, addrs);
         };
     }
 
@@ -191,23 +191,23 @@ module mvmt_intent::intent_gmp_hub {
         exists<GmpHubConfig>(@mvmt_intent)
     }
 
-    /// Check if a source chain and address are trusted.
-    fun is_trusted_source(src_chain_id: u32, src_address: &vector<u8>): bool acquires GmpHubConfig {
+    /// Check if a source chain and address are a known remote GMP endpoint.
+    fun is_known_remote_gmp_endpoint(src_chain_id: u32, src_address: &vector<u8>): bool acquires GmpHubConfig {
         if (!exists<GmpHubConfig>(@mvmt_intent)) {
             return false
         };
 
         let config = borrow_global<GmpHubConfig>(@mvmt_intent);
 
-        if (!simple_map::contains_key(&config.trusted_remotes, &src_chain_id)) {
+        if (!simple_map::contains_key(&config.remote_gmp_endpoint_addrs, &src_chain_id)) {
             return false
         };
 
-        let trusted_addrs = simple_map::borrow(&config.trusted_remotes, &src_chain_id);
-        is_in_address_list(trusted_addrs, src_address)
+        let endpoint_addrs = simple_map::borrow(&config.remote_gmp_endpoint_addrs, &src_chain_id);
+        is_in_address_list(endpoint_addrs, src_address)
     }
 
-    /// Check if an address (32 bytes) is in the trusted addresses list.
+    /// Check if an address (32 bytes) is in the remote GMP endpoint addresses list.
     fun is_in_address_list(addrs: &vector<vector<u8>>, addr: &vector<u8>): bool {
         let len = vector::length(addrs);
         let i = 0;
@@ -221,18 +221,18 @@ module mvmt_intent::intent_gmp_hub {
     }
 
     #[view]
-    /// Get the trusted remote address for a destination chain.
-    /// Returns the first trusted address (used for outbound messages).
+    /// Get the remote GMP endpoint address for a destination chain.
+    /// Returns the first remote GMP endpoint address (used for outbound messages).
     /// Aborts if not found.
-    public fun get_trusted_remote(dst_chain_id: u32): vector<u8> acquires GmpHubConfig {
+    public fun get_remote_gmp_endpoint_addr(dst_chain_id: u32): vector<u8> acquires GmpHubConfig {
         let config = borrow_global<GmpHubConfig>(@mvmt_intent);
 
         assert!(
-            simple_map::contains_key(&config.trusted_remotes, &dst_chain_id),
-            error::not_found(E_TRUSTED_REMOTE_NOT_FOUND)
+            simple_map::contains_key(&config.remote_gmp_endpoint_addrs, &dst_chain_id),
+            error::not_found(E_REMOTE_GMP_ENDPOINT_NOT_FOUND)
         );
 
-        let addrs = simple_map::borrow(&config.trusted_remotes, &dst_chain_id);
+        let addrs = simple_map::borrow(&config.remote_gmp_endpoint_addrs, &dst_chain_id);
         // Return first address for outbound messages
         *vector::borrow(addrs, 0)
     }
@@ -268,8 +268,8 @@ module mvmt_intent::intent_gmp_hub {
         solver_addr: vector<u8>,
         expiry: u64,
     ): u64 acquires GmpHubConfig {
-        // Get the trusted remote address for this chain
-        let dst_addr = get_trusted_remote(dst_chain_id);
+        // Get the remote GMP endpoint address for this chain
+        let dst_addr = get_remote_gmp_endpoint_addr(dst_chain_id);
 
         // Create the message
         let msg = gmp_common::new_intent_requirements(
@@ -322,8 +322,8 @@ module mvmt_intent::intent_gmp_hub {
         amount_fulfilled: u64,
         timestamp: u64,
     ): u64 acquires GmpHubConfig {
-        // Get the trusted remote address for this chain
-        let dst_addr = get_trusted_remote(dst_chain_id);
+        // Get the remote GMP endpoint address for this chain
+        let dst_addr = get_remote_gmp_endpoint_addr(dst_chain_id);
 
         // Create the message
         let msg = gmp_common::new_fulfillment_proof(
@@ -356,7 +356,7 @@ module mvmt_intent::intent_gmp_hub {
     /// Receive and process EscrowConfirmation from a connected chain.
     ///
     /// Called by intent_gmp when a connected chain confirms escrow creation.
-    /// The hub validates the confirmation comes from a trusted source.
+    /// The hub validates the confirmation comes from a known remote GMP endpoint.
     ///
     /// # Arguments
     /// - `src_chain_id`: LayerZero endpoint ID of source chain
@@ -367,16 +367,16 @@ module mvmt_intent::intent_gmp_hub {
     /// - Decoded EscrowConfirmation struct
     ///
     /// # Aborts
-    /// - E_INVALID_SOURCE_CHAIN: If source chain is not trusted
-    /// - EINVALID_SOURCE_ADDRESS: If source address doesn't match trusted remote
+    /// - E_INVALID_SOURCE_CHAIN: If source chain has no known remote GMP endpoint
+    /// - EINVALID_SOURCE_ADDRESS: If source address doesn't match remote GMP endpoint
     public fun receive_escrow_confirmation(
         src_chain_id: u32,
         src_address: vector<u8>,
         payload: vector<u8>,
     ): EscrowConfirmation acquires GmpHubConfig {
-        // Validate source is trusted
+        // Validate source is a known remote GMP endpoint
         assert!(
-            is_trusted_source(src_chain_id, &src_address),
+            is_known_remote_gmp_endpoint(src_chain_id, &src_address),
             error::permission_denied(E_INVALID_SOURCE_CHAIN)
         );
 
@@ -404,7 +404,7 @@ module mvmt_intent::intent_gmp_hub {
     /// Receive and process FulfillmentProof from a connected chain.
     ///
     /// Called by intent_gmp when a connected chain reports fulfillment.
-    /// The hub validates the proof comes from a trusted source.
+    /// The hub validates the proof comes from a known remote GMP endpoint.
     ///
     /// # Arguments
     /// - `src_chain_id`: LayerZero endpoint ID of source chain
@@ -415,16 +415,16 @@ module mvmt_intent::intent_gmp_hub {
     /// - Decoded FulfillmentProof struct
     ///
     /// # Aborts
-    /// - E_INVALID_SOURCE_CHAIN: If source chain is not trusted
-    /// - EINVALID_SOURCE_ADDRESS: If source address doesn't match trusted remote
+    /// - E_INVALID_SOURCE_CHAIN: If source chain has no known remote GMP endpoint
+    /// - EINVALID_SOURCE_ADDRESS: If source address doesn't match remote GMP endpoint
     public fun receive_fulfillment_proof(
         src_chain_id: u32,
         src_address: vector<u8>,
         payload: vector<u8>,
     ): FulfillmentProof acquires GmpHubConfig {
-        // Validate source is trusted
+        // Validate source is a known remote GMP endpoint
         assert!(
-            is_trusted_source(src_chain_id, &src_address),
+            is_known_remote_gmp_endpoint(src_chain_id, &src_address),
             error::permission_denied(E_INVALID_SOURCE_CHAIN)
         );
 
@@ -499,21 +499,21 @@ module mvmt_intent::intent_gmp_hub {
     // ============================================================================
 
     #[test_only]
-    /// Initialize for testing with a trusted remote for dst_chain_id.
-    public fun init_for_test(admin: &signer, dst_chain_id: u32, trusted_remote: vector<u8>) acquires GmpHubConfig {
+    /// Initialize for testing with a remote GMP endpoint for dst_chain_id.
+    public fun init_for_test(admin: &signer, dst_chain_id: u32, remote_gmp_endpoint: vector<u8>) acquires GmpHubConfig {
         if (!exists<GmpHubConfig>(@mvmt_intent)) {
             move_to(admin, GmpHubConfig {
                 admin: signer::address_of(admin),
-                trusted_remotes: simple_map::new(),
+                remote_gmp_endpoint_addrs: simple_map::new(),
             });
         };
 
-        // Add trusted remote as a vector with single address
+        // Add remote GMP endpoint as a vector with single address
         let config = borrow_global_mut<GmpHubConfig>(@mvmt_intent);
-        if (!simple_map::contains_key(&config.trusted_remotes, &dst_chain_id)) {
+        if (!simple_map::contains_key(&config.remote_gmp_endpoint_addrs, &dst_chain_id)) {
             let addrs = vector::empty<vector<u8>>();
-            vector::push_back(&mut addrs, trusted_remote);
-            simple_map::add(&mut config.trusted_remotes, dst_chain_id, addrs);
+            vector::push_back(&mut addrs, remote_gmp_endpoint);
+            simple_map::add(&mut config.remote_gmp_endpoint_addrs, dst_chain_id, addrs);
         };
     }
 }

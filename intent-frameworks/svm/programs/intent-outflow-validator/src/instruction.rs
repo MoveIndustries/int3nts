@@ -14,7 +14,7 @@ pub enum OutflowInstruction {
     Initialize {
         gmp_endpoint: Pubkey,
         hub_chain_id: u32,
-        trusted_hub_addr: [u8; 32],
+        hub_gmp_endpoint_addr: [u8; 32],
     },
 
     /// Receive intent requirements via GMP (lz_receive).
@@ -32,8 +32,8 @@ pub enum OutflowInstruction {
     LzReceive {
         /// Source chain ID (LZ endpoint ID)
         src_chain_id: u32,
-        /// Source address (hub contract)
-        src_addr: [u8; 32],
+        /// Remote GMP endpoint address (hub contract)
+        remote_gmp_endpoint_addr: [u8; 32],
         /// GMP message payload (IntentRequirements encoded)
         payload: Vec<u8>,
     },
@@ -68,6 +68,6 @@ pub enum OutflowInstruction {
     /// 1. `[signer]` Admin
     UpdateHubConfig {
         hub_chain_id: u32,
-        trusted_hub_addr: [u8; 32],
+        hub_gmp_endpoint_addr: [u8; 32],
     },
 }

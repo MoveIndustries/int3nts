@@ -4,7 +4,7 @@
 //!
 //! Each account type has a unique `discriminator` byte as its first field.
 //! This prevents deserialization confusion when reading raw account data:
-//! - ConfigAccount = 1, RelayAccount = 2, TrustedRemote = 3, etc.
+//! - ConfigAccount = 1, RelayAccount = 2, RemoteGmpEndpoint = 3, etc.
 //! - On read, verify discriminator matches expected type before trusting data.
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -16,7 +16,7 @@ use solana_program::pubkey::Pubkey;
 pub struct ConfigAccount {
     /// First byte identifies account type (1 = Config). Prevents type confusion on deserialize.
     pub discriminator: u8,
-    /// The admin authority (can add/remove relays, set trusted remotes)
+    /// The admin authority (can add/remove relays, set remote GMP endpoints)
     pub admin: Pubkey,
     /// This chain's endpoint ID (e.g., Solana devnet = 30168)
     pub chain_id: u32,
@@ -66,29 +66,29 @@ impl RelayAccount {
     }
 }
 
-/// Trusted remote configuration for a source chain.
-/// PDA seeds: ["trusted_remote", src_chain_id (as bytes)]
+/// Remote GMP endpoint configuration for a source chain.
+/// PDA seeds: ["remote_gmp_endpoint", src_chain_id (as bytes)]
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct TrustedRemoteAccount {
+pub struct RemoteGmpEndpoint {
     /// Discriminator for account type
     pub discriminator: u8,
     /// Source chain endpoint ID
     pub src_chain_id: u32,
-    /// Trusted source address (32 bytes, zero-padded if needed)
-    pub trusted_addr: [u8; 32],
+    /// Remote GMP endpoint address (32 bytes, zero-padded if needed)
+    pub addr: [u8; 32],
     /// Bump seed for PDA derivation
     pub bump: u8,
 }
 
-impl TrustedRemoteAccount {
+impl RemoteGmpEndpoint {
     pub const DISCRIMINATOR: u8 = 3;
     pub const SIZE: usize = 1 + 4 + 32 + 1; // 38 bytes
 
-    pub fn new(src_chain_id: u32, trusted_addr: [u8; 32], bump: u8) -> Self {
+    pub fn new(src_chain_id: u32, addr: [u8; 32], bump: u8) -> Self {
         Self {
             discriminator: Self::DISCRIMINATOR,
             src_chain_id,
-            trusted_addr,
+            addr,
             bump,
         }
     }
@@ -213,8 +213,8 @@ pub struct MessageAccount {
     pub nonce: u64,
     /// Destination address (32 bytes, zero-padded)
     pub dst_addr: [u8; 32],
-    /// Source address (32 bytes — application-level sender, e.g. outflow-validator program ID)
-    pub src_addr: [u8; 32],
+    /// Remote GMP endpoint address (32 bytes — the GMP endpoint on the sending chain)
+    pub remote_gmp_endpoint_addr: [u8; 32],
     /// GMP message payload (variable length)
     pub payload: Vec<u8>,
     /// Bump seed for PDA derivation
@@ -225,7 +225,7 @@ impl MessageAccount {
     pub const DISCRIMINATOR: u8 = 7;
     /// Fixed-size portion (excluding payload data):
     /// discriminator(1) + src_chain_id(4) + dst_chain_id(4) + nonce(8)
-    /// + dst_addr(32) + src_addr(32) + payload_len_prefix(4) + bump(1) = 86
+    /// + dst_addr(32) + remote_gmp_endpoint_addr(32) + payload_len_prefix(4) + bump(1) = 86
     pub const FIXED_SIZE: usize = 1 + 4 + 4 + 8 + 32 + 32 + 4 + 1;
 
     pub fn size(payload_len: usize) -> usize {
@@ -237,7 +237,7 @@ impl MessageAccount {
         dst_chain_id: u32,
         nonce: u64,
         dst_addr: [u8; 32],
-        src_addr: [u8; 32],
+        remote_gmp_endpoint_addr: [u8; 32],
         payload: Vec<u8>,
         bump: u8,
     ) -> Self {
@@ -247,7 +247,7 @@ impl MessageAccount {
             dst_chain_id,
             nonce,
             dst_addr,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
             bump,
         }
@@ -258,7 +258,7 @@ impl MessageAccount {
 pub mod seeds {
     pub const CONFIG_SEED: &[u8] = b"config";
     pub const RELAY_SEED: &[u8] = b"relay";
-    pub const TRUSTED_REMOTE_SEED: &[u8] = b"trusted_remote";
+    pub const REMOTE_GMP_ENDPOINT_SEED: &[u8] = b"remote_gmp_endpoint";
     pub const NONCE_OUT_SEED: &[u8] = b"nonce_out";
     pub const DELIVERED_SEED: &[u8] = b"delivered";
     pub const ROUTING_SEED: &[u8] = b"routing";

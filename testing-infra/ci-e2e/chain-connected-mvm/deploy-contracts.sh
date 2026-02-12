@@ -118,7 +118,7 @@ else
     log "   ️ GMP sender may already be initialized (ignoring)"
 fi
 
-# Load hub module address for trusted remote configuration
+# Load hub module address for remote GMP endpoint configuration
 source "$PROJECT_ROOT/.tmp/chain-info.env" 2>/dev/null || true
 
 if [ -n "$HUB_MODULE_ADDR" ]; then
@@ -149,15 +149,15 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
         log "   ️ Inflow escrow GMP may already be initialized (ignoring)"
     fi
 
-    # Set trusted remote in intent_gmp (trust hub chain)
+    # Set remote GMP endpoint in intent_gmp (trust hub chain)
     log ""
-    log " Setting trusted remote for hub chain..."
+    log " Setting remote GMP endpoint for hub chain..."
     if aptos move run --profile intent-account-chain2 --assume-yes \
-        --function-id ${CHAIN2_ADDR}::intent_gmp::set_trusted_remote \
+        --function-id ${CHAIN2_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr \
         --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
-        log "   ✅ Trusted remote set for hub chain"
+        log "   ✅ Remote GMP endpoint set for hub chain"
     else
-        log "   ️ Could not set trusted remote (ignoring)"
+        log "   ️ Could not set remote GMP endpoint (ignoring)"
     fi
 else
     log "   ️ WARNING: HUB_MODULE_ADDR not found, skipping GMP hub config"
@@ -265,22 +265,22 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     # Pad to 64 hex characters (32 bytes)
     CHAIN2_ADDR_PADDED=$(printf "%064s" "$CHAIN2_ADDR_CLEAN" | tr ' ' '0')
 
-    # Set trusted remote on hub for connected chain (chain_id=2)
+    # Set remote GMP endpoint on hub for connected chain (chain_id=2)
     if aptos move run --profile intent-account-chain1 --assume-yes \
-        --function-id ${HUB_MODULE_ADDR}::intent_gmp::set_trusted_remote \
+        --function-id ${HUB_MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr \
         --args u32:2 "hex:${CHAIN2_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub now trusts connected chain (chain_id=2)"
     else
-        log "   ️ Could not set trusted remote on hub (ignoring)"
+        log "   ️ Could not set remote GMP endpoint on hub (ignoring)"
     fi
 
-    # Also set trusted remote in intent_gmp_hub
+    # Also set remote GMP endpoint in intent_gmp_hub
     if aptos move run --profile intent-account-chain1 --assume-yes \
-        --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_trusted_remote \
+        --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_remote_gmp_endpoint_addr \
         --args u32:2 "hex:${CHAIN2_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub intent_gmp_hub now trusts connected chain"
     else
-        log "   ️ Could not set trusted remote in intent_gmp_hub (ignoring)"
+        log "   ️ Could not set remote GMP endpoint in intent_gmp_hub (ignoring)"
     fi
 else
     log "   ️ WARNING: HUB_MODULE_ADDR not found, skipping hub trust config"

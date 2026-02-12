@@ -26,8 +26,8 @@ pub enum GmpError {
     #[error("Unauthorized: caller is not an authorized relay")]
     UnauthorizedRelay,
 
-    #[error("Untrusted remote: source chain or address not configured")]
-    UntrustedRemote,
+    #[error("Unknown remote GMP endpoint: source chain or address not configured")]
+    UnknownRemoteGmpEndpoint,
 
     #[error("Message already delivered")]
     AlreadyDelivered,

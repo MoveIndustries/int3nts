@@ -103,8 +103,8 @@ module mvmt_intent::intent_inflow_escrow_tests {
     fun init_modules(admin: &signer) {
         gmp_sender::initialize(admin);
         intent_gmp::initialize(admin);
-        let trusted_hub_addr = create_test_hub_addr();
-        intent_inflow_escrow::initialize(admin, HUB_CHAIN_ID, trusted_hub_addr);
+        let hub_gmp_endpoint_addr = create_test_hub_addr();
+        intent_inflow_escrow::initialize(admin, HUB_CHAIN_ID, hub_gmp_endpoint_addr);
     }
 
     /// Store intent requirements for a given intent_id.
@@ -125,11 +125,11 @@ module mvmt_intent::intent_inflow_escrow_tests {
             expiry,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         intent_inflow_escrow::receive_intent_requirements(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
     }
@@ -139,7 +139,7 @@ module mvmt_intent::intent_inflow_escrow_tests {
     // ============================================================================
 
     // 1. Test: Initialize creates config
-    // Verifies that initialize correctly sets up the inflow escrow GMP configuration with hub chain ID and trusted hub address.
+    // Verifies that initialize correctly sets up the inflow escrow GMP configuration with hub chain ID and hub GMP endpoint address.
     // Why: Proper initialization is required before any GMP operations can succeed. Without correct config, all cross-chain messages will be rejected.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent)]
     fun test_initialize_creates_config(aptos_framework: &signer, admin: &signer) {
@@ -152,7 +152,7 @@ module mvmt_intent::intent_inflow_escrow_tests {
         assert!(intent_inflow_escrow::is_initialized(), 1);
         assert!(intent_inflow_escrow::get_hub_chain_id() == HUB_CHAIN_ID, 2);
 
-        let stored_hub_addr = intent_inflow_escrow::get_trusted_hub_addr();
+        let stored_hub_addr = intent_inflow_escrow::get_hub_gmp_endpoint_addr();
         let expected_hub_addr = create_test_hub_addr();
         assert!(stored_hub_addr == expected_hub_addr, 3);
     }
@@ -169,8 +169,8 @@ module mvmt_intent::intent_inflow_escrow_tests {
         init_modules(admin);
 
         // Second init should fail
-        let trusted_hub_addr = create_test_hub_addr();
-        intent_inflow_escrow::initialize(admin, HUB_CHAIN_ID, trusted_hub_addr);
+        let hub_gmp_endpoint_addr = create_test_hub_addr();
+        intent_inflow_escrow::initialize(admin, HUB_CHAIN_ID, hub_gmp_endpoint_addr);
     }
 
     // ============================================================================
@@ -235,19 +235,19 @@ module mvmt_intent::intent_inflow_escrow_tests {
             expiry,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         // First receive
         intent_inflow_escrow::receive_intent_requirements(
             HUB_CHAIN_ID,
-            copy src_addr,
+            copy remote_gmp_endpoint_addr,
             copy payload,
         );
 
         // Second receive (should succeed without error - idempotent)
         intent_inflow_escrow::receive_intent_requirements(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
 
@@ -255,12 +255,12 @@ module mvmt_intent::intent_inflow_escrow_tests {
         assert!(intent_inflow_escrow::has_requirements(intent_id), 1);
     }
 
-    // 5. Test: Receive requirements rejects untrusted source
-    // Verifies that requirements from non-trusted chain IDs or addresses are rejected.
+    // 5. Test: Receive requirements rejects unknown source
+    // Verifies that requirements from non-hub chain IDs or addresses are rejected.
     // Why: Source verification prevents spoofed messages from malicious actors who could inject fake requirements and steal escrowed funds.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent)]
     #[expected_failure(abort_code = 2, location = mvmt_intent::intent_inflow_escrow)] // EINVALID_SOURCE_CHAIN
-    fun test_receive_requirements_rejects_untrusted_source(aptos_framework: &signer, admin: &signer) {
+    fun test_receive_requirements_rejects_unknown_source(aptos_framework: &signer, admin: &signer) {
         timestamp::set_time_has_started_for_testing(aptos_framework);
         timestamp::update_global_time_for_test_secs(1000);
 
@@ -282,12 +282,12 @@ module mvmt_intent::intent_inflow_escrow_tests {
             expiry,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         // Use wrong chain ID
         intent_inflow_escrow::receive_intent_requirements(
             99999u32, // Wrong chain ID
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
     }
@@ -354,11 +354,11 @@ module mvmt_intent::intent_inflow_escrow_tests {
             1500u64,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         intent_inflow_escrow::receive_fulfillment_proof(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
 
@@ -366,12 +366,12 @@ module mvmt_intent::intent_inflow_escrow_tests {
         assert!(intent_inflow_escrow::is_fulfilled(intent_id), 2);
     }
 
-    // 7. Test: Receive fulfillment proof rejects untrusted source
-    // Verifies that fulfillment proofs from non-trusted chain IDs are rejected.
-    // Why: Only the trusted hub can send fulfillment proofs. Accepting proofs from untrusted sources would allow attackers to steal escrowed funds.
+    // 7. Test: Receive fulfillment proof rejects unknown source
+    // Verifies that fulfillment proofs from non-hub chain IDs are rejected.
+    // Why: Only the hub can send fulfillment proofs. Accepting proofs from unknown sources would allow attackers to steal escrowed funds.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
     #[expected_failure(abort_code = 2, location = mvmt_intent::intent_inflow_escrow)] // EINVALID_SOURCE_CHAIN
-    fun test_receive_fulfillment_rejects_untrusted_source(
+    fun test_receive_fulfillment_rejects_unknown_source(
         aptos_framework: &signer,
         admin: &signer,
         token_creator: &signer,
@@ -421,11 +421,11 @@ module mvmt_intent::intent_inflow_escrow_tests {
             1500u64,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         intent_inflow_escrow::receive_fulfillment_proof(
             99999u32, // Wrong chain ID
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
     }
@@ -490,18 +490,18 @@ module mvmt_intent::intent_inflow_escrow_tests {
             1500u64,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         intent_inflow_escrow::receive_fulfillment_proof(
             HUB_CHAIN_ID,
-            copy src_addr,
+            copy remote_gmp_endpoint_addr,
             copy payload,
         );
 
         // Second fulfillment proof (should fail - already fulfilled)
         intent_inflow_escrow::receive_fulfillment_proof(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
     }
@@ -810,11 +810,11 @@ module mvmt_intent::intent_inflow_escrow_tests {
             amount,
             1500u64,
         );
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         intent_inflow_escrow::receive_fulfillment_proof(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
 
@@ -987,11 +987,11 @@ module mvmt_intent::intent_inflow_escrow_tests {
             1500u64,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         intent_inflow_escrow::receive_fulfillment_proof(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
 
@@ -1075,18 +1075,18 @@ module mvmt_intent::intent_inflow_escrow_tests {
             1500u64,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         intent_inflow_escrow::receive_fulfillment_proof(
             HUB_CHAIN_ID,
-            copy src_addr,
+            copy remote_gmp_endpoint_addr,
             copy payload,
         );
 
         // Second fulfillment proof (duplicate) - should fail with E_ALREADY_FULFILLED
         intent_inflow_escrow::receive_fulfillment_proof(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
     }

@@ -1,7 +1,7 @@
 //! GMP contract deployment utility
 //!
 //! This script deploys all GMP-related contracts: IntentGmp, IntentInflowEscrow, IntentOutflowValidator.
-//! Configures trusted remotes and message routing for cross-chain communication.
+//! Configures remote GMP endpoint addresses and message routing for cross-chain communication.
 
 const hre = require("hardhat");
 
@@ -94,10 +94,10 @@ async function main() {
   await gmpEndpoint.setOutflowHandler(outflowValidatorAddress);
   console.log("   Outflow handler set to:", outflowValidatorAddress);
 
-  // Set trusted remote for hub chain
-  console.log("   Setting trusted remote for hub chain...");
-  await gmpEndpoint.setTrustedRemote(hubChainId, movementModuleAddr);
-  console.log("   Trusted remote set for chain", hubChainId);
+  // Set remote GMP endpoint address for hub chain
+  console.log("   Setting remote GMP endpoint address for hub chain...");
+  await gmpEndpoint.setRemoteGmpEndpointAddr(hubChainId, movementModuleAddr);
+  console.log("   Remote GMP endpoint address set for chain", hubChainId);
 
   // Add relay if different from deployer
   if (relayAddress.toLowerCase() !== deployer.address.toLowerCase()) {
@@ -117,12 +117,12 @@ async function main() {
   const escrowHandler = await gmpEndpoint.escrowHandler();
   const outflowHandler = await gmpEndpoint.outflowHandler();
   const isRelayAuthorized = await gmpEndpoint.isRelayAuthorized(relayAddress);
-  const hasTrustedRemote = await gmpEndpoint.hasTrustedRemote(hubChainId);
+  const hasRemoteGmpEndpoint = await gmpEndpoint.hasRemoteGmpEndpoint(hubChainId);
 
   console.log("   Escrow handler:", escrowHandler);
   console.log("   Outflow handler:", outflowHandler);
   console.log("   Relay authorized:", isRelayAuthorized);
-  console.log("   Has trusted remote for hub:", hasTrustedRemote);
+  console.log("   Has remote GMP endpoint for hub:", hasRemoteGmpEndpoint);
 
   if (escrowHandler.toLowerCase() !== escrowGmpAddress.toLowerCase()) {
     throw new Error("Escrow handler mismatch!");

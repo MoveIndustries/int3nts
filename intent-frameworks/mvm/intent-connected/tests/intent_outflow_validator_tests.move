@@ -88,8 +88,8 @@ module mvmt_intent::intent_outflow_validator_tests {
     fun init_modules(admin: &signer) {
         gmp_sender::initialize(admin);
         intent_gmp::initialize(admin);
-        let trusted_hub_addr = create_test_hub_addr();
-        intent_outflow_validator_impl::initialize(admin, HUB_CHAIN_ID, trusted_hub_addr);
+        let hub_gmp_endpoint_addr = create_test_hub_addr();
+        intent_outflow_validator_impl::initialize(admin, HUB_CHAIN_ID, hub_gmp_endpoint_addr);
     }
 
     /// Store intent requirements for a given intent_id with the specified parameters.
@@ -110,11 +110,11 @@ module mvmt_intent::intent_outflow_validator_tests {
             expiry,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         intent_outflow_validator_impl::receive_intent_requirements(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
     }
@@ -137,7 +137,7 @@ module mvmt_intent::intent_outflow_validator_tests {
         assert!(intent_outflow_validator_impl::is_initialized(), 1);
         assert!(intent_outflow_validator_impl::get_hub_chain_id() == HUB_CHAIN_ID, 2);
 
-        let stored_hub_addr = intent_outflow_validator_impl::get_trusted_hub_addr();
+        let stored_hub_addr = intent_outflow_validator_impl::get_hub_gmp_endpoint_addr();
         let expected_hub_addr = create_test_hub_addr();
         assert!(stored_hub_addr == expected_hub_addr, 3);
     }
@@ -154,8 +154,8 @@ module mvmt_intent::intent_outflow_validator_tests {
         init_modules(admin);
 
         // Second init should fail
-        let trusted_hub_addr = create_test_hub_addr();
-        intent_outflow_validator_impl::initialize(admin, HUB_CHAIN_ID, trusted_hub_addr);
+        let hub_gmp_endpoint_addr = create_test_hub_addr();
+        intent_outflow_validator_impl::initialize(admin, HUB_CHAIN_ID, hub_gmp_endpoint_addr);
     }
 
     // ============================================================================
@@ -188,12 +188,12 @@ module mvmt_intent::intent_outflow_validator_tests {
             expiry,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         // Receive requirements
         intent_outflow_validator_impl::receive_intent_requirements(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
 
@@ -229,19 +229,19 @@ module mvmt_intent::intent_outflow_validator_tests {
             expiry,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         // First receive
         intent_outflow_validator_impl::receive_intent_requirements(
             HUB_CHAIN_ID,
-            copy src_addr,
+            copy remote_gmp_endpoint_addr,
             copy payload,
         );
 
         // Second receive (should succeed without error - idempotent)
         intent_outflow_validator_impl::receive_intent_requirements(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
 
@@ -249,12 +249,12 @@ module mvmt_intent::intent_outflow_validator_tests {
         assert!(intent_outflow_validator_impl::has_requirements(intent_id), 1);
     }
 
-    // 5. Test: Receive rejects untrusted source
-    // Verifies that requirements from non-trusted hub chains/addresses are rejected.
+    // 5. Test: Receive rejects unknown source
+    // Verifies that requirements from non-hub chains/addresses are rejected.
     // Why: Source verification prevents spoofed messages from attackers.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent)]
     #[expected_failure(abort_code = 2, location = mvmt_intent::intent_outflow_validator_impl)] // EINVALID_SOURCE_CHAIN
-    fun test_receive_rejects_untrusted_source(aptos_framework: &signer, admin: &signer) {
+    fun test_receive_rejects_unknown_source(aptos_framework: &signer, admin: &signer) {
         timestamp::set_time_has_started_for_testing(aptos_framework);
         timestamp::update_global_time_for_test_secs(1000);
 
@@ -276,12 +276,12 @@ module mvmt_intent::intent_outflow_validator_tests {
             expiry,
         );
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         // Use wrong chain ID
         intent_outflow_validator_impl::receive_intent_requirements(
             99999u32, // Wrong chain ID
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
     }
@@ -297,14 +297,14 @@ module mvmt_intent::intent_outflow_validator_tests {
 
         init_modules(admin);
 
-        let src_addr = create_test_hub_addr();
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
 
         // Invalid payload - too short to be valid IntentRequirements
         let invalid_payload = vector[0x01, 0x02, 0x03];
 
         intent_outflow_validator_impl::receive_intent_requirements(
             HUB_CHAIN_ID,
-            src_addr,
+            remote_gmp_endpoint_addr,
             invalid_payload,
         );
     }
@@ -709,7 +709,7 @@ module mvmt_intent::intent_outflow_validator_tests {
     // ============================================================================
 
     // 19. Test: UpdateHubConfig succeeds with valid admin
-    // Verifies that the admin can update hub_chain_id and trusted_hub_addr.
+    // Verifies that the admin can update hub_chain_id and hub_gmp_endpoint_addr.
     // Why: Allows reconfiguring the outflow validator when hub addresses change.
     // TODO: Implement - MVM has update_hub_config in intent_outflow_validator_impl
     // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
@@ -720,7 +720,7 @@ module mvmt_intent::intent_outflow_validator_tests {
     // TODO: Implement - MVM has update_hub_config in intent_outflow_validator_impl
     // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
 
-    // 21. Test: UpdateHubConfig allows LzReceive with new trusted address
+    // 21. Test: UpdateHubConfig allows LzReceive with new hub GMP endpoint address
     // Verifies end-to-end: update config, then receive message from new hub address.
     // Why: Ensures the updated config is used for GMP message validation.
     // TODO: Implement - MVM has update_hub_config in intent_outflow_validator_impl

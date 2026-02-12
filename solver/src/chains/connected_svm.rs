@@ -317,7 +317,7 @@ impl ConnectedSvmClient {
             .get_account_data(&config_pda)
             .context("Failed to fetch outflow config account")?;
         
-        // Parse config: discriminator(1) + admin(32) + gmp_endpoint(32) + hub_chain_id(4) + trusted_hub_addr(32) + bump(1)
+        // Parse config: discriminator(1) + admin(32) + gmp_endpoint(32) + hub_chain_id(4) + hub_gmp_endpoint_addr(32) + bump(1)
         if config_data.len() < 102 {
             anyhow::bail!("Config account data too short");
         }

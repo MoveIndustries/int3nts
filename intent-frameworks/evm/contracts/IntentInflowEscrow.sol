@@ -148,8 +148,8 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
     /// @notice Hub chain ID
     uint32 public hubChainId;
 
-    /// @notice Trusted hub address (32 bytes)
-    bytes32 public trustedHubAddr;
+    /// @notice Hub GMP endpoint address (32 bytes)
+    bytes32 public hubGmpEndpointAddr;
 
     /// @notice Stored requirements (intentId => requirements)
     mapping(bytes32 => StoredRequirements) public requirements;
@@ -171,17 +171,17 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
     /// @param admin Admin/owner address
     /// @param _gmpEndpoint GMP endpoint address
     /// @param _hubChainId Hub chain endpoint ID
-    /// @param _trustedHubAddr Trusted hub address (32 bytes)
+    /// @param _hubGmpEndpointAddr Hub GMP endpoint address (32 bytes)
     constructor(
         address admin,
         address _gmpEndpoint,
         uint32 _hubChainId,
-        bytes32 _trustedHubAddr
+        bytes32 _hubGmpEndpointAddr
     ) Ownable(admin) {
         if (_gmpEndpoint == address(0)) revert E_INVALID_ADDRESS();
         gmpEndpoint = _gmpEndpoint;
         hubChainId = _hubChainId;
-        trustedHubAddr = _trustedHubAddr;
+        hubGmpEndpointAddr = _hubGmpEndpointAddr;
     }
 
     // ============================================================================
@@ -200,13 +200,13 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
 
     /// @notice Update hub configuration
     /// @param _hubChainId New hub chain ID
-    /// @param _trustedHubAddr New trusted hub address
+    /// @param _hubGmpEndpointAddr New hub GMP endpoint address
     function updateHubConfig(
         uint32 _hubChainId,
-        bytes32 _trustedHubAddr
+        bytes32 _hubGmpEndpointAddr
     ) external onlyOwner {
         hubChainId = _hubChainId;
-        trustedHubAddr = _trustedHubAddr;
+        hubGmpEndpointAddr = _hubGmpEndpointAddr;
     }
 
     /// @notice Update GMP endpoint
@@ -223,16 +223,16 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
     /// @notice Receive IntentRequirements from hub
     /// @dev Called by GMP endpoint when message is delivered
     /// @param srcChainId Source chain endpoint ID
-    /// @param srcAddr Source address (32 bytes)
+    /// @param remoteGmpEndpointAddr Source address (32 bytes)
     /// @param payload Encoded IntentRequirements
     function receiveIntentRequirements(
         uint32 srcChainId,
-        bytes32 srcAddr,
+        bytes32 remoteGmpEndpointAddr,
         bytes calldata payload
     ) external override onlyGmpEndpoint {
         // Verify source
         if (srcChainId != hubChainId) revert E_INVALID_SOURCE_CHAIN();
-        if (srcAddr != trustedHubAddr) revert E_INVALID_SOURCE_ADDRESS();
+        if (remoteGmpEndpointAddr != hubGmpEndpointAddr) revert E_INVALID_SOURCE_ADDRESS();
 
         // Decode message
         Messages.IntentRequirements memory msg_ = Messages.decodeIntentRequirements(payload);
@@ -347,7 +347,7 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
 
         bytes memory payload = Messages.encodeEscrowConfirmation(confirmation);
 
-        IntentGmp(gmpEndpoint).sendMessage(hubChainId, trustedHubAddr, payload);
+        IntentGmp(gmpEndpoint).sendMessage(hubChainId, hubGmpEndpointAddr, payload);
 
         emit EscrowConfirmationSent(intentId, escrowId, amount, hubChainId);
     }
@@ -359,16 +359,16 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
     /// @notice Receive FulfillmentProof and auto-release escrow to solver
     /// @dev Called by GMP endpoint when hub confirms fulfillment
     /// @param srcChainId Source chain endpoint ID
-    /// @param srcAddr Source address (32 bytes)
+    /// @param remoteGmpEndpointAddr Source address (32 bytes)
     /// @param payload Encoded FulfillmentProof
     function receiveFulfillmentProof(
         uint32 srcChainId,
-        bytes32 srcAddr,
+        bytes32 remoteGmpEndpointAddr,
         bytes calldata payload
     ) external override onlyGmpEndpoint nonReentrant {
         // Verify source
         if (srcChainId != hubChainId) revert E_INVALID_SOURCE_CHAIN();
-        if (srcAddr != trustedHubAddr) revert E_INVALID_SOURCE_ADDRESS();
+        if (remoteGmpEndpointAddr != hubGmpEndpointAddr) revert E_INVALID_SOURCE_ADDRESS();
 
         // Decode message
         Messages.FulfillmentProof memory proof = Messages.decodeFulfillmentProof(payload);

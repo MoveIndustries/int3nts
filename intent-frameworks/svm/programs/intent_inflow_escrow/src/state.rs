@@ -128,7 +128,7 @@ impl StoredIntentRequirements {
 }
 
 /// GMP configuration for cross-chain messaging.
-/// Stores trusted hub address and GMP endpoint for source validation.
+/// Stores hub GMP endpoint address and GMP endpoint for source validation.
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub struct GmpConfig {
     /// Discriminator for account type
@@ -137,8 +137,8 @@ pub struct GmpConfig {
     pub admin: Pubkey,
     /// The hub chain ID (LZ endpoint ID, e.g., Movement = 30106)
     pub hub_chain_id: u32,
-    /// The trusted hub address (32 bytes, for GMP message verification)
-    pub trusted_hub_addr: [u8; 32],
+    /// The hub GMP endpoint address (32 bytes, for GMP message verification)
+    pub hub_gmp_endpoint_addr: [u8; 32],
     /// The integrated GMP endpoint program ID (for CPI)
     pub gmp_endpoint: Pubkey,
     /// PDA bump seed
@@ -152,7 +152,7 @@ impl GmpConfig {
     pub fn new(
         admin: Pubkey,
         hub_chain_id: u32,
-        trusted_hub_addr: [u8; 32],
+        hub_gmp_endpoint_addr: [u8; 32],
         gmp_endpoint: Pubkey,
         bump: u8,
     ) -> Self {
@@ -160,7 +160,7 @@ impl GmpConfig {
             discriminator: Self::DISCRIMINATOR,
             admin,
             hub_chain_id,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
             gmp_endpoint,
             bump,
         }

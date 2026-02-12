@@ -85,7 +85,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         return handle_gmp_add_relay(&client, &options, gmp_program_id);
     }
 
-    if command == "gmp-set-trusted-remote" {
+    if command == "gmp-set-remote-gmp-endpoint-addr" {
         let gmp_program_id = match options.get("gmp-program-id") {
             Some(value) => parse_pubkey(value)?,
             None => {
@@ -94,7 +94,7 @@ fn run() -> Result<(), Box<dyn Error>> {
                 std::process::exit(1);
             }
         };
-        return handle_gmp_set_trusted_remote(&client, &options, gmp_program_id);
+        return handle_gmp_set_remote_gmp_endpoint_addr(&client, &options, gmp_program_id);
     }
 
     if command == "gmp-set-routing" {
@@ -376,7 +376,7 @@ fn handle_escrow_set_gmp_config(
 ) -> Result<(), Box<dyn Error>> {
     let payer = read_keypair(options, "payer")?;
     let hub_chain_id = parse_u32(required_option(options, "hub-chain-id")?)?;
-    let trusted_hub_addr = parse_32_byte_hex(required_option(options, "hub-address")?)?;
+    let hub_gmp_endpoint_addr = parse_32_byte_hex(required_option(options, "hub-address")?)?;
     let gmp_endpoint = parse_pubkey(required_option(options, "gmp-endpoint")?)?;
 
     let (gmp_config_pda, _) =
@@ -391,7 +391,7 @@ fn handle_escrow_set_gmp_config(
         ],
         data: EscrowInstruction::SetGmpConfig {
             hub_chain_id,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
             gmp_endpoint,
         }
         .try_to_vec()?,
@@ -466,35 +466,35 @@ fn handle_gmp_add_relay(
     Ok(())
 }
 
-fn handle_gmp_set_trusted_remote(
+fn handle_gmp_set_remote_gmp_endpoint_addr(
     client: &RpcClient,
     options: &HashMap<String, String>,
     gmp_program_id: Pubkey,
 ) -> Result<(), Box<dyn Error>> {
     let payer = read_keypair(options, "payer")?;
     let src_chain_id = parse_u32(required_option(options, "src-chain-id")?)?;
-    let trusted_addr = parse_32_byte_hex(required_option(options, "trusted-addr")?)?;
+    let addr = parse_32_byte_hex(required_option(options, "addr")?)?;
 
     let (config_pda, _) =
         Pubkey::find_program_address(&[gmp_seeds::CONFIG_SEED], &gmp_program_id);
-    let (trusted_remote_pda, _) =
-        Pubkey::find_program_address(&[gmp_seeds::TRUSTED_REMOTE_SEED, &src_chain_id.to_le_bytes()], &gmp_program_id);
+    let (remote_gmp_endpoint_pda, _) =
+        Pubkey::find_program_address(&[gmp_seeds::REMOTE_GMP_ENDPOINT_SEED, &src_chain_id.to_le_bytes()], &gmp_program_id);
 
     let ix = Instruction {
         program_id: gmp_program_id,
         accounts: vec![
             AccountMeta::new_readonly(config_pda, false),
-            AccountMeta::new(trusted_remote_pda, false),
+            AccountMeta::new(remote_gmp_endpoint_pda, false),
             AccountMeta::new_readonly(payer.pubkey(), true), // admin
             AccountMeta::new(payer.pubkey(), true),          // payer
             AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
         ],
-        data: NativeGmpInstruction::SetTrustedRemote { src_chain_id, trusted_addr }.try_to_vec()?,
+        data: NativeGmpInstruction::SetRemoteGmpEndpointAddr { src_chain_id, addr }.try_to_vec()?,
     };
 
     let signature = send_tx(client, &[ix], &payer, &[])?;
-    println!("GMP SetTrustedRemote signature: {signature}");
-    println!("Trusted remote PDA: {trusted_remote_pda}");
+    println!("GMP SetRemoteGmpEndpointAddr signature: {signature}");
+    println!("Remote GMP endpoint PDA: {remote_gmp_endpoint_pda}");
     Ok(())
 }
 
@@ -544,7 +544,7 @@ fn handle_outflow_init(
     let payer = read_keypair(options, "payer")?;
     let gmp_endpoint = parse_pubkey(required_option(options, "gmp-endpoint")?)?;
     let hub_chain_id = parse_u32(required_option(options, "hub-chain-id")?)?;
-    let trusted_hub_addr = parse_32_byte_hex(required_option(options, "hub-address")?)?;
+    let hub_gmp_endpoint_addr = parse_32_byte_hex(required_option(options, "hub-address")?)?;
 
     let (config_pda, _config_bump) =
         Pubkey::find_program_address(&[outflow_seeds::CONFIG_SEED], &outflow_program_id);
@@ -559,7 +559,7 @@ fn handle_outflow_init(
         data: OutflowInstruction::Initialize {
             gmp_endpoint,
             hub_chain_id,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
         }
         .try_to_vec()?,
     };
@@ -577,7 +577,7 @@ fn handle_outflow_update_hub_config(
 ) -> Result<(), Box<dyn Error>> {
     let payer = read_keypair(options, "payer")?;
     let hub_chain_id = parse_u32(required_option(options, "hub-chain-id")?)?;
-    let trusted_hub_addr = parse_32_byte_hex(required_option(options, "hub-address")?)?;
+    let hub_gmp_endpoint_addr = parse_32_byte_hex(required_option(options, "hub-address")?)?;
 
     let (config_pda, _config_bump) =
         Pubkey::find_program_address(&[outflow_seeds::CONFIG_SEED], &outflow_program_id);
@@ -590,7 +590,7 @@ fn handle_outflow_update_hub_config(
         ],
         data: OutflowInstruction::UpdateHubConfig {
             hub_chain_id,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
         }
         .try_to_vec()?,
     };
@@ -805,8 +805,8 @@ Escrow Commands:
 GMP Endpoint Commands:
   gmp-init           --gmp-program-id <pubkey> --payer <keypair> --chain-id <u32> [--rpc <url>]
   gmp-add-relay      --gmp-program-id <pubkey> --payer <keypair> --relay <pubkey> [--rpc <url>]
-  gmp-set-trusted-remote  --gmp-program-id <pubkey> --payer <keypair> --src-chain-id <u32>
-                          --trusted-addr <hex> [--rpc <url>]
+  gmp-set-remote-gmp-endpoint-addr  --gmp-program-id <pubkey> --payer <keypair> --src-chain-id <u32>
+                          --addr <hex> [--rpc <url>]
   gmp-set-routing    --gmp-program-id <pubkey> --payer <keypair> --outflow-validator <pubkey>
                      --intent-escrow <pubkey> [--rpc <url>]
 

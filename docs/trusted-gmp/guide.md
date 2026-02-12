@@ -46,5 +46,5 @@ The relay handles three GMP message types:
 ## Debugging
 
 - Check relay logs for `MessageSent` event detection and `deliver_message` submissions
-- Verify GMP endpoint contracts are deployed and configured with correct trusted remotes
+- Verify GMP endpoint contracts are deployed and configured with correct remote GMP endpoints
 - Ensure operator wallet has sufficient funds on each chain for gas

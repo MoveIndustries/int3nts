@@ -118,10 +118,10 @@ movement move run --profile "$MVM_PROFILE" --assume-yes \
     --function-id "${MVM_MODULE_ADDR}::intent_inflow_escrow::initialize" \
     --args "u32:$HUB_CHAIN_ID" "hex:${HUB_ADDR_PADDED}"
 
-# 5. Set trusted remote for hub chain
-echo "[deploy-connected.sh] Setting trusted remote for hub (chain_id=$HUB_CHAIN_ID)..."
+# 5. Set remote GMP endpoint for hub chain
+echo "[deploy-connected.sh] Setting remote GMP endpoint for hub (chain_id=$HUB_CHAIN_ID)..."
 movement move run --profile "$MVM_PROFILE" --assume-yes \
-    --function-id "${MVM_MODULE_ADDR}::intent_gmp::set_trusted_remote" \
+    --function-id "${MVM_MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr" \
     --args "u32:$HUB_CHAIN_ID" "hex:${HUB_ADDR_PADDED}"
 
 # 6. Add relay (optional)

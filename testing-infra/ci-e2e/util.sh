@@ -724,10 +724,10 @@ start_coordinator() {
 stop_integrated_gmp() {
     log "   Checking for existing integrated-gmp..."
 
-    if pgrep -f "cargo.*trusted.gmp" > /dev/null || pgrep -f "target/debug/trusted.gmp" > /dev/null; then
+    if pgrep -f "cargo.*integrated.gmp" > /dev/null || pgrep -f "target/debug/integrated.gmp" > /dev/null; then
         log "   ️  Found existing integrated-gmp processes, stopping them..."
-        pkill -f "cargo.*trusted.gmp" || true
-        pkill -f "target/debug/trusted.gmp" || true
+        pkill -f "cargo.*integrated.gmp" || true
+        pkill -f "target/debug/integrated.gmp" || true
         sleep 2
         log "   ✅ Integrated-GMP processes stopped"
     else

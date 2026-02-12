@@ -7,6 +7,12 @@
    - Test with multiple concurrent intents (unit tests in `coordinator/tests/monitor_tests.rs`, `integrated-gmp/tests/monitor_tests.rs`)
    - Add negative test cases (rejected intents, failed fulfillments)
 
+## Naming Consistency
+
+- Align entity names across VMs (MVM, EVM, SVM) and E2E test scripts
+- Current inconsistencies: `approver_evm_pubkey_hash` vs `relay address`, `APPROVER_ADDR` vs `RELAY_ETH_ADDRESS`, Hardhat account indices vs Aptos profiles vs Solana key-pair files
+- Define canonical role names (deployer, requester, solver, relay) and use them consistently in configs, scripts, variable names, and log messages
+
 ## Documentation
 
 1. Finalize node bootstrapping instructions (ports, genesis, module publish) for both chains

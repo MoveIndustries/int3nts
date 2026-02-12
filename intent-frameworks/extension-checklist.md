@@ -293,7 +293,7 @@ SVM: `intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_te
 | 2 | test_initialize_rejects_double_init | [x] | N/A | [x] |
 | 3 | test_receive_stores_requirements | [x] | [x] | [x] |
 | 4 | test_receive_idempotent | [x] | [x] | [x] |
-| 5 | test_receive_rejects_untrusted_source | [x] | [x] | [x] |
+| 5 | test_receive_rejects_unauthorized_source | [x] | [x] | [x] |
 | 6 | test_receive_rejects_invalid_payload | [x] | N/A | [x] |
 | 7 | test_fulfill_intent_rejects_already_fulfilled | [x] | [x] | [x] |
 | 8 | test_fulfill_intent_rejects_expired | [x] | [x] | [x] |
@@ -329,12 +329,12 @@ SVM: `intent-frameworks/svm/programs/intent-gmp/tests/endpoint_tests.rs`
 | 2 | test_deliver_message_instruction_serialization | N/A | N/A | [x] |
 | 3 | test_initialize_instruction_serialization | N/A | N/A | [x] |
 | 4 | test_add_relay_instruction_serialization | N/A | N/A | [x] |
-| 5 | test_set_trusted_remote_instruction_serialization | N/A | N/A | [x] |
+| 5 | test_set_remote_gmp_endpoint_addr_instruction_serialization | N/A | N/A | [x] |
 | 6 | test_set_routing_instruction_serialization | N/A | N/A | [x] |
 | 7 | test_routing_config_serialization | N/A | N/A | [x] |
 | 8 | test_config_account_serialization | N/A | N/A | [x] |
 | 9 | test_relay_account_serialization | N/A | N/A | [x] |
-| 10 | test_trusted_remote_account_serialization | N/A | N/A | [x] |
+| 10 | test_remote_gmp_endpoint_account_serialization | N/A | N/A | [x] |
 | 11 | test_outbound_nonce_account | N/A | N/A | [x] |
 | 12 | test_delivered_message_serialization | N/A | N/A | [x] |
 | 13 | test_error_conversion | N/A | N/A | [x] |
@@ -344,9 +344,9 @@ SVM: `intent-frameworks/svm/programs/intent-gmp/tests/endpoint_tests.rs`
 | 17 | test_deliver_message_rejects_replay (EVM/SVM revert, MVM idempotent) | [x] | [x] | [x] |
 | 18 | test_deliver_message_rejects_unauthorized_relay | [x] | [x] | [x] |
 | 19 | test_deliver_message_authorized_relay | [x] | [x] | [x] |
-| 20 | test_deliver_message_rejects_untrusted_remote | [x] | [x] | [x] |
-| 21 | test_deliver_message_rejects_no_trusted_remote | [x] | [x] | [x] |
-| 22 | test_set_trusted_remote_unauthorized | [x] | [x] | [x] |
+| 20 | test_deliver_message_rejects_unknown_remote_gmp_endpoint | [x] | [x] | [x] |
+| 21 | test_deliver_message_rejects_no_remote_gmp_endpoint | [x] | [x] | [x] |
+| 22 | test_set_remote_gmp_endpoint_addr_unauthorized | [x] | [x] | [x] |
 | 23 | test_deliver_message_different_msg_type_succeeds (dedupe per intent_id+msg_type) | [x] | [x] | [x] |
 | 24 | test_deliver_intent_requirements_stores_in_both_handlers | [x] | N/A | N/A |
 | 25 | test_add_relay_rejects_non_admin | [x] | [x] | [x] |
@@ -361,10 +361,10 @@ SVM: `intent-frameworks/svm/programs/intent-gmp/tests/endpoint_tests.rs`
 | 34 | test_remove_relay | N/A | [x] | N/A |
 | 35 | test_reject_duplicate_relay | N/A | [x] | N/A |
 | 36 | test_reject_removing_non_existent_relay | N/A | [x] | N/A |
-| 37 | test_set_trusted_remote | N/A | [x] | N/A |
-| 38 | test_add_trusted_remote | N/A | [x] | N/A |
-| 39 | test_has_trusted_remote | N/A | [x] | N/A |
-| 40 | test_no_trusted_remote | N/A | [x] | N/A |
+| 37 | test_set_remote_gmp_endpoint_addr | N/A | [x] | N/A |
+| 38 | test_add_remote_gmp_endpoint_addr | N/A | [x] | N/A |
+| 39 | test_has_remote_gmp_endpoint | N/A | [x] | N/A |
+| 40 | test_no_remote_gmp_endpoint | N/A | [x] | N/A |
 | 41 | test_deliver_fulfillment_proof_routes | N/A | [x] | N/A |
 | 42 | test_reject_unknown_message_type | N/A | [x] | N/A |
 | 43 | test_emit_message_delivered | N/A | [x] | N/A |
@@ -394,9 +394,9 @@ SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/gmp.rs`
 | 2 | test_set_gmp_config_rejects_unauthorized / test_initialize_rejects_double_init | [x] | [x] | [x] |
 | 3 | test_receive_requirements_stores_requirements | [x] | [x] | [x] |
 | 4 | test_receive_requirements_idempotent | [x] | [x] | [x] |
-| 5 | test_receive_requirements_rejects_untrusted_source | [x] | [x] | [x] |
+| 5 | test_receive_requirements_rejects_unauthorized_source | [x] | [x] | [x] |
 | 6 | test_receive_fulfillment_proof_releases_escrow (SVM) / test_receive_fulfillment_proof_marks_fulfilled (MVM) | [x] | [x] | [x] |
-| 7 | test_receive_fulfillment_rejects_untrusted_source | [x] | [x] | [x] |
+| 7 | test_receive_fulfillment_rejects_unauthorized_source | [x] | [x] | [x] |
 | 8 | test_receive_fulfillment_proof_rejects_already_fulfilled | [x] | [x] | [x] |
 | 9 | test_create_escrow_validates_against_requirements / test_create_escrow_validates_requirements | [x] | [x] | [x] |
 | 10 | test_create_escrow_rejects_amount_mismatch | [x] | [x] | [x] |

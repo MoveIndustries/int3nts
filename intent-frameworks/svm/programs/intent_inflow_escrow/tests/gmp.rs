@@ -14,7 +14,7 @@ mod common;
 use common::{
     create_escrow_ix, create_lz_receive_fulfillment_proof_ix, create_lz_receive_requirements_ix,
     create_set_gmp_config_ix, generate_intent_id, get_token_balance, program_test, read_escrow,
-    read_requirements, setup_basic_env, send_tx, DUMMY_HUB_CHAIN_ID, DUMMY_TRUSTED_HUB_ADDR,
+    read_requirements, setup_basic_env, send_tx, DUMMY_HUB_CHAIN_ID, DUMMY_HUB_GMP_ENDPOINT_ADDR,
 };
 use gmp_common::messages::{FulfillmentProof, IntentRequirements};
 use intent_inflow_escrow::state::seeds;
@@ -65,7 +65,7 @@ fn create_fulfillment_proof_payload(
 // ============================================================================
 
 /// 1. Test: SetGmpConfig creates/updates GMP configuration
-/// Verifies that admin can set GMP config with hub chain ID, trusted hub address, and endpoint.
+/// Verifies that admin can set GMP config with hub chain ID, hub GMP endpoint address, and endpoint.
 /// Why: GMP config is required for source validation in all GMP message handlers.
 #[tokio::test]
 async fn test_set_gmp_config() {
@@ -83,14 +83,14 @@ async fn test_set_gmp_config() {
         Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], &program_id);
     let gmp_endpoint = Pubkey::new_unique();
     let hub_chain_id = 30106u32; // Movement chain ID
-    let trusted_hub_addr = [1u8; 32];
+    let hub_gmp_endpoint_addr = [1u8; 32];
 
     let set_config_ix = create_set_gmp_config_ix(
         program_id,
         gmp_config_pda,
         payer.pubkey(),
         hub_chain_id,
-        trusted_hub_addr,
+        hub_gmp_endpoint_addr,
         gmp_endpoint,
     );
 
@@ -116,7 +116,7 @@ async fn test_set_gmp_config() {
 
 /// 2. Test: SetGmpConfig rejects unauthorized caller
 /// Verifies that only admin can update GMP config after initial setup.
-/// Why: GMP config controls trusted sources - must be admin-only.
+/// Why: GMP config controls remote GMP endpoint sources - must be admin-only.
 #[tokio::test]
 async fn test_set_gmp_config_rejects_unauthorized() {
     let program_test = program_test();
@@ -137,7 +137,7 @@ async fn test_set_gmp_config_rejects_unauthorized() {
     send_tx(&mut context, &payer, &[fund_ix], &[]).await;
 
     let new_hub_chain_id = 99999u32;
-    let new_trusted_hub_addr = [99u8; 32];
+    let new_hub_gmp_endpoint_addr = [99u8; 32];
     let new_gmp_endpoint = Pubkey::new_unique();
 
     let set_config_ix = create_set_gmp_config_ix(
@@ -145,7 +145,7 @@ async fn test_set_gmp_config_rejects_unauthorized() {
         env.gmp_config_pda,
         unauthorized.pubkey(),
         new_hub_chain_id,
-        new_trusted_hub_addr,
+        new_hub_gmp_endpoint_addr,
         new_gmp_endpoint,
     );
 
@@ -198,7 +198,7 @@ async fn test_receive_requirements_stores_requirements() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -262,7 +262,7 @@ async fn test_receive_requirements_idempotent() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload.clone(),
     );
 
@@ -286,7 +286,7 @@ async fn test_receive_requirements_idempotent() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -302,11 +302,11 @@ async fn test_receive_requirements_idempotent() {
     context.banks_client.process_transaction(tx).await.unwrap();
 }
 
-/// 5. Test: ReceiveRequirements rejects untrusted source
+/// 5. Test: ReceiveRequirements rejects unknown remote GMP endpoint
 /// Verifies that requirements from wrong chain/address are rejected.
 /// Why: Only hub should be able to send requirements.
 #[tokio::test]
-async fn test_receive_requirements_rejects_untrusted_source() {
+async fn test_receive_requirements_rejects_unknown_remote_gmp_endpoint() {
     let program_test = program_test();
     let mut context = program_test.start_with_context().await;
     let env = setup_basic_env(&mut context).await;
@@ -337,7 +337,7 @@ async fn test_receive_requirements_rejects_untrusted_source() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         wrong_chain_id,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload.clone(),
     );
 
@@ -356,7 +356,7 @@ async fn test_receive_requirements_rejects_untrusted_source() {
     context.warp_to_slot(100).unwrap();
 
     // Use wrong source address
-    let wrong_src_addr = [99u8; 32];
+    let wrong_remote_gmp_endpoint_addr = [99u8; 32];
     let lz_receive_ix2 = create_lz_receive_requirements_ix(
         env.program_id,
         requirements_pda,
@@ -364,7 +364,7 @@ async fn test_receive_requirements_rejects_untrusted_source() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        wrong_src_addr,
+        wrong_remote_gmp_endpoint_addr,
         requirements_payload,
     );
 
@@ -422,7 +422,7 @@ async fn test_receive_fulfillment_proof_releases_escrow() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -474,7 +474,7 @@ async fn test_receive_fulfillment_proof_releases_escrow() {
         env.gmp_config_pda,
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         proof_payload,
     );
 
@@ -504,11 +504,11 @@ async fn test_receive_fulfillment_proof_releases_escrow() {
     assert!(escrow.is_claimed);
 }
 
-/// 7. Test: ReceiveFulfillmentProof rejects untrusted source
+/// 7. Test: ReceiveFulfillmentProof rejects unknown remote GMP endpoint
 /// Verifies that proof from wrong chain/address is rejected.
 /// Why: Only hub should be able to authorize release.
 #[tokio::test]
-async fn test_receive_fulfillment_proof_rejects_untrusted_source() {
+async fn test_receive_fulfillment_proof_rejects_unknown_remote_gmp_endpoint() {
     let program_test = program_test();
     let mut context = program_test.start_with_context().await;
     let env = setup_basic_env(&mut context).await;
@@ -542,7 +542,7 @@ async fn test_receive_fulfillment_proof_rejects_untrusted_source() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -594,7 +594,7 @@ async fn test_receive_fulfillment_proof_rejects_untrusted_source() {
         env.gmp_config_pda,
         gmp_caller.pubkey(),
         wrong_chain_id,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         proof_payload,
     );
 
@@ -648,7 +648,7 @@ async fn test_receive_fulfillment_proof_rejects_already_fulfilled() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -699,7 +699,7 @@ async fn test_receive_fulfillment_proof_rejects_already_fulfilled() {
         env.gmp_config_pda,
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         proof_payload.clone(),
     );
 
@@ -725,7 +725,7 @@ async fn test_receive_fulfillment_proof_rejects_already_fulfilled() {
         env.gmp_config_pda,
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         proof_payload,
     );
 
@@ -779,7 +779,7 @@ async fn test_create_escrow_validates_against_requirements() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -860,7 +860,7 @@ async fn test_create_escrow_rejects_amount_mismatch() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -933,7 +933,7 @@ async fn test_create_escrow_rejects_token_mismatch() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -1022,7 +1022,7 @@ async fn test_create_escrow_sends_escrow_confirmation() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -1118,7 +1118,7 @@ async fn test_full_inflow_gmp_workflow() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -1199,7 +1199,7 @@ async fn test_full_inflow_gmp_workflow() {
         env.gmp_config_pda,
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         proof_payload,
     );
 
@@ -1319,7 +1319,7 @@ async fn test_generic_lz_receive_routes_requirements() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -1385,7 +1385,7 @@ async fn test_generic_lz_receive_routes_fulfillment_proof() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         requirements_payload,
     );
 
@@ -1437,7 +1437,7 @@ async fn test_generic_lz_receive_routes_fulfillment_proof() {
         env.gmp_config_pda,
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         proof_payload,
     );
 
@@ -1493,7 +1493,7 @@ async fn test_generic_lz_receive_rejects_unknown_message_type() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         invalid_payload,
     );
 
@@ -1521,7 +1521,7 @@ async fn test_generic_lz_receive_rejects_unknown_message_type() {
         gmp_caller.pubkey(),
         gmp_caller.pubkey(),
         DUMMY_HUB_CHAIN_ID,
-        DUMMY_TRUSTED_HUB_ADDR,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
         invalid_payload2,
     );
 

@@ -13,7 +13,7 @@ pragma solidity ^0.8.20;
 ///      2. The LZ endpoint handles chain routing internally via ILayerZeroEndpointV2
 ///      3. Endpoint addresses vary by network (mainnet, testnet, local)
 ///
-///      This file provides EID constants for reference and trusted remote configuration,
+///      This file provides EID constants for reference and remote GMP endpoint configuration,
 ///      mirroring the structure of:
 ///      - SVM: gmp-common/src/endpoints.rs
 ///      - MVM: gmp_common/endpoints.move

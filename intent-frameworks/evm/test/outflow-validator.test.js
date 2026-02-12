@@ -11,7 +11,7 @@ describe("IntentOutflowValidator", function () {
 
   // Chain IDs
   const HUB_CHAIN_ID = 30325; // Movement mainnet
-  const TRUSTED_HUB_ADDR = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  const HUB_GMP_ENDPOINT_ADDR = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
   // Test values
   const INTENT_ID = "0xaa000000000000000000000000000000000000000000000000000000000000bb";
@@ -38,13 +38,13 @@ describe("IntentOutflowValidator", function () {
       admin.address,
       gmpEndpoint.target,
       HUB_CHAIN_ID,
-      TRUSTED_HUB_ADDR
+      HUB_GMP_ENDPOINT_ADDR
     );
     await outflowValidator.waitForDeployment();
 
     // Configure GMP endpoint
     await gmpEndpoint.setOutflowHandler(outflowValidator.target);
-    await gmpEndpoint.setTrustedRemote(HUB_CHAIN_ID, TRUSTED_HUB_ADDR);
+    await gmpEndpoint.setRemoteGmpEndpointAddr(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR);
 
     // Mint tokens to solver
     await token.mint(solver.address, AMOUNT * 10n);
@@ -62,7 +62,7 @@ describe("IntentOutflowValidator", function () {
     it("should initialize with correct config", async function () {
       expect(await outflowValidator.gmpEndpoint()).to.equal(gmpEndpoint.target);
       expect(await outflowValidator.hubChainId()).to.equal(HUB_CHAIN_ID);
-      expect(await outflowValidator.trustedHubAddr()).to.equal(TRUSTED_HUB_ADDR);
+      expect(await outflowValidator.hubGmpEndpointAddr()).to.equal(HUB_GMP_ENDPOINT_ADDR);
     });
 
     /// 2. Test: Initialize Rejects Double Init
@@ -93,7 +93,7 @@ describe("IntentOutflowValidator", function () {
         expiry
       );
 
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
 
       expect(await outflowValidator.hasRequirements(INTENT_ID)).to.equal(true);
       const req = await outflowValidator.getRequirements(INTENT_ID);
@@ -119,25 +119,25 @@ describe("IntentOutflowValidator", function () {
         expiry
       );
 
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
 
       // Second delivery with same payload blocked by GMP deduplication
       await expect(
-        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload)
+        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload)
       ).to.be.revertedWithCustomError(gmpEndpoint, "E_ALREADY_DELIVERED");
     });
 
-    /// 5. Test: test_receive_rejects_untrusted_source: Receive Rejects Untrusted Source
-    /// Verifies requirements from untrusted source are rejected.
-    /// Why: Only trusted hub should send requirements.
-    it("should reject requirements from untrusted source", async function () {
-      const untrustedAddr = "0x9900000000000000000000000000000000000000000000000000000000000099";
-      await gmpEndpoint.addTrustedRemote(HUB_CHAIN_ID, untrustedAddr);
+    /// 5. Test: test_receive_rejects_unauthorized_source: Receive Rejects Unauthorized Source
+    /// Verifies requirements from unauthorized source are rejected.
+    /// Why: Only the registered hub GMP endpoint should send requirements.
+    it("should reject requirements from unauthorized source", async function () {
+      const wrongAddr = "0x9900000000000000000000000000000000000000000000000000000000000099";
+      await gmpEndpoint.addRemoteGmpEndpointAddr(HUB_CHAIN_ID, wrongAddr);
 
       const payload = "0x01" + "00".repeat(144);
 
       await expect(
-        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, untrustedAddr, payload)
+        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, wrongAddr, payload)
       ).to.be.revertedWithCustomError(outflowValidator, "E_INVALID_SOURCE_ADDRESS");
     });
 
@@ -173,7 +173,7 @@ describe("IntentOutflowValidator", function () {
         solverAddr32,
         expiry
       );
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
     });
 
     /// 7. Test: test_fulfill_intent_rejects_already_fulfilled: Fulfill Rejects Already Fulfilled
@@ -203,7 +203,7 @@ describe("IntentOutflowValidator", function () {
         solverAddr32,
         pastExpiry
       );
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
 
       await expect(
         outflowValidator.connect(solver).fulfillIntent(newIntentId, token.target)
@@ -272,7 +272,7 @@ describe("IntentOutflowValidator", function () {
           admin.address,
           ethers.ZeroAddress,
           HUB_CHAIN_ID,
-          TRUSTED_HUB_ADDR
+          HUB_GMP_ENDPOINT_ADDR
         )
       ).to.be.revertedWithCustomError(outflowValidator, "E_INVALID_ADDRESS");
     });
@@ -293,7 +293,7 @@ describe("IntentOutflowValidator", function () {
         zeroSolverAddr,
         expiry
       );
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
 
       // Admin (not the designated solver) should be able to fulfill
       await token.mint(admin.address, AMOUNT);
@@ -350,7 +350,7 @@ describe("IntentOutflowValidator", function () {
         solverAddr32,
         expiry
       );
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, reqPayload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, reqPayload);
       expect(await outflowValidator.hasRequirements(INTENT_ID)).to.equal(true);
 
       // 2. Solver fulfills intent
@@ -368,7 +368,7 @@ describe("IntentOutflowValidator", function () {
 
   describe("Update Hub Config", function () {
     /// 19. Test: test_update_hub_config_succeeds: UpdateHubConfig Succeeds
-    /// Verifies that the admin can update hub_chain_id and trusted_hub_addr.
+    /// Verifies that the admin can update hub_chain_id and hub_gmp_endpoint_addr.
     /// Why: Allows reconfiguring the outflow validator when hub addresses change.
     /// TODO: Implement - EVM has updateHubConfig in IntentOutflowValidator
     /// SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs

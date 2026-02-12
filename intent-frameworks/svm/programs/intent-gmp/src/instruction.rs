@@ -41,19 +41,19 @@ pub enum NativeGmpInstruction {
         relay: Pubkey,
     },
 
-    /// Set a trusted remote address for a source chain.
+    /// Set a remote GMP endpoint address for a source chain.
     ///
     /// Accounts expected:
     /// 0. `[]` Config account (PDA: ["config"])
-    /// 1. `[writable]` Trusted remote account (PDA: ["trusted_remote", src_chain_id])
+    /// 1. `[writable]` Remote GMP endpoint account (PDA: ["remote_gmp_endpoint", src_chain_id])
     /// 2. `[signer]` Admin
     /// 3. `[signer]` Payer
     /// 4. `[]` System program
-    SetTrustedRemote {
+    SetRemoteGmpEndpointAddr {
         /// Source chain endpoint ID
         src_chain_id: u32,
-        /// Trusted source address (32 bytes)
-        trusted_addr: [u8; 32],
+        /// Remote GMP endpoint address (32 bytes)
+        addr: [u8; 32],
     },
 
     /// Set routing configuration for message delivery.
@@ -94,10 +94,10 @@ pub enum NativeGmpInstruction {
         dst_chain_id: u32,
         /// Destination address (32 bytes, the receiving program/module)
         dst_addr: [u8; 32],
-        /// Source address to include in the message (32 bytes).
-        /// This is the application-level sender (e.g., outflow-validator program ID).
+        /// Remote GMP endpoint address to include in the message (32 bytes).
+        /// This is the GMP endpoint address that the receiving chain will verify.
         /// The sender account is still required for authorization.
-        src_addr: [u8; 32],
+        remote_gmp_endpoint_addr: [u8; 32],
         /// Message payload (encoded GMP message)
         payload: Vec<u8>,
     },
@@ -118,7 +118,7 @@ pub enum NativeGmpInstruction {
     /// Accounts expected:
     /// 0. `[]` Config account (PDA: ["config"])
     /// 1. `[]` Relay account (PDA: ["relay", relay_pubkey])
-    /// 2. `[]` Trusted remote account (PDA: ["trusted_remote", src_chain_id])
+    /// 2. `[]` Remote GMP endpoint account (PDA: ["remote_gmp_endpoint", src_chain_id])
     /// 3. `[writable]` Delivered message account (PDA: ["delivered", intent_id, &[msg_type]])
     /// 4. `[signer]` Relay (must be authorized)
     /// 5. `[signer]` Payer (for delivered message account creation)
@@ -130,8 +130,8 @@ pub enum NativeGmpInstruction {
     DeliverMessage {
         /// Source chain endpoint ID
         src_chain_id: u32,
-        /// Source address (32 bytes, the sending program/module)
-        src_addr: [u8; 32],
+        /// Remote GMP endpoint address (32 bytes, the GMP endpoint on the sending chain)
+        remote_gmp_endpoint_addr: [u8; 32],
         /// Message payload (encoded GMP message)
         payload: Vec<u8>,
     },

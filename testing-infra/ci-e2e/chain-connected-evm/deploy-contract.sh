@@ -28,7 +28,7 @@ fi
 log ""
 log " Configuration:"
 
-# Load hub module address for trusted remote configuration
+# Load hub module address for remote GMP endpoint configuration
 source "$PROJECT_ROOT/.tmp/chain-info.env" 2>/dev/null || true
 
 if [ -z "$HUB_MODULE_ADDR" ]; then
@@ -40,10 +40,10 @@ fi
 # Convert hub address to 32-byte hex for GMP (pad with leading zeros if needed)
 HUB_ADDR_CLEAN=$(echo "$HUB_MODULE_ADDR" | sed 's/^0x//')
 # Pad to 64 hex characters (32 bytes)
-TRUSTED_HUB_ADDR=$(printf "0x%064s" "$HUB_ADDR_CLEAN" | tr ' ' '0')
+HUB_GMP_ENDPOINT_ADDR=$(printf "0x%064s" "$HUB_ADDR_CLEAN" | tr ' ' '0')
 
 log "   Hub Module Address: $HUB_MODULE_ADDR"
-log "   Trusted Hub Address (32 bytes): $TRUSTED_HUB_ADDR"
+log "   Hub GMP Endpoint Address (32 bytes): $HUB_GMP_ENDPOINT_ADDR"
 
 # Load integrated-gmp keys for relay authorization
 load_integrated_gmp_keys
@@ -138,6 +138,14 @@ echo "GMP_ENDPOINT_ADDR=$GMP_ENDPOINT_ADDR" >> "$PROJECT_ROOT/.tmp/chain-info.en
 echo "ESCROW_GMP_ADDR=$ESCROW_GMP_ADDR" >> "$PROJECT_ROOT/.tmp/chain-info.env"
 echo "OUTFLOW_VALIDATOR_ADDR=$OUTFLOW_VALIDATOR_ADDR" >> "$PROJECT_ROOT/.tmp/chain-info.env"
 echo "USD_EVM_ADDR=$USD_EVM_ADDR" >> "$PROJECT_ROOT/.tmp/chain-info.env"
+echo "RELAY_ETH_ADDRESS=$RELAY_ETH_ADDRESS" >> "$PROJECT_ROOT/.tmp/chain-info.env"
+
+# Fund the relay's ECDSA-derived address with 1 ETH for gas
+log "   Funding relay address ($RELAY_ETH_ADDRESS) with 1 ETH..."
+curl -s -X POST http://127.0.0.1:8545 \
+    -H "Content-Type: application/json" \
+    -d "{\"jsonrpc\":\"2.0\",\"method\":\"hardhat_setBalance\",\"params\":[\"$RELAY_ETH_ADDRESS\",\"0xDE0B6B3A7640000\"],\"id\":1}" > /dev/null
+log "   ✅ Relay funded"
 
 # Mint USDcon to Requester and Solver (accounts 1 and 2)
 log ""
@@ -172,28 +180,28 @@ log ""
 log " Configuring hub chain to trust EVM connected chain..."
 
 # Get the EVM chain's "address" for hub trust config
-# For EVM, we use the IntentGmp contract address as the trusted remote
+# For EVM, we use the IntentGmp contract address as the remote GMP endpoint
 # (IntentGmp is the GMP endpoint that sends/receives cross-chain messages)
 GMP_ENDPOINT_ADDR_CLEAN=$(echo "$GMP_ENDPOINT_ADDR" | sed 's/^0x//')
 # Pad to 64 hex characters (32 bytes)
 GMP_ENDPOINT_ADDR_PADDED=$(printf "%064s" "$GMP_ENDPOINT_ADDR_CLEAN" | tr ' ' '0')
 
-# Set trusted remote on hub for connected EVM chain (chain_id=31337)
+# Set remote GMP endpoint on hub for connected EVM chain (chain_id=31337)
 if aptos move run --profile intent-account-chain1 --assume-yes \
-    --function-id ${HUB_MODULE_ADDR}::intent_gmp::set_trusted_remote \
+    --function-id ${HUB_MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr \
     --args u32:31337 "hex:${GMP_ENDPOINT_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
     log "   ✅ Hub now trusts EVM connected chain (chain_id=31337, addr=$GMP_ENDPOINT_ADDR)"
 else
-    log "   ️ Could not set trusted remote on hub (ignoring)"
+    log "   ️ Could not set remote GMP endpoint on hub (ignoring)"
 fi
 
-# Also set trusted remote in intent_gmp_hub for EVM chain
+# Also set remote GMP endpoint in intent_gmp_hub for EVM chain
 if aptos move run --profile intent-account-chain1 --assume-yes \
-    --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_trusted_remote \
+    --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_remote_gmp_endpoint_addr \
     --args u32:31337 "hex:${GMP_ENDPOINT_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
     log "   ✅ Hub intent_gmp_hub now trusts EVM connected chain"
 else
-    log "   ️ Could not set trusted remote in intent_gmp_hub (ignoring)"
+    log "   ️ Could not set remote GMP endpoint in intent_gmp_hub (ignoring)"
 fi
 
 # Display balances (ETH + USDcon)
@@ -214,7 +222,7 @@ log "   Relay Address: $RELAY_ETH_ADDRESS"
 log ""
 log "Configuration:"
 log "   Hub Chain ID: 1"
-log "   Trusted Hub Address: $TRUSTED_HUB_ADDR"
+log "   Hub GMP Endpoint Address: $HUB_GMP_ENDPOINT_ADDR"
 log ""
 log " API Examples:"
 log "   Check EVM Chain:    curl -X POST http://127.0.0.1:8545 -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_blockNumber\",\"params\":[],\"id\":1}'"

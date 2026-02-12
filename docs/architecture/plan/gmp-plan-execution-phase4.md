@@ -127,8 +127,8 @@
 
 - [x] Update SVM deployment scripts to include GMP programs (intent-outflow-validator, intent-escrow with GMP config)
 - [x] Update MVM deployment scripts to include GMP modules
-- [x] Update EVM deployment scripts to include GMP contracts (IntentGmp, IntentOutflowValidator, IntentInflowEscrow) and trusted remote configuration
-- [x] Add trusted remote configuration to all deployment scripts (SVM, MVM, EVM)
+- [x] Update EVM deployment scripts to include GMP contracts (IntentGmp, IntentOutflowValidator, IntentInflowEscrow) and remote GMP endpoint configuration
+- [x] Add remote GMP endpoint configuration to all deployment scripts (SVM, MVM, EVM)
 - [ ] Deploy updated contracts/modules/programs to testnets
 - [ ] Verify cross-chain flow works on testnets (with integrated GMP relay)
 

@@ -9,13 +9,13 @@ import "./gmp-common/Messages.sol";
 interface IMessageHandler {
     function receiveIntentRequirements(
         uint32 srcChainId,
-        bytes32 srcAddr,
+        bytes32 remoteGmpEndpointAddr,
         bytes calldata payload
     ) external;
 
     function receiveFulfillmentProof(
         uint32 srcChainId,
-        bytes32 srcAddr,
+        bytes32 remoteGmpEndpointAddr,
         bytes calldata payload
     ) external;
 }
@@ -32,10 +32,10 @@ contract IntentGmp is Ownable, ReentrancyGuard {
     error E_UNAUTHORIZED_RELAY();
     /// @notice Message already delivered (duplicate delivery)
     error E_ALREADY_DELIVERED();
-    /// @notice Source address is not trusted for the given chain
-    error E_UNTRUSTED_REMOTE();
-    /// @notice No trusted remote configured for the source chain
-    error E_NO_TRUSTED_REMOTE();
+    /// @notice Source address is not a recognized remote GMP endpoint for the given chain
+    error E_UNREGISTERED_REMOTE_GMP_ENDPOINT();
+    /// @notice No remote GMP endpoint configured for the source chain
+    error E_NO_REMOTE_GMP_ENDPOINT();
     /// @notice Unknown message type in payload
     error E_UNKNOWN_MESSAGE_TYPE();
     /// @notice Invalid address (zero address)
@@ -64,7 +64,7 @@ contract IntentGmp is Ownable, ReentrancyGuard {
     /// @notice Emitted when a message is delivered from another chain
     event MessageDelivered(
         uint32 indexed srcChainId,
-        bytes32 srcAddr,
+        bytes32 remoteGmpEndpointAddr,
         bytes payload,
         bytes32 intentId
     );
@@ -83,11 +83,11 @@ contract IntentGmp is Ownable, ReentrancyGuard {
     /// @notice Emitted when a relay is removed
     event RelayRemoved(address indexed relay);
 
-    /// @notice Emitted when a trusted remote is set
-    event TrustedRemoteSet(uint32 indexed chainId, bytes32 trustedAddr);
+    /// @notice Emitted when a remote GMP endpoint address is set
+    event RemoteGmpEndpointAddrSet(uint32 indexed chainId, bytes32 remoteAddr);
 
-    /// @notice Emitted when a trusted remote is added
-    event TrustedRemoteAdded(uint32 indexed chainId, bytes32 trustedAddr);
+    /// @notice Emitted when a remote GMP endpoint address is added
+    event RemoteGmpEndpointAddrAdded(uint32 indexed chainId, bytes32 remoteAddr);
 
     /// @notice Emitted when handler is updated
     event EscrowHandlerSet(address indexed handler);
@@ -102,8 +102,8 @@ contract IntentGmp is Ownable, ReentrancyGuard {
     /// @notice Authorized relay addresses that can call deliverMessage
     mapping(address => bool) public authorizedRelays;
 
-    /// @notice Trusted remote addresses per source chain (chainId => list of trusted 32-byte addresses)
-    mapping(uint32 => bytes32[]) private trustedRemotes;
+    /// @notice Remote GMP endpoint addresses per source chain (chainId => list of registered 32-byte addresses)
+    mapping(uint32 => bytes32[]) private remoteGmpEndpointAddrs;
 
     /// @notice Delivered messages: keccak256(intentId, msgType) => true.
     /// Replaces sequential nonce tracking — immune to contract redeployments.
@@ -140,20 +140,20 @@ contract IntentGmp is Ownable, ReentrancyGuard {
     ///      Deduplication uses (intent_id, msg_type) extracted from the payload,
     ///      making delivery immune to contract redeployments (unlike sequential nonces).
     /// @param srcChainId Source chain endpoint ID
-    /// @param srcAddr Source address (32 bytes)
+    /// @param remoteGmpEndpointAddr Source address (32 bytes)
     /// @param payload Message payload (encoded GMP message)
     function deliverMessage(
         uint32 srcChainId,
-        bytes32 srcAddr,
+        bytes32 remoteGmpEndpointAddr,
         bytes calldata payload
     ) external nonReentrant {
         // Verify relay is authorized
         if (!authorizedRelays[msg.sender]) revert E_UNAUTHORIZED_RELAY();
 
-        // Verify trusted remote
-        bytes32[] storage trusted = trustedRemotes[srcChainId];
-        if (trusted.length == 0) revert E_NO_TRUSTED_REMOTE();
-        if (!_isTrustedAddress(trusted, srcAddr)) revert E_UNTRUSTED_REMOTE();
+        // Verify remote GMP endpoint
+        bytes32[] storage registered = remoteGmpEndpointAddrs[srcChainId];
+        if (registered.length == 0) revert E_NO_REMOTE_GMP_ENDPOINT();
+        if (!_isRemoteGmpEndpointAddress(registered, remoteGmpEndpointAddr)) revert E_UNREGISTERED_REMOTE_GMP_ENDPOINT();
 
         // Extract intent_id and msg_type from payload for dedup
         // All GMP messages: msg_type (1 byte) + intent_id (32 bytes) at the start
@@ -172,17 +172,17 @@ contract IntentGmp is Ownable, ReentrancyGuard {
         deliveredMessages[dedupeKey] = true;
 
         // Emit delivery event
-        emit MessageDelivered(srcChainId, srcAddr, payload, intentId);
+        emit MessageDelivered(srcChainId, remoteGmpEndpointAddr, payload, intentId);
 
         // Route message based on type
-        _routeMessage(srcChainId, srcAddr, payload);
+        _routeMessage(srcChainId, remoteGmpEndpointAddr, payload);
     }
 
     /// @notice Route a GMP message to the appropriate handler based on payload type
     /// @dev Connected chain receives IntentRequirements (0x01) and FulfillmentProof (0x03)
     function _routeMessage(
         uint32 srcChainId,
-        bytes32 srcAddr,
+        bytes32 remoteGmpEndpointAddr,
         bytes calldata payload
     ) internal {
         uint8 msgType = Messages.peekMessageType(payload);
@@ -192,14 +192,14 @@ contract IntentGmp is Ownable, ReentrancyGuard {
             if (escrowHandler != address(0)) {
                 IMessageHandler(escrowHandler).receiveIntentRequirements(
                     srcChainId,
-                    srcAddr,
+                    remoteGmpEndpointAddr,
                     payload
                 );
             }
             if (outflowHandler != address(0)) {
                 IMessageHandler(outflowHandler).receiveIntentRequirements(
                     srcChainId,
-                    srcAddr,
+                    remoteGmpEndpointAddr,
                     payload
                 );
             }
@@ -208,7 +208,7 @@ contract IntentGmp is Ownable, ReentrancyGuard {
             if (escrowHandler == address(0)) revert E_HANDLER_NOT_CONFIGURED();
             IMessageHandler(escrowHandler).receiveFulfillmentProof(
                 srcChainId,
-                srcAddr,
+                remoteGmpEndpointAddr,
                 payload
             );
         } else {
@@ -247,29 +247,29 @@ contract IntentGmp is Ownable, ReentrancyGuard {
     // ADMIN FUNCTIONS
     // ============================================================================
 
-    /// @notice Set a trusted remote address for a source chain (replaces all existing)
+    /// @notice Set a remote GMP endpoint address for a source chain (replaces all existing)
     /// @param srcChainId Source chain endpoint ID
-    /// @param trustedAddr Trusted source address (32 bytes)
-    function setTrustedRemote(
+    /// @param remoteAddr Remote GMP endpoint address (32 bytes)
+    function setRemoteGmpEndpointAddr(
         uint32 srcChainId,
-        bytes32 trustedAddr
+        bytes32 remoteAddr
     ) external onlyOwner {
-        delete trustedRemotes[srcChainId];
-        trustedRemotes[srcChainId].push(trustedAddr);
-        emit TrustedRemoteSet(srcChainId, trustedAddr);
+        delete remoteGmpEndpointAddrs[srcChainId];
+        remoteGmpEndpointAddrs[srcChainId].push(remoteAddr);
+        emit RemoteGmpEndpointAddrSet(srcChainId, remoteAddr);
     }
 
-    /// @notice Add a trusted remote address for a source chain
+    /// @notice Add a remote GMP endpoint address for a source chain
     /// @param srcChainId Source chain endpoint ID
-    /// @param trustedAddr Trusted source address (32 bytes) to add
-    function addTrustedRemote(
+    /// @param remoteAddr Remote GMP endpoint address (32 bytes) to add
+    function addRemoteGmpEndpointAddr(
         uint32 srcChainId,
-        bytes32 trustedAddr
+        bytes32 remoteAddr
     ) external onlyOwner {
-        bytes32[] storage trusted = trustedRemotes[srcChainId];
-        if (_isTrustedAddress(trusted, trustedAddr)) revert E_ALREADY_EXISTS();
-        trusted.push(trustedAddr);
-        emit TrustedRemoteAdded(srcChainId, trustedAddr);
+        bytes32[] storage registered = remoteGmpEndpointAddrs[srcChainId];
+        if (_isRemoteGmpEndpointAddress(registered, remoteAddr)) revert E_ALREADY_EXISTS();
+        registered.push(remoteAddr);
+        emit RemoteGmpEndpointAddrAdded(srcChainId, remoteAddr);
     }
 
     /// @notice Add an authorized relay
@@ -314,18 +314,18 @@ contract IntentGmp is Ownable, ReentrancyGuard {
         return authorizedRelays[addr];
     }
 
-    /// @notice Get the trusted remote addresses for a source chain
+    /// @notice Get the remote GMP endpoint addresses for a source chain
     /// @param srcChainId Source chain endpoint ID
-    /// @return List of trusted addresses
-    function getTrustedRemotes(uint32 srcChainId) external view returns (bytes32[] memory) {
-        return trustedRemotes[srcChainId];
+    /// @return List of remote GMP endpoint addresses
+    function getRemoteGmpEndpointAddrs(uint32 srcChainId) external view returns (bytes32[] memory) {
+        return remoteGmpEndpointAddrs[srcChainId];
     }
 
-    /// @notice Check if a source chain has any trusted remotes configured
+    /// @notice Check if a source chain has any remote GMP endpoint addresses configured
     /// @param srcChainId Source chain endpoint ID
-    /// @return True if at least one trusted remote is configured
-    function hasTrustedRemote(uint32 srcChainId) external view returns (bool) {
-        return trustedRemotes[srcChainId].length > 0;
+    /// @return True if at least one remote GMP endpoint is configured
+    function hasRemoteGmpEndpoint(uint32 srcChainId) external view returns (bool) {
+        return remoteGmpEndpointAddrs[srcChainId].length > 0;
     }
 
     /// @notice Check if a specific message has been delivered
@@ -341,8 +341,8 @@ contract IntentGmp is Ownable, ReentrancyGuard {
     // INTERNAL HELPERS
     // ============================================================================
 
-    /// @notice Check if an address is in the trusted addresses list
-    function _isTrustedAddress(
+    /// @notice Check if an address is in the remote GMP endpoint addresses list
+    function _isRemoteGmpEndpointAddress(
         bytes32[] storage addrs,
         bytes32 addr
     ) internal view returns (bool) {

@@ -290,7 +290,7 @@ fn test_normalize_address_preserves_existing_prefix() {
 fn test_parse_svm_message_sent_log_format() {
     // Format matches integrated-gmp-endpoint program log output
     let log = format!(
-        "Program log: MessageSent: src_chain_id={}, dst_chain_id={}, src_addr={}, dst_addr=0102030405060708091011121314151617181920212223242526272829303132, nonce=42, payload_len=4, payload_hex=deadbeef",
+        "Program log: MessageSent: src_chain_id={}, dst_chain_id={}, remote_gmp_endpoint_addr={}, dst_addr=0102030405060708091011121314151617181920212223242526272829303132, nonce=42, payload_len=4, payload_hex=deadbeef",
         TEST_SVM_CHAIN_ID, TEST_MVM_CHAIN_ID, DUMMY_SVM_ESCROW_PROGRAM_ID
     );
 

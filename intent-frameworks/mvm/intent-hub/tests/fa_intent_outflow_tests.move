@@ -48,14 +48,14 @@ module mvmt_intent::fa_intent_outflow_tests {
         // Initialize GMP modules for cross-chain messaging
         gmp_intent_state::init_for_test(mvmt_intent);
         gmp_sender::init_for_test(mvmt_intent);
-        // Use dst_chain_id = 2 (connected chain) with a dummy trusted remote address
-        let dummy_trusted_remote = vector::empty<u8>();
+        // Use dst_chain_id = 2 (connected chain) with a dummy remote GMP endpoint address
+        let dummy_remote_gmp_endpoint = vector::empty<u8>();
         let i = 0;
         while (i < 32) {
-            vector::push_back(&mut dummy_trusted_remote, 0xAB);
+            vector::push_back(&mut dummy_remote_gmp_endpoint, 0xAB);
             i = i + 1;
         };
-        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_trusted_remote);
+        intent_gmp_hub::init_for_test(mvmt_intent, 2, dummy_remote_gmp_endpoint);
 
         // Create test fungible assets
         let (offered_metadata, _) = mvmt_intent::test_utils::register_and_mint_tokens(aptos_framework, requester_signer, 100);
@@ -374,18 +374,18 @@ module mvmt_intent::fa_intent_outflow_tests {
         );
         let payload = gmp_common::encode_fulfillment_proof(&fulfillment_proof);
 
-        // Create trusted source address (matching what was set in init_for_test)
-        let trusted_src_addr = vector::empty<u8>();
+        // Create known source address (matching what was set in init_for_test)
+        let known_src_addr = vector::empty<u8>();
         let i = 0;
         while (i < 32) {
-            vector::push_back(&mut trusted_src_addr, 0xAB);
+            vector::push_back(&mut known_src_addr, 0xAB);
             i = i + 1;
         };
 
         // Simulate receiving FulfillmentProof from connected chain via GMP
         let was_recorded = fa_intent_outflow::receive_fulfillment_proof(
             2, // src_chain_id (connected chain)
-            trusted_src_addr,
+            known_src_addr,
             payload,
         );
         assert!(was_recorded == true); // Should be newly recorded

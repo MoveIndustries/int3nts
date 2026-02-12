@@ -18,7 +18,7 @@ use crate::error::GmpError;
 use crate::instruction::NativeGmpInstruction;
 use crate::state::{
     seeds, ConfigAccount, DeliveredMessage, MessageAccount, OutboundNonceAccount, RelayAccount,
-    RoutingConfig, TrustedRemoteAccount,
+    RoutingConfig, RemoteGmpEndpoint,
 };
 
 /// Message type constants (matches MVM's gmp_common)
@@ -48,12 +48,12 @@ pub fn process_instruction(
             msg!("Instruction: RemoveRelay");
             process_remove_relay(program_id, accounts, relay)
         }
-        NativeGmpInstruction::SetTrustedRemote {
+        NativeGmpInstruction::SetRemoteGmpEndpointAddr {
             src_chain_id,
-            trusted_addr,
+            addr,
         } => {
-            msg!("Instruction: SetTrustedRemote");
-            process_set_trusted_remote(program_id, accounts, src_chain_id, trusted_addr)
+            msg!("Instruction: SetRemoteGmpEndpointAddr");
+            process_set_remote_gmp_endpoint_addr(program_id, accounts, src_chain_id, addr)
         }
         NativeGmpInstruction::SetRouting {
             outflow_validator,
@@ -65,19 +65,19 @@ pub fn process_instruction(
         NativeGmpInstruction::Send {
             dst_chain_id,
             dst_addr,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         } => {
             msg!("Instruction: Send");
-            process_send(program_id, accounts, dst_chain_id, dst_addr, src_addr, payload)
+            process_send(program_id, accounts, dst_chain_id, dst_addr, remote_gmp_endpoint_addr, payload)
         }
         NativeGmpInstruction::DeliverMessage {
             src_chain_id,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         } => {
             msg!("Instruction: DeliverMessage");
-            process_deliver_message(program_id, accounts, src_chain_id, src_addr, payload)
+            process_deliver_message(program_id, accounts, src_chain_id, remote_gmp_endpoint_addr, payload)
         }
     }
 }
@@ -245,16 +245,16 @@ fn process_remove_relay(
     Ok(())
 }
 
-/// Set a trusted remote address for a source chain.
-fn process_set_trusted_remote(
+/// Set a remote GMP endpoint address for a source chain.
+fn process_set_remote_gmp_endpoint_addr(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     src_chain_id: u32,
-    trusted_addr: [u8; 32],
+    addr: [u8; 32],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let config_account = next_account_info(account_info_iter)?;
-    let trusted_remote_account = next_account_info(account_info_iter)?;
+    let remote_gmp_endpoint_account = next_account_info(account_info_iter)?;
     let admin = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
@@ -272,59 +272,59 @@ fn process_set_trusted_remote(
         return Err(GmpError::UnauthorizedAdmin.into());
     }
 
-    // Derive trusted remote PDA
+    // Derive remote GMP endpoint PDA
     let chain_id_bytes = src_chain_id.to_le_bytes();
-    let (trusted_remote_pda, trusted_remote_bump) = Pubkey::find_program_address(
-        &[seeds::TRUSTED_REMOTE_SEED, &chain_id_bytes],
+    let (remote_gmp_endpoint_pda, remote_gmp_endpoint_bump) = Pubkey::find_program_address(
+        &[seeds::REMOTE_GMP_ENDPOINT_SEED, &chain_id_bytes],
         program_id,
     );
 
-    if trusted_remote_account.key != &trusted_remote_pda {
+    if remote_gmp_endpoint_account.key != &remote_gmp_endpoint_pda {
         return Err(GmpError::InvalidPda.into());
     }
 
-    // Create or update trusted remote account
-    if trusted_remote_account.data_is_empty() {
+    // Create or update remote GMP endpoint account
+    if remote_gmp_endpoint_account.data_is_empty() {
         let rent = Rent::get()?;
-        let space = TrustedRemoteAccount::SIZE;
+        let space = RemoteGmpEndpoint::SIZE;
         let lamports = rent.minimum_balance(space);
 
         invoke_signed(
             &system_instruction::create_account(
                 payer.key,
-                trusted_remote_account.key,
+                remote_gmp_endpoint_account.key,
                 lamports,
                 space as u64,
                 program_id,
             ),
             &[
                 payer.clone(),
-                trusted_remote_account.clone(),
+                remote_gmp_endpoint_account.clone(),
                 system_program.clone(),
             ],
             &[&[
-                seeds::TRUSTED_REMOTE_SEED,
+                seeds::REMOTE_GMP_ENDPOINT_SEED,
                 &chain_id_bytes,
-                &[trusted_remote_bump],
+                &[remote_gmp_endpoint_bump],
             ]],
         )?;
 
-        let trusted_remote =
-            TrustedRemoteAccount::new(src_chain_id, trusted_addr, trusted_remote_bump);
-        trusted_remote.serialize(&mut &mut trusted_remote_account.data.borrow_mut()[..])?;
+        let remote_gmp_endpoint =
+            RemoteGmpEndpoint::new(src_chain_id, addr, remote_gmp_endpoint_bump);
+        remote_gmp_endpoint.serialize(&mut &mut remote_gmp_endpoint_account.data.borrow_mut()[..])?;
     } else {
-        // Update existing trusted remote
-        let mut trusted_remote =
-            TrustedRemoteAccount::try_from_slice(&trusted_remote_account.data.borrow())
+        // Update existing remote GMP endpoint
+        let mut remote_gmp_endpoint =
+            RemoteGmpEndpoint::try_from_slice(&remote_gmp_endpoint_account.data.borrow())
                 .map_err(|_| GmpError::InvalidDiscriminator)?;
-        trusted_remote.trusted_addr = trusted_addr;
-        trusted_remote.serialize(&mut &mut trusted_remote_account.data.borrow_mut()[..])?;
+        remote_gmp_endpoint.addr = addr;
+        remote_gmp_endpoint.serialize(&mut &mut remote_gmp_endpoint_account.data.borrow_mut()[..])?;
     }
 
     msg!(
-        "Trusted remote set: chain_id={}, addr={}",
+        "Remote GMP endpoint set: chain_id={}, addr={}",
         src_chain_id,
-        hex_encode(&trusted_addr)
+        hex_encode(&addr)
     );
     Ok(())
 }
@@ -412,7 +412,7 @@ fn process_send(
     accounts: &[AccountInfo],
     dst_chain_id: u32,
     dst_addr: [u8; 32],
-    src_addr: [u8; 32],
+    remote_gmp_endpoint_addr: [u8; 32],
     payload: Vec<u8>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -514,19 +514,19 @@ fn process_send(
         dst_chain_id,
         nonce,
         dst_addr,
-        src_addr,
+        remote_gmp_endpoint_addr,
         payload.clone(),
         message_bump,
     );
     message_data.serialize(&mut &mut message_account.data.borrow_mut()[..])?;
 
     // Also emit log for backward compatibility / debugging
-    let src_addr_pubkey = Pubkey::new_from_array(src_addr);
+    let endpoint_addr_pubkey = Pubkey::new_from_array(remote_gmp_endpoint_addr);
     msg!(
-        "MessageSent: src_chain_id={}, dst_chain_id={}, src_addr={}, dst_addr={}, nonce={}, payload_len={}, payload_hex={}",
+        "MessageSent: src_chain_id={}, dst_chain_id={}, remote_gmp_endpoint_addr={}, dst_addr={}, nonce={}, payload_len={}, payload_hex={}",
         config.chain_id,
         dst_chain_id,
-        src_addr_pubkey,
+        endpoint_addr_pubkey,
         hex_encode(&dst_addr),
         nonce,
         payload.len(),
@@ -548,7 +548,7 @@ fn process_send(
 /// Account layout:
 /// 0. Config account (PDA: ["config"])
 /// 1. Relay account (PDA: ["relay", relay_pubkey])
-/// 2. Trusted remote account (PDA: ["trusted_remote", src_chain_id])
+/// 2. Remote GMP endpoint account (PDA: ["remote_gmp_endpoint", src_chain_id])
 /// 3. Delivered message account (PDA: ["delivered", intent_id, &[msg_type]])
 /// 4. Relay signer
 /// 5. Payer
@@ -561,7 +561,7 @@ fn process_deliver_message(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     src_chain_id: u32,
-    src_addr: [u8; 32],
+    remote_gmp_endpoint_addr: [u8; 32],
     payload: Vec<u8>,
 ) -> ProgramResult {
     // Extract intent_id and msg_type from payload for dedup
@@ -575,7 +575,7 @@ fn process_deliver_message(
     let account_info_iter = &mut accounts.iter();
     let config_account = next_account_info(account_info_iter)?;
     let relay_account = next_account_info(account_info_iter)?;
-    let trusted_remote_account = next_account_info(account_info_iter)?;
+    let remote_gmp_endpoint_account = next_account_info(account_info_iter)?;
     let delivered_account = next_account_info(account_info_iter)?;
     let relay_signer = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
@@ -614,27 +614,27 @@ fn process_deliver_message(
         return Err(GmpError::UnauthorizedRelay.into());
     }
 
-    // Verify trusted remote
+    // Verify remote GMP endpoint
     let chain_id_bytes = src_chain_id.to_le_bytes();
-    let (trusted_remote_pda, _) = Pubkey::find_program_address(
-        &[seeds::TRUSTED_REMOTE_SEED, &chain_id_bytes],
+    let (remote_gmp_endpoint_pda, _) = Pubkey::find_program_address(
+        &[seeds::REMOTE_GMP_ENDPOINT_SEED, &chain_id_bytes],
         program_id,
     );
 
-    if trusted_remote_account.key != &trusted_remote_pda {
+    if remote_gmp_endpoint_account.key != &remote_gmp_endpoint_pda {
         return Err(GmpError::InvalidPda.into());
     }
 
-    let trusted_remote = TrustedRemoteAccount::try_from_slice(&trusted_remote_account.data.borrow())
-        .map_err(|_| GmpError::UntrustedRemote)?;
+    let remote_gmp_endpoint = RemoteGmpEndpoint::try_from_slice(&remote_gmp_endpoint_account.data.borrow())
+        .map_err(|_| GmpError::UnknownRemoteGmpEndpoint)?;
 
-    if trusted_remote.trusted_addr != src_addr {
+    if remote_gmp_endpoint.addr != remote_gmp_endpoint_addr {
         msg!(
-            "Untrusted source: expected={}, got={}",
-            hex_encode(&trusted_remote.trusted_addr),
-            hex_encode(&src_addr)
+            "Unknown remote GMP endpoint: expected={}, got={}",
+            hex_encode(&remote_gmp_endpoint.addr),
+            hex_encode(&remote_gmp_endpoint_addr)
         );
-        return Err(GmpError::UntrustedRemote.into());
+        return Err(GmpError::UnknownRemoteGmpEndpoint.into());
     }
 
     // Replay protection: deduplicate by (intent_id, msg_type) via DeliveredMessage PDA
@@ -692,11 +692,11 @@ fn process_deliver_message(
     let remaining_accounts: Vec<AccountInfo> = account_info_iter.cloned().collect();
 
     // Build LzReceive instruction data
-    // Format: [variant_index(1 byte)] + [src_chain_id(4)] + [src_addr(32)] + [payload_len(4)] + [payload]
+    // Format: [variant_index(1 byte)] + [src_chain_id(4)] + [remote_gmp_endpoint_addr(32)] + [payload_len(4)] + [payload]
     let mut lz_receive_data = Vec::with_capacity(1 + 4 + 32 + 4 + payload.len());
     lz_receive_data.push(1); // LzReceive variant index (assuming 0=Initialize, 1=LzReceive)
     lz_receive_data.extend_from_slice(&src_chain_id.to_le_bytes());
-    lz_receive_data.extend_from_slice(&src_addr);
+    lz_receive_data.extend_from_slice(&remote_gmp_endpoint_addr);
     lz_receive_data.extend_from_slice(&(payload.len() as u32).to_le_bytes());
     lz_receive_data.extend_from_slice(&payload);
 
@@ -723,9 +723,9 @@ fn process_deliver_message(
             }
 
             msg!(
-                "MessageDelivered (routed): src_chain_id={}, src_addr={}, intent_id={}, payload_len={}, dest1={}, dest2={}",
+                "MessageDelivered (routed): src_chain_id={}, remote_gmp_endpoint_addr={}, intent_id={}, payload_len={}, dest1={}, dest2={}",
                 src_chain_id,
-                hex_encode(&src_addr),
+                hex_encode(&remote_gmp_endpoint_addr),
                 hex_encode(intent_id),
                 payload.len(),
                 destination_program_1.key,
@@ -765,9 +765,9 @@ fn process_deliver_message(
             }
 
             msg!(
-                "MessageDelivered (FulfillmentProof to escrow): src_chain_id={}, src_addr={}, intent_id={}, payload_len={}, dest={}",
+                "MessageDelivered (FulfillmentProof to escrow): src_chain_id={}, remote_gmp_endpoint_addr={}, intent_id={}, payload_len={}, dest={}",
                 src_chain_id,
-                hex_encode(&src_addr),
+                hex_encode(&remote_gmp_endpoint_addr),
                 hex_encode(intent_id),
                 payload.len(),
                 destination_program_2.key
@@ -789,9 +789,9 @@ fn process_deliver_message(
         _ => {
             // Single destination: use destination_program_1 account
             msg!(
-                "MessageDelivered: src_chain_id={}, src_addr={}, intent_id={}, payload_len={}, destination={}",
+                "MessageDelivered: src_chain_id={}, remote_gmp_endpoint_addr={}, intent_id={}, payload_len={}, destination={}",
                 src_chain_id,
-                hex_encode(&src_addr),
+                hex_encode(&remote_gmp_endpoint_addr),
                 hex_encode(intent_id),
                 payload.len(),
                 destination_program_1.key

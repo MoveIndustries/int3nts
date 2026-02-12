@@ -12,8 +12,8 @@ describe("IntentGmp", function () {
   const MOVEMENT_CHAIN_ID = 30325;
 
   // Test addresses (32 bytes)
-  const TRUSTED_REMOTE = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
-  const UNTRUSTED_REMOTE = "0x9900000000000000000000000000000000000000000000000000000000000099";
+  const REGISTERED_REMOTE = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  const UNREGISTERED_REMOTE = "0x9900000000000000000000000000000000000000000000000000000000000099";
 
   // Valid IntentRequirements payload (145 bytes)
   const VALID_PAYLOAD = "0x01" + "00".repeat(144);
@@ -35,7 +35,7 @@ describe("IntentGmp", function () {
 
     // Configure endpoint
     await gmpEndpoint.setEscrowHandler(mockHandler.target);
-    await gmpEndpoint.setTrustedRemote(MOVEMENT_CHAIN_ID, TRUSTED_REMOTE);
+    await gmpEndpoint.setRemoteGmpEndpointAddr(MOVEMENT_CHAIN_ID, REGISTERED_REMOTE);
   });
 
   // ============================================================================
@@ -54,7 +54,7 @@ describe("IntentGmp", function () {
       await mockHandler.callSendMessage(
         gmpEndpoint.target,
         MOVEMENT_CHAIN_ID,
-        TRUSTED_REMOTE,
+        REGISTERED_REMOTE,
         payload
       );
 
@@ -69,13 +69,13 @@ describe("IntentGmp", function () {
     it("should route IntentRequirements to escrow handler", async function () {
       await gmpEndpoint.deliverMessage(
         MOVEMENT_CHAIN_ID,
-        TRUSTED_REMOTE,
+        REGISTERED_REMOTE,
         VALID_PAYLOAD
       );
 
       // Check that handler received the message
       expect(await mockHandler.lastReceivedChainId()).to.equal(MOVEMENT_CHAIN_ID);
-      expect(await mockHandler.lastReceivedSrcAddr()).to.equal(TRUSTED_REMOTE);
+      expect(await mockHandler.lastReceivedRemoteGmpEndpointAddr()).to.equal(REGISTERED_REMOTE);
       expect(await mockHandler.requirementsReceived()).to.equal(true);
     });
 
@@ -85,14 +85,14 @@ describe("IntentGmp", function () {
     it("should reject duplicate delivery of same intent_id and msg_type", async function () {
       await gmpEndpoint.deliverMessage(
         MOVEMENT_CHAIN_ID,
-        TRUSTED_REMOTE,
+        REGISTERED_REMOTE,
         VALID_PAYLOAD
       );
 
       await expect(
         gmpEndpoint.deliverMessage(
           MOVEMENT_CHAIN_ID,
-          TRUSTED_REMOTE,
+          REGISTERED_REMOTE,
           VALID_PAYLOAD
         )
       ).to.be.revertedWithCustomError(gmpEndpoint, "E_ALREADY_DELIVERED");
@@ -105,7 +105,7 @@ describe("IntentGmp", function () {
       await expect(
         gmpEndpoint.connect(user).deliverMessage(
           MOVEMENT_CHAIN_ID,
-          TRUSTED_REMOTE,
+          REGISTERED_REMOTE,
           VALID_PAYLOAD
         )
       ).to.be.revertedWithCustomError(gmpEndpoint, "E_UNAUTHORIZED_RELAY");
@@ -120,48 +120,48 @@ describe("IntentGmp", function () {
       await expect(
         gmpEndpoint.connect(relay).deliverMessage(
           MOVEMENT_CHAIN_ID,
-          TRUSTED_REMOTE,
+          REGISTERED_REMOTE,
           VALID_PAYLOAD
         )
       ).to.emit(gmpEndpoint, "MessageDelivered");
     });
 
-    /// 20. Test: test_deliver_message_rejects_untrusted_remote: Deliver Message Rejects Untrusted Remote
-    /// Verifies untrusted source address is rejected.
-    /// Why: Only trusted sources should be accepted.
-    it("should reject delivery from untrusted remote", async function () {
+    /// 20. Test: test_deliver_message_rejects_unregistered_remote: Deliver Message Rejects Unregistered Remote
+    /// Verifies unrecognized remote GMP endpoint address is rejected.
+    /// Why: Only recognized remote GMP endpoint addresses should be accepted.
+    it("should reject delivery from unrecognized remote GMP endpoint", async function () {
       await expect(
         gmpEndpoint.deliverMessage(
           MOVEMENT_CHAIN_ID,
-          UNTRUSTED_REMOTE,
+          UNREGISTERED_REMOTE,
           VALID_PAYLOAD
         )
-      ).to.be.revertedWithCustomError(gmpEndpoint, "E_UNTRUSTED_REMOTE");
+      ).to.be.revertedWithCustomError(gmpEndpoint, "E_UNREGISTERED_REMOTE_GMP_ENDPOINT");
     });
 
-    /// 21. Test: test_deliver_message_rejects_no_trusted_remote: Deliver Message Rejects No Trusted Remote
+    /// 21. Test: test_deliver_message_rejects_no_remote_gmp_endpoint: Deliver Message Rejects No Remote GMP Endpoint
     /// Verifies delivery fails for unconfigured chain.
-    /// Why: No trusted remote means no trusted source.
+    /// Why: No remote GMP endpoint means no registered source.
     it("should reject delivery for unconfigured chain", async function () {
       const unconfiguredChainId = 99999;
 
       await expect(
         gmpEndpoint.deliverMessage(
           unconfiguredChainId,
-          TRUSTED_REMOTE,
+          REGISTERED_REMOTE,
           VALID_PAYLOAD
         )
-      ).to.be.revertedWithCustomError(gmpEndpoint, "E_NO_TRUSTED_REMOTE");
+      ).to.be.revertedWithCustomError(gmpEndpoint, "E_NO_REMOTE_GMP_ENDPOINT");
     });
   });
 
-  describe("Trusted Remote Configuration", function () {
-    /// 22. Test: test_set_trusted_remote_unauthorized: Set Trusted Remote Unauthorized
-    /// Verifies only admin can set trusted remote.
-    /// Why: Trusted remote configuration is security-critical.
-    it("should reject non-admin setting trusted remote", async function () {
+  describe("Remote GMP Endpoint Configuration", function () {
+    /// 22. Test: test_set_remote_gmp_endpoint_addr_unauthorized: Set Remote GMP Endpoint Addr Unauthorized
+    /// Verifies only admin can set remote GMP endpoint address.
+    /// Why: Remote GMP endpoint configuration is security-critical.
+    it("should reject non-admin setting remote GMP endpoint address", async function () {
       await expect(
-        gmpEndpoint.connect(user).setTrustedRemote(MOVEMENT_CHAIN_ID, TRUSTED_REMOTE)
+        gmpEndpoint.connect(user).setRemoteGmpEndpointAddr(MOVEMENT_CHAIN_ID, REGISTERED_REMOTE)
       ).to.be.revertedWithCustomError(gmpEndpoint, "OwnableUnauthorizedAccount");
     });
   });
@@ -174,7 +174,7 @@ describe("IntentGmp", function () {
       // Deliver IntentRequirements (msg_type 0x01) - 145 bytes
       await gmpEndpoint.deliverMessage(
         MOVEMENT_CHAIN_ID,
-        TRUSTED_REMOTE,
+        REGISTERED_REMOTE,
         VALID_PAYLOAD
       );
 
@@ -182,7 +182,7 @@ describe("IntentGmp", function () {
       const fulfillmentPayload = "0x03" + "00".repeat(80);
       await gmpEndpoint.deliverMessage(
         MOVEMENT_CHAIN_ID,
-        TRUSTED_REMOTE,
+        REGISTERED_REMOTE,
         fulfillmentPayload
       );
 
@@ -298,52 +298,52 @@ describe("IntentGmp", function () {
   });
 
   // ============================================================================
-  // Trusted Remote Configuration (EVM-Specific)
+  // Remote GMP Endpoint Configuration (EVM-Specific)
   // ============================================================================
 
-  describe("Trusted Remote Configuration (EVM-Specific)", function () {
-    /// 37. Test: test_set_trusted_remote: Set Trusted Remote
-    /// Verifies trusted remote can be set.
-    /// Why: Only trusted sources should be accepted.
-    it("should allow admin to set trusted remote", async function () {
-      const newTrusted = "0xaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+  describe("Remote GMP Endpoint Configuration (EVM-Specific)", function () {
+    /// 37. Test: test_set_remote_gmp_endpoint_addr: Set Remote GMP Endpoint Addr
+    /// Verifies remote GMP endpoint address can be set.
+    /// Why: Only registered sources should be accepted.
+    it("should allow admin to set remote GMP endpoint address", async function () {
+      const newRemote = "0xaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
 
-      await expect(gmpEndpoint.setTrustedRemote(MOVEMENT_CHAIN_ID, newTrusted))
-        .to.emit(gmpEndpoint, "TrustedRemoteSet")
-        .withArgs(MOVEMENT_CHAIN_ID, newTrusted);
+      await expect(gmpEndpoint.setRemoteGmpEndpointAddr(MOVEMENT_CHAIN_ID, newRemote))
+        .to.emit(gmpEndpoint, "RemoteGmpEndpointAddrSet")
+        .withArgs(MOVEMENT_CHAIN_ID, newRemote);
 
-      const remotes = await gmpEndpoint.getTrustedRemotes(MOVEMENT_CHAIN_ID);
+      const remotes = await gmpEndpoint.getRemoteGmpEndpointAddrs(MOVEMENT_CHAIN_ID);
       expect(remotes.length).to.equal(1);
-      expect(remotes[0]).to.equal(newTrusted);
+      expect(remotes[0]).to.equal(newRemote);
     });
 
-    /// 38. Test: test_add_trusted_remote: Add Trusted Remote
-    /// Verifies multiple trusted remotes can be added.
-    /// Why: Connected chains may have multiple trusted programs.
-    it("should allow admin to add trusted remote", async function () {
-      const secondTrusted = "0xaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
+    /// 38. Test: test_add_remote_gmp_endpoint_addr: Add Remote GMP Endpoint Addr
+    /// Verifies multiple remote GMP endpoint addresses can be added.
+    /// Why: Connected chains may have multiple registered programs.
+    it("should allow admin to add remote GMP endpoint address", async function () {
+      const secondRemote = "0xaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd";
 
-      await expect(gmpEndpoint.addTrustedRemote(MOVEMENT_CHAIN_ID, secondTrusted))
-        .to.emit(gmpEndpoint, "TrustedRemoteAdded")
-        .withArgs(MOVEMENT_CHAIN_ID, secondTrusted);
+      await expect(gmpEndpoint.addRemoteGmpEndpointAddr(MOVEMENT_CHAIN_ID, secondRemote))
+        .to.emit(gmpEndpoint, "RemoteGmpEndpointAddrAdded")
+        .withArgs(MOVEMENT_CHAIN_ID, secondRemote);
 
-      const remotes = await gmpEndpoint.getTrustedRemotes(MOVEMENT_CHAIN_ID);
+      const remotes = await gmpEndpoint.getRemoteGmpEndpointAddrs(MOVEMENT_CHAIN_ID);
       expect(remotes.length).to.equal(2);
     });
 
-    /// 39. Test: test_has_trusted_remote: Has Trusted Remote
-    /// Verifies hasTrustedRemote returns correct value.
+    /// 39. Test: test_has_remote_gmp_endpoint: Has Remote GMP Endpoint
+    /// Verifies hasRemoteGmpEndpoint returns correct value.
     /// Why: View function for checking configuration.
     it("should return true for configured chain", async function () {
-      expect(await gmpEndpoint.hasTrustedRemote(MOVEMENT_CHAIN_ID)).to.equal(true);
+      expect(await gmpEndpoint.hasRemoteGmpEndpoint(MOVEMENT_CHAIN_ID)).to.equal(true);
     });
 
-    /// 40. Test: test_no_trusted_remote: No Trusted Remote
-    /// Verifies hasTrustedRemote returns false for unconfigured chain.
+    /// 40. Test: test_no_remote_gmp_endpoint: No Remote GMP Endpoint
+    /// Verifies hasRemoteGmpEndpoint returns false for unconfigured chain.
     /// Why: View function for checking configuration.
     it("should return false for unconfigured chain", async function () {
       const unconfiguredChainId = 99999;
-      expect(await gmpEndpoint.hasTrustedRemote(unconfiguredChainId)).to.equal(false);
+      expect(await gmpEndpoint.hasRemoteGmpEndpoint(unconfiguredChainId)).to.equal(false);
     });
   });
 
@@ -361,7 +361,7 @@ describe("IntentGmp", function () {
 
       await gmpEndpoint.deliverMessage(
         MOVEMENT_CHAIN_ID,
-        TRUSTED_REMOTE,
+        REGISTERED_REMOTE,
         fulfillmentPayload
       );
 
@@ -378,7 +378,7 @@ describe("IntentGmp", function () {
       await expect(
         gmpEndpoint.deliverMessage(
           MOVEMENT_CHAIN_ID,
-          TRUSTED_REMOTE,
+          REGISTERED_REMOTE,
           escrowConfirmPayload
         )
       ).to.be.reverted;
@@ -394,11 +394,11 @@ describe("IntentGmp", function () {
       await expect(
         gmpEndpoint.deliverMessage(
           MOVEMENT_CHAIN_ID,
-          TRUSTED_REMOTE,
+          REGISTERED_REMOTE,
           VALID_PAYLOAD
         )
       ).to.emit(gmpEndpoint, "MessageDelivered")
-        .withArgs(MOVEMENT_CHAIN_ID, TRUSTED_REMOTE, VALID_PAYLOAD, intentId);
+        .withArgs(MOVEMENT_CHAIN_ID, REGISTERED_REMOTE, VALID_PAYLOAD, intentId);
     });
 
     /// 44. Test: test_is_message_delivered: Is Message Delivered
@@ -412,7 +412,7 @@ describe("IntentGmp", function () {
 
       await gmpEndpoint.deliverMessage(
         MOVEMENT_CHAIN_ID,
-        TRUSTED_REMOTE,
+        REGISTERED_REMOTE,
         VALID_PAYLOAD
       );
 
@@ -435,11 +435,11 @@ describe("IntentGmp", function () {
         mockHandler.callSendMessage(
           gmpEndpoint.target,
           MOVEMENT_CHAIN_ID,
-          TRUSTED_REMOTE,
+          REGISTERED_REMOTE,
           payload
         )
       ).to.emit(gmpEndpoint, "MessageSent")
-        .withArgs(MOVEMENT_CHAIN_ID, TRUSTED_REMOTE, payload, 1);
+        .withArgs(MOVEMENT_CHAIN_ID, REGISTERED_REMOTE, payload, 1);
     });
 
     /// 46. Test: test_only_handlers_can_send: Only Handlers Can Send
@@ -451,7 +451,7 @@ describe("IntentGmp", function () {
       await expect(
         gmpEndpoint.sendMessage(
           MOVEMENT_CHAIN_ID,
-          TRUSTED_REMOTE,
+          REGISTERED_REMOTE,
           payload
         )
       ).to.be.revertedWith("Only handlers can send");
@@ -501,7 +501,7 @@ describe("IntentGmp", function () {
 
       await gmpEndpoint.deliverMessage(
         MOVEMENT_CHAIN_ID,
-        TRUSTED_REMOTE,
+        REGISTERED_REMOTE,
         VALID_PAYLOAD
       );
 
@@ -521,7 +521,7 @@ describe("IntentGmp", function () {
       await expect(
         gmpEndpoint.deliverMessage(
           MOVEMENT_CHAIN_ID,
-          TRUSTED_REMOTE,
+          REGISTERED_REMOTE,
           fulfillmentPayload
         )
       ).to.be.revertedWithCustomError(gmpEndpoint, "E_HANDLER_NOT_CONFIGURED");

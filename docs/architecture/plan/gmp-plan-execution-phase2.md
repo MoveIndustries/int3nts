@@ -25,7 +25,7 @@
 
 - [x] Extend `Send` instruction to track nonces and emit structured `MessageSent` event
 - [x] Extend `DeliverMessage` instruction to CPI into destination program's receive handler
-- [x] Implement trusted remote verification via PDA
+- [x] Implement remote GMP endpoint verification via PDA
 - [x] Add relay authorization checks
 - [x] Test `Send` emits correct event with payload
 - [x] Test `DeliverMessage` calls receiver's handler
@@ -51,7 +51,7 @@
 **Tasks:**
 
 - [x] Extend `intent_gmp` with CPI to destination module's receive handler
-- [x] Add trusted remote verification (source chain + address validation)
+- [x] Add remote GMP endpoint verification (source chain + address validation)
 - [x] Add replay protection with nonce tracking per source
 - [x] Implement message routing based on payload type
 - [x] Test Send emits correct event with payload
@@ -154,7 +154,7 @@
 
 **Remaining tasks:**
 
-- [x] Add `GmpConfig` account (hub_chain_id, trusted_hub_addr, gmp_endpoint)
+- [x] Add `GmpConfig` account (hub_chain_id, hub_gmp_endpoint_addr, gmp_endpoint)
 - [x] Add `SetGmpConfig` instruction for admin configuration
 - [x] Add source chain/address validation to `LzReceiveRequirements` and `LzReceiveFulfillmentProof`
 - [x] Add idempotency to `LzReceiveRequirements` (emit duplicate event instead of error)
@@ -182,7 +182,7 @@
 
 **Tasks:**
 
-- [x] Create `inflow_escrow` module with GMP config (hub_chain_id, trusted_hub_addr)
+- [x] Create `inflow_escrow` module with GMP config (hub_chain_id, hub_gmp_endpoint_addr)
 - [x] Implement `receive_intent_requirements` - stores requirements from hub (with idempotency)
 - [x] Implement `create_escrow_with_validation` - validates requirements exist and match escrow details
 - [x] Implement `receive_fulfillment_proof` - marks escrow fulfilled (MVM uses manual release, not auto-release)
@@ -211,12 +211,12 @@
 
 **Completed tasks:**
 
-- [x] Add GmpHubConfig with trusted remote mapping per chain ID
-- [x] Add initialize() and set_trusted_remote() for configuration management
+- [x] Add GmpHubConfig with remote GMP endpoint mapping per chain ID
+- [x] Add initialize() and set_remote_gmp_endpoint_addr() for configuration management
 - [x] Integrate with `gmp_sender::lz_send()` for actual message sending (send functions now call lz_send and return nonce)
-- [x] Add trusted source validation in receive handlers (both receive functions validate source via is_trusted_source)
+- [x] Add source validation in receive handlers (both receive functions validate source via registered remote GMP endpoint check)
 - [x] Test message encoding (payload size and discriminator bytes verified)
-- [x] Test source validation (added tests for rejecting untrusted sources)
+- [x] Test source validation (added tests for rejecting unregistered sources)
 - [x] Update intent_gmp tests to initialize intent_gmp_hub config
 
 **Test:**
@@ -303,7 +303,7 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --qui
 
 - [x] Implement actual transaction submission in `deliver_to_mvm()` and `deliver_to_svm()`
 - [x] Add Move address derivation utilities to `generate_keys` and `util.sh`
-- [x] Update deployment scripts to initialize GMP modules with trusted remotes
+- [x] Update deployment scripts to initialize GMP modules with remote GMP endpoints
 - [x] Fix SVM error variant naming (E_SCREAMING_CASE → UpperCamelCase)
 - [x] Update MVM e2e test environment to use integrated GMP endpoints (deploy scripts initialize GMP)
 - [x] Add MVM connected chain support to integrated GMP relay (bidirectional MVM ↔ MVM messaging)
@@ -369,7 +369,7 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --qui
 
 - [x] Update SVM e2e test environment to use integrated GMP endpoints
   - Build script now builds integrated-gmp-endpoint and outflow-validator
-  - Deploy script deploys all 3 programs and configures trusted remotes
+  - Deploy script deploys all 3 programs and configures remote GMP endpoints
   - Configure-integrated-gmp uses GMP endpoint program ID for relay
 - [x] Start integrated GMP relay in background during tests (already done via `start_integrated_gmp`)
 - [x] Update outflow test to use GMP flow (solver calls validation contract)
@@ -532,7 +532,7 @@ RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --qui
 - [x] Create `IntentGmp.sol` - GMP infrastructure (like MVM intent-gmp, SVM intent-gmp)
   - `send()` function emits `MessageSent` event
   - `deliverMessage()` for relay to inject messages
-  - Trusted remote verification and relay authorization
+  - Remote GMP endpoint verification and relay authorization
   - Message nonce tracking for replay protection
 - [x] Create `IntentOutflowValidator.sol` - Outflow validation (like MVM/SVM intent-outflow-validator)
   - `receiveMessage()` receives intent requirements from hub (idempotent)

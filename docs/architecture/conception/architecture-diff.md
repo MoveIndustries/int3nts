@@ -90,7 +90,7 @@ This section contains the detailed implementation diagram for the Router Flow, w
 sequenceDiagram
     participant Requester
     participant Hub as Hub Chain<br/>(Move)
-    participant TrustedGMP as Integrated-GMP<br/>(Rust)
+    participant IntegratedGMP as Integrated-GMP<br/>(Rust)
     participant Source as Source Connected Chain<br/>(Move/EVM)
     participant Dest as Destination Connected Chain<br/>(Move/EVM)
     participant Solver
@@ -101,7 +101,7 @@ sequenceDiagram
     Solver->>Solver: Solver signs<br/>(off-chain, returns Ed25519 signature)
     Solver->>Requester: Returns signature
     Requester->>Hub: create_cross_chain_request_intent(<br/>offered_metadata, offered_amount, offered_chain_id (source),<br/>desired_metadata, desired_amount, desired_chain_id (dest),<br/>expiry_time, intent_id, requester_address_dest_chain,<br/>approver_public_key, solver, solver_signature)
-    Hub->>TrustedGMP: CrossChainOrderEvent(intent_id, offered_amount,<br/>offered_chain_id (source), desired_amount,<br/>desired_chain_id (dest), expiry, revocable=false)
+    Hub->>IntegratedGMP: CrossChainOrderEvent(intent_id, offered_amount,<br/>offered_chain_id (source), desired_amount,<br/>desired_chain_id (dest), expiry, revocable=false)
 
     Note over Requester,Solver: Phase 2: Escrow Creation on Source Connected Chain
     alt Move Chain
@@ -110,21 +110,21 @@ sequenceDiagram
         Requester->>Source: createEscrow(intentId, token,<br/>amount, reservedSolver)
     end
     Source->>Source: Lock assets
-    Source->>TrustedGMP: OracleLimitOrderEvent/EscrowInitialized(<br/>intent_id, reserved_solver, revocable=false)
+    Source->>IntegratedGMP: OracleLimitOrderEvent/EscrowInitialized(<br/>intent_id, reserved_solver, revocable=false)
 
     Note over Requester,Solver: Phase 3: Solver Transfers on Destination Connected Chain
     Solver->>Dest: Transfer tokens to requester_address_dest_chain<br/>(standard token transfer, not escrow)
     Dest->>Dest: Tokens received by requester
 
     Note over Requester,Solver: Phase 4: Integrated-GMP Validation and Approval
-    Solver->>TrustedGMP: POST /validate-cross-chain-fulfillment<br/>(source_escrow_intent_id, dest_tx_hash, chain_types, intent_id)
-    TrustedGMP->>Source: Query escrow by intent_id<br/>(verify escrow exists and matches)
-    TrustedGMP->>Dest: Query transaction by hash<br/>(verify transfer occurred)
-    TrustedGMP->>TrustedGMP: Validate fulfillment<br/>conditions met
-    TrustedGMP->>Solver: Return approval signature
+    Solver->>IntegratedGMP: POST /validate-cross-chain-fulfillment<br/>(source_escrow_intent_id, dest_tx_hash, chain_types, intent_id)
+    IntegratedGMP->>Source: Query escrow by intent_id<br/>(verify escrow exists and matches)
+    IntegratedGMP->>Dest: Query transaction by hash<br/>(verify transfer occurred)
+    IntegratedGMP->>IntegratedGMP: Validate fulfillment<br/>conditions met
+    IntegratedGMP->>Solver: Return approval signature
 
     Note over Requester,Solver: Phase 5: Escrow Release on Source Connected Chain
-    TrustedGMP->>Solver: Delivers approval signature<br/>(Ed25519 for Move, ECDSA for EVM)<br/>Signature itself is the approval
+    IntegratedGMP->>Solver: Delivers approval signature<br/>(Ed25519 for Move, ECDSA for EVM)<br/>Signature itself is the approval
     alt Move Chain
         Note over Solver: Anyone can call<br/>(funds go to reserved_solver)
         Solver->>Source: complete_escrow_from_fa(<br/>escrow_intent, payment_amount,<br/>approver_signature_bytes)

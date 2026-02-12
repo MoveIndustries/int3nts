@@ -10,8 +10,8 @@
 #
 # Optional env vars:
 #   RELAY_ADDRESS         - Relay Move address to authorize in intent_gmp
-#   CONNECTED_CHAIN_ID    - Connected chain's chain ID, for set_trusted_remote
-#   CONNECTED_CHAIN_ADDR  - Connected chain's module address (hex), for set_trusted_remote
+#   CONNECTED_CHAIN_ID    - Connected chain's chain ID, for set_remote_gmp_endpoint_addr
+#   CONNECTED_CHAIN_ADDR  - Connected chain's module address (hex), for set_remote_gmp_endpoint_addr
 
 set -e
 
@@ -108,22 +108,22 @@ if [ -n "$RELAY_ADDRESS" ]; then
     echo "[deploy-hub.sh] Relay added"
 fi
 
-# 5. Set trusted remote for connected chain (optional)
+# 5. Set remote GMP endpoint for connected chain (optional)
 if [ -n "$CONNECTED_CHAIN_ID" ] && [ -n "$CONNECTED_CHAIN_ADDR" ]; then
     # Pad address to 64 hex characters (32 bytes)
     ADDR_CLEAN=$(echo "$CONNECTED_CHAIN_ADDR" | sed 's/^0x//')
     ADDR_PADDED=$(printf "%064s" "$ADDR_CLEAN" | tr ' ' '0')
 
     echo ""
-    echo "[deploy-hub.sh] Setting trusted remote for chain $CONNECTED_CHAIN_ID: 0x$ADDR_PADDED"
+    echo "[deploy-hub.sh] Setting remote GMP endpoint for chain $CONNECTED_CHAIN_ID: 0x$ADDR_PADDED"
     movement move run --profile "$MVM_PROFILE" --assume-yes \
-        --function-id "${MVM_MODULE_ADDR}::intent_gmp::set_trusted_remote" \
+        --function-id "${MVM_MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr" \
         --args "u32:$CONNECTED_CHAIN_ID" "hex:${ADDR_PADDED}"
 
     movement move run --profile "$MVM_PROFILE" --assume-yes \
-        --function-id "${MVM_MODULE_ADDR}::intent_gmp_hub::set_trusted_remote" \
+        --function-id "${MVM_MODULE_ADDR}::intent_gmp_hub::set_remote_gmp_endpoint_addr" \
         --args "u32:$CONNECTED_CHAIN_ID" "hex:${ADDR_PADDED}"
-    echo "[deploy-hub.sh] Trusted remote set"
+    echo "[deploy-hub.sh] Remote GMP endpoint set"
 fi
 
 # Summary
@@ -132,4 +132,4 @@ echo "[deploy-hub.sh] Hub deployment complete!"
 echo "  Module address: $MVM_MODULE_ADDR"
 echo "  Chain ID: $MVM_CHAIN_ID"
 echo "  Relay: ${RELAY_ADDRESS:-<not configured>}"
-echo "  Trusted remote: ${CONNECTED_CHAIN_ID:+chain $CONNECTED_CHAIN_ID}${CONNECTED_CHAIN_ID:-<not configured>}"
+echo "  Remote GMP endpoint: ${CONNECTED_CHAIN_ID:+chain $CONNECTED_CHAIN_ID}${CONNECTED_CHAIN_ID:-<not configured>}"

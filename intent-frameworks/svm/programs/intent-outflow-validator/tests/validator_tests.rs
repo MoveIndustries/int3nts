@@ -54,9 +54,9 @@ fn gmp_endpoint_id() -> Pubkey {
     ])
 }
 
-/// Deterministic trusted hub address (32 bytes) for GMP message verification.
+/// Deterministic hub GMP endpoint address (32 bytes) for GMP message verification.
 /// Non-zero first/last bytes make it easy to spot in hex dumps.
-fn trusted_hub_addr() -> [u8; 32] {
+fn hub_gmp_endpoint_addr() -> [u8; 32] {
     let mut addr = [0u8; 32];
     addr[0] = 0xAA;
     addr[31] = 0xBB;
@@ -96,14 +96,14 @@ fn create_initialize_ix(
     admin: Pubkey,
     gmp_endpoint: Pubkey,
     hub_chain_id: u32,
-    trusted_hub_addr: [u8; 32],
+    hub_gmp_endpoint_addr: [u8; 32],
 ) -> solana_sdk::instruction::Instruction {
     let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
 
     let instruction = OutflowInstruction::Initialize {
         gmp_endpoint,
         hub_chain_id,
-        trusted_hub_addr,
+        hub_gmp_endpoint_addr,
     };
 
     solana_sdk::instruction::Instruction {
@@ -123,7 +123,7 @@ fn create_lz_receive_ix(
     program_id: Pubkey,
     payer: Pubkey,
     src_chain_id: u32,
-    src_addr: [u8; 32],
+    remote_gmp_endpoint_addr: [u8; 32],
     payload: Vec<u8>,
     intent_id: [u8; 32],
 ) -> solana_sdk::instruction::Instruction {
@@ -135,7 +135,7 @@ fn create_lz_receive_ix(
 
     let instruction = OutflowInstruction::LzReceive {
         src_chain_id,
-        src_addr,
+        remote_gmp_endpoint_addr,
         payload,
     };
 
@@ -364,7 +364,7 @@ async fn setup_requirements(
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
     send_tx(context, admin, &[init_ix], &[]).await.unwrap();
 
@@ -383,7 +383,7 @@ async fn setup_requirements(
         program_id,
         admin.pubkey(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
         payload,
         intent_id,
     );
@@ -499,13 +499,13 @@ fn create_update_hub_config_ix(
     program_id: Pubkey,
     admin: Pubkey,
     hub_chain_id: u32,
-    trusted_hub_addr: [u8; 32],
+    hub_gmp_endpoint_addr: [u8; 32],
 ) -> solana_sdk::instruction::Instruction {
     let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
 
     let instruction = OutflowInstruction::UpdateHubConfig {
         hub_chain_id,
-        trusted_hub_addr,
+        hub_gmp_endpoint_addr,
     };
 
     solana_sdk::instruction::Instruction {
@@ -548,7 +548,7 @@ async fn test_initialize_creates_config() {
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
     send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
 
@@ -559,7 +559,7 @@ async fn test_initialize_creates_config() {
     assert_eq!(config.admin, admin.pubkey());
     assert_eq!(config.gmp_endpoint, gmp_endpoint_id());
     assert_eq!(config.hub_chain_id, HUB_CHAIN_ID);
-    assert_eq!(config.trusted_hub_addr, trusted_hub_addr());
+    assert_eq!(config.hub_gmp_endpoint_addr, hub_gmp_endpoint_addr());
 }
 
 /// 2. Test: Initialize fails if already initialized
@@ -577,7 +577,7 @@ async fn test_initialize_rejects_double_init() {
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
 
     // First init succeeds
@@ -611,7 +611,7 @@ async fn test_receive_stores_requirements() {
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
     send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
 
@@ -632,7 +632,7 @@ async fn test_receive_stores_requirements() {
         program_id,
         admin.pubkey(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
         payload,
         intent_id,
     );
@@ -666,7 +666,7 @@ async fn test_receive_idempotent() {
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
     send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
 
@@ -687,7 +687,7 @@ async fn test_receive_idempotent() {
         program_id,
         admin.pubkey(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
         payload.clone(),
         intent_id,
     );
@@ -697,11 +697,11 @@ async fn test_receive_idempotent() {
     send_tx(&mut context, &admin, &[lz_receive_ix], &[]).await.unwrap();
 }
 
-/// 5. Test: Receive rejects untrusted source
+/// 5. Test: Receive rejects unknown remote GMP endpoint
 /// Verifies that messages from wrong chain/address are rejected.
-/// Why: Only the trusted hub can send intent requirements.
+/// Why: Only the hub GMP endpoint can send intent requirements.
 #[tokio::test]
-async fn test_receive_rejects_untrusted_source() {
+async fn test_receive_rejects_unknown_remote_gmp_endpoint() {
     let pt = program_test();
     let mut context = pt.start_with_context().await;
     let admin = context.payer.insecure_clone();
@@ -713,7 +713,7 @@ async fn test_receive_rejects_untrusted_source() {
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
     send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
 
@@ -734,7 +734,7 @@ async fn test_receive_rejects_untrusted_source() {
         program_id,
         admin.pubkey(),
         12345, // wrong chain ID
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
         payload.clone(),
         intent_id,
     );
@@ -771,7 +771,7 @@ async fn test_receive_rejects_invalid_payload() {
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
     send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
 
@@ -783,7 +783,7 @@ async fn test_receive_rejects_invalid_payload() {
         program_id,
         admin.pubkey(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
         invalid_payload,
         intent_id,
     );
@@ -1018,7 +1018,7 @@ async fn test_fulfill_intent_rejects_requirements_not_found() {
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
     send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
 
@@ -1202,7 +1202,7 @@ async fn test_fulfill_intent_succeeds() {
 // ============================================================================
 
 /// 19. Test: UpdateHubConfig succeeds with valid admin
-/// Verifies that the admin can update hub_chain_id and trusted_hub_addr.
+/// Verifies that the admin can update hub_chain_id and hub_gmp_endpoint_addr.
 /// Why: Allows reconfiguring the outflow validator when hub addresses change.
 #[tokio::test]
 async fn test_update_hub_config_succeeds() {
@@ -1217,7 +1217,7 @@ async fn test_update_hub_config_succeeds() {
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
     send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
 
@@ -1225,7 +1225,7 @@ async fn test_update_hub_config_succeeds() {
     let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
     let config: ConfigAccount = read_account(&mut context, config_pda).await;
     assert_eq!(config.hub_chain_id, HUB_CHAIN_ID);
-    assert_eq!(config.trusted_hub_addr, trusted_hub_addr());
+    assert_eq!(config.hub_gmp_endpoint_addr, hub_gmp_endpoint_addr());
 
     // Update hub config with new values
     let new_chain_id = 99999u32;
@@ -1244,7 +1244,7 @@ async fn test_update_hub_config_succeeds() {
     // Verify config was updated
     let config: ConfigAccount = read_account(&mut context, config_pda).await;
     assert_eq!(config.hub_chain_id, new_chain_id);
-    assert_eq!(config.trusted_hub_addr, new_hub_addr);
+    assert_eq!(config.hub_gmp_endpoint_addr, new_hub_addr);
     // Verify admin and gmp_endpoint are unchanged
     assert_eq!(config.admin, admin.pubkey());
     assert_eq!(config.gmp_endpoint, gmp_endpoint_id());
@@ -1266,7 +1266,7 @@ async fn test_update_hub_config_rejects_non_admin() {
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
     send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
 
@@ -1285,10 +1285,10 @@ async fn test_update_hub_config_rejects_non_admin() {
     let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
     let config: ConfigAccount = read_account(&mut context, config_pda).await;
     assert_eq!(config.hub_chain_id, HUB_CHAIN_ID);
-    assert_eq!(config.trusted_hub_addr, trusted_hub_addr());
+    assert_eq!(config.hub_gmp_endpoint_addr, hub_gmp_endpoint_addr());
 }
 
-/// 21. Test: UpdateHubConfig allows LzReceive with new trusted address
+/// 21. Test: UpdateHubConfig allows LzReceive with new hub GMP endpoint address
 /// Verifies end-to-end: update config, then receive message from new hub address.
 /// Why: Ensures the updated config is used for GMP message validation.
 #[tokio::test]
@@ -1304,7 +1304,7 @@ async fn test_update_hub_config_then_lz_receive() {
         admin.pubkey(),
         gmp_endpoint_id(),
         HUB_CHAIN_ID,
-        trusted_hub_addr(),
+        hub_gmp_endpoint_addr(),
     );
     send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
 
@@ -1338,7 +1338,7 @@ async fn test_update_hub_config_then_lz_receive() {
         program_id,
         admin.pubkey(),
         HUB_CHAIN_ID,        // old chain ID
-        trusted_hub_addr(),   // old hub addr
+        hub_gmp_endpoint_addr(),   // old hub addr
         payload.clone(),
         intent_id,
     );

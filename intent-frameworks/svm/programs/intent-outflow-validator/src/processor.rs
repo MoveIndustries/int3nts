@@ -36,18 +36,18 @@ pub fn process_instruction(
         OutflowInstruction::Initialize {
             gmp_endpoint,
             hub_chain_id,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
         } => {
             msg!("Instruction: Initialize");
-            process_initialize(program_id, accounts, gmp_endpoint, hub_chain_id, trusted_hub_addr)
+            process_initialize(program_id, accounts, gmp_endpoint, hub_chain_id, hub_gmp_endpoint_addr)
         }
         OutflowInstruction::LzReceive {
             src_chain_id,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         } => {
             msg!("Instruction: LzReceive");
-            process_lz_receive(program_id, accounts, src_chain_id, src_addr, &payload)
+            process_lz_receive(program_id, accounts, src_chain_id, remote_gmp_endpoint_addr, &payload)
         }
         OutflowInstruction::FulfillIntent { intent_id } => {
             msg!("Instruction: FulfillIntent");
@@ -55,10 +55,10 @@ pub fn process_instruction(
         }
         OutflowInstruction::UpdateHubConfig {
             hub_chain_id,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
         } => {
             msg!("Instruction: UpdateHubConfig");
-            process_update_hub_config(program_id, accounts, hub_chain_id, trusted_hub_addr)
+            process_update_hub_config(program_id, accounts, hub_chain_id, hub_gmp_endpoint_addr)
         }
     }
 }
@@ -69,7 +69,7 @@ fn process_initialize(
     accounts: &[AccountInfo],
     gmp_endpoint: Pubkey,
     hub_chain_id: u32,
-    trusted_hub_addr: [u8; 32],
+    hub_gmp_endpoint_addr: [u8; 32],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let config_account = next_account_info(account_info_iter)?;
@@ -112,7 +112,7 @@ fn process_initialize(
     )?;
 
     // Initialize config data
-    let config = ConfigAccount::new(*admin.key, gmp_endpoint, hub_chain_id, trusted_hub_addr, config_bump);
+    let config = ConfigAccount::new(*admin.key, gmp_endpoint, hub_chain_id, hub_gmp_endpoint_addr, config_bump);
     config.serialize(&mut &mut config_account.data.borrow_mut()[..])?;
 
     msg!(
@@ -131,7 +131,7 @@ fn process_lz_receive(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     src_chain_id: u32,
-    src_addr: [u8; 32],
+    remote_gmp_endpoint_addr: [u8; 32],
     payload: &[u8],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -150,7 +150,7 @@ fn process_lz_receive(
     let config = ConfigAccount::try_from_slice(&config_account.data.borrow())
         .map_err(|_| OutflowError::InvalidAccountOwner)?;
 
-    // Verify source chain and address match trusted hub
+    // Verify source chain and address match hub GMP endpoint
     if src_chain_id != config.hub_chain_id {
         msg!(
             "Invalid source chain: expected {}, got {}",
@@ -160,8 +160,8 @@ fn process_lz_receive(
         return Err(OutflowError::InvalidGmpMessage.into());
     }
 
-    if src_addr != config.trusted_hub_addr {
-        msg!("Invalid source address: not trusted hub");
+    if remote_gmp_endpoint_addr != config.hub_gmp_endpoint_addr {
+        msg!("Invalid source address: not hub GMP endpoint");
         return Err(OutflowError::InvalidGmpMessage.into());
     }
 
@@ -377,13 +377,13 @@ fn process_fulfill_intent(
     let payload = fulfillment_proof.encode();
 
     // Build Send instruction for GMP endpoint
-    // NativeGmpInstruction::Send variant index is 5 (0=Initialize, 1=AddRelay, 2=RemoveRelay, 3=SetTrustedRemote, 4=SetRouting, 5=Send)
-    // Format: variant(1) + dst_chain_id(4) + dst_addr(32) + src_addr(32) + payload_len(4) + payload
+    // NativeGmpInstruction::Send variant index is 5 (0=Initialize, 1=AddRelay, 2=RemoveRelay, 3=SetRemoteGmpEndpointAddr, 4=SetRouting, 5=Send)
+    // Format: variant(1) + dst_chain_id(4) + dst_addr(32) + remote_gmp_endpoint_addr(32) + payload_len(4) + payload
     let mut send_data = Vec::with_capacity(1 + 4 + 32 + 32 + 4 + payload.len());
     send_data.push(5); // Send variant index
     send_data.extend_from_slice(&config.hub_chain_id.to_le_bytes());
-    send_data.extend_from_slice(&config.trusted_hub_addr);
-    send_data.extend_from_slice(&gmp_endpoint_program.key.to_bytes()); // src_addr = GMP endpoint (trusted remote on hub)
+    send_data.extend_from_slice(&config.hub_gmp_endpoint_addr);
+    send_data.extend_from_slice(&gmp_endpoint_program.key.to_bytes()); // remote_gmp_endpoint_addr = GMP endpoint (remote GMP endpoint on hub)
     send_data.extend_from_slice(&(payload.len() as u32).to_le_bytes());
     send_data.extend_from_slice(&payload);
 
@@ -415,7 +415,7 @@ fn process_update_hub_config(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     hub_chain_id: u32,
-    trusted_hub_addr: [u8; 32],
+    hub_gmp_endpoint_addr: [u8; 32],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let config_account = next_account_info(account_info_iter)?;
@@ -443,7 +443,7 @@ fn process_update_hub_config(
 
     // Update config
     config.hub_chain_id = hub_chain_id;
-    config.trusted_hub_addr = trusted_hub_addr;
+    config.hub_gmp_endpoint_addr = hub_gmp_endpoint_addr;
     config.serialize(&mut &mut config_account.data.borrow_mut()[..])?;
 
     msg!(

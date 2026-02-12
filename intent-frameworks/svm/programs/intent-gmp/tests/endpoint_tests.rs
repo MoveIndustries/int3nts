@@ -8,7 +8,7 @@ use intent_gmp::{
     instruction::NativeGmpInstruction,
     state::{
         ConfigAccount, DeliveredMessage, OutboundNonceAccount, RelayAccount,
-        RoutingConfig, TrustedRemoteAccount,
+        RoutingConfig, RemoteGmpEndpoint,
     },
     GmpError,
 };
@@ -29,11 +29,11 @@ fn dummy_dst_addr() -> [u8; 32] {
     [1u8; 32]
 }
 
-fn dummy_src_addr() -> [u8; 32] {
+fn dummy_remote_gmp_endpoint_addr() -> [u8; 32] {
     [2u8; 32]
 }
 
-fn dummy_trusted_addr() -> [u8; 32] {
+fn dummy_remote_addr() -> [u8; 32] {
     [0xab; 32]
 }
 
@@ -52,13 +52,13 @@ fn dummy_payload() -> Vec<u8> {
 fn test_send_instruction_serialization() {
     let original_dst_chain_id = DUMMY_CHAIN_ID_MVM;
     let original_dst_addr = dummy_dst_addr();
-    let original_src_addr = dummy_src_addr();
+    let original_remote_gmp_endpoint_addr = dummy_remote_gmp_endpoint_addr();
     let original_payload = dummy_payload();
 
     let instruction = NativeGmpInstruction::Send {
         dst_chain_id: original_dst_chain_id,
         dst_addr: original_dst_addr,
-        src_addr: original_src_addr,
+        remote_gmp_endpoint_addr: original_remote_gmp_endpoint_addr,
         payload: original_payload.clone(),
     };
 
@@ -69,12 +69,12 @@ fn test_send_instruction_serialization() {
         NativeGmpInstruction::Send {
             dst_chain_id,
             dst_addr,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         } => {
             assert_eq!(dst_chain_id, original_dst_chain_id);
             assert_eq!(dst_addr, original_dst_addr);
-            assert_eq!(src_addr, original_src_addr);
+            assert_eq!(remote_gmp_endpoint_addr, original_remote_gmp_endpoint_addr);
             assert_eq!(payload, original_payload);
         }
         _ => panic!("Wrong instruction variant"),
@@ -87,12 +87,12 @@ fn test_send_instruction_serialization() {
 #[test]
 fn test_deliver_message_instruction_serialization() {
     let original_src_chain_id = DUMMY_CHAIN_ID_MVM;
-    let original_src_addr = dummy_src_addr();
+    let original_remote_gmp_endpoint_addr = dummy_remote_gmp_endpoint_addr();
     let original_payload = dummy_payload();
 
     let instruction = NativeGmpInstruction::DeliverMessage {
         src_chain_id: original_src_chain_id,
-        src_addr: original_src_addr,
+        remote_gmp_endpoint_addr: original_remote_gmp_endpoint_addr,
         payload: original_payload.clone(),
     };
 
@@ -102,11 +102,11 @@ fn test_deliver_message_instruction_serialization() {
     match decoded {
         NativeGmpInstruction::DeliverMessage {
             src_chain_id,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         } => {
             assert_eq!(src_chain_id, original_src_chain_id);
-            assert_eq!(src_addr, original_src_addr);
+            assert_eq!(remote_gmp_endpoint_addr, original_remote_gmp_endpoint_addr);
             assert_eq!(payload, original_payload);
         }
         _ => panic!("Wrong instruction variant"),
@@ -157,29 +157,29 @@ fn test_add_relay_instruction_serialization() {
     }
 }
 
-/// 5. Test: SetTrustedRemote instruction serialization roundtrip
-/// Verifies that SetTrustedRemote instruction can be serialized and deserialized correctly.
-/// Why: Trusted remote configuration is security-critical. Wrong chain_id or address would accept messages from untrusted sources.
+/// 5. Test: SetRemoteGmpEndpointAddr instruction serialization roundtrip
+/// Verifies that SetRemoteGmpEndpointAddr instruction can be serialized and deserialized correctly.
+/// Why: Remote GMP endpoint configuration is security-critical. Wrong chain_id or address would accept messages from unknown remote GMP endpoints.
 #[test]
-fn test_set_trusted_remote_instruction_serialization() {
+fn test_set_remote_gmp_endpoint_addr_instruction_serialization() {
     let original_src_chain_id = DUMMY_CHAIN_ID_MVM;
-    let original_trusted_addr = dummy_trusted_addr();
+    let original_addr = dummy_remote_addr();
 
-    let instruction = NativeGmpInstruction::SetTrustedRemote {
+    let instruction = NativeGmpInstruction::SetRemoteGmpEndpointAddr {
         src_chain_id: original_src_chain_id,
-        trusted_addr: original_trusted_addr,
+        addr: original_addr,
     };
 
     let encoded = borsh::to_vec(&instruction).unwrap();
     let decoded = NativeGmpInstruction::try_from_slice(&encoded).unwrap();
 
     match decoded {
-        NativeGmpInstruction::SetTrustedRemote {
+        NativeGmpInstruction::SetRemoteGmpEndpointAddr {
             src_chain_id,
-            trusted_addr,
+            addr,
         } => {
             assert_eq!(src_chain_id, original_src_chain_id);
-            assert_eq!(trusted_addr, original_trusted_addr);
+            assert_eq!(addr, original_addr);
         }
         _ => panic!("Wrong instruction variant"),
     }
@@ -278,24 +278,24 @@ fn test_relay_account_serialization() {
     assert_eq!(decoded.bump, original_bump);
 }
 
-/// 10. Test: TrustedRemoteAccount serialization roundtrip
-/// Verifies that TrustedRemoteAccount state can be serialized and deserialized correctly.
-/// Why: Trusted remote config is security-critical. Corruption would accept messages from untrusted sources.
+/// 10. Test: RemoteGmpEndpoint serialization roundtrip
+/// Verifies that RemoteGmpEndpoint state can be serialized and deserialized correctly.
+/// Why: Remote GMP endpoint config is security-critical. Corruption would accept messages from unknown remote GMP endpoints.
 #[test]
-fn test_trusted_remote_account_serialization() {
+fn test_remote_gmp_endpoint_account_serialization() {
     let original_src_chain_id = DUMMY_CHAIN_ID_MVM;
-    let original_trusted_addr = dummy_trusted_addr();
+    let original_addr = dummy_remote_addr();
     let original_bump = 253u8;
 
-    let trusted_remote =
-        TrustedRemoteAccount::new(original_src_chain_id, original_trusted_addr, original_bump);
+    let remote_gmp_endpoint =
+        RemoteGmpEndpoint::new(original_src_chain_id, original_addr, original_bump);
 
-    let encoded = borsh::to_vec(&trusted_remote).unwrap();
-    let decoded = TrustedRemoteAccount::try_from_slice(&encoded).unwrap();
+    let encoded = borsh::to_vec(&remote_gmp_endpoint).unwrap();
+    let decoded = RemoteGmpEndpoint::try_from_slice(&encoded).unwrap();
 
-    assert_eq!(decoded.discriminator, TrustedRemoteAccount::DISCRIMINATOR);
+    assert_eq!(decoded.discriminator, RemoteGmpEndpoint::DISCRIMINATOR);
     assert_eq!(decoded.src_chain_id, original_src_chain_id);
-    assert_eq!(decoded.trusted_addr, original_trusted_addr);
+    assert_eq!(decoded.addr, original_addr);
     assert_eq!(decoded.bump, original_bump);
 }
 
@@ -371,7 +371,7 @@ fn test_error_codes_unique() {
         GmpError::InvalidPda,
         GmpError::UnauthorizedAdmin,
         GmpError::UnauthorizedRelay,
-        GmpError::UntrustedRemote,
+        GmpError::UnknownRemoteGmpEndpoint,
         GmpError::AlreadyDelivered,
         GmpError::InvalidDiscriminator,
     ];
@@ -549,30 +549,30 @@ mod integration {
         }
     }
 
-    /// Helper: create SetTrustedRemote instruction
-    fn create_set_trusted_remote_ix(
+    /// Helper: create SetRemoteGmpEndpointAddr instruction
+    fn create_set_remote_gmp_endpoint_addr_ix(
         program_id: Pubkey,
         admin: Pubkey,
         payer: Pubkey,
         src_chain_id: u32,
-        trusted_addr: [u8; 32],
+        addr: [u8; 32],
     ) -> Instruction {
         let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
         let chain_id_bytes = src_chain_id.to_le_bytes();
-        let (trusted_remote_pda, _) = Pubkey::find_program_address(
-            &[seeds::TRUSTED_REMOTE_SEED, &chain_id_bytes],
+        let (remote_gmp_endpoint_pda, _) = Pubkey::find_program_address(
+            &[seeds::REMOTE_GMP_ENDPOINT_SEED, &chain_id_bytes],
             &program_id,
         );
         Instruction {
             program_id,
             accounts: vec![
                 AccountMeta::new_readonly(config_pda, false),
-                AccountMeta::new(trusted_remote_pda, false),
+                AccountMeta::new(remote_gmp_endpoint_pda, false),
                 AccountMeta::new_readonly(admin, true),
                 AccountMeta::new(payer, true),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
-            data: NativeGmpInstruction::SetTrustedRemote { src_chain_id, trusted_addr }.try_to_vec().unwrap(),
+            data: NativeGmpInstruction::SetRemoteGmpEndpointAddr { src_chain_id, addr }.try_to_vec().unwrap(),
         }
     }
 
@@ -587,7 +587,7 @@ mod integration {
         payer: Pubkey,
         dst_chain_id: u32,
         dst_addr: [u8; 32],
-        src_addr: [u8; 32],
+        remote_gmp_endpoint_addr: [u8; 32],
         payload: Vec<u8>,
         current_nonce: u64,
     ) -> Instruction {
@@ -612,7 +612,7 @@ mod integration {
                 AccountMeta::new_readonly(system_program::id(), false),
                 AccountMeta::new(message_pda, false),
             ],
-            data: NativeGmpInstruction::Send { dst_chain_id, dst_addr, src_addr, payload }.try_to_vec().unwrap(),
+            data: NativeGmpInstruction::Send { dst_chain_id, dst_addr, remote_gmp_endpoint_addr, payload }.try_to_vec().unwrap(),
         }
     }
 
@@ -626,14 +626,14 @@ mod integration {
         payer: Pubkey,
         destination_program: Pubkey,
         src_chain_id: u32,
-        src_addr: [u8; 32],
+        remote_gmp_endpoint_addr: [u8; 32],
         payload: Vec<u8>,
     ) -> Instruction {
         let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
         let (relay_pda, _) = Pubkey::find_program_address(&[seeds::RELAY_SEED, relay.as_ref()], &program_id);
         let chain_id_bytes = src_chain_id.to_le_bytes();
-        let (trusted_remote_pda, _) = Pubkey::find_program_address(
-            &[seeds::TRUSTED_REMOTE_SEED, &chain_id_bytes],
+        let (remote_gmp_endpoint_pda, _) = Pubkey::find_program_address(
+            &[seeds::REMOTE_GMP_ENDPOINT_SEED, &chain_id_bytes],
             &program_id,
         );
         // Derive delivered PDA from payload (intent_id + msg_type)
@@ -645,7 +645,7 @@ mod integration {
         );
         let (routing_pda, _) = Pubkey::find_program_address(&[seeds::ROUTING_SEED], &program_id);
         // Account order:
-        // 0. Config, 1. Relay, 2. TrustedRemote, 3. DeliveredMessage, 4. RelaySigner, 5. Payer
+        // 0. Config, 1. Relay, 2. RemoteGmpEndpoint, 3. DeliveredMessage, 4. RelaySigner, 5. Payer
         // 6. SystemProgram, 7. RoutingConfig, 8. DestProgram1, 9. DestProgram2, 10+. Remaining
         // For tests without routing, we pass destination_program as both dest1 and dest2
         Instruction {
@@ -653,7 +653,7 @@ mod integration {
             accounts: vec![
                 AccountMeta::new_readonly(config_pda, false),
                 AccountMeta::new_readonly(relay_pda, false),
-                AccountMeta::new_readonly(trusted_remote_pda, false),
+                AccountMeta::new_readonly(remote_gmp_endpoint_pda, false),
                 AccountMeta::new(delivered_pda, false),
                 AccountMeta::new_readonly(relay, true),
                 AccountMeta::new(payer, true),
@@ -662,7 +662,7 @@ mod integration {
                 AccountMeta::new_readonly(destination_program, false), // dest program 1
                 AccountMeta::new_readonly(destination_program, false), // dest program 2 (same for tests)
             ],
-            data: NativeGmpInstruction::DeliverMessage { src_chain_id, src_addr, payload }.try_to_vec().unwrap(),
+            data: NativeGmpInstruction::DeliverMessage { src_chain_id, remote_gmp_endpoint_addr, payload }.try_to_vec().unwrap(),
         }
     }
 
@@ -697,15 +697,15 @@ mod integration {
         outflow_validator: Pubkey,
         intent_escrow: Pubkey,
         src_chain_id: u32,
-        src_addr: [u8; 32],
+        remote_gmp_endpoint_addr: [u8; 32],
         payload: Vec<u8>,
         remaining_accounts: Vec<AccountMeta>,
     ) -> Instruction {
         let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
         let (relay_pda, _) = Pubkey::find_program_address(&[seeds::RELAY_SEED, relay.as_ref()], &program_id);
         let chain_id_bytes = src_chain_id.to_le_bytes();
-        let (trusted_remote_pda, _) = Pubkey::find_program_address(
-            &[seeds::TRUSTED_REMOTE_SEED, &chain_id_bytes],
+        let (remote_gmp_endpoint_pda, _) = Pubkey::find_program_address(
+            &[seeds::REMOTE_GMP_ENDPOINT_SEED, &chain_id_bytes],
             &program_id,
         );
         // Derive delivered PDA from payload
@@ -719,7 +719,7 @@ mod integration {
         let mut accounts = vec![
             AccountMeta::new_readonly(config_pda, false),
             AccountMeta::new_readonly(relay_pda, false),
-            AccountMeta::new_readonly(trusted_remote_pda, false),
+            AccountMeta::new_readonly(remote_gmp_endpoint_pda, false),
             AccountMeta::new(delivered_pda, false),
             AccountMeta::new_readonly(relay, true),
             AccountMeta::new(payer, true),
@@ -732,7 +732,7 @@ mod integration {
         Instruction {
             program_id,
             accounts,
-            data: NativeGmpInstruction::DeliverMessage { src_chain_id, src_addr, payload }.try_to_vec().unwrap(),
+            data: NativeGmpInstruction::DeliverMessage { src_chain_id, remote_gmp_endpoint_addr, payload }.try_to_vec().unwrap(),
         }
     }
 
@@ -762,9 +762,9 @@ mod integration {
 
         // Send first message
         let dst_addr = [0xab; 32];
-        let src_addr = program_id.to_bytes(); // Use program ID as src_addr (typical for on-chain callers)
+        let remote_gmp_endpoint_addr = program_id.to_bytes(); // Use program ID as remote_gmp_endpoint_addr (typical for on-chain callers)
         let payload1 = vec![0x01, 0x02, 0x03];
-        let send_ix = create_send_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, dst_addr, src_addr, payload1.clone(), 0);
+        let send_ix = create_send_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, dst_addr, remote_gmp_endpoint_addr, payload1.clone(), 0);
         send_tx(&mut context, &admin, &[send_ix], &[]).await.unwrap();
 
         // Verify nonce account created with nonce = 1 (after first send)
@@ -784,7 +784,7 @@ mod integration {
         assert_eq!(message.dst_chain_id, CHAIN_ID_MVM);
         assert_eq!(message.nonce, 0);
         assert_eq!(message.dst_addr, dst_addr);
-        assert_eq!(message.src_addr, src_addr);
+        assert_eq!(message.remote_gmp_endpoint_addr, remote_gmp_endpoint_addr);
         assert_eq!(message.payload, payload1);
 
         // Warp to a new slot to ensure transaction uniqueness in test framework
@@ -792,7 +792,7 @@ mod integration {
 
         // Send second message (different payload for unique transaction)
         let payload2 = vec![0x04, 0x05, 0x06];
-        let send_ix2 = create_send_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, dst_addr, src_addr, payload2, 1);
+        let send_ix2 = create_send_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, dst_addr, remote_gmp_endpoint_addr, payload2, 1);
         send_tx(&mut context, &admin, &[send_ix2], &[]).await.unwrap();
 
         // Verify nonce incremented
@@ -823,10 +823,10 @@ mod integration {
         let add_relay_ix = create_add_relay_ix(program_id, admin.pubkey(), admin.pubkey(), relay.pubkey());
         send_tx(&mut context, &admin, &[add_relay_ix], &[]).await.unwrap();
 
-        // Set trusted remote
-        let src_addr = [0x11; 32];
-        let set_trusted_ix = create_set_trusted_remote_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, src_addr);
-        send_tx(&mut context, &admin, &[set_trusted_ix], &[]).await.unwrap();
+        // Set remote GMP endpoint
+        let remote_gmp_endpoint_addr = [0x11; 32];
+        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, remote_gmp_endpoint_addr);
+        send_tx(&mut context, &admin, &[set_remote_gmp_endpoint_ix], &[]).await.unwrap();
 
         // Deliver message with intent_id_1
         // Payload: msg_type(1) + intent_id(32) + extra data
@@ -839,7 +839,7 @@ mod integration {
             relay.pubkey(),
             mock_receiver_id(),
             CHAIN_ID_MVM,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload.clone(),
         );
         // This should succeed - the mock receiver accepts any instruction
@@ -867,7 +867,7 @@ mod integration {
             relay.pubkey(),
             mock_receiver_id(),
             CHAIN_ID_MVM,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload2,
         );
         send_tx(&mut context, &relay, &[deliver_ix2], &[]).await.unwrap();
@@ -897,12 +897,12 @@ mod integration {
         let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &relay.pubkey(), 1_000_000_000);
         send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
 
-        // Initialize, add relay, set trusted remote
+        // Initialize, add relay, set remote GMP endpoint
         let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
         let add_relay_ix = create_add_relay_ix(program_id, admin.pubkey(), admin.pubkey(), relay.pubkey());
-        let src_addr = [0x22; 32];
-        let set_trusted_ix = create_set_trusted_remote_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, src_addr);
-        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_trusted_ix], &[]).await.unwrap();
+        let remote_gmp_endpoint_addr = [0x22; 32];
+        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, remote_gmp_endpoint_addr);
+        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_remote_gmp_endpoint_ix], &[]).await.unwrap();
 
         // Deliver first message
         let mut payload1 = vec![0x01]; // msg_type = IntentRequirements
@@ -914,7 +914,7 @@ mod integration {
             relay.pubkey(),
             mock_receiver_id(),
             CHAIN_ID_MVM,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload1.clone(),
         );
         send_tx(&mut context, &relay, &[deliver_ix], &[]).await.unwrap();
@@ -930,7 +930,7 @@ mod integration {
             relay.pubkey(),
             mock_receiver_id(),
             CHAIN_ID_MVM,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload1, // same intent_id + msg_type
         );
         let result = send_tx(&mut context, &relay, &[deliver_replay], &[]).await;
@@ -952,11 +952,11 @@ mod integration {
         let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &unauthorized_relay.pubkey(), 1_000_000_000);
         send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
 
-        // Initialize and set trusted remote, but do NOT add relay
+        // Initialize and set remote GMP endpoint, but do NOT add relay
         let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
-        let src_addr = [0x33; 32];
-        let set_trusted_ix = create_set_trusted_remote_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, src_addr);
-        send_tx(&mut context, &admin, &[init_ix, set_trusted_ix], &[]).await.unwrap();
+        let remote_gmp_endpoint_addr = [0x33; 32];
+        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, remote_gmp_endpoint_addr);
+        send_tx(&mut context, &admin, &[init_ix, set_remote_gmp_endpoint_ix], &[]).await.unwrap();
 
         // Try to deliver message with unauthorized relay - should fail
         let mut payload = vec![0x01]; // msg_type
@@ -967,7 +967,7 @@ mod integration {
             unauthorized_relay.pubkey(),
             mock_receiver_id(),
             CHAIN_ID_MVM,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
         let result = send_tx(&mut context, &unauthorized_relay, &[deliver_ix], &[]).await;
@@ -989,12 +989,12 @@ mod integration {
         let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &authorized_relay.pubkey(), 1_000_000_000);
         send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
 
-        // Initialize, add relay, set trusted remote
+        // Initialize, add relay, set remote GMP endpoint
         let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
         let add_relay_ix = create_add_relay_ix(program_id, admin.pubkey(), admin.pubkey(), authorized_relay.pubkey());
-        let src_addr = [0x44; 32];
-        let set_trusted_ix = create_set_trusted_remote_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, src_addr);
-        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_trusted_ix], &[]).await.unwrap();
+        let remote_gmp_endpoint_addr = [0x44; 32];
+        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, remote_gmp_endpoint_addr);
+        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_remote_gmp_endpoint_ix], &[]).await.unwrap();
 
         // Verify relay is authorized by successfully delivering a message
         let mut payload = vec![0x01]; // msg_type
@@ -1006,7 +1006,7 @@ mod integration {
             authorized_relay.pubkey(),
             mock_receiver_id(),
             CHAIN_ID_MVM,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         );
         send_tx(&mut context, &authorized_relay, &[deliver_ix], &[]).await.unwrap();
@@ -1021,11 +1021,11 @@ mod integration {
         assert_eq!(delivered.discriminator, DeliveredMessage::DISCRIMINATOR, "Message should have been delivered");
     }
 
-    /// 20. Test: Untrusted remote address rejected
-    /// Verifies that messages from non-trusted source addresses are rejected.
-    /// Why: Trusted remote verification prevents spoofed cross-chain messages.
+    /// 20. Test: Unknown remote GMP endpoint address rejected
+    /// Verifies that messages from unknown remote GMP endpoint addresses are rejected.
+    /// Why: Remote GMP endpoint verification prevents spoofed cross-chain messages.
     #[tokio::test]
-    async fn test_deliver_message_rejects_untrusted_remote() {
+    async fn test_deliver_message_rejects_unknown_remote_gmp_endpoint() {
         let pt = program_test();
         let mut context = pt.start_with_context().await;
         let admin = context.payer.insecure_clone();
@@ -1036,15 +1036,15 @@ mod integration {
         let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &relay.pubkey(), 1_000_000_000);
         send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
 
-        // Initialize, add relay, set trusted remote
+        // Initialize, add relay, set remote GMP endpoint
         let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
         let add_relay_ix = create_add_relay_ix(program_id, admin.pubkey(), admin.pubkey(), relay.pubkey());
-        let trusted_addr = [0x55; 32];
-        let set_trusted_ix = create_set_trusted_remote_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, trusted_addr);
-        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_trusted_ix], &[]).await.unwrap();
+        let addr = [0x55; 32];
+        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, addr);
+        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_remote_gmp_endpoint_ix], &[]).await.unwrap();
 
-        // Try to deliver message from untrusted address
-        let untrusted_addr = [0xFF; 32]; // different from trusted_addr
+        // Try to deliver message from unknown remote GMP endpoint address
+        let unknown_addr = [0xFF; 32]; // different from addr
         let mut payload = vec![0x01]; // msg_type
         payload.extend_from_slice(&[0xEE; 32]); // intent_id
         let deliver_ix = create_deliver_message_ix(
@@ -1053,18 +1053,18 @@ mod integration {
             relay.pubkey(),
             mock_receiver_id(),
             CHAIN_ID_MVM,
-            untrusted_addr, // not the trusted address
+            unknown_addr, // not the remote GMP endpoint address
             payload,
         );
         let result = send_tx(&mut context, &relay, &[deliver_ix], &[]).await;
-        assert!(result.is_err(), "Untrusted remote should be rejected");
+        assert!(result.is_err(), "Unknown remote GMP endpoint should be rejected");
     }
 
-    /// 21. Test: No trusted remote configured
-    /// Verifies that messages fail when no trusted remote is configured for the source chain.
+    /// 21. Test: No remote GMP endpoint configured
+    /// Verifies that messages fail when no remote GMP endpoint is configured for the source chain.
     /// Why: Missing configuration must be caught early to prevent security holes.
     #[tokio::test]
-    async fn test_deliver_message_rejects_no_trusted_remote() {
+    async fn test_deliver_message_rejects_no_remote_gmp_endpoint() {
         let pt = program_test();
         let mut context = pt.start_with_context().await;
         let admin = context.payer.insecure_clone();
@@ -1075,13 +1075,13 @@ mod integration {
         let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &relay.pubkey(), 1_000_000_000);
         send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
 
-        // Initialize and add relay, but do NOT set trusted remote
+        // Initialize and add relay, but do NOT set remote GMP endpoint
         let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
         let add_relay_ix = create_add_relay_ix(program_id, admin.pubkey(), admin.pubkey(), relay.pubkey());
         send_tx(&mut context, &admin, &[init_ix, add_relay_ix], &[]).await.unwrap();
 
-        // Try to deliver message - should fail because no trusted remote is configured
-        let src_addr = [0x66; 32];
+        // Try to deliver message - should fail because no remote GMP endpoint is configured
+        let remote_gmp_endpoint_addr = [0x66; 32];
         let mut payload = vec![0x01]; // msg_type
         payload.extend_from_slice(&[0xFF; 32]); // intent_id
         let deliver_ix = create_deliver_message_ix(
@@ -1089,19 +1089,19 @@ mod integration {
             relay.pubkey(),
             relay.pubkey(),
             mock_receiver_id(),
-            CHAIN_ID_MVM, // no trusted remote configured for this chain
-            src_addr,
+            CHAIN_ID_MVM, // no remote GMP endpoint configured for this chain
+            remote_gmp_endpoint_addr,
             payload,
         );
         let result = send_tx(&mut context, &relay, &[deliver_ix], &[]).await;
-        assert!(result.is_err(), "Message from chain with no trusted remote should be rejected");
+        assert!(result.is_err(), "Message from chain with no remote GMP endpoint should be rejected");
     }
 
-    /// 22. Test: Non-admin cannot set trusted remote
-    /// Verifies that only the admin can configure trusted remote addresses.
+    /// 22. Test: Non-admin cannot set remote GMP endpoint
+    /// Verifies that only the admin can configure remote GMP endpoint addresses.
     /// Why: Admin-only access prevents unauthorized trust configuration changes.
     #[tokio::test]
-    async fn test_set_trusted_remote_unauthorized() {
+    async fn test_set_remote_gmp_endpoint_addr_unauthorized() {
         let pt = program_test();
         let mut context = pt.start_with_context().await;
         let admin = context.payer.insecure_clone();
@@ -1116,11 +1116,11 @@ mod integration {
         let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
         send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
 
-        // Non-admin tries to set trusted remote - should fail
-        let trusted_addr = [0x77; 32];
-        let set_trusted_ix = create_set_trusted_remote_ix(program_id, non_admin.pubkey(), non_admin.pubkey(), CHAIN_ID_MVM, trusted_addr);
-        let result = send_tx(&mut context, &non_admin, &[set_trusted_ix], &[]).await;
-        assert!(result.is_err(), "Non-admin should not be able to set trusted remote");
+        // Non-admin tries to set remote GMP endpoint - should fail
+        let addr = [0x77; 32];
+        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, non_admin.pubkey(), non_admin.pubkey(), CHAIN_ID_MVM, addr);
+        let result = send_tx(&mut context, &non_admin, &[set_remote_gmp_endpoint_ix], &[]).await;
+        assert!(result.is_err(), "Non-admin should not be able to set remote GMP endpoint");
     }
 
     /// 23. Test: Same intent_id with different msg_type succeeds (not a duplicate)
@@ -1139,12 +1139,12 @@ mod integration {
         let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &relay.pubkey(), 1_000_000_000);
         send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
 
-        // Initialize, add relay, set trusted remote
+        // Initialize, add relay, set remote GMP endpoint
         let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
         let add_relay_ix = create_add_relay_ix(program_id, admin.pubkey(), admin.pubkey(), relay.pubkey());
-        let src_addr = [0x88; 32];
-        let set_trusted_ix = create_set_trusted_remote_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, src_addr);
-        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_trusted_ix], &[]).await.unwrap();
+        let remote_gmp_endpoint_addr = [0x88; 32];
+        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, remote_gmp_endpoint_addr);
+        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_remote_gmp_endpoint_ix], &[]).await.unwrap();
 
         // Deliver IntentRequirements (0x01) for intent_id
         let intent_id = [0xF1u8; 32];
@@ -1157,7 +1157,7 @@ mod integration {
             relay.pubkey(),
             mock_receiver_id(),
             CHAIN_ID_MVM,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload1,
         );
         send_tx(&mut context, &relay, &[deliver_ix], &[]).await.unwrap();
@@ -1177,7 +1177,7 @@ mod integration {
             relay.pubkey(),
             mock_receiver_id(),
             CHAIN_ID_MVM,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload2,
         );
         send_tx(&mut context, &relay, &[deliver_ix2], &[]).await.unwrap();
@@ -1273,12 +1273,12 @@ mod integration {
         let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &relay.pubkey(), 1_000_000_000);
         send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
 
-        // Initialize, add relay, set trusted remote
+        // Initialize, add relay, set remote GMP endpoint
         let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
         let add_relay_ix = create_add_relay_ix(program_id, admin.pubkey(), admin.pubkey(), relay.pubkey());
-        let src_addr = [0x99; 32];
-        let set_trusted_ix = create_set_trusted_remote_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, src_addr);
-        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_trusted_ix], &[]).await.unwrap();
+        let remote_gmp_endpoint_addr = [0x99; 32];
+        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, remote_gmp_endpoint_addr);
+        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_remote_gmp_endpoint_ix], &[]).await.unwrap();
 
         // Set up routing config
         let set_routing_ix = create_set_routing_ix(
@@ -1320,7 +1320,7 @@ mod integration {
             mock_receiver_id(),        // outflow_validator (should NOT be called)
             mock_escrow_receiver_id(), // intent_escrow (should be called)
             CHAIN_ID_MVM,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload.clone(),
             remaining_accounts,
         );
@@ -1354,12 +1354,12 @@ mod integration {
         let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &relay.pubkey(), 1_000_000_000);
         send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
 
-        // Initialize, add relay, set trusted remote
+        // Initialize, add relay, set remote GMP endpoint
         let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
         let add_relay_ix = create_add_relay_ix(program_id, admin.pubkey(), admin.pubkey(), relay.pubkey());
-        let src_addr = [0xAA; 32];
-        let set_trusted_ix = create_set_trusted_remote_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, src_addr);
-        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_trusted_ix], &[]).await.unwrap();
+        let remote_gmp_endpoint_addr = [0xAA; 32];
+        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_MVM, remote_gmp_endpoint_addr);
+        send_tx(&mut context, &admin, &[init_ix, add_relay_ix, set_remote_gmp_endpoint_ix], &[]).await.unwrap();
 
         // Set up routing config
         let set_routing_ix = create_set_routing_ix(
@@ -1392,7 +1392,7 @@ mod integration {
             mock_receiver_id(),
             mock_escrow_receiver_id(),
             CHAIN_ID_MVM,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
             insufficient_accounts,
         );

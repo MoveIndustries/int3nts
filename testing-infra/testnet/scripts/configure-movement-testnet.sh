@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Configure Movement Bardock Testnet - Set GMP trusted remotes for connected chains
+# Configure Movement Bardock Testnet - Set remote GMP endpoints for connected chains
 #
-# This script sets up cross-chain GMP trusted remotes on the Movement hub.
+# This script sets up cross-chain remote GMP endpoints on the Movement hub.
 # Must be run AFTER all chain deployments are complete, because it needs
 # the GMP endpoint addresses from connected chains.
 #
@@ -22,7 +22,7 @@ PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../.." && pwd )"
 
 source "$SCRIPT_DIR/../lib/env-utils.sh"
 
-echo " Configuring Movement Bardock Testnet (GMP Trusted Remotes)"
+echo " Configuring Movement Bardock Testnet (Remote GMP Endpoints)"
 echo "============================================================"
 echo ""
 
@@ -68,37 +68,37 @@ echo "   Module address: $MODULE_ADDR"
 echo ""
 
 # --- Base Sepolia (EVM) ---
-echo " Setting trusted remote: Base Sepolia (chain $BASE_CHAIN_ID)..."
+echo " Setting remote GMP endpoint: Base Sepolia (chain $BASE_CHAIN_ID)..."
 
 ADDR_PADDED=$(pad_address_32 "$BASE_GMP_ENDPOINT_ADDR")
 echo "   Remote address: 0x$ADDR_PADDED"
 
 movement move run \
   --profile "$TEMP_PROFILE" \
-  --function-id "${MODULE_ADDR}::intent_gmp::set_trusted_remote" \
+  --function-id "${MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr" \
   --args "u32:$BASE_CHAIN_ID" "hex:${ADDR_PADDED}" \
   --assume-yes
 
 verify_movement_view "$MOVEMENT_RPC_URL" \
-    "${MODULE_ADDR}::intent_gmp::get_trusted_remote" \
+    "${MODULE_ADDR}::intent_gmp::get_remote_gmp_endpoint" \
     "[$BASE_CHAIN_ID]" \
-    "intent_gmp trusted remote for Base (chain $BASE_CHAIN_ID)"
+    "intent_gmp remote GMP endpoint for Base (chain $BASE_CHAIN_ID)"
 
 movement move run \
   --profile "$TEMP_PROFILE" \
-  --function-id "${MODULE_ADDR}::intent_gmp_hub::set_trusted_remote" \
+  --function-id "${MODULE_ADDR}::intent_gmp_hub::set_remote_gmp_endpoint_addr" \
   --args "u32:$BASE_CHAIN_ID" "hex:${ADDR_PADDED}" \
   --assume-yes
 
 verify_movement_view "$MOVEMENT_RPC_URL" \
-    "${MODULE_ADDR}::intent_gmp_hub::get_trusted_remote" \
+    "${MODULE_ADDR}::intent_gmp_hub::get_remote_gmp_endpoint" \
     "[$BASE_CHAIN_ID]" \
-    "intent_gmp_hub trusted remote for Base (chain $BASE_CHAIN_ID)"
+    "intent_gmp_hub remote GMP endpoint for Base (chain $BASE_CHAIN_ID)"
 
 echo ""
 
 # --- Solana Devnet (SVM) ---
-echo " Setting trusted remote: Solana Devnet (chain $SVM_CHAIN_ID)..."
+echo " Setting remote GMP endpoint: Solana Devnet (chain $SVM_CHAIN_ID)..."
 
 # Convert base58 Solana program ID to 32-byte hex
 SOLANA_GMP_HEX=$(node -e "
@@ -137,25 +137,25 @@ echo "   Remote address: 0x$SOLANA_GMP_HEX"
 
 movement move run \
   --profile "$TEMP_PROFILE" \
-  --function-id "${MODULE_ADDR}::intent_gmp::set_trusted_remote" \
+  --function-id "${MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr" \
   --args "u32:$SVM_CHAIN_ID" "hex:${SOLANA_GMP_HEX}" \
   --assume-yes
 
 verify_movement_view "$MOVEMENT_RPC_URL" \
-    "${MODULE_ADDR}::intent_gmp::get_trusted_remote" \
+    "${MODULE_ADDR}::intent_gmp::get_remote_gmp_endpoint" \
     "[$SVM_CHAIN_ID]" \
-    "intent_gmp trusted remote for Solana (chain $SVM_CHAIN_ID)"
+    "intent_gmp remote GMP endpoint for Solana (chain $SVM_CHAIN_ID)"
 
 movement move run \
   --profile "$TEMP_PROFILE" \
-  --function-id "${MODULE_ADDR}::intent_gmp_hub::set_trusted_remote" \
+  --function-id "${MODULE_ADDR}::intent_gmp_hub::set_remote_gmp_endpoint_addr" \
   --args "u32:$SVM_CHAIN_ID" "hex:${SOLANA_GMP_HEX}" \
   --assume-yes
 
 verify_movement_view "$MOVEMENT_RPC_URL" \
-    "${MODULE_ADDR}::intent_gmp_hub::get_trusted_remote" \
+    "${MODULE_ADDR}::intent_gmp_hub::get_remote_gmp_endpoint" \
     "[$SVM_CHAIN_ID]" \
-    "intent_gmp_hub trusted remote for Solana (chain $SVM_CHAIN_ID)"
+    "intent_gmp_hub remote GMP endpoint for Solana (chain $SVM_CHAIN_ID)"
 
 echo ""
 

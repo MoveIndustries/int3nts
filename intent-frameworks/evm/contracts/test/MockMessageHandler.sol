@@ -8,29 +8,29 @@ import "../IntentGmp.sol";
 /// @dev Only used for testing - not deployed to production
 contract MockMessageHandler is IMessageHandler {
     uint32 public lastReceivedChainId;
-    bytes32 public lastReceivedSrcAddr;
+    bytes32 public lastReceivedRemoteGmpEndpointAddr;
     bytes public lastReceivedPayload;
     bool public requirementsReceived;
     bool public fulfillmentReceived;
 
     function receiveIntentRequirements(
         uint32 srcChainId,
-        bytes32 srcAddr,
+        bytes32 remoteGmpEndpointAddr,
         bytes calldata payload
     ) external override {
         lastReceivedChainId = srcChainId;
-        lastReceivedSrcAddr = srcAddr;
+        lastReceivedRemoteGmpEndpointAddr = remoteGmpEndpointAddr;
         lastReceivedPayload = payload;
         requirementsReceived = true;
     }
 
     function receiveFulfillmentProof(
         uint32 srcChainId,
-        bytes32 srcAddr,
+        bytes32 remoteGmpEndpointAddr,
         bytes calldata payload
     ) external override {
         lastReceivedChainId = srcChainId;
-        lastReceivedSrcAddr = srcAddr;
+        lastReceivedRemoteGmpEndpointAddr = remoteGmpEndpointAddr;
         lastReceivedPayload = payload;
         fulfillmentReceived = true;
     }
@@ -48,7 +48,7 @@ contract MockMessageHandler is IMessageHandler {
     /// @notice Reset state for clean tests
     function reset() external {
         lastReceivedChainId = 0;
-        lastReceivedSrcAddr = bytes32(0);
+        lastReceivedRemoteGmpEndpointAddr = bytes32(0);
         lastReceivedPayload = "";
         requirementsReceived = false;
         fulfillmentReceived = false;

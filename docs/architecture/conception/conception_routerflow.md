@@ -17,7 +17,7 @@ sequenceDiagram
     participant Requester
     participant SourceChain as Source Connected Chain
     participant Hub as Hub Chain
-    participant TrustedGMP as Integrated-GMP
+    participant IntegratedGMP as Integrated-GMP
     participant DestChain as Destination Connected Chain
     participant Solver
 
@@ -29,19 +29,19 @@ sequenceDiagram
 
     Note over Requester,Solver: Intent creation on Hub
     Requester->>Hub: Create reserved intent
-    Hub->>TrustedGMP: Request-intent event
+    Hub->>IntegratedGMP: Request-intent event
 
     Note over Requester,Solver: Escrow on Source Connected Chain
     Requester->>SourceChain: Create escrow (locks tokens)
-    SourceChain->>TrustedGMP: Escrow event
+    SourceChain->>IntegratedGMP: Escrow event
 
     Note over Requester,Solver: Solver fulfillment on Destination Connected Chain
     Solver->>DestChain: Transfer desired tokens to requester
-    DestChain->>TrustedGMP: Transfer event
+    DestChain->>IntegratedGMP: Transfer event
 
     Note over Requester,Solver: Integrated-GMP validation and approval
-    TrustedGMP->>TrustedGMP: Validate all legs
-    TrustedGMP->>Solver: Generate approval signature
+    IntegratedGMP->>IntegratedGMP: Validate all legs
+    IntegratedGMP->>Solver: Generate approval signature
 
     Note over Requester,Solver: Escrow release on Source Chain
     Solver->>SourceChain: Release escrow (with integrated-gmp signature)

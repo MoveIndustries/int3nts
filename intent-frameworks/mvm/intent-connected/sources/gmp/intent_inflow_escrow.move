@@ -38,9 +38,9 @@ module mvmt_intent::intent_inflow_escrow {
 
     /// Caller is not the admin
     const E_UNAUTHORIZED_ADMIN: u64 = 1;
-    /// Invalid source chain (not the trusted hub)
+    /// Invalid source chain (not the hub GMP endpoint)
     const E_INVALID_SOURCE_CHAIN: u64 = 2;
-    /// Invalid source address (not the trusted hub)
+    /// Invalid source address (not the hub GMP endpoint)
     const E_INVALID_SOURCE_ADDRESS: u64 = 3;
     /// Requirements already exist for this intent (idempotent - not an error in normal flow)
     const E_REQUIREMENTS_ALREADY_STORED: u64 = 4;
@@ -138,8 +138,8 @@ module mvmt_intent::intent_inflow_escrow {
         admin: address,
         /// Hub chain ID (LayerZero endpoint ID)
         hub_chain_id: u32,
-        /// Trusted hub address (32 bytes)
-        trusted_hub_addr: vector<u8>,
+        /// Hub GMP endpoint address (32 bytes)
+        hub_gmp_endpoint_addr: vector<u8>,
     }
 
     /// Stored intent requirements from the hub.
@@ -205,7 +205,7 @@ module mvmt_intent::intent_inflow_escrow {
     public entry fun initialize(
         admin: &signer,
         hub_chain_id: u32,
-        trusted_hub_addr: vector<u8>,
+        hub_gmp_endpoint_addr: vector<u8>,
     ) {
         let admin_addr = signer::address_of(admin);
         assert!(admin_addr == @mvmt_intent, E_UNAUTHORIZED_ADMIN);
@@ -214,7 +214,7 @@ module mvmt_intent::intent_inflow_escrow {
         move_to(admin, InflowEscrowConfig {
             admin: admin_addr,
             hub_chain_id,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
         });
 
         // Initialize requirements store
@@ -240,14 +240,14 @@ module mvmt_intent::intent_inflow_escrow {
     public entry fun update_hub_config(
         admin: &signer,
         hub_chain_id: u32,
-        trusted_hub_addr: vector<u8>,
+        hub_gmp_endpoint_addr: vector<u8>,
     ) acquires InflowEscrowConfig {
         let admin_addr = signer::address_of(admin);
         let config = borrow_global_mut<InflowEscrowConfig>(@mvmt_intent);
         assert!(config.admin == admin_addr, E_UNAUTHORIZED_ADMIN);
 
         config.hub_chain_id = hub_chain_id;
-        config.trusted_hub_addr = trusted_hub_addr;
+        config.hub_gmp_endpoint_addr = hub_gmp_endpoint_addr;
     }
 
     // ============================================================================
@@ -260,12 +260,12 @@ module mvmt_intent::intent_inflow_escrow {
     /// Implements idempotency: if requirements already exist, silently succeeds.
     ///
     /// # Arguments
-    /// - `src_chain_id`: Source chain endpoint ID (must match trusted hub)
-    /// - `src_addr`: Source address (must match trusted hub address)
+    /// - `src_chain_id`: Source chain endpoint ID (must match hub)
+    /// - `remote_gmp_endpoint_addr`: Source address (must match hub GMP endpoint address)
     /// - `payload`: Raw GMP message payload (IntentRequirements encoded)
     public fun receive_intent_requirements(
         src_chain_id: u32,
-        src_addr: vector<u8>,
+        remote_gmp_endpoint_addr: vector<u8>,
         payload: vector<u8>,
     ) acquires InflowEscrowConfig, IntentRequirementsStore {
         // Verify config exists
@@ -273,11 +273,11 @@ module mvmt_intent::intent_inflow_escrow {
 
         let config = borrow_global<InflowEscrowConfig>(@mvmt_intent);
 
-        // Verify source chain matches trusted hub
+        // Verify source chain matches hub
         assert!(src_chain_id == config.hub_chain_id, E_INVALID_SOURCE_CHAIN);
 
-        // Verify source address matches trusted hub
-        assert!(src_addr == config.trusted_hub_addr, E_INVALID_SOURCE_ADDRESS);
+        // Verify source address matches hub GMP endpoint
+        assert!(remote_gmp_endpoint_addr == config.hub_gmp_endpoint_addr, E_INVALID_SOURCE_ADDRESS);
 
         // Decode the message
         let msg = gmp_common::decode_intent_requirements(&payload);
@@ -446,7 +446,7 @@ module mvmt_intent::intent_inflow_escrow {
         let nonce = gmp_sender::lz_send(
             creator,
             config.hub_chain_id,
-            config.trusted_hub_addr,
+            config.hub_gmp_endpoint_addr,
             payload,
         );
 
@@ -473,12 +473,12 @@ module mvmt_intent::intent_inflow_escrow {
     /// AND immediately transfers tokens to the solver (single-step release).
     ///
     /// # Arguments
-    /// - `src_chain_id`: Source chain endpoint ID (must match trusted hub)
-    /// - `src_addr`: Source address (must match trusted hub address)
+    /// - `src_chain_id`: Source chain endpoint ID (must match hub)
+    /// - `remote_gmp_endpoint_addr`: Source address (must match hub GMP endpoint address)
     /// - `payload`: Raw GMP message payload (FulfillmentProof encoded)
     public fun receive_fulfillment_proof(
         src_chain_id: u32,
-        src_addr: vector<u8>,
+        remote_gmp_endpoint_addr: vector<u8>,
         payload: vector<u8>,
     ) acquires InflowEscrowConfig, EscrowStore, EscrowVault {
         // Verify config exists
@@ -486,11 +486,11 @@ module mvmt_intent::intent_inflow_escrow {
 
         let config = borrow_global<InflowEscrowConfig>(@mvmt_intent);
 
-        // Verify source chain matches trusted hub
+        // Verify source chain matches hub
         assert!(src_chain_id == config.hub_chain_id, E_INVALID_SOURCE_CHAIN);
 
-        // Verify source address matches trusted hub
-        assert!(src_addr == config.trusted_hub_addr, E_INVALID_SOURCE_ADDRESS);
+        // Verify source address matches hub GMP endpoint
+        assert!(remote_gmp_endpoint_addr == config.hub_gmp_endpoint_addr, E_INVALID_SOURCE_ADDRESS);
 
         // Decode the message
         let msg = gmp_common::decode_fulfillment_proof(&payload);
@@ -617,10 +617,10 @@ module mvmt_intent::intent_inflow_escrow {
     }
 
     #[view]
-    /// Get the trusted hub address from config.
-    public fun get_trusted_hub_addr(): vector<u8> acquires InflowEscrowConfig {
+    /// Get the hub GMP endpoint address from config.
+    public fun get_hub_gmp_endpoint_addr(): vector<u8> acquires InflowEscrowConfig {
         let config = borrow_global<InflowEscrowConfig>(@mvmt_intent);
-        config.trusted_hub_addr
+        config.hub_gmp_endpoint_addr
     }
 
     #[view]

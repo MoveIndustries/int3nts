@@ -12,7 +12,7 @@ describe("IntentInflowEscrow", function () {
 
   // Chain IDs
   const HUB_CHAIN_ID = 30325; // Movement mainnet
-  const TRUSTED_HUB_ADDR = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+  const HUB_GMP_ENDPOINT_ADDR = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
   // Test values
   const INTENT_ID = "0xaa000000000000000000000000000000000000000000000000000000000000bb";
@@ -39,13 +39,13 @@ describe("IntentInflowEscrow", function () {
       admin.address,
       gmpEndpoint.target,
       HUB_CHAIN_ID,
-      TRUSTED_HUB_ADDR
+      HUB_GMP_ENDPOINT_ADDR
     );
     await escrowGmp.waitForDeployment();
 
     // Configure GMP endpoint
     await gmpEndpoint.setEscrowHandler(escrowGmp.target);
-    await gmpEndpoint.setTrustedRemote(HUB_CHAIN_ID, TRUSTED_HUB_ADDR);
+    await gmpEndpoint.setRemoteGmpEndpointAddr(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR);
 
     // Mint tokens to requester
     await token.mint(requester.address, AMOUNT * 10n);
@@ -63,7 +63,7 @@ describe("IntentInflowEscrow", function () {
     it("should initialize with correct config", async function () {
       expect(await escrowGmp.gmpEndpoint()).to.equal(gmpEndpoint.target);
       expect(await escrowGmp.hubChainId()).to.equal(HUB_CHAIN_ID);
-      expect(await escrowGmp.trustedHubAddr()).to.equal(TRUSTED_HUB_ADDR);
+      expect(await escrowGmp.hubGmpEndpointAddr()).to.equal(HUB_GMP_ENDPOINT_ADDR);
     });
 
     /// 2. Test: test_initialize_rejects_zero_endpoint: Initialize Rejects Zero Endpoint
@@ -76,7 +76,7 @@ describe("IntentInflowEscrow", function () {
           admin.address,
           ethers.ZeroAddress,
           HUB_CHAIN_ID,
-          TRUSTED_HUB_ADDR
+          HUB_GMP_ENDPOINT_ADDR
         )
       ).to.be.revertedWithCustomError(escrowGmp, "E_INVALID_ADDRESS");
     });
@@ -106,7 +106,7 @@ describe("IntentInflowEscrow", function () {
         expiry
       );
 
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
 
       expect(await escrowGmp.hasRequirements(INTENT_ID)).to.equal(true);
       const req = await escrowGmp.getRequirements(INTENT_ID);
@@ -132,25 +132,25 @@ describe("IntentInflowEscrow", function () {
         expiry
       );
 
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
 
       // Second delivery with same payload blocked by GMP deduplication
       await expect(
-        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload)
+        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload)
       ).to.be.revertedWithCustomError(gmpEndpoint, "E_ALREADY_DELIVERED");
     });
 
-    /// 5. Test: test_receive_requirements_rejects_untrusted_source: Receive Requirements Rejects Untrusted Source
-    /// Verifies requirements from untrusted source are rejected.
-    /// Why: Only trusted hub should send requirements.
-    it("should reject requirements from untrusted source", async function () {
-      const untrustedAddr = "0x9900000000000000000000000000000000000000000000000000000000000099";
-      await gmpEndpoint.addTrustedRemote(HUB_CHAIN_ID, untrustedAddr);
+    /// 5. Test: test_receive_requirements_rejects_unauthorized_source: Receive Requirements Rejects Unauthorized Source
+    /// Verifies requirements from unauthorized source are rejected.
+    /// Why: Only the registered hub GMP endpoint should send requirements.
+    it("should reject requirements from unauthorized source", async function () {
+      const wrongAddr = "0x9900000000000000000000000000000000000000000000000000000000000099";
+      await gmpEndpoint.addRemoteGmpEndpointAddr(HUB_CHAIN_ID, wrongAddr);
 
       const payload = "0x01" + "00".repeat(144);
 
       await expect(
-        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, untrustedAddr, payload)
+        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, wrongAddr, payload)
       ).to.be.revertedWithCustomError(escrowGmp, "E_INVALID_SOURCE_ADDRESS");
     });
   });
@@ -181,7 +181,7 @@ describe("IntentInflowEscrow", function () {
         solverAddr32,
         expiry
       );
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, reqPayload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, reqPayload);
 
       // Create escrow
       await escrowGmp.connect(requester).createEscrowWithValidation(
@@ -206,7 +206,7 @@ describe("IntentInflowEscrow", function () {
       );
 
       // Deliver fulfillment proof
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, proofPayload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, proofPayload);
 
       // Check escrow state
       expect(await escrowGmp.isFulfilled(INTENT_ID)).to.equal(true);
@@ -216,17 +216,17 @@ describe("IntentInflowEscrow", function () {
       expect(await token.balanceOf(solver.address)).to.equal(AMOUNT);
     });
 
-    /// 7. Test: test_receive_fulfillment_rejects_untrusted_source: Receive Fulfillment Rejects Untrusted Source
-    /// Verifies fulfillment from untrusted source is rejected.
-    /// Why: Only trusted hub should send fulfillment proofs.
-    it("should reject fulfillment from untrusted source", async function () {
-      const untrustedAddr = "0x9900000000000000000000000000000000000000000000000000000000000099";
-      await gmpEndpoint.addTrustedRemote(HUB_CHAIN_ID, untrustedAddr);
+    /// 7. Test: test_receive_fulfillment_rejects_unauthorized_source: Receive Fulfillment Rejects Unauthorized Source
+    /// Verifies fulfillment from unauthorized source is rejected.
+    /// Why: Only the registered hub GMP endpoint should send fulfillment proofs.
+    it("should reject fulfillment from unauthorized source", async function () {
+      const wrongAddr = "0x9900000000000000000000000000000000000000000000000000000000000099";
+      await gmpEndpoint.addRemoteGmpEndpointAddr(HUB_CHAIN_ID, wrongAddr);
 
       const proofPayload = "0x03" + "00".repeat(80);
 
       await expect(
-        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, untrustedAddr, proofPayload)
+        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, wrongAddr, proofPayload)
       ).to.be.revertedWithCustomError(escrowGmp, "E_INVALID_SOURCE_ADDRESS");
     });
 
@@ -244,11 +244,11 @@ describe("IntentInflowEscrow", function () {
         timestamp
       );
 
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, proofPayload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, proofPayload);
 
       // Second delivery with same payload blocked by GMP deduplication
       await expect(
-        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, proofPayload)
+        gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, proofPayload)
       ).to.be.revertedWithCustomError(gmpEndpoint, "E_ALREADY_DELIVERED");
     });
   });
@@ -279,7 +279,7 @@ describe("IntentInflowEscrow", function () {
         solverAddr32,
         expiry
       );
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
     });
 
     /// 9. Test: test_create_escrow_validates_against_requirements: Create Escrow Validates Against Requirements
@@ -369,7 +369,7 @@ describe("IntentInflowEscrow", function () {
         solverAddr32,
         expiry
       );
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, reqPayload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, reqPayload);
       expect(await escrowGmp.hasRequirements(INTENT_ID)).to.equal(true);
 
       // 2. Create escrow
@@ -388,7 +388,7 @@ describe("IntentInflowEscrow", function () {
         AMOUNT,
         timestamp
       );
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, proofPayload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, proofPayload);
 
       // 4. Verify final state
       expect(await escrowGmp.isFulfilled(INTENT_ID)).to.equal(true);
@@ -424,7 +424,7 @@ describe("IntentInflowEscrow", function () {
         solverAddr32,
         expiry
       );
-      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+      await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
     });
 
     /// 14. Test: test_create_escrow_rejects_no_requirements: Create Escrow Rejects No Requirements
@@ -474,7 +474,7 @@ describe("IntentInflowEscrow", function () {
       const payload = "0x01" + "00".repeat(144);
 
       await expect(
-        escrowGmp.receiveIntentRequirements(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload)
+        escrowGmp.receiveIntentRequirements(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload)
       ).to.be.revertedWithCustomError(escrowGmp, "E_UNAUTHORIZED_ENDPOINT");
     });
 
@@ -500,7 +500,7 @@ describe("IntentInflowEscrow", function () {
           solverAddr32,
           expiry
         );
-        await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+        await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
       });
 
       /// 24. Test: test_create_escrow_rejects_requester_mismatch: Create Escrow Rejects Requester Mismatch
@@ -536,7 +536,7 @@ describe("IntentInflowEscrow", function () {
           solverAddr32,
           pastExpiry
         );
-        await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+        await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
 
         await expect(
           escrowGmp.connect(requester).createEscrowWithValidation(
@@ -586,7 +586,7 @@ describe("IntentInflowEscrow", function () {
           solverAddr32,
           expiry
         );
-        await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, reqPayload);
+        await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, reqPayload);
 
         // Create escrow
         await escrowGmp.connect(requester).createEscrowWithValidation(
@@ -611,7 +611,7 @@ describe("IntentInflowEscrow", function () {
         );
 
         await expect(
-          gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, proofPayload)
+          gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, proofPayload)
         )
           .to.emit(escrowGmp, "FulfillmentProofReceived")
           .and.to.emit(escrowGmp, "EscrowReleased");

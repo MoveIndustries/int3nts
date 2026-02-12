@@ -66,8 +66,8 @@ pub struct ConfigAccount {
     pub gmp_endpoint: Pubkey,
     /// The hub chain ID (LZ endpoint ID)
     pub hub_chain_id: u32,
-    /// The trusted hub address (for GMP message verification)
-    pub trusted_hub_addr: [u8; 32],
+    /// The hub GMP endpoint address (for GMP message verification)
+    pub hub_gmp_endpoint_addr: [u8; 32],
     /// Bump seed for PDA derivation
     pub bump: u8,
 }
@@ -76,13 +76,13 @@ impl ConfigAccount {
     pub const DISCRIMINATOR: u8 = 2;
     pub const SIZE: usize = 1 + 32 + 32 + 4 + 32 + 1; // 102 bytes (added bump)
 
-    pub fn new(admin: Pubkey, gmp_endpoint: Pubkey, hub_chain_id: u32, trusted_hub_addr: [u8; 32], bump: u8) -> Self {
+    pub fn new(admin: Pubkey, gmp_endpoint: Pubkey, hub_chain_id: u32, hub_gmp_endpoint_addr: [u8; 32], bump: u8) -> Self {
         Self {
             discriminator: Self::DISCRIMINATOR,
             admin,
             gmp_endpoint,
             hub_chain_id,
-            trusted_hub_addr,
+            hub_gmp_endpoint_addr,
             bump,
         }
     }

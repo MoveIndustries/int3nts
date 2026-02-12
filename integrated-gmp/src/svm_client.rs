@@ -312,7 +312,7 @@ impl SvmClient {
 
         // MessageAccount layout (Borsh):
         //   disc(1) + src_chain_id(4) + dst_chain_id(4) + nonce(8) +
-        //   dst_addr(32) + src_addr(32) + payload_len(4) + payload(N) + bump(1)
+        //   dst_addr(32) + remote_gmp_endpoint_addr(32) + payload_len(4) + payload(N) + bump(1)
         if data.len() < 86 {
             anyhow::bail!("MessageAccount too short: {} bytes", data.len());
         }
@@ -335,8 +335,8 @@ impl SvmClient {
         let mut dst_addr = [0u8; 32];
         dst_addr.copy_from_slice(&data[17..49]);
 
-        let mut src_addr = [0u8; 32];
-        src_addr.copy_from_slice(&data[49..81]);
+        let mut remote_gmp_endpoint_addr = [0u8; 32];
+        remote_gmp_endpoint_addr.copy_from_slice(&data[49..81]);
 
         let payload_len =
             u32::from_le_bytes(data[81..85].try_into().context("payload_len")?) as usize;
@@ -354,7 +354,7 @@ impl SvmClient {
             dst_chain_id,
             nonce: msg_nonce,
             dst_addr,
-            src_addr,
+            remote_gmp_endpoint_addr,
             payload,
         }))
     }
@@ -368,7 +368,7 @@ pub struct SvmOutboundMessage {
     pub dst_chain_id: u32,
     pub nonce: u64,
     pub dst_addr: [u8; 32],
-    pub src_addr: [u8; 32],
+    pub remote_gmp_endpoint_addr: [u8; 32],
     pub payload: Vec<u8>,
 }
 

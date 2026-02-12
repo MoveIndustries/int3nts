@@ -14,15 +14,15 @@
 //! - `Initialize`: Set up the endpoint with admin and chain ID
 //! - `AddRelay`: Authorize a relay to deliver messages
 //! - `RemoveRelay`: Deauthorize a relay
-//! - `SetTrustedRemote`: Configure trusted source addresses per chain
+//! - `SetRemoteGmpEndpointAddr`: Configure remote GMP endpoint addresses per chain
 //! - `Send`: Emit a MessageSent event for the relay to pick up
 //! - `DeliverMessage`: Called by relay to deliver messages to destination
 //!
 //! ## Security Model
 //!
-//! - Admin controls relay authorization and trusted remote configuration
+//! - Admin controls relay authorization and remote GMP endpoint configuration
 //! - Only authorized relays can deliver messages
-//! - Messages from untrusted sources are rejected
+//! - Messages from unknown remote GMP endpoints are rejected
 //! - (intent_id, msg_type) deduplication prevents replay attacks
 
 pub mod error;
@@ -40,5 +40,5 @@ pub use error::GmpError;
 pub use instruction::NativeGmpInstruction;
 pub use state::{
     ConfigAccount, DeliveredMessage, MessageAccount, OutboundNonceAccount, RelayAccount,
-    TrustedRemoteAccount,
+    RemoteGmpEndpoint,
 };

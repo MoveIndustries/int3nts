@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Configure Base Sepolia Testnet - Set GMP trusted remote and verify contracts
+# Configure Base Sepolia Testnet - Set remote GMP endpoint and verify contracts
 #
 # Steps:
 #   1. Verify all 3 contracts are deployed on-chain
-#   2. Set trusted remote on IntentGmp for hub chain (Movement)
+#   2. Set remote GMP endpoint on IntentGmp for hub chain (Movement)
 #
 # Requires:
 #   - .env.testnet with:
@@ -88,8 +88,8 @@ fi
 echo "   IntentOutflowValidator ($BASE_OUTFLOW_VALIDATOR_ADDR): deployed"
 echo ""
 
-# 2. Set trusted remote on GMP endpoint
-echo " 2. Setting trusted remote for hub chain $HUB_CHAIN_ID..."
+# 2. Set remote GMP endpoint on GMP endpoint
+echo " 2. Setting remote GMP endpoint for hub chain $HUB_CHAIN_ID..."
 
 cd "$PROJECT_ROOT/intent-frameworks/evm"
 
@@ -113,7 +113,7 @@ set -e
 echo "$CONFIGURE_OUTPUT"
 
 if [ $CONFIGURE_EXIT -ne 0 ]; then
-    echo "FATAL: Failed to set trusted remote on IntentGmp"
+    echo "FATAL: Failed to set remote GMP endpoint on IntentGmp"
     exit 1
 fi
 

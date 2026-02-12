@@ -2,7 +2,7 @@ const { ethers } = require("hardhat");
 
 // Chain IDs
 const HUB_CHAIN_ID = 30325; // Movement mainnet
-const TRUSTED_HUB_ADDR = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+const HUB_GMP_ENDPOINT_ADDR = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
 
 // Default test values
 const DEFAULT_AMOUNT = BigInt(1000000);
@@ -29,13 +29,13 @@ async function setupInflowEscrowGmpTests() {
     admin.address,
     gmpEndpoint.target,
     HUB_CHAIN_ID,
-    TRUSTED_HUB_ADDR
+    HUB_GMP_ENDPOINT_ADDR
   );
   await escrow.waitForDeployment();
 
   // Configure GMP endpoint
   await gmpEndpoint.setEscrowHandler(escrow.target);
-  await gmpEndpoint.setTrustedRemote(HUB_CHAIN_ID, TRUSTED_HUB_ADDR);
+  await gmpEndpoint.setRemoteGmpEndpointAddr(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR);
 
   // Mint tokens to requester
   await token.mint(requester.address, DEFAULT_AMOUNT * 100n);
@@ -54,7 +54,7 @@ async function setupInflowEscrowGmpTests() {
     relay,
     intentId,
     hubChainId: HUB_CHAIN_ID,
-    trustedHubAddr: TRUSTED_HUB_ADDR,
+    hubGmpEndpointAddr: HUB_GMP_ENDPOINT_ADDR,
     defaultAmount: DEFAULT_AMOUNT
   };
 }
@@ -108,7 +108,7 @@ async function deliverRequirements(gmpEndpoint, intentId, requesterAddr, amount,
     solverAddr,
     expiry
   );
-  await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+  await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
 }
 
 /// Helper to deliver FulfillmentProof via GMP
@@ -119,7 +119,7 @@ async function deliverFulfillmentProof(gmpEndpoint, intentId, solverAddr, amount
     timestamp = BigInt(block.timestamp);
   }
   const payload = await encodeFulfillmentProof(intentId, solverAddr, amount, timestamp);
-  return gmpEndpoint.deliverMessage(HUB_CHAIN_ID, TRUSTED_HUB_ADDR, payload);
+  return gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
 }
 
 /// Get current block timestamp
@@ -146,7 +146,7 @@ module.exports = {
   getCurrentTimestamp,
   getExpiryTimestamp,
   HUB_CHAIN_ID,
-  TRUSTED_HUB_ADDR,
+  HUB_GMP_ENDPOINT_ADDR,
   DEFAULT_AMOUNT,
   DEFAULT_EXPIRY_OFFSET
 };
