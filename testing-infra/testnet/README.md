@@ -4,23 +4,25 @@ Scripts and configuration for deploying the Intent Framework to public testnets 
 
 Separate from `testing-infra/ci-e2e/` which is for local CI testing with Docker.
 
-## Files
-
-- **`deploy-and-configure.sh`** - Deploy and/or configure all chains (calls per-chain scripts in `scripts/`)
-- **`check-testnet-preparedness.sh`** - Check balances, contracts, and on-chain GMP configuration
-- **`run-coordinator-local.sh`** / **`run-integrated-gmp-local.sh`** / **`run-solver-local.sh`** - Run services locally
-- **`scripts/`** - Per-chain deploy and configure scripts (called by `deploy-and-configure.sh`)
-- **`config/testnet-assets.toml`** - Public asset addresses and decimals
-
 ## Usage
 
 ### Deploy
 
 ```bash
-./testing-infra/testnet/deploy-and-configure.sh
+./testing-infra/testnet/deploy.sh
 ```
 
-Prompts to deploy + configure (full fresh deploy) or configure only (contracts already deployed).
+Deploys to all three chains. Prints a summary of addresses to update in `.env.testnet` and service config files.
+
+### Configure
+
+After updating `.env.testnet` with deployed addresses:
+
+```bash
+./testing-infra/testnet/configure.sh
+```
+
+Sets up cross-chain GMP routing between deployed contracts.
 
 ### Check Preparedness
 

@@ -316,10 +316,18 @@ impl InflowService {
                                 }
                             }
                             Err(e) => {
-                                error!(
-                                    "Failed to fulfill inflow intent {}: {}",
-                                    intent.intent_id, e
-                                );
+                                let msg = e.to_string();
+                                if msg.contains("E_ESCROW_NOT_CONFIRMED") {
+                                    warn!(
+                                        "Inflow intent {} not yet confirmed on hub (will retry): {}",
+                                        intent.intent_id, e
+                                    );
+                                } else {
+                                    error!(
+                                        "Failed to fulfill inflow intent {}: {}",
+                                        intent.intent_id, e
+                                    );
+                                }
                                 continue;
                             }
                         }

@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# Configure Base Sepolia Testnet - Set remote GMP endpoint and verify contracts
+# Configure Base Sepolia Testnet - Set remote GMP endpoint and update hub config
 #
 # Steps:
 #   1. Verify all 3 contracts are deployed on-chain
 #   2. Set remote GMP endpoint on IntentGmp for hub chain (Movement)
+#   3. Update hub config on IntentInflowEscrow and IntentOutflowValidator
 #
 # Requires:
 #   - .env.testnet with:
@@ -114,6 +115,24 @@ echo "$CONFIGURE_OUTPUT"
 
 if [ $CONFIGURE_EXIT -ne 0 ]; then
     echo "FATAL: Failed to set remote GMP endpoint on IntentGmp"
+    exit 1
+fi
+
+# 3. Update hub config on escrow and outflow validator
+echo " 3. Updating hub config on IntentInflowEscrow and IntentOutflowValidator..."
+
+export INFLOW_ESCROW_ADDR="$BASE_INFLOW_ESCROW_ADDR"
+export OUTFLOW_VALIDATOR_ADDR="$BASE_OUTFLOW_VALIDATOR_ADDR"
+
+set +e
+HUB_CONFIG_OUTPUT=$(npx hardhat run scripts/configure-hub-config.js --network baseSepolia 2>&1)
+HUB_CONFIG_EXIT=$?
+set -e
+
+echo "$HUB_CONFIG_OUTPUT"
+
+if [ $HUB_CONFIG_EXIT -ne 0 ]; then
+    echo "FATAL: Failed to update hub config on escrow/outflow contracts"
     exit 1
 fi
 

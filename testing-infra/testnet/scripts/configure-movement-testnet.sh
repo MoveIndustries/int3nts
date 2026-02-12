@@ -80,7 +80,7 @@ movement move run \
   --assume-yes
 
 verify_movement_view "$MOVEMENT_RPC_URL" \
-    "${MODULE_ADDR}::intent_gmp::get_remote_gmp_endpoint" \
+    "${MODULE_ADDR}::intent_gmp::get_remote_gmp_endpoint_addrs" \
     "[$BASE_CHAIN_ID]" \
     "intent_gmp remote GMP endpoint for Base (chain $BASE_CHAIN_ID)"
 
@@ -91,7 +91,7 @@ movement move run \
   --assume-yes
 
 verify_movement_view "$MOVEMENT_RPC_URL" \
-    "${MODULE_ADDR}::intent_gmp_hub::get_remote_gmp_endpoint" \
+    "${MODULE_ADDR}::intent_gmp_hub::get_remote_gmp_endpoint_addr" \
     "[$BASE_CHAIN_ID]" \
     "intent_gmp_hub remote GMP endpoint for Base (chain $BASE_CHAIN_ID)"
 
@@ -142,7 +142,7 @@ movement move run \
   --assume-yes
 
 verify_movement_view "$MOVEMENT_RPC_URL" \
-    "${MODULE_ADDR}::intent_gmp::get_remote_gmp_endpoint" \
+    "${MODULE_ADDR}::intent_gmp::get_remote_gmp_endpoint_addrs" \
     "[$SVM_CHAIN_ID]" \
     "intent_gmp remote GMP endpoint for Solana (chain $SVM_CHAIN_ID)"
 
@@ -153,7 +153,7 @@ movement move run \
   --assume-yes
 
 verify_movement_view "$MOVEMENT_RPC_URL" \
-    "${MODULE_ADDR}::intent_gmp_hub::get_remote_gmp_endpoint" \
+    "${MODULE_ADDR}::intent_gmp_hub::get_remote_gmp_endpoint_addr" \
     "[$SVM_CHAIN_ID]" \
     "intent_gmp_hub remote GMP endpoint for Solana (chain $SVM_CHAIN_ID)"
 

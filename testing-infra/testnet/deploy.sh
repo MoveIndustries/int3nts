@@ -1,20 +1,14 @@
 #!/bin/bash
 
-# Deploy and Configure Intent Framework on Testnets
+# Deploy Intent Framework to Testnets
 #
-# Phase 1 - Deploy contracts on each chain:
+# Deploys contracts on each chain:
 #   1. Movement Bardock Testnet (hub chain)
 #   2. Base Sepolia (connected EVM chain)
 #   3. Solana Devnet (connected SVM chain)
 #
-# Phase 2 - Configure cross-chain links:
-#   4. Movement: set remote GMP endpoints for Base and Solana
-#   5. Base Sepolia: configure contracts
-#   6. Solana: set remote GMP endpoints + routing
-#
-# When run via this script, deploy outputs are read from logs and propagated
-# into the environment automatically between steps — no manual update needed
-# until the end (consolidated summary printed at completion).
+# After deployment, prints a summary of addresses to update in
+# .env.testnet and service config files. Run configure.sh after updating.
 #
 # Requires:
 #   - .env.testnet with deployer keys for all chains
@@ -49,128 +43,51 @@ export DEPLOY_ENV_SOURCED=1
 LOG_DIR="$SCRIPT_DIR/logs"
 
 echo "=========================================="
-echo " Testnet Deploy & Configure"
+echo " Testnet Deploy"
 echo "=========================================="
 echo ""
-echo " [1] Deploy + Configure (full fresh deploy)"
-echo " [2] Configure only (contracts already deployed)"
-echo " [0] Exit"
-echo ""
-read -p " Choice (1/2/0): " -n 1 -r
-echo
+
+echo "--------------------------------------------"
+echo " Step 1: Deploy to Movement Testnet"
+echo "--------------------------------------------"
+"$SCRIPT_DIR/scripts/deploy-to-movement-testnet.sh"
 echo ""
 
-if [[ $REPLY == "0" ]]; then
-    echo "Aborted."
-    exit 0
+# Propagate MVM addresses for subsequent deploys (EVM/SVM need MOVEMENT_INTENT_MODULE_ADDR)
+MVM_LOG=$(ls -t "$LOG_DIR"/deploy-movement-testnet-*.log 2>/dev/null | head -1)
+if [ -n "$MVM_LOG" ]; then
+    export MOVEMENT_INTENT_MODULE_ADDR=$(grep "^Module address:" "$MVM_LOG" | awk '{print $NF}')
+    export MOVEMENT_MODULE_PRIVATE_KEY=$(grep "^Module private key:" "$MVM_LOG" | awk '{print $NF}')
+    echo " Propagated MOVEMENT_INTENT_MODULE_ADDR=$MOVEMENT_INTENT_MODULE_ADDR"
 fi
 
-RUN_DEPLOY=false
-if [[ $REPLY == "1" ]]; then
-    RUN_DEPLOY=true
-elif [[ $REPLY != "2" ]]; then
-    echo "Invalid choice. Aborted."
-    exit 1
-fi
+echo "--------------------------------------------"
+echo " Step 2: Deploy to Base Sepolia"
+echo "--------------------------------------------"
+"$SCRIPT_DIR/scripts/deploy-to-base-testnet.sh"
+echo ""
+
+echo "--------------------------------------------"
+echo " Step 3: Deploy to Solana Devnet"
+echo "--------------------------------------------"
+"$SCRIPT_DIR/scripts/deploy-to-solana-devnet.sh"
+echo ""
 
 # ============================================================================
-# Phase 1: Deploy (optional)
-# ============================================================================
-
-if [ "$RUN_DEPLOY" = true ]; then
-    echo "=========================================="
-    echo " PHASE 1: DEPLOY"
-    echo "=========================================="
-    echo ""
-
-    echo "--------------------------------------------"
-    echo " Step 1: Deploy to Movement Testnet"
-    echo "--------------------------------------------"
-    "$SCRIPT_DIR/scripts/deploy-to-movement-testnet.sh"
-    echo ""
-
-    # Propagate new Movement addresses into env for subsequent steps
-    MVM_LOG=$(ls -t "$LOG_DIR"/deploy-movement-testnet-*.log 2>/dev/null | head -1)
-    if [ -n "$MVM_LOG" ]; then
-        export MOVEMENT_INTENT_MODULE_ADDR=$(grep "^Module address:" "$MVM_LOG" | awk '{print $NF}')
-        export MOVEMENT_MODULE_PRIVATE_KEY=$(grep "^Module private key:" "$MVM_LOG" | awk '{print $NF}')
-        echo " Propagated MOVEMENT_INTENT_MODULE_ADDR=$MOVEMENT_INTENT_MODULE_ADDR"
-    fi
-
-    echo "--------------------------------------------"
-    echo " Step 2: Deploy to Base Sepolia"
-    echo "--------------------------------------------"
-    "$SCRIPT_DIR/scripts/deploy-to-base-testnet.sh"
-    echo ""
-
-    # Propagate new EVM addresses into env for subsequent steps
-    EVM_LOG=$(ls -t "$LOG_DIR"/deploy-base-sepolia-*.log 2>/dev/null | head -1)
-    if [ -n "$EVM_LOG" ]; then
-        export BASE_GMP_ENDPOINT_ADDR=$(grep "^IntentGmp:" "$EVM_LOG" | awk '{print $NF}')
-        export BASE_INFLOW_ESCROW_ADDR=$(grep "^IntentInflowEscrow:" "$EVM_LOG" | awk '{print $NF}')
-        export BASE_OUTFLOW_VALIDATOR_ADDR=$(grep "^IntentOutflowValidator:" "$EVM_LOG" | awk '{print $NF}')
-        echo " Propagated BASE_GMP_ENDPOINT_ADDR=$BASE_GMP_ENDPOINT_ADDR"
-    fi
-
-    echo "--------------------------------------------"
-    echo " Step 3: Deploy to Solana Devnet"
-    echo "--------------------------------------------"
-    "$SCRIPT_DIR/scripts/deploy-to-solana-devnet.sh"
-    echo ""
-
-    # Propagate new SVM addresses into env for subsequent steps
-    SVM_LOG=$(ls -t "$LOG_DIR"/deploy-solana-devnet-*.log 2>/dev/null | head -1)
-    if [ -n "$SVM_LOG" ]; then
-        export SOLANA_PROGRAM_ID=$(grep "^Escrow" "$SVM_LOG" | awk '{print $NF}')
-        export SOLANA_GMP_ID=$(grep "^GMP Endpoint" "$SVM_LOG" | awk '{print $NF}')
-        export SOLANA_OUTFLOW_ID=$(grep "^Outflow" "$SVM_LOG" | awk '{print $NF}')
-        echo " Propagated SOLANA_PROGRAM_ID=$SOLANA_PROGRAM_ID"
-    fi
-fi
-
-# ============================================================================
-# Phase 2: Configure cross-chain
+# Summary: read deployment logs and print addresses to update
 # ============================================================================
 
 echo "=========================================="
-echo " PHASE 2: CONFIGURE CROSS-CHAIN"
+echo " Deployment Complete!"
 echo "=========================================="
 echo ""
 
-echo "--------------------------------------------"
-echo " Step 4: Configure Movement"
-echo "--------------------------------------------"
-"$SCRIPT_DIR/scripts/configure-movement-testnet.sh"
-echo ""
-
-echo "--------------------------------------------"
-echo " Step 5: Configure Base Sepolia"
-echo "--------------------------------------------"
-"$SCRIPT_DIR/scripts/configure-base-testnet.sh"
-echo ""
-
-echo "--------------------------------------------"
-echo " Step 6: Configure Solana"
-echo "--------------------------------------------"
-"$SCRIPT_DIR/scripts/configure-solana-devnet.sh"
-echo ""
-
-# ============================================================================
-# Done
-# ============================================================================
-
-echo "=========================================="
-echo " Deployment & Configuration Complete!"
-echo "=========================================="
-echo ""
-
-# Read deployment logs to build consolidated summary
-LOG_DIR="$SCRIPT_DIR/logs"
 MVM_LOG=$(ls -t "$LOG_DIR"/deploy-movement-testnet-*.log 2>/dev/null | head -1)
 EVM_LOG=$(ls -t "$LOG_DIR"/deploy-base-sepolia-*.log 2>/dev/null | head -1)
 SVM_LOG=$(ls -t "$LOG_DIR"/deploy-solana-devnet-*.log 2>/dev/null | head -1)
 
 MVM_MODULE_ADDR=""
+MVM_MODULE_PRIVATE_KEY=""
 EVM_GMP_ADDR=""
 EVM_ESCROW_ADDR=""
 EVM_OUTFLOW_ADDR=""
@@ -180,6 +97,7 @@ SVM_OUTFLOW_ID=""
 
 if [ -n "$MVM_LOG" ]; then
     MVM_MODULE_ADDR=$(grep "^Module address:" "$MVM_LOG" | awk '{print $NF}')
+    MVM_MODULE_PRIVATE_KEY=$(grep "^Module private key:" "$MVM_LOG" | awk '{print $NF}')
 fi
 if [ -n "$EVM_LOG" ]; then
     EVM_GMP_ADDR=$(grep "^IntentGmp:" "$EVM_LOG" | awk '{print $NF}')
@@ -201,13 +119,13 @@ echo "=========================================="
 echo ""
 echo " .env.testnet:"
 [ -n "$MVM_MODULE_ADDR" ] && echo "   MOVEMENT_INTENT_MODULE_ADDR=$MVM_MODULE_ADDR"
+[ -n "$MVM_MODULE_PRIVATE_KEY" ] && echo "   MOVEMENT_MODULE_PRIVATE_KEY=$MVM_MODULE_PRIVATE_KEY"
 [ -n "$EVM_GMP_ADDR" ] && echo "   BASE_GMP_ENDPOINT_ADDR=$EVM_GMP_ADDR"
 [ -n "$EVM_ESCROW_ADDR" ] && echo "   BASE_INFLOW_ESCROW_ADDR=$EVM_ESCROW_ADDR"
 [ -n "$EVM_OUTFLOW_ADDR" ] && echo "   BASE_OUTFLOW_VALIDATOR_ADDR=$EVM_OUTFLOW_ADDR"
 [ -n "$SVM_ESCROW_ID" ] && echo "   SOLANA_PROGRAM_ID=$SVM_ESCROW_ID"
 [ -n "$SVM_GMP_ID" ] && echo "   SOLANA_GMP_ID=$SVM_GMP_ID"
 [ -n "$SVM_OUTFLOW_ID" ] && echo "   SOLANA_OUTFLOW_ID=$SVM_OUTFLOW_ID"
-[ -n "$MOVEMENT_MODULE_PRIVATE_KEY" ] && echo "   MOVEMENT_MODULE_PRIVATE_KEY=$MOVEMENT_MODULE_PRIVATE_KEY"
 echo ""
 echo " coordinator/config/coordinator_testnet.toml:"
 [ -n "$MVM_MODULE_ADDR" ] && echo "   [hub_chain] intent_module_addr = \"$MVM_MODULE_ADDR\""

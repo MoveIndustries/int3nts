@@ -726,7 +726,9 @@ check_movement_initialized() {
 }
 
 # Check if a remote GMP endpoint is set for a given chain ID
-# Uses the view function to call get_remote_gmp_endpoint(chain_id)
+# View function names differ by module:
+#   intent_gmp::get_remote_gmp_endpoint_addrs (plural, returns vector<vector<u8>>)
+#   intent_gmp_hub::get_remote_gmp_endpoint_addr (singular, returns vector<u8>)
 check_gmp_remote_endpoint() {
     local module_addr="$1"
     local module_name="$2"  # e.g., "intent_gmp" or "intent_gmp_hub"
@@ -736,9 +738,15 @@ check_gmp_remote_endpoint() {
         module_addr="0x${module_addr}"
     fi
 
+    # intent_gmp uses plural (addrs), intent_gmp_hub uses singular (addr)
+    local view_fn="get_remote_gmp_endpoint_addrs"
+    if [ "$module_name" = "intent_gmp_hub" ]; then
+        view_fn="get_remote_gmp_endpoint_addr"
+    fi
+
     local response=$(curl -s --max-time 10 -X POST "${MOVEMENT_RPC_URL}/view" \
         -H "Content-Type: application/json" \
-        -d "{\"function\":\"${module_addr}::${module_name}::get_remote_gmp_endpoint\",\"type_arguments\":[],\"arguments\":[$chain_id]}" \
+        -d "{\"function\":\"${module_addr}::${module_name}::${view_fn}\",\"type_arguments\":[],\"arguments\":[$chain_id]}" \
         2>/dev/null)
 
     # Response is [value] where value may be a string ("0x...") or array (["0x..."])
@@ -1101,7 +1109,7 @@ else
     deployed_status=$(check_evm_contract "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL"); mark "$deployed_status"
     gmp_ep=$(check_evm_nonzero_result "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL" "0xb2ed7d86"); mark "$gmp_ep"
     hub_cid=$(check_evm_nonzero_result "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL" "0x929f5840"); mark "$hub_cid"
-    hub_addr=$(check_evm_nonzero_result "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL" "0x46112810"); mark "$hub_addr"
+    hub_addr=$(check_evm_nonzero_result "$BASE_ESCROW_CONTRACT_ADDR" "$BASE_RPC_URL" "0xa227f5dd"); mark "$hub_addr"
     print_check "Deployed" "$deployed_status" "" "      " "contract bytecode on-chain"
     print_check "gmpEndpoint" "$gmp_ep" "address" "      " "GMP contract for cross-chain messaging"
     print_check "hubChainId" "$hub_cid" "uint" "      " "hub chain for outbound messages"
