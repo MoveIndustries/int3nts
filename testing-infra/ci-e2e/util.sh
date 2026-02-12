@@ -827,10 +827,11 @@ generate_integrated_gmp_keys() {
     fi
     KEYS_OUTPUT=$("$generate_keys_bin" 2>/dev/null)
 
-    # Extract keys and Move address from output
-    PRIVATE_KEY=$(echo "$KEYS_OUTPUT" | grep "Private Key (base64):" | sed 's/.*: //')
-    PUBLIC_KEY=$(echo "$KEYS_OUTPUT" | grep "Public Key (base64):" | sed 's/.*: //')
-    MOVE_ADDRESS=$(echo "$KEYS_OUTPUT" | grep "Move Address (hex):" | sed 's/.*: //')
+    # Extract keys and addresses from output (format: KEY=value).
+    # Use cut -d= -f2- to split on the first '=' only (base64 values contain '=' padding).
+    PRIVATE_KEY=$(echo "$KEYS_OUTPUT" | grep "INTEGRATED_GMP_PRIVATE_KEY=" | cut -d= -f2-)
+    PUBLIC_KEY=$(echo "$KEYS_OUTPUT" | grep "INTEGRATED_GMP_PUBLIC_KEY=" | cut -d= -f2-)
+    MOVE_ADDRESS=$(echo "$KEYS_OUTPUT" | grep "INTEGRATED_GMP_MVM_ADDR=" | cut -d= -f2-)
 
     if [ -z "$PRIVATE_KEY" ] || [ -z "$PUBLIC_KEY" ]; then
         log_and_echo "❌ ERROR: Failed to generate integrated-gmp test keys"

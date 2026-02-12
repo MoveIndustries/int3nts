@@ -2,6 +2,8 @@
 
 # E2E Integration Test Runner - OUTFLOW (SVM)
 
+# -e: exit on error; -o pipefail: fail pipeline if ANY command fails (not just the last).
+# Without pipefail, `grep ... | sed ...` silently succeeds even when grep finds no match.
 set -eo pipefail
 
 # Parse flags

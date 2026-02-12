@@ -5,6 +5,8 @@
 # This script runs the Rust integration tests for coordinator and solver.
 # It sets up chains, deploys contracts, starts services, then runs Rust tests.
 
+# -e: exit on error; -o pipefail: fail pipeline if ANY command fails (not just the last).
+# Without pipefail, `grep ... | sed ...` silently succeeds even when grep finds no match.
 set -eo pipefail
 
 # Parse flags

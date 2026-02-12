@@ -6,6 +6,8 @@
 # It sets up chains, deploys contracts, starts coordinator and integrated-gmp for negotiation routing,
 # submits outflow intents via coordinator, then runs the tests.
 
+# -e: exit on error; -o pipefail: fail pipeline if ANY command fails (not just the last).
+# Without pipefail, `grep ... | sed ...` silently succeeds even when grep finds no match.
 set -eo pipefail
 
 # Parse flags
