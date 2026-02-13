@@ -118,8 +118,6 @@ impl ConnectedChainConfig {
 pub struct ServiceConfig {
     /// Coordinator API base URL (e.g., "http://127.0.0.1:3333") - used for draft negotiation
     pub coordinator_url: String,
-    /// Trusted GMP API base URL (e.g., "http://127.0.0.1:3334") - used for approvals and validation
-    pub trusted_gmp_url: String,
     /// Polling interval for checking pending drafts in milliseconds
     pub polling_interval_ms: u64,
     /// E2E testing mode: if true, use aptos CLI with profiles; if false, use movement CLI with private keys
@@ -185,6 +183,12 @@ pub struct EvmChainConfig {
     /// Hardhat network name (e.g., "localhost", "baseSepolia")
     #[serde(default = "default_network_name")]
     pub network_name: String,
+    /// Address of the IntentOutflowValidator contract (for GMP outflow fulfillment)
+    #[serde(default)]
+    pub outflow_validator_addr: Option<String>,
+    /// Address of the IntentGmp contract (GMP endpoint for message delivery)
+    #[serde(default)]
+    pub gmp_endpoint_addr: Option<String>,
 }
 
 /// Configuration for a Solana chain (SVM).
@@ -200,6 +204,12 @@ pub struct SvmChainConfig {
     pub escrow_program_id: String,
     /// Environment variable name containing the solver private key (base58)
     pub private_key_env: String,
+    /// Program ID of the integrated GMP endpoint (optional, for GMP flow)
+    #[serde(default)]
+    pub gmp_endpoint_program_id: Option<String>,
+    /// Program ID of the outflow validator (optional, for GMP flow)
+    #[serde(default)]
+    pub outflow_validator_program_id: Option<String>,
 }
 
 fn default_network_name() -> String {

@@ -230,7 +230,7 @@ impl HubChainClient {
                 .context("Failed to parse transactions response")?;
 
             // Count skipped vs new transactions
-            let mut skipped_count = 0;
+            let mut _skipped_count = 0;
             let mut new_count = 0;
             
             // Extract intent creation events from transactions
@@ -240,7 +240,7 @@ impl HubChainClient {
                 // Skip already-processed transactions
                 if let Some(processed) = processed_transactions {
                     if processed.contains(tx_hash) {
-                        skipped_count += 1;
+                        _skipped_count += 1;
                         continue; // Skip this transaction - already processed
                     }
                 }
@@ -250,55 +250,35 @@ impl HubChainClient {
                 let tx_hash_owned = tx_hash.to_string();
                 
                 if let Some(tx_events) = tx.get("events").and_then(|e| e.as_array()) {
-                    tracing::debug!("Transaction {} has {} events", tx_hash, tx_events.len());
-                    for (idx, event_json) in tx_events.iter().enumerate() {
+                    for event_json in tx_events.iter() {
                         let event_type = event_json
                             .get("type")
                             .and_then(|t| t.as_str())
                             .unwrap_or("");
 
-                        // Log ALL event types for debugging (only for new transactions)
-                        tracing::debug!("Transaction {} event {}: type = '{}'", tx_hash, idx, event_type);
-                        
-                        // Log full event structure for first event of each transaction to see structure
-                        if idx == 0 {
-                            tracing::debug!("Transaction {} first event keys: {:?}", tx_hash, 
-                                event_json.as_object().map(|o| o.keys().collect::<Vec<_>>()));
-                        }
-                        
-                        // Log all event types for debugging
-                        if event_type.contains("intent") || event_type.contains("Intent") || 
-                           event_type.contains("Order") || event_type.contains("order") {
-                            tracing::info!("Found potentially relevant event type: {}", event_type);
-                        }
-
                         // Check for LimitOrderEvent (inflow) or OracleLimitOrderEvent (outflow)
                         // IMPORTANT: Check OracleLimitOrderEvent BEFORE LimitOrderEvent because
                         // "OracleLimitOrderEvent".contains("LimitOrderEvent") is true!
                         if event_type.contains("OracleLimitOrderEvent") || event_type.contains("LimitOrderEvent") {
-                            tracing::info!("Found intent creation event: {}", event_type);
                             match serde_json::from_value::<IntentCreatedEvent>(
                                 event_json.get("data").cloned().unwrap_or(serde_json::Value::Null),
                             ) {
                                 Ok(event_data) => {
-                                    // Check if event is expired before logging/adding
+                                    // Check if event is expired before adding
                                     let current_time = std::time::SystemTime::now()
                                         .duration_since(std::time::UNIX_EPOCH)
                                         .unwrap()
                                         .as_secs();
                                     if let Ok(expiry) = event_data.expiry_time.parse::<u64>() {
                                         if expiry >= current_time {
-                                            tracing::info!("Intent {} is valid (expiry {} >= now {})", 
+                                            tracing::info!("New intent: {} (expiry {} >= now {})",
                                                 event_data.intent_id, expiry, current_time);
                                             events.push(event_data);
-                                        } else {
-                                            tracing::debug!("Intent {} is expired (expiry {} < now {})", 
-                                                event_data.intent_id, expiry, current_time);
                                         }
                                     }
                                 }
                                 Err(e) => {
-                                    tracing::warn!("Failed to parse intent event data: {} - data: {:?}", e, event_json.get("data"));
+                                    tracing::warn!("Failed to parse intent event data: {} - event_type: {}", e, event_type);
                                 }
                             }
                         }
@@ -309,9 +289,8 @@ impl HubChainClient {
                 transaction_hashes.push(tx_hash_owned);
             }
             
-            // Only log when there are new transactions to process
             if new_count > 0 {
-                tracing::debug!("Account {}: {} new transaction(s), {} already processed", account, new_count, skipped_count);
+                tracing::debug!("Account {}: scanned {} new tx(s)", account, new_count);
             }
         }
 
@@ -420,7 +399,7 @@ impl HubChainClient {
     /// # Arguments
     ///
     /// * `intent_addr` - Object address of the intent to fulfill
-    /// * `approval_signature_bytes` - Trusted-gmp's Ed25519 signature as bytes (on-chain approval address)
+    /// * `approval_signature_bytes` - Integrated-gmp's Ed25519 signature as bytes (on-chain approval address)
     ///
     /// # Returns
     ///
@@ -509,6 +488,194 @@ impl HubChainClient {
         }
 
         anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
+    }
+
+    /// Checks if escrow is confirmed for an intent on the hub chain.
+    ///
+    /// Calls the `gmp_intent_state::is_escrow_confirmed` view function.
+    /// Returns true if the EscrowConfirmation GMP message was received and processed.
+    ///
+    /// # Arguments
+    ///
+    /// * `intent_id` - Intent ID as hex string (e.g., "0x4b1e...")
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(bool)` - True if escrow is confirmed
+    /// * `Err(anyhow::Error)` - Failed to query
+    pub async fn is_escrow_confirmed(&self, intent_id: &str) -> Result<bool> {
+        // Normalize to 64-char hex: Move strips leading zeros from addresses in events,
+        // producing odd-length hex that the Aptos REST API rejects.
+        let without_prefix = intent_id.strip_prefix("0x").unwrap_or(intent_id);
+        let intent_id_hex = format!("0x{:0>64}", without_prefix);
+
+        let view_url = format!("{}/v1/view", self.base_url);
+        let request_body = serde_json::json!({
+            "function": format!("{}::gmp_intent_state::is_escrow_confirmed", self.module_addr),
+            "type_arguments": [],
+            "arguments": [intent_id_hex]
+        });
+
+        let response = self
+            .client
+            .post(&view_url)
+            .json(&request_body)
+            .send()
+            .await
+            .context("Failed to query escrow confirmation")?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_body = response.text().await.unwrap_or_default();
+            anyhow::bail!(
+                "Failed to query escrow confirmation: HTTP {} - {}",
+                status,
+                error_body
+            );
+        }
+
+        let result: Vec<serde_json::Value> = response
+            .json()
+            .await
+            .context("Failed to parse escrow confirmation response")?;
+
+        if let Some(first_result) = result.first() {
+            if let Some(is_confirmed) = first_result.as_bool() {
+                return Ok(is_confirmed);
+            }
+        }
+
+        anyhow::bail!("Unexpected response format from is_escrow_confirmed view function")
+    }
+
+    /// Checks if a FulfillmentProof has been received via GMP for an outflow intent.
+    ///
+    /// Calls the `gmp_intent_state::is_fulfillment_proof_received` view function.
+    /// Returns true if the FulfillmentProof GMP message was received from the connected chain.
+    ///
+    /// # Arguments
+    ///
+    /// * `intent_id` - Intent ID as hex string (e.g., "0x4b1e...")
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(bool)` - True if FulfillmentProof was received
+    /// * `Err(anyhow::Error)` - Failed to query
+    pub async fn is_fulfillment_proof_received(&self, intent_id: &str) -> Result<bool> {
+        let without_prefix = intent_id.strip_prefix("0x").unwrap_or(intent_id);
+        let intent_id_hex = format!("0x{:0>64}", without_prefix);
+
+        let view_url = format!("{}/v1/view", self.base_url);
+        let request_body = serde_json::json!({
+            "function": format!("{}::gmp_intent_state::is_fulfillment_proof_received", self.module_addr),
+            "type_arguments": [],
+            "arguments": [intent_id_hex]
+        });
+
+        let response = self
+            .client
+            .post(&view_url)
+            .json(&request_body)
+            .send()
+            .await
+            .context("Failed to query fulfillment proof status")?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let error_body = response.text().await.unwrap_or_default();
+            anyhow::bail!(
+                "Failed to query fulfillment proof status: HTTP {} - {}",
+                status,
+                error_body
+            );
+        }
+
+        let result: Vec<serde_json::Value> = response
+            .json()
+            .await
+            .context("Failed to parse fulfillment proof response")?;
+
+        if let Some(first_result) = result.first() {
+            if let Some(received) = first_result.as_bool() {
+                return Ok(received);
+            }
+        }
+
+        anyhow::bail!("Unexpected response format from is_fulfillment_proof_received view function")
+    }
+
+    /// Fulfills an outflow intent on the hub using GMP proof (no approval signature needed).
+    ///
+    /// After FulfillmentProof is delivered via GMP, the solver calls this to claim locked tokens.
+    /// The Move function checks `gmp_intent_state::is_fulfillment_proof_received` internally.
+    ///
+    /// # Arguments
+    ///
+    /// * `intent_addr` - Object address of the intent to fulfill
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Transaction hash
+    /// * `Err(anyhow::Error)` - Failed to fulfill intent
+    pub fn fulfill_outflow_intent_gmp(&self, intent_addr: &str) -> Result<String> {
+        let cli = if self.e2e_mode { "aptos" } else { "movement" };
+        let function_id = format!("{}::fa_intent_outflow::fulfill_outflow_intent", self.module_addr);
+        let intent_addr_arg = format!("address:{}", intent_addr);
+
+        let pk_hex_stripped = if !self.e2e_mode {
+            let pk_hex = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY")
+                .context("MOVEMENT_SOLVER_PRIVATE_KEY not set")?;
+            Some(pk_hex.strip_prefix("0x").unwrap_or(&pk_hex).to_string())
+        } else {
+            None
+        };
+
+        let mut args = vec![
+            "move",
+            "run",
+            "--assume-yes",
+            "--function-id",
+            &function_id,
+            "--args",
+            &intent_addr_arg,
+        ];
+
+        if self.e2e_mode {
+            args.extend(vec!["--profile", &self.profile]);
+        } else {
+            args.extend(vec![
+                "--private-key",
+                pk_hex_stripped.as_ref().unwrap(),
+                "--url",
+                &self.base_url,
+            ]);
+        }
+
+        let output = Command::new(cli)
+            .args(&args)
+            .output()
+            .context(format!("Failed to execute {} move run", cli))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            anyhow::bail!(
+                "{} fulfill_outflow_intent_gmp failed:\nstderr: {}\nstdout: {}",
+                cli,
+                stderr,
+                stdout
+            );
+        }
+
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        if let Some(hash) = extract_transaction_hash(&output_str) {
+            return Ok(hash);
+        }
+
+        anyhow::bail!(
+            "Could not extract transaction hash from output: {}",
+            output_str
+        )
     }
 
     /// Checks if a solver is registered in the solver registry

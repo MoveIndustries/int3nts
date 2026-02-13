@@ -6,7 +6,7 @@
 //!
 //! The coordinator only monitors and caches events - it does not perform
 //! validation or generate approval signatures. That is handled by the
-//! Trusted GMP service.
+//! Integrated GMP service.
 
 use anyhow::Result;
 use tracing::{error, info, warn};
@@ -91,14 +91,14 @@ pub async fn monitor_connected_chain(monitor: &EventMonitor) -> Result<()> {
 ///
 /// NOTE: EVM monitoring is temporarily disabled in coordinator.
 /// EVM escrow monitoring will be re-added with a read-only EVM client.
-/// For now, EVM monitoring is handled by the Trusted GMP service.
+/// For now, EVM monitoring is handled by the Integrated GMP service.
 ///
 /// # Returns
 ///
 /// * `Ok(())` - Returns immediately (EVM monitoring disabled)
 pub async fn monitor_evm_chain(monitor: &EventMonitor) -> Result<()> {
     if monitor.config.connected_chain_evm.is_some() {
-        warn!("EVM chain monitoring is temporarily disabled in coordinator. EVM escrows will be monitored by Trusted GMP.");
+        warn!("EVM chain monitoring is temporarily disabled in coordinator. EVM escrows will be monitored by Integrated GMP.");
     } else {
         info!("No connected EVM chain configured, skipping EVM chain monitoring");
     }
@@ -205,7 +205,7 @@ pub async fn poll_connected_events(monitor: &EventMonitor) -> Result<Vec<EscrowE
     }
 
     // Note: EVM polling temporarily disabled in coordinator
-    // EVM escrow monitoring handled by Trusted GMP service
+    // EVM escrow monitoring handled by Integrated GMP service
 
     Ok(escrow_events)
 }

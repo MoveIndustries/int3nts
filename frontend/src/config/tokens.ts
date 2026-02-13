@@ -60,6 +60,8 @@ export const SUPPORTED_TOKENS: TokenConfig[] = [
     chain: 'movement',
     coinType: '0xa6cc575a28e9c97d1cec569392fe6f698c593990e7029ef49fed6740a36a31b0::tokens::WETH',
   },
+  // WBTC skipped - no paired FA metadata yet
+  // coinType: 0xa6cc575a28e9c97d1cec569392fe6f698c593990e7029ef49fed6740a36a31b0::tokens::WBTC
   // Base Sepolia
   {
     symbol: 'USDC',

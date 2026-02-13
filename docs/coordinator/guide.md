@@ -25,7 +25,7 @@ The coordinator automatically monitors all configured chains concurrently:
 
 Run the full E2E test flow:
 
-```
+```bash
 ./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh
 ```
 
@@ -99,10 +99,10 @@ The coordinator uses different mechanisms to discover events on each chain:
 
 - **Hub chain**
   - `LimitOrderEvent` — inflow intent creation (issuer, amounts, metadata, expiry, revocable, solver, offered_chain_id, desired_chain_id)
-  - `OracleLimitOrderEvent` — outflow intent creation (same fields + trusted-gmp public key for approvals)
+  - `OracleLimitOrderEvent` — outflow intent creation (same fields + integrated-gmp public key for approvals)
   - `LimitOrderFulfillmentEvent` — fulfillment (intent_id, solver, provided amount/metadata)
 - **Connected MVM chain**
-  - `OracleLimitOrderEvent` (escrow) — escrow deposit with trusted-gmp public key and desired amounts
+  - `OracleLimitOrderEvent` (escrow) — escrow deposit with integrated-gmp public key and desired amounts
 - **Connected EVM chain**
   - `EscrowInitialized` — escrow creation (intentId, requester, token, reservedSolver)
 - **Connected SVM chain**

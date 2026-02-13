@@ -3,7 +3,7 @@
 # Run Solver Locally (Against Testnets)
 #
 # This script runs the solver service locally, connecting to:
-#   - Local or remote coordinator (default: localhost:3333) and trusted-gmp (default: localhost:3334)
+#   - Local or remote coordinator (default: localhost:3333) and integrated-gmp (default: localhost:3334)
 #   - Movement Bardock Testnet (hub chain)
 #   - Base Sepolia (connected chain)
 #
@@ -11,9 +11,9 @@
 #
 # Prerequisites:
 #   - solver/config/solver_testnet.toml configured with actual deployed addresses
-#   - .env.testnet with BASE_SOLVER_PRIVATE_KEY
+#   - .env.testnet with SOLVER_EVM_PRIVATE_KEY
 #   - Movement CLI profile configured for solver (uses MOVEMENT_SOLVER_PRIVATE_KEY from .env.testnet)
-#   - Coordinator and trusted-gmp running (locally or remotely)
+#   - Coordinator and integrated-gmp running (locally or remotely)
 #   - Rust toolchain installed
 #
 # Usage:
@@ -30,7 +30,7 @@ echo " Running Solver Locally (Testnet Mode)"
 echo "========================================="
 echo ""
 
-# Load .env.testnet for BASE_SOLVER_PRIVATE_KEY
+# Load .env.testnet for SOLVER_EVM_PRIVATE_KEY
 TESTNET_KEYS_FILE="$SCRIPT_DIR/.env.testnet"
 
 if [ ! -f "$TESTNET_KEYS_FILE" ]; then
@@ -45,9 +45,9 @@ fi
 
 source "$TESTNET_KEYS_FILE"
 
-# Check BASE_SOLVER_PRIVATE_KEY (required for EVM transactions)
-if [ -z "$BASE_SOLVER_PRIVATE_KEY" ]; then
-    echo "⚠️  WARNING: BASE_SOLVER_PRIVATE_KEY not set in .env.testnet"
+# Check SOLVER_EVM_PRIVATE_KEY (required for EVM transactions)
+if [ -z "$SOLVER_EVM_PRIVATE_KEY" ]; then
+    echo "⚠️  WARNING: SOLVER_EVM_PRIVATE_KEY not set in .env.testnet"
     echo "   EVM transactions will fail if an EVM connected chain is configured."
     echo ""
 fi
@@ -236,7 +236,7 @@ echo ""
 cd "$PROJECT_ROOT"
 
 # Export environment variables for solver (needed for nix develop subprocess)
-export BASE_SOLVER_PRIVATE_KEY
+export SOLVER_EVM_PRIVATE_KEY
 export SOLANA_SOLVER_PRIVATE_KEY
 # Export solver addresses for auto-registration
 # The solver expects SOLVER_EVM_ADDR for registration - use BASE_SOLVER_ADDR if SOLVER_EVM_ADDR is not set
@@ -260,11 +260,28 @@ fi
 # Export HUB_RPC_URL for hash calculation
 export HUB_RPC_URL="$HUB_RPC"
 
+# Parse flags
+USE_RELEASE=false
+USE_DEBUG_LOG=false
+for arg in "$@"; do
+    case "$arg" in
+        --release) USE_RELEASE=true ;;
+        --debug)   USE_DEBUG_LOG=true ;;
+    esac
+done
+
+# Set log level
+if $USE_DEBUG_LOG; then
+    SOLVER_LOG_LEVEL="debug"
+    echo "   Log level: debug"
+else
+    SOLVER_LOG_LEVEL="info,solver::service::tracker=debug,solver::chains::hub=debug"
+fi
+
 # Prepare environment variables for nix develop
-# Use debug logging for tracker and hub client to see intent detection
-ENV_VARS="SOLVER_CONFIG_PATH='$SOLVER_CONFIG' RUST_LOG=info,solver::service::tracker=debug,solver::chains::hub=debug HUB_RPC_URL='$HUB_RPC'"
-if [ -n "$BASE_SOLVER_PRIVATE_KEY" ]; then
-    ENV_VARS="$ENV_VARS BASE_SOLVER_PRIVATE_KEY='$BASE_SOLVER_PRIVATE_KEY'"
+ENV_VARS="SOLVER_CONFIG_PATH='$SOLVER_CONFIG' RUST_LOG=$SOLVER_LOG_LEVEL HUB_RPC_URL='$HUB_RPC'"
+if [ -n "$SOLVER_EVM_PRIVATE_KEY" ]; then
+    ENV_VARS="$ENV_VARS SOLVER_EVM_PRIVATE_KEY='$SOLVER_EVM_PRIVATE_KEY'"
 fi
 if [ -n "$BASE_SOLVER_ADDR" ]; then
     ENV_VARS="$ENV_VARS BASE_SOLVER_ADDR='$BASE_SOLVER_ADDR'"
@@ -282,20 +299,27 @@ if [ -n "$SOLVER_SVM_ADDR" ]; then
     ENV_VARS="$ENV_VARS SOLVER_SVM_ADDR='$SOLVER_SVM_ADDR'"
 fi
 
+# Set up log file
+LOG_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/solver-$(date +%Y%m%d-%H%M%S).log"
+
 # Check if --release flag is passed
-if [ "$1" = "--release" ]; then
+if $USE_RELEASE; then
     echo " Building release binary..."
     nix develop "$PROJECT_ROOT/nix" --command bash -c "cargo build --release --manifest-path solver/Cargo.toml"
     echo ""
     echo " Starting solver (release mode)..."
+    echo "   Log file: $LOG_FILE"
     echo "   Press Ctrl+C to stop"
     echo ""
-    eval "$ENV_VARS ./solver/target/release/solver"
+    eval "$ENV_VARS ./solver/target/release/solver" 2>&1 | tee "$LOG_FILE"
 else
     echo " Starting solver (debug mode)..."
+    echo "   Log file: $LOG_FILE"
     echo "   Press Ctrl+C to stop"
     echo "   (Use --release for faster performance)"
     echo ""
-    nix develop "$PROJECT_ROOT/nix" --command bash -c "$ENV_VARS cargo run --manifest-path solver/Cargo.toml --bin solver"
+    nix develop "$PROJECT_ROOT/nix" --command bash -c "$ENV_VARS cargo run --manifest-path solver/Cargo.toml --bin solver" 2>&1 | tee "$LOG_FILE"
 fi
 

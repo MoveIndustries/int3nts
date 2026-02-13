@@ -107,25 +107,25 @@ async fn main() -> Result<()> {
     };
     
     let expected_evm_addr: Vec<u8> = if config.get_evm_config().is_some() {
-        std::env::var("SOLVER_EVM_ADDR")
-            .ok()
-            .and_then(|addr| {
-                let addr = addr.strip_prefix("0x").unwrap_or(&addr);
-                hex::decode(addr).ok()
-            })
-            .unwrap_or_default()
+        let addr_str = std::env::var("SOLVER_EVM_ADDR").context(
+            "SOLVER_EVM_ADDR env var is required when an EVM connected chain is configured"
+        )?;
+        let addr_hex = addr_str.strip_prefix("0x").unwrap_or(&addr_str);
+        hex::decode(addr_hex).context(
+            "SOLVER_EVM_ADDR contains invalid hex"
+        )?
     } else {
         vec![]
     };
     
     let expected_svm_addr: Vec<u8> = if config.get_svm_config().is_some() {
-        std::env::var("SOLVER_SVM_ADDR")
-            .ok()
-            .and_then(|addr| {
-                let addr = addr.strip_prefix("0x").unwrap_or(&addr);
-                hex::decode(addr).ok()
-            })
-            .unwrap_or_default()
+        let addr_str = std::env::var("SOLVER_SVM_ADDR").context(
+            "SOLVER_SVM_ADDR env var is required when an SVM connected chain is configured"
+        )?;
+        let addr_hex = addr_str.strip_prefix("0x").unwrap_or(&addr_str);
+        hex::decode(addr_hex).context(
+            "SOLVER_SVM_ADDR contains invalid hex"
+        )?
     } else {
         vec![]
     };
@@ -227,9 +227,7 @@ async fn main() -> Result<()> {
                     }
                 }
                 Err(e) => {
-                    // Could not get solver info - log warning but continue
-                    // The solver is registered, we just can't verify addresses
-                    info!("⚠️  Could not verify solver addresses (continuing anyway): {}", e);
+                    anyhow::bail!("Failed to verify solver addresses after registration: {}", e);
                 }
             }
         }

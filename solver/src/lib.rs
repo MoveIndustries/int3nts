@@ -1,6 +1,6 @@
 //! Solver library for intent framework
 //!
-//! Provides signing, acceptance logic, and coordinator/trusted-gmp API communication.
+//! Provides signing, acceptance logic, and coordinator API communication.
 
 pub mod acceptance;
 pub mod api;
@@ -8,7 +8,7 @@ pub mod chains;
 pub mod config;
 pub mod crypto;
 pub mod service;
-pub mod coordinator_gmp_client;
+pub mod coordinator_client;
 
 // Re-export public types for convenience
 pub use acceptance::{AcceptanceConfig, AcceptanceResult, DraftintentData, TokenPair};
@@ -19,9 +19,8 @@ pub use service::inflow::InflowService;
 pub use service::outflow::OutflowService;
 pub use service::signing::SigningService;
 pub use service::tracker::{IntentState, IntentTracker, TrackedIntent};
-pub use coordinator_gmp_client::{
-    ApiResponse, Approval, CoordinatorGmpClient, OutflowFulfillmentValidationResponse,
-    PendingDraft, SignatureSubmission, SignatureSubmissionResponse,
-    ValidateOutflowFulfillmentRequest,
+pub use coordinator_client::{
+    ApiResponse, CoordinatorClient, PendingDraft, SignatureSubmission,
+    SignatureSubmissionResponse,
 };
 

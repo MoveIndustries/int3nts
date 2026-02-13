@@ -303,7 +303,7 @@ pub async fn handle_rejection(rej: Rejection) -> Result<impl Reply, std::convert
 /// ## Security Model
 ///
 /// The coordinator has NO private keys and CANNOT generate signatures.
-/// All validation and signing is handled by the separate Trusted GMP service.
+/// All validation and signing is handled by the separate Integrated GMP service.
 pub struct ApiServer {
     /// Service configuration
     config: Arc<Config>,

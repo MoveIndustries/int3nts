@@ -37,6 +37,9 @@ usdt_decimals = 6
 weth = "0x2fa1ab0e37fdd22cbf9da880826e9f79f06e8e5d9df9bce774b1f47b708fe121"
 weth_decimals = 8
 
+# WBTC on Movement Testnet - skipped (no paired FA metadata yet)
+# coinType: 0xa6cc575a28e9c97d1cec569392fe6f698c593990e7029ef49fed6740a36a31b0::tokens::WBTC
+
 # pyUSD on Movement Testnet (Paxos USD)
 # TODO: Update with actual pyUSD deployment address once deployed
 # pyusd = "0x..."
@@ -65,7 +68,7 @@ usdc_decimals = 6
 
 [base_sepolia]
 chain_id = 84532
-rpc_url = "https://base-sepolia-rpc.publicnode.com"
+# RPC URL is constructed from ALCHEMY_BASE_SEPOLIA_API_KEY in .env.testnet
 
 # Native token (ETH)
 native_token = "ETH"
@@ -79,4 +82,16 @@ usdc_decimals = 6
 # TODO: Update with actual pyUSD deployment address if available
 # pyusd = "0x..."
 # pyusd_decimals = 6
+
+# =============================================================================
+# SOLANA DEVNET
+# =============================================================================
+
+[solana_devnet]
+chain_id = 901
+rpc_url = "https://api.devnet.solana.com"
+
+# USDC on Solana Devnet (SPL token mint)
+usdc = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
+usdc_decimals = 6
 

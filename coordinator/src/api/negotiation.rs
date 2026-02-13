@@ -85,6 +85,8 @@ pub struct SignatureResponse {
     pub solver_hub_addr: String,
     /// Solver's EVM address (for inflow to EVM chains) - None if not available
     pub solver_evm_addr: Option<String>,
+    /// Solver's SVM address (for inflow/outflow to SVM chains) - None if not available
+    pub solver_svm_addr: Option<String>,
     /// Timestamp when signature was received
     pub timestamp: u64,
 }
@@ -438,13 +440,13 @@ pub async fn get_signature_handler(
 
     match draft.signature {
         Some(sig) => {
-            // Draft is signed - look up solver's EVM address from on-chain registry
-            let solver_evm_addr = {
+            // Look up solver's connected chain addresses from on-chain registry
+            let (solver_evm_addr, solver_svm_addr) = {
                 let solver_registry_addr = &config.hub_chain.intent_module_addr;
-                
+
                 match MvmClient::new(&config.hub_chain.rpc_url) {
                     Ok(mvm_client) => {
-                        match mvm_client.get_solver_evm_address(&sig.solver_hub_addr, solver_registry_addr).await {
+                        let evm = match mvm_client.get_solver_evm_address(&sig.solver_hub_addr, solver_registry_addr).await {
                             Ok(Some(addr)) => {
                                 info!("Found solver EVM address for {}: {}", sig.solver_hub_addr, addr);
                                 Some(addr)
@@ -457,15 +459,30 @@ pub async fn get_signature_handler(
                                 warn!("Failed to look up solver EVM address for {}: {}", sig.solver_hub_addr, e);
                                 None
                             }
-                        }
+                        };
+                        let svm = match mvm_client.get_solver_svm_address(&sig.solver_hub_addr, solver_registry_addr).await {
+                            Ok(Some(addr)) => {
+                                info!("Found solver SVM address for {}: {}", sig.solver_hub_addr, addr);
+                                Some(addr)
+                            }
+                            Ok(None) => {
+                                warn!("Solver {} has no registered SVM address", sig.solver_hub_addr);
+                                None
+                            }
+                            Err(e) => {
+                                warn!("Failed to look up solver SVM address for {}: {}", sig.solver_hub_addr, e);
+                                None
+                            }
+                        };
+                        (evm, svm)
                     }
                     Err(e) => {
-                        warn!("Failed to create MvmClient for EVM address lookup: {}", e);
-                        None
+                        warn!("Failed to create MvmClient for address lookup: {}", e);
+                        (None, None)
                     }
                 }
             };
-            
+
             Ok(warp::reply::with_status(
                 warp::reply::json(&ApiResponse {
                     success: true,
@@ -473,6 +490,7 @@ pub async fn get_signature_handler(
                         signature: sig.signature,
                         solver_hub_addr: sig.solver_hub_addr.clone(),
                         solver_evm_addr,
+                        solver_svm_addr,
                         timestamp: sig.signature_timestamp,
                     }),
                     error: None,

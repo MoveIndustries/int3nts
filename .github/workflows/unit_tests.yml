@@ -7,10 +7,10 @@ on:
       - real-main
 
 jobs:
-  move:
+  mvm:
     uses: ./.github/workflows/unit-tests-reusable.yml
     with:
-      script: "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
+      script: "./intent-frameworks/mvm/scripts/test.sh"
 
   evm:
     uses: ./.github/workflows/unit-tests-reusable.yml
@@ -32,10 +32,10 @@ jobs:
     with:
       script: "cd coordinator && cargo test"
 
-  trusted-gmp:
+  integrated-gmp:
     uses: ./.github/workflows/unit-tests-reusable.yml
     with:
-      script: "cd trusted-gmp && cargo test"
+      script: "cd integrated-gmp && cargo test"
 
   frontend:
     uses: ./.github/workflows/unit-tests-reusable.yml

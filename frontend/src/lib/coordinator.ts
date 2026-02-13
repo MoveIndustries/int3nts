@@ -1,5 +1,5 @@
 // ============================================================================
-// Coordinator & Trusted GMP API Client
+// Coordinator API Client
 // ============================================================================
 
 import type {
@@ -9,7 +9,6 @@ import type {
   DraftIntentStatus,
   DraftIntentSignature,
   EventsResponse,
-  Approval,
 } from './types';
 
 // ============================================================================
@@ -21,25 +20,15 @@ if (!COORDINATOR_URL) {
   throw new Error('NEXT_PUBLIC_COORDINATOR_URL environment variable is not set');
 }
 
-const TRUSTED_GMP_URL = process.env.NEXT_PUBLIC_TRUSTED_GMP_URL as string;
-if (!TRUSTED_GMP_URL) {
-  throw new Error('NEXT_PUBLIC_TRUSTED_GMP_URL environment variable is not set');
-}
-
 // ============================================================================
 // Client Implementation
 // ============================================================================
 
 class CoordinatorClient {
   private coordinatorUrl: string;
-  private trustedGmpUrl: string;
 
-  constructor(
-    coordinatorUrl: string = COORDINATOR_URL,
-    trustedGmpUrl: string = TRUSTED_GMP_URL
-  ) {
+  constructor(coordinatorUrl: string = COORDINATOR_URL) {
     this.coordinatorUrl = coordinatorUrl;
-    this.trustedGmpUrl = trustedGmpUrl;
   }
 
   private async fetchFrom<T>(
@@ -171,53 +160,6 @@ class CoordinatorClient {
   }
 
   // --------------------------------------------------------------------------
-  // Trusted GMP endpoints (approvals, validation, public key)
-  // --------------------------------------------------------------------------
-
-  // Get public key
-  // Note: API returns the public key directly as the data field (base64 string)
-  async getPublicKey(): Promise<ApiResponse<string>> {
-    return this.fetchFrom<string>(this.trustedGmpUrl, '/public-key');
-  }
-
-  // Approvals
-  async getApprovals(): Promise<ApiResponse<Approval[]>> {
-    return this.fetchFrom<Approval[]>(this.trustedGmpUrl, '/approvals');
-  }
-
-  async getApprovalByEscrow(escrowId: string): Promise<ApiResponse<Approval>> {
-    return this.fetchFrom<Approval>(this.trustedGmpUrl, `/approvals/${escrowId}`);
-  }
-
-  // Validation endpoints
-  async validateOutflowFulfillment(
-    transactionHash: string,
-    chainType: 'mvm' | 'evm' | 'svm',
-    intentId?: string
-  ): Promise<
-    ApiResponse<{
-      validation: {
-        valid: boolean;
-        message: string;
-        timestamp: number;
-      };
-      approval_signature: {
-        signature: string;
-        timestamp: number;
-      };
-    }>
-  > {
-    return this.fetchFrom(this.trustedGmpUrl, `/validate-outflow-fulfillment`, {
-      method: 'POST',
-      body: JSON.stringify({
-        transaction_hash: transactionHash,
-        chain_type: chainType,
-        intent_id: intentId,
-      }),
-    });
-  }
-
-  // --------------------------------------------------------------------------
   // Polling utilities
   // --------------------------------------------------------------------------
 
@@ -260,44 +202,6 @@ class CoordinatorClient {
     };
   }
 
-  async pollUntilApproval(
-    escrowId: string,
-    options: {
-      interval: number;
-      timeout: number;
-      onProgress?: (attempt: number) => void;
-    }
-  ): Promise<ApiResponse<Approval>> {
-    const { interval, timeout, onProgress } = options;
-    const startTime = Date.now();
-    let attempt = 0;
-
-    while (Date.now() - startTime < timeout) {
-      attempt++;
-      onProgress?.(attempt);
-
-      const response = await this.getApprovalByEscrow(escrowId);
-
-      if (response.success && response.data) {
-        return response;
-      }
-
-      // If not found, continue polling
-      if (response.error?.includes('not found')) {
-        await new Promise((resolve) => setTimeout(resolve, interval));
-        continue;
-      }
-
-      // Other errors, return immediately
-      return response;
-    }
-
-    return {
-      success: false,
-      data: null,
-      error: 'Polling timeout',
-    };
-  }
 }
 
 export const coordinatorClient = new CoordinatorClient();

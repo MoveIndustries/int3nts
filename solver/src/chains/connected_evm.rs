@@ -12,19 +12,30 @@ use std::time::Duration;
 
 use crate::config::EvmChainConfig;
 
-/// EscrowInitialized event data parsed from EVM logs
+/// EscrowCreated event data parsed from EVM logs
+///
+/// Event signature: EscrowCreated(bytes32 indexed intentId, bytes32 escrowId, address indexed requester, uint64 amount, address indexed token, bytes32 reservedSolver, uint64 expiry)
+/// topics[0] = event signature hash
+/// topics[1] = intentId (bytes32)
+/// topics[2] = requester (address, padded to 32 bytes)
+/// topics[3] = token (address, padded to 32 bytes)
+/// data = abi.encode(escrowId, amount, reservedSolver, expiry) = 256 hex chars
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EscrowInitializedEvent {
-    /// Intent ID (indexed, first topic)
+pub struct EscrowCreatedEvent {
+    /// Intent ID (indexed topic[1], bytes32)
     pub intent_id: String,
-    /// Escrow contract address (indexed, second topic)
-    pub escrow_addr: String,
-    /// Requester address (indexed, third topic)
+    /// Escrow ID (from data, bytes32)
+    pub escrow_id: String,
+    /// Requester address (indexed topic[2], address)
     pub requester_addr: String,
-    /// Token contract address (from data)
+    /// Amount escrowed (from data, uint64)
+    pub amount: u64,
+    /// Token contract address (indexed topic[3], address)
     pub token_addr: String,
-    /// Reserved solver address (from data)
-    pub reserved_solver_addr: String,
+    /// Reserved solver address (from data, bytes32)
+    pub reserved_solver: String,
+    /// Expiry timestamp (from data, uint64)
+    pub expiry: u64,
     /// Block number
     pub block_number: String,
     /// Transaction hash
@@ -88,6 +99,13 @@ pub struct ConnectedEvmClient {
     chain_id: u64,
     /// Hardhat network name (e.g., "localhost", "baseSepolia")
     network_name: String,
+    /// IntentOutflowValidator contract address (for GMP outflow)
+    outflow_validator_addr: Option<String>,
+    /// IntentGmp contract address (for GMP endpoint)
+    #[allow(dead_code)]
+    gmp_endpoint_addr: Option<String>,
+    /// Environment variable name containing the EVM private key for signing transactions
+    private_key_env: String,
 }
 
 impl ConnectedEvmClient {
@@ -114,6 +132,9 @@ impl ConnectedEvmClient {
             escrow_contract_addr: config.escrow_contract_addr.clone(),
             chain_id: config.chain_id,
             network_name: config.network_name.clone(),
+            outflow_validator_addr: config.outflow_validator_addr.clone(),
+            gmp_endpoint_addr: config.gmp_endpoint_addr.clone(),
+            private_key_env: config.private_key_env.clone(),
         })
     }
 
@@ -159,7 +180,7 @@ impl ConnectedEvmClient {
         Ok(block_number)
     }
 
-    /// Queries the connected chain for EscrowInitialized events
+    /// Queries the connected chain for EscrowCreated events
     ///
     /// Uses eth_getLogs to filter events by contract address and event signature.
     ///
@@ -170,19 +191,17 @@ impl ConnectedEvmClient {
     ///
     /// # Returns
     ///
-    /// * `Ok(Vec<EscrowInitializedEvent>)` - List of escrow events
+    /// * `Ok(Vec<EscrowCreatedEvent>)` - List of escrow events
     /// * `Err(anyhow::Error)` - Failed to query events
     pub async fn get_escrow_events(
         &self,
         from_block: Option<u64>,
         to_block: Option<u64>,
-    ) -> Result<Vec<EscrowInitializedEvent>> {
+    ) -> Result<Vec<EscrowCreatedEvent>> {
         use tracing::{info, warn};
-        
-        // EscrowInitialized event signature: keccak256("EscrowInitialized(uint256,address,address,address,address,uint256,uint256)")
-        // Event: EscrowInitialized(uint256 indexed intentId, address indexed escrow, address indexed requester, address token, address reservedSolver, uint256 amount, uint256 expiry)
-        // Note: indexed parameters don't affect the signature, only the types matter
-        let event_signature = "EscrowInitialized(uint256,address,address,address,address,uint256,uint256)";
+
+        // EscrowCreated(bytes32 indexed intentId, bytes32 escrowId, address indexed requester, uint64 amount, address indexed token, bytes32 reservedSolver, uint64 expiry)
+        let event_signature = "EscrowCreated(bytes32,bytes32,address,uint64,address,bytes32,uint64)";
         let mut hasher = Keccak256::new();
         hasher.update(event_signature.as_bytes());
         let event_topic = format!("0x{}", hex::encode(hasher.finalize()));
@@ -239,35 +258,39 @@ impl ConnectedEvmClient {
         let mut events = Vec::new();
 
         for log in logs {
-            // EscrowInitialized(uint256 indexed intentId, address indexed escrow, address indexed requester, address token, address reservedSolver, uint256 amount, uint256 expiry)
-            // topics[0] = event signature
-            // topics[1] = intentId (uint256, padded to 32 bytes)
-            // topics[2] = escrow (address, padded to 32 bytes)
-            // topics[3] = requester (address, padded to 32 bytes)
-            // data = abi.encode(token, reservedSolver, amount, expiry) - 4 fields (256 hex chars = 128 bytes)
+            // EscrowCreated(bytes32 indexed intentId, bytes32 escrowId, address indexed requester, uint64 amount, address indexed token, bytes32 reservedSolver, uint64 expiry)
+            // topics[0] = event signature hash
+            // topics[1] = intentId (bytes32)
+            // topics[2] = requester (address, padded to 32 bytes)
+            // topics[3] = token (address, padded to 32 bytes)
+            // data = abi.encode(escrowId, amount, reservedSolver, expiry) = 256 hex chars
             if log.topics.len() < 4 {
-                continue; // Invalid event format
+                continue;
             }
 
             let intent_id = format!("0x{}", log.topics[1].strip_prefix("0x").unwrap_or(&log.topics[1]));
-            let escrow_addr = format!("0x{}", &log.topics[2][26..]); // Extract last 20 bytes (40 hex chars)
-            let requester_addr = format!("0x{}", &log.topics[3][26..]);
+            let requester_addr = format!("0x{}", &log.topics[2][26..]); // Extract last 20 bytes (40 hex chars)
+            let token_addr = format!("0x{}", &log.topics[3][26..]);
 
-            // Parse data: token (32 bytes), reservedSolver (32 bytes), amount (32 bytes), expiry (32 bytes)
+            // Parse data: escrowId (32 bytes), amount (32 bytes), reservedSolver (32 bytes), expiry (32 bytes)
             let data = log.data.strip_prefix("0x").unwrap_or(&log.data);
             if data.len() < 256 {
-                continue; // Invalid data length (4 fields * 64 hex chars)
+                continue; // 4 fields * 64 hex chars = 256
             }
 
-            let token_addr = format!("0x{}", &data[24..64]); // Extract address from first 32-byte word (skip padding)
-            let reserved_solver_addr = format!("0x{}", &data[88..128]); // Extract address from second 32-byte word
+            let escrow_id = format!("0x{}", &data[0..64]);
+            let amount = u64::from_str_radix(&data[112..128], 16).unwrap_or(0); // uint64 in last 8 bytes of 32-byte word
+            let reserved_solver = format!("0x{}", &data[128..192]);
+            let expiry = u64::from_str_radix(&data[240..256], 16).unwrap_or(0); // uint64 in last 8 bytes of 32-byte word
 
-            events.push(EscrowInitializedEvent {
+            events.push(EscrowCreatedEvent {
                 intent_id,
-                escrow_addr,
+                escrow_id,
                 requester_addr,
+                amount,
                 token_addr,
-                reserved_solver_addr,
+                reserved_solver,
+                expiry,
                 block_number: log.block_number,
                 transaction_hash: log.transaction_hash,
             });
@@ -280,7 +303,7 @@ impl ConnectedEvmClient {
     ///
     /// The calldata format is: selector (4 bytes) + recipient (32 bytes) + amount (32 bytes) + intent_id (32 bytes).
     /// The ERC20 contract ignores the extra intent_id bytes, but they remain in the transaction
-    /// data for trusted-gmp tracking.
+    /// data for on-chain validation tracking.
     ///
     /// Calls the Hardhat script `transfer-with-intent-id.js` via `npx hardhat run`,
     /// matching the approach used in E2E test scripts. The script uses Hardhat's signer[2]
@@ -330,8 +353,8 @@ impl ConnectedEvmClient {
 
         // Call Hardhat script via nix develop
         // Pass BASE_SEPOLIA_RPC_URL so Hardhat can configure the baseSepolia network
-        // Pass BASE_SOLVER_PRIVATE_KEY for signing (signers[2] in the script)
-        let solver_private_key = std::env::var("BASE_SOLVER_PRIVATE_KEY").unwrap_or_default();
+        // Pass SOLVER_EVM_PRIVATE_KEY for signing (signers[2] in the script)
+        let solver_private_key = std::env::var(&self.private_key_env).unwrap_or_default();
         let nix_dir = project_root.join("nix");
         let output = Command::new("nix")
             .args(&[
@@ -341,7 +364,7 @@ impl ConnectedEvmClient {
                 "bash",
                 "-c",
                 &format!(
-                    "cd '{}' && BASE_SEPOLIA_RPC_URL='{}' BASE_SOLVER_PRIVATE_KEY='{}' TOKEN_ADDR='{}' RECIPIENT='{}' AMOUNT='{}' INTENT_ID='{}' npx hardhat run scripts/transfer-with-intent-id.js --network {}",
+                    "cd '{}' && BASE_SEPOLIA_RPC_URL='{}' SOLVER_EVM_PRIVATE_KEY='{}' TOKEN_ADDR='{}' RECIPIENT='{}' AMOUNT='{}' INTENT_ID='{}' npx hardhat run scripts/transfer-with-intent-id.js --network {}",
                     evm_framework_dir.display(),
                     self.base_url,
                     solver_private_key,
@@ -377,53 +400,22 @@ impl ConnectedEvmClient {
         anyhow::bail!("Could not extract transaction hash from Hardhat output: {}", output_str)
     }
 
-    /// Claims an escrow by releasing funds to the solver with trusted-gmp approval
+    /// Checks if an inflow escrow has been auto-released (via FulfillmentProof GMP message).
     ///
-    /// Calls the `claim` function on the IntentEscrow contract using Hardhat script,
-    /// matching the approach used in E2E test scripts. The Hardhat script handles
-    /// signing using Hardhat's signer configuration (Account 2 = Solver).
+    /// Calls the Hardhat script `get-is-released.js` to check IntentInflowEscrow.isReleased().
+    /// With GMP auto-release, when this returns true, tokens have already been transferred to solver.
     ///
     /// # Arguments
     ///
-    /// * `escrow_addr` - Address of the IntentEscrow contract
-    /// * `intent_id` - Intent ID (hex string with 0x prefix, will be converted to uint256)
-    /// * `signature` - Approver's (Trusted GMP) ECDSA signature (65 bytes: r || s || v)
+    /// * `intent_id` - Intent ID as hex string (e.g., "0x4b1e...")
     ///
     /// # Returns
     ///
-    /// * `Ok(String)` - Transaction hash
-    /// * `Err(anyhow::Error)` - Failed to claim escrow
-    ///
-    /// # Note
-    ///
-    /// This function calls the Hardhat script `claim-escrow.js` via `npx hardhat run`,
-    /// matching the approach used in E2E test scripts. The script uses Hardhat's signer[2]
-    /// (Solver account) for signing the transaction.
-    ///
-    /// # TODO
-    ///
-    /// Future improvement: Implement this directly using a Rust Ethereum library instead of
-    /// calling Hardhat scripts. Good options include:
-    /// - `ethers-rs` (https://github.com/gakonst/ethers-rs) - Popular, well-maintained
-    /// - `alloy` (https://github.com/alloy-rs/alloy) - Modern, type-safe, actively developed
-    ///
-    /// This would eliminate the dependency on Node.js/Hardhat and provide better error handling
-    /// and type safety. The implementation would:
-    /// 1. Load the solver's private key from config
-    /// 2. Create a wallet/provider using the RPC URL
-    /// 3. Call the `claim(uint256 intentId, bytes memory signature)` function directly
-    /// 4. Sign and send the transaction
-    pub async fn claim_escrow(
-        &self,
-        escrow_addr: &str,
-        intent_id: &str,
-        signature: &[u8],
-    ) -> Result<String> {
-        // Convert signature bytes to hex string (without 0x prefix, as expected by script)
-        let signature_hex = hex::encode(signature);
-
+    /// * `Ok(true)` - Escrow has been released to solver
+    /// * `Ok(false)` - Escrow not yet released
+    /// * `Err(anyhow::Error)` - Failed to query
+    pub async fn is_escrow_released(&self, intent_id: &str) -> Result<bool> {
         // Convert intent_id to EVM format (uint256)
-        // The intent_id should already be in hex format (0x...), but we need to ensure it's valid
         let intent_id_evm = if intent_id.starts_with("0x") {
             intent_id.to_string()
         } else {
@@ -440,10 +432,7 @@ impl ConnectedEvmClient {
             );
         }
 
-        // Call Hardhat script via npx (using nix develop to ensure correct environment)
-        // Pass BASE_SEPOLIA_RPC_URL so Hardhat can configure the baseSepolia network
-        // Pass BASE_SOLVER_PRIVATE_KEY for signing (signers[2] in the script)
-        let solver_private_key = std::env::var("BASE_SOLVER_PRIVATE_KEY").unwrap_or_default();
+        // Call Hardhat script via nix develop to check isReleased()
         let nix_dir = project_root.join("nix");
         let output = Command::new("nix")
             .args(&[
@@ -453,13 +442,10 @@ impl ConnectedEvmClient {
                 "bash",
                 "-c",
                 &format!(
-                    "cd '{}' && BASE_SEPOLIA_RPC_URL='{}' BASE_SOLVER_PRIVATE_KEY='{}' ESCROW_ADDR='{}' INTENT_ID_EVM='{}' SIGNATURE_HEX='{}' npx hardhat run scripts/claim-escrow.js --network {}",
+                    "cd '{}' && ESCROW_GMP_ADDR='{}' INTENT_ID_EVM='{}' npx hardhat run scripts/get-is-released.js --network {}",
                     evm_framework_dir.display(),
-                    self.base_url,
-                    solver_private_key,
-                    escrow_addr,
+                    self.escrow_contract_addr,
                     intent_id_evm,
-                    signature_hex,
                     self.network_name
                 ),
             ])
@@ -470,22 +456,169 @@ impl ConnectedEvmClient {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
             anyhow::bail!(
-                "Hardhat claim-escrow script failed:\nstderr: {}\nstdout: {}",
+                "Hardhat get-is-released script failed:\nstderr: {}\nstdout: {}",
+                stderr,
+                stdout
+            );
+        }
+
+        // Parse output for "isReleased: true" or "isReleased: false"
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        if output_str.contains("isReleased: true") {
+            Ok(true)
+        } else if output_str.contains("isReleased: false") {
+            Ok(false)
+        } else {
+            anyhow::bail!("Unexpected output from get-is-released.js: {}", output_str)
+        }
+    }
+
+    /// Checks if IntentOutflowValidator has requirements for an intent.
+    ///
+    /// Calls `hasRequirements(bytes32)` on the outflow validator contract via `eth_call`.
+    /// Returns true once the GMP relay has delivered IntentRequirements from the hub.
+    pub async fn has_outflow_requirements(&self, intent_id: &str) -> Result<bool> {
+        let outflow_addr = self
+            .outflow_validator_addr
+            .as_ref()
+            .context("outflow_validator_addr not configured for EVM chain")?;
+
+        // Function selector: keccak256("hasRequirements(bytes32)")[0:4]
+        let mut hasher = Keccak256::new();
+        hasher.update(b"hasRequirements(bytes32)");
+        let hash = hasher.finalize();
+        let selector = hex::encode(&hash[..4]);
+
+        // ABI-encode intent_id as bytes32
+        let intent_id_clean = intent_id.strip_prefix("0x").unwrap_or(intent_id);
+        let intent_id_padded = format!("{:0>64}", intent_id_clean);
+
+        let calldata = format!("0x{}{}", selector, intent_id_padded);
+
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "eth_call".to_string(),
+            params: vec![
+                serde_json::json!({
+                    "to": outflow_addr,
+                    "data": calldata,
+                }),
+                serde_json::json!("latest"),
+            ],
+            id: 1,
+        };
+
+        let response: JsonRpcResponse<String> = self
+            .client
+            .post(&self.base_url)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to send eth_call for hasRequirements")?
+            .json()
+            .await
+            .context("Failed to parse eth_call response")?;
+
+        if let Some(error) = response.error {
+            anyhow::bail!(
+                "eth_call hasRequirements failed: {} (code: {})",
+                error.message,
+                error.code
+            );
+        }
+
+        let result = response
+            .result
+            .unwrap_or_else(|| "0x".to_string());
+
+        // ABI bool: 32 bytes, last byte is 0x01 (true) or 0x00 (false)
+        let clean = result.strip_prefix("0x").unwrap_or(&result);
+        Ok(clean.ends_with('1'))
+    }
+
+    /// Fulfills an outflow intent on the EVM chain via IntentOutflowValidator.
+    ///
+    /// Calls the Hardhat script `fulfill-outflow-intent.js` which:
+    /// 1. Reads requirements from the outflow validator
+    /// 2. Approves the outflow validator to spend solver's tokens
+    /// 3. Calls `fulfillIntent(intentId, tokenAddr)` from solver (signers[2])
+    ///
+    /// The outflow validator then sends a FulfillmentProof via GMP to the hub.
+    pub fn fulfill_outflow_via_gmp(
+        &self,
+        intent_id: &str,
+        token_addr: &str,
+    ) -> Result<String> {
+        let outflow_addr = self
+            .outflow_validator_addr
+            .as_ref()
+            .context("outflow_validator_addr not configured for EVM chain")?;
+
+        let intent_id_evm = if intent_id.starts_with("0x") {
+            intent_id.to_string()
+        } else {
+            format!("0x{}", intent_id)
+        };
+
+        let project_root = std::env::current_dir().context("Failed to get current directory")?;
+        let evm_framework_dir = project_root.join("intent-frameworks/evm");
+        if !evm_framework_dir.exists() {
+            anyhow::bail!(
+                "intent-frameworks/evm directory not found at: {}",
+                evm_framework_dir.display()
+            );
+        }
+
+        // Pass BASE_SEPOLIA_RPC_URL so Hardhat can configure the baseSepolia network
+        // Pass SOLVER_EVM_PRIVATE_KEY for signing on testnet
+        let solver_private_key = std::env::var(&self.private_key_env).unwrap_or_default();
+        let nix_dir = project_root.join("nix");
+        let output = Command::new("nix")
+            .args(&[
+                "develop",
+                nix_dir.to_str().unwrap(),
+                "-c",
+                "bash",
+                "-c",
+                &format!(
+                    "cd '{}' && BASE_SEPOLIA_RPC_URL='{}' SOLVER_EVM_PRIVATE_KEY='{}' OUTFLOW_VALIDATOR_ADDR='{}' TOKEN_ADDR='{}' INTENT_ID='{}' npx hardhat run scripts/fulfill-outflow-intent.js --network {}",
+                    evm_framework_dir.display(),
+                    self.base_url,
+                    solver_private_key,
+                    outflow_addr,
+                    token_addr,
+                    intent_id_evm,
+                    self.network_name
+                ),
+            ])
+            .output()
+            .context("Failed to execute nix develop command")?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            anyhow::bail!(
+                "Hardhat fulfill-outflow-intent script failed:\nstderr: {}\nstdout: {}",
                 stderr,
                 stdout
             );
         }
 
         // Extract transaction hash from output
-        // The script outputs: "Claim transaction hash: 0x..."
         let output_str = String::from_utf8_lossy(&output.stdout);
-        if let Some(hash_line) = output_str.lines().find(|l| l.contains("hash") || l.contains("Hash")) {
+        if let Some(hash_line) = output_str
+            .lines()
+            .find(|l| l.contains("hash") || l.contains("Hash"))
+        {
             if let Some(hash) = hash_line.split_whitespace().find(|s| s.starts_with("0x")) {
                 return Ok(hash.to_string());
             }
         }
 
-        anyhow::bail!("Could not extract transaction hash from Hardhat output: {}", output_str)
+        anyhow::bail!(
+            "Could not extract transaction hash from fulfill-outflow-intent output: {}",
+            output_str
+        )
     }
 }
 

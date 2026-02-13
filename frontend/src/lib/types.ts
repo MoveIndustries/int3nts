@@ -91,6 +91,7 @@ export interface IntentEvent {
   connected_chain_id: number | null;
   expiry_time: number;
   timestamp: number;
+  ready_on_connected_chain: boolean;
 }
 
 export interface EscrowEvent {
@@ -109,17 +110,9 @@ export interface EscrowEvent {
   timestamp: number;
 }
 
-export interface Approval {
-  escrow_id: string;
-  intent_id: string;
-  signature: string;
-  timestamp: number;
-}
-
 export interface EventsResponse {
   intent_events: IntentEvent[];
   escrow_events: EscrowEvent[];
   fulfillment_events: any[];
-  approvals: Approval[];
 }
 

@@ -15,7 +15,7 @@
 //! ## Security Model
 //!
 //! The coordinator has NO private keys and CANNOT steal funds. All validation
-//! and approval signing is handled by the separate Trusted GMP service.
+//! and approval signing is handled by the separate Integrated GMP service.
 
 use anyhow::Result;
 use tracing::info;

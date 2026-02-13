@@ -1,10 +1,12 @@
-# Phase 4: Coordinator GMP Integration (2 days)
+# Phase 4: Integration & Documentation
 
-**Status:** Not Started
+**Status:** In Progress
 **Depends On:** Phase 3
-**Blocks:** Phase 5
+**Blocks:** None (Final Phase)
 
-**Note:** Coordinator service already exists. This phase adds GMP message tracking and status updates to the coordinator.
+**What Phase 3 completed:** Readiness tracking for outflow intents (commit `f46eb3d`) - monitors IntentRequirementsReceived events and sets `ready_on_connected_chain` flag.
+
+**Architecture principle:** The coordinator is the single API surface for frontends and solvers. Clients never poll integrated-gmp directly. Integrated-gmp is purely infrastructure (relay) — invisible to clients.
 
 ---
 
@@ -12,26 +14,33 @@
 
 > 📋 **Commit Conventions:** Before each commit, review `.claude/CLAUDE.md` and `.cursor/rules` for commit message format, test requirements, and coding standards.
 
-### Commit 1: Add GMP message tracking to coordinator
+### Commit 1: Strip integrated-gmp client-facing API down to relay-only
 
 **Files:**
 
-- `coordinator/Cargo.toml`
-- `coordinator/src/main.rs`
-- `coordinator/src/lib.rs`
-- `coordinator/src/db/mod.rs`
-- `coordinator/src/db/models.rs`
-- `coordinator/migrations/001_initial.sql`
+- `integrated-gmp/src/api/generic.rs` (existing - route definitions)
+- `integrated-gmp/src/api/outflow_generic.rs` (remove)
+- `integrated-gmp/src/api/outflow_mvm.rs` (remove)
+- `integrated-gmp/src/api/outflow_evm.rs` (remove)
+- `integrated-gmp/src/api/outflow_svm.rs` (remove)
+- `integrated-gmp/src/api/inflow_generic.rs` (remove)
 
 **Tasks:**
 
-- [ ] Coordinator crate already exists; add GMP message tracking
-- [ ] Add dependencies as needed: sqlx, migrations
-- [ ] Define `intents` table (id, status, requester, requirements, timestamps)
-- [ ] Define `escrows` table (id, intent_id, status, chain_id, timestamps)
-- [ ] Define `fulfillments` table (id, intent_id, solver, timestamps)
-- [ ] Define `gmp_messages` table (id, source_chain, dest_chain, payload, status)
-- [ ] Add SQLx models and basic queries
+- [x] Remove all client-facing API endpoints:
+  - `POST /validate-outflow-fulfillment` (solver validated tx hash — now done on-chain by validation contract)
+  - `POST /validate-inflow-escrow` (escrow validation — now auto-releases via GMP FulfillmentProof)
+  - `POST /approval` (signature generation — GMP message is the proof)
+  - `GET /public-key` (frontend needed for intent creation — no signatures in GMP)
+  - `GET /approved/:intent_id` (frontend polled approval status — coordinator provides this)
+  - `GET /approvals` (listed all signatures — no signatures exist)
+  - `GET /approvals/:escrow_id` (specific escrow signature — no signatures exist)
+  - `GET /events` (coordinator has its own `/events`)
+- [x] Keep only:
+  - `GET /health` (ops monitoring of relay process)
+- [x] Remove dead code: outflow validation logic, inflow validation logic, signature generation, transaction parsing
+- [x] Update integrated-gmp tests to remove tests for deleted endpoints
+- [x] Verify relay functionality still works (MessageSent watching + deliverMessage calls)
 
 **Test:**
 
@@ -40,27 +49,28 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 2.**
+> ⚠️ **All unit tests must pass before proceeding to Commit 2.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 2: Add chain event listeners
+### Commit 2: Remove integrated-gmp polling from frontend, use coordinator only
 
 **Files:**
 
-- `coordinator/src/listeners/mod.rs`
-- `coordinator/src/listeners/mvm.rs`
-- `coordinator/src/listeners/evm.rs`
-- `coordinator/src/listeners/svm.rs`
-- `coordinator/src/tests/listener_tests.rs`
+- `frontend/src/lib/coordinator.ts` (existing)
+- `frontend/src/lib/types.ts` (existing)
 
 **Tasks:**
 
-- [ ] Implement MVM event listener (IntentCreated, IntentFulfilled, etc.)
-- [ ] Implement EVM event listener (EscrowCreated, ValidationSucceeded, etc.)
-- [ ] Implement SVM event listener (account changes)
-- [ ] Store events in database as they arrive
-- [ ] Test event parsing for each chain
+- [x] Remove all direct integrated-gmp API calls from frontend:
+  - Remove `/approved/:intentId` polling (outflow approval check)
+  - Remove `/public-key` call (no longer needed — GMP replaces signatures)
+  - Remove `/approvals/:escrowId` call (inflow approval check)
+- [x] Replace outflow completion tracking: poll coordinator `GET /events` for intent fulfillment/completion status instead of integrated-gmp `/approved/:intentId`
+- [x] Replace inflow escrow release tracking: poll coordinator `GET /events` for `EscrowReleased` event instead of integrated-gmp `/approvals/:escrowId`
+- [x] Remove `integrated_gmp_public_key` parameter from outflow intent creation flow
+- [x] Use `ready_on_connected_chain` flag from coordinator events to show GMP delivery status
+- [x] Remove integrated-gmp base URL configuration from frontend
 
 **Test:**
 
@@ -69,30 +79,27 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 3.**
+> ⚠️ **All unit tests must pass before proceeding to Commit 2.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 3: Add REST API endpoints
+### Commit 3: Remove integrated-gmp polling from solver, use coordinator only
 
 **Files:**
 
-- `coordinator/src/api/mod.rs`
-- `coordinator/src/api/intents.rs`
-- `coordinator/src/api/escrows.rs`
-- `coordinator/src/api/health.rs`
-- `coordinator/src/tests/api_tests.rs`
+- `solver/src/coordinator_gmp_client.rs` (existing)
+- `solver/src/service/outflow.rs` (existing)
+- `solver/src/service/inflow.rs` (existing)
 
 **Tasks:**
 
-- [ ] `GET /intents` - list intents with filters
-- [ ] `GET /intents/:id` - get intent details
-- [ ] `GET /escrows` - list escrows with filters
-- [ ] `GET /escrows/:id` - get escrow details
-- [ ] `GET /validation-contracts` - discover validation contract addresses on each connected chain (returns chain_id => contract_address mapping)
-- [ ] `GET /health` - health check endpoint
-- [ ] Add pagination support
-- [ ] Test all API endpoints
+- [x] Remove direct integrated-gmp API calls from solver:
+  - Remove `POST /validate-outflow-fulfillment` call (no longer needed — validation contract sends GMP message directly)
+  - Remove any `/approvals` polling
+- [x] Replace outflow completion tracking: use coordinator `GET /events` to check hub intent release status
+- [x] Replace inflow escrow release tracking: use coordinator `GET /events` to check `EscrowReleased` event
+- [x] Use `ready_on_connected_chain` flag from coordinator events before calling validation contracts
+- [x] Remove integrated-gmp base URL configuration from solver
 
 **Test:**
 
@@ -101,113 +108,113 @@
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 4.**
+> ⚠️ **All unit tests must pass before proceeding to Commit 4.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 4: Add WebSocket subscription support
+### Commit 4: Update deployment scripts for GMP (moved from Phase 2)
 
 **Files:**
 
-- `coordinator/src/api/websocket.rs`
-- `coordinator/src/tests/websocket_tests.rs`
+- `intent-frameworks/svm/scripts/deploy.sh` (updated to deploy all 3 programs)
+- `intent-frameworks/svm/scripts/initialize-gmp.sh` (new — GMP endpoint, outflow validator, escrow GMP config, routing)
+- `intent-frameworks/svm/scripts/README.md` (updated with deployment workflow and new scripts)
+- `intent-frameworks/mvm/scripts/deploy-hub.sh` (new — deploy + initialize hub chain with GMP)
+- `intent-frameworks/mvm/scripts/deploy-connected.sh` (new — deploy + initialize connected chain with GMP)
+- `intent-frameworks/evm/scripts/deploy-gmp.js` (already complete — no changes needed)
 
 **Tasks:**
 
-- [ ] Implement WebSocket upgrade handler
-- [ ] Support subscribing to intent updates
-- [ ] Support subscribing to escrow updates
-- [ ] Broadcast events to subscribers on state change
-- [ ] Test WebSocket subscription flow
+- [x] Update SVM deployment scripts to include GMP programs (intent-outflow-validator, intent-escrow with GMP config)
+- [x] Update MVM deployment scripts to include GMP modules
+- [x] Update EVM deployment scripts to include GMP contracts (IntentGmp, IntentOutflowValidator, IntentInflowEscrow) and remote GMP endpoint configuration
+- [x] Add remote GMP endpoint configuration to all deployment scripts (SVM, MVM, EVM)
+- [x] Deploy updated contracts/modules/programs to testnets
+- [x] Verify cross-chain flow works on testnets (with integrated GMP relay)
 
 **Test:**
 
 ```bash
-# Run all unit tests
 ./testing-infra/run-all-unit-tests.sh
+
+# Verify deployments
+solana program show <INTENT_OUTFLOW_VALIDATOR_PROGRAM_ID> --url devnet
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 5.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 5: Update frontend to use coordinator API
+### Commit 5: Update existing docs with GMP endpoint configuration
 
 **Files:**
 
-- `frontend/src/services/coordinator.ts`
-- `frontend/src/hooks/useIntents.ts`
-- `frontend/src/hooks/useEscrows.ts`
-- `frontend/src/tests/coordinator.test.ts`
+- `docs/architecture/architecture-component-mapping.md` (update component mapping for GMP modules)
+- `docs/architecture/domain-boundaries-and-interfaces.md` (update interfaces for GMP)
+- `docs/architecture/data-models.md` (add GMP message types)
+- `docs/architecture/conception/architecture-diff.md` (update implementation status)
 
 **Tasks:**
 
-- [ ] Create coordinator API client
-- [ ] Replace legacy signer API calls with coordinator API calls
-- [ ] Add WebSocket connection for real-time updates
-- [ ] Update UI to show GMP message status
-- [ ] Test API client with mocked responses
+- [x] Update architecture-component-mapping with GMP modules/contracts across all VMs
+- [x] Update domain-boundaries-and-interfaces with GMP send/receive interfaces
+- [x] Update data-models with GMP message types (IntentRequirements, EscrowConfirmation, FulfillmentProof)
+- [x] Update architecture-diff with current implementation status post-GMP
 
 **Test:**
 
 ```bash
-# Run all unit tests
-./testing-infra/run-all-unit-tests.sh
+# Documentation review - manual
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 6.**
+> ⚠️ **Documentation review before proceeding to Commit 6.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 6: Update solver SDK to use coordinator API
+### Commit 6: Add GMP integration documentation
 
 **Files:**
 
-- `solver/src/coordinator_client.rs`
-- `solver/src/tests/coordinator_client_tests.rs`
+- `docs/integrated-gmp/README.md` (new - overview and quick start)
+- `docs/integrated-gmp/architecture.md` (new - relay architecture, message flows, configuration)
+- `docs/integrated-gmp/solver-guide.md` (new - solver interaction with GMP flows)
+- `docs/integrated-gmp/troubleshooting.md` (new - common issues and error patterns)
+- `docs/README.md` (update descriptions for GMP relay model)
 
 **Tasks:**
 
-- [ ] Create coordinator API client for solver
-- [ ] Replace legacy signer API calls with coordinator API calls
-- [ ] Add intent discovery via coordinator
-- [ ] Add escrow status polling
-- [ ] **Add validation contract discovery** - query coordinator API for validation contract addresses on each connected chain
-- [ ] **Support GMP flow** - update solver to call validation contract functions instead of arbitrary transfers
-- [ ] **Add approval step** - solver must approve validation contract before calling fulfillment function
-- [ ] Test API client with mocked responses
+- [x] Document GMP architecture and message flows
+- [x] Document solver integration guide
+- [x] Document common issues and troubleshooting steps
+- [x] Document testnet contract addresses
 
 **Test:**
 
 ```bash
 # Run all unit tests
 ./testing-infra/run-all-unit-tests.sh
+
+# Documentation review - manual
 ```
 
-> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.**
+> ⚠️ **CI e2e tests must pass before proceeding to Commit 7.** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
-### Commit 7: Add Docker configuration and documentation
+### Commit 7: Final cleanup and verification
 
 **Files:**
 
-- `coordinator/Dockerfile`
-- `docker-compose.yml` (update)
-- `docs/coordinator/README.md`
-- `docs/coordinator/api-reference.md`
+- `CHANGELOG.md`
+- `README.md` (update architecture section)
 
 **Tasks:**
 
-- [ ] Create Dockerfile for coordinator service
-- [ ] Add PostgreSQL service to docker-compose
-- [ ] Add coordinator service to docker-compose
-- [ ] Configure networking between services
-- [ ] Document all API endpoints
-- [ ] Document WebSocket protocol
-- [ ] Document deployment instructions
-- [ ] **Create solver migration guide** - document how solvers transition from current flow (arbitrary transfer + signature) to new GMP flow (approve + call validation contract)
-- [ ] **Document that old solvers cannot work** - old solvers must upgrade to new GMP flow (no backward compatibility)
+- [ ] Confirm architecture: coordinator + integrated-gmp only (no monolithic signer code or directory)
+- [ ] Update CHANGELOG with GMP integration notes
+- [ ] Update README with new architecture diagram
+- [ ] Verify coordinator has no private keys (integrated-gmp requires operator wallet privkeys per chain)
+- [ ] Final security review of coordinator + integrated-gmp
 
 **Test:**
 
@@ -215,24 +222,25 @@
 # Run all unit tests
 ./testing-infra/run-all-unit-tests.sh
 
-# Docker smoke test
-docker-compose up -d coordinator
-curl http://localhost:8080/health
-docker-compose down
+# Architecture check: coordinator + integrated-gmp only (no monolithic signer directory)
+test ! -d verifier && echo "OK: coordinator + integrated-gmp only"
+
+# Coordinator must not reference private keys
+grep -r "private_key\|secret_key\|signing_key" coordinator/ && exit 1 || echo "OK: coordinator has no keys"
 ```
 
-> ⚠️ **CI e2e tests must pass before Phase 4 is complete.**
+> ⚠️ **CI e2e tests must pass before Phase 4 is complete (7 commits total).** Run `/review-tests-new` then `/review-commit-tasks` then `/commit` to finalize.
 
 ---
 
 ## Run All Tests
 
 ```bash
-# Run all unit tests (includes coordinator, trusted-gmp, solver, MVM, EVM, SVM, frontend)
+# Run all unit tests (includes coordinator, integrated-gmp, solver, MVM, EVM, SVM, frontend)
 ./testing-infra/run-all-unit-tests.sh
 ```
 
-> ⚠️ **CI runs e2e tests automatically. All e2e tests (MVM, EVM, SVM - inflow + outflow) must pass before merging.**
+> ⚠️ **CI runs e2e tests automatically. All e2e tests (MVM, EVM, SVM - inflow + outflow, plus GMP cross-chain tests) must pass before merging.**
 
 ---
 
@@ -240,22 +248,24 @@ docker-compose down
 
 At the end of Phase 4, update:
 
-- [ ] `docs/coordinator/README.md` - Coordinator service overview
-- [ ] `docs/coordinator/api-reference.md` - Full API documentation
-- [ ] `docs/solver/migration-guide.md` - How solvers migrate to GMP flow
-- [ ] `docker-compose.yml` - Document coordinator + PostgreSQL setup
-- [ ] Review conception documents for accuracy after changes
-- [ ] Check if other files reference legacy signer API and update them
+- [ ] `docs/gmp/architecture.md` - Complete GMP architecture documentation
+- [ ] `docs/gmp/solver-guide.md` - Complete solver integration guide
+- [ ] `docs/gmp/troubleshooting.md` - Common issues and solutions
+- [ ] `README.md` - Update with new architecture diagram
+- [ ] `CHANGELOG.md` - Document GMP integration milestone
+- [ ] Review ALL conception documents for accuracy after full GMP migration
+- [ ] Final audit: No references to monolithic signer; architecture is coordinator + integrated-gmp only
 
 ---
 
 ## Exit Criteria
 
 - [ ] All 7 commits merged to feature branch
-- [ ] Coordinator service runs and indexes events from all chains
-- [ ] All API endpoints return correct data
-- [ ] Documentation updated
-- [ ] WebSocket subscriptions work
-- [ ] Frontend uses coordinator API successfully
-- [ ] Solver SDK uses coordinator API successfully
-- [ ] Docker setup works for local development
+- [ ] Integrated-gmp stripped to relay-only (no client-facing API besides /health)
+- [ ] Frontend uses coordinator as single API (no direct integrated-gmp calls)
+- [ ] Solver uses coordinator as single API (no direct integrated-gmp calls)
+- [ ] Programs/modules/contracts deployed to testnets for all chains: SVM, MVM, EVM (Commit 4)
+- [ ] Documentation complete
+- [ ] Existing architecture docs updated with GMP endpoint configuration
+- [ ] Architecture confirmed: coordinator + integrated-gmp only (no monolithic signer)
+- [ ] All conception documents reviewed and updated
