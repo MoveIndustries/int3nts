@@ -143,7 +143,7 @@ Only one solver can fulfill an intent, even if multiple solvers attempt simultan
 - **Insufficient solver collateral**: Request-intent creation aborts if the solver does not meet collateral requirements on the hub chain.
 - **Intent expiry reached**: Fulfillment or escrow release is rejected after `expiry_time`.
 - **Invalid witness / proof**: Wrong witness type or proof format is provided for the flow; the fulfillment or validation call aborts.
-- **Integrated-gmp unavailable or lagging**: Approval signatures are delayed; escrow release must wait until verification completes.
+- **Integrated-gmp relay unavailable or lagging**: GMP message delivery is delayed; escrow release must wait until the relay delivers the FulfillmentProof. On-chain expiry handles stuck intents.
 - **Chain mismatch or metadata mismatch**: Offered/desired token metadata or chain ID does not match the intent; validation rejects the action.
 
 ## Risks

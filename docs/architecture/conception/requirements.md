@@ -86,16 +86,16 @@ The system must provide coordinator and integrated-gmp services with the followi
 
 #### 3.1.4 Fault Tolerance
 
-- Integrated-gmp service must handle validation timeouts (configurable, default 30 seconds)
-- Support idempotent approval/rejection signature generation
-- Handle network failures in cross-chain validation
+- Integrated-gmp relay must handle message delivery retries and timeouts
+- Support idempotent GMP message delivery (duplicate messages ignored on-chain)
+- Handle network failures in cross-chain message delivery
 - Provide mechanisms to recover from missed events (event replay capabilities)
 
 #### 3.1.5 Data Persistence
 
-- Coordinator must maintain state for last observed events across restarts; integrated-gmp maintains approval state
-- Cache intent and escrow event data for validation and signature retrieval
-- Support persistence of approval/rejection decisions
+- Coordinator must maintain state for last observed events across restarts; integrated-gmp maintains message delivery state
+- Cache intent and escrow event data for coordination and UX
+- Support persistence of GMP message delivery status
 
 ### 3.2 Usability
 
@@ -156,9 +156,10 @@ The system must provide coordinator and integrated-gmp services with the followi
 
 #### 3.3.3 Cryptographic Standards
 
-- Use Ed25519 signature algorithm for solver authorization and integrated-gmp approvals
+- Use Ed25519 signature algorithm for solver authorization
 - Support standard Ed25519 key formats (base64 encoding for configuration)
 - Compatible with Move's native Ed25519 signature verification
+- GMP message authentication via endpoint source verification (no off-chain signatures)
 - Support signature verification for oracle attestations
 
 #### 3.3.4 Asset Standard Compatibility
@@ -185,7 +186,7 @@ The system must provide coordinator and integrated-gmp services with the followi
 
 #### 6.1.1 Coordinator and Integrated-GMP Unit Tests
 
-- Unit tests for coordinator (event monitoring, draft storage) and integrated-gmp (cross-chain validation, cryptographic signing)
+- Unit tests for coordinator (event monitoring, draft storage) and integrated-gmp (GMP message relay, event watching)
 
 #### 6.1.2 Move Intent Framework Unit Tests
 
