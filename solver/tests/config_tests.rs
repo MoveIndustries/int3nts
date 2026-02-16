@@ -55,6 +55,8 @@ fn test_config_validation_multiple_connected_chains() {
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         private_key_env: "SOLVER_EVM_PRIVATE_KEY".to_string(),
         network_name: "localhost".to_string(),
+        outflow_validator_addr: None,
+        gmp_endpoint_addr: None,
     }));
 
     assert!(config.validate().is_ok());
@@ -110,6 +112,8 @@ fn test_config_validation_rejects_svm_invalid_hex_length() {
         chain_id: 901,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
         private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
+        gmp_endpoint_program_id: None,
+        outflow_validator_program_id: None,
     }));
     config.acceptance.token_pairs = vec![TokenPairConfig {
         source_chain_id: 1,
@@ -135,6 +139,8 @@ fn test_config_validation_rejects_invalid_svm_base58_token() {
         chain_id: 901,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
         private_key_env: "SOLANA_SOLVER_PRIVATE_KEY".to_string(),
+        gmp_endpoint_program_id: None,
+        outflow_validator_program_id: None,
     }));
     config.acceptance.token_pairs = vec![TokenPairConfig {
         source_chain_id: 1,
@@ -233,6 +239,8 @@ fn test_get_token_pairs_token_address() {
         escrow_contract_addr: DUMMY_ESCROW_CONTRACT_ADDR_EVM.to_string(),
         private_key_env: "SOLVER_EVM_PRIVATE_KEY".to_string(),
         network_name: "localhost".to_string(),
+        outflow_validator_addr: None,
+        gmp_endpoint_addr: None,
     }));
     config.acceptance.token_pairs = vec![TokenPairConfig {
         source_chain_id: 1,
@@ -304,18 +312,18 @@ profile = "connected-profile"
 fn test_connected_chain_evm_deserialization() {
     let toml_str = format!(r#"
 name = "Connected EVM Chain"
-rpc_url = "https://sepolia.base.org"
+rpc_url = "https://base-sepolia.g.alchemy.com/v2/test-key"
 chain_id = 84532
 escrow_contract_addr = "{}"
-private_key_env = "BASE_SOLVER_PRIVATE_KEY"
+private_key_env = "SOLVER_EVM_PRIVATE_KEY"
 "#, DUMMY_ESCROW_CONTRACT_ADDR_EVM);
 
     let config: EvmChainConfig = toml::from_str(&toml_str).unwrap();
-    
+
     assert_eq!(config.chain_id, 84532);
     assert_eq!(config.name, "Connected EVM Chain");
     assert_eq!(config.escrow_contract_addr, DUMMY_ESCROW_CONTRACT_ADDR_EVM);
-    assert_eq!(config.private_key_env, "BASE_SOLVER_PRIVATE_KEY");
+    assert_eq!(config.private_key_env, "SOLVER_EVM_PRIVATE_KEY");
 }
 
 /// What is tested: SvmChainConfig can deserialize from TOML
@@ -363,7 +371,6 @@ fn test_config_load_from_file() {
         r#"
 [service]
 coordinator_url = "http://127.0.0.1:3333"
-trusted_gmp_url = "http://127.0.0.1:3334"
 polling_interval_ms = 2000
 
 [hub_chain]

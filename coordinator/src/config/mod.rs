@@ -71,8 +71,22 @@ pub struct EvmChainConfig {
     pub rpc_url: String,
     /// Address of the IntentEscrow contract (single contract, one escrow per intentId)
     pub escrow_contract_addr: String,
+    /// Address of the IntentOutflowValidator contract (for requirements received events)
+    #[serde(default = "default_outflow_validator_addr")]
+    pub outflow_validator_contract_addr: String,
     /// Chain ID (e.g., 31337 for Hardhat, 1 for Ethereum mainnet)
     pub chain_id: u64,
+    /// Number of blocks to query for events (default: 1000, max depends on RPC provider)
+    #[serde(default = "default_event_block_range")]
+    pub event_block_range: u64,
+}
+
+fn default_event_block_range() -> u64 {
+    1000
+}
+
+fn default_outflow_validator_addr() -> String {
+    "0x0000000000000000000000000000000000000000".to_string()
 }
 
 /// Configuration for a Solana chain (SVM).

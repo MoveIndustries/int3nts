@@ -14,15 +14,15 @@ cd "$PROJECT_ROOT"
 
 # Verify services are running before proceeding
 verify_coordinator_running
-verify_trusted_gmp_running
+verify_integrated_gmp_running
 verify_solver_running
 verify_solver_registered
 
 # Generate a random intent_id that will be used for both hub and escrow
 INTENT_ID="0x$(openssl rand -hex 32)"
 
-# EVM mode: CONNECTED_CHAIN_ID=3
-CONNECTED_CHAIN_ID=3
+# EVM mode: CONNECTED_CHAIN_ID=31337 (matches Hardhat default network chain ID)
+CONNECTED_CHAIN_ID=31337
 
 # Get addresses
 HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
@@ -137,7 +137,7 @@ RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_hub_addr')
 RETRIEVED_SOLVER_EVM=$(echo "$SIGNATURE_DATA" | jq -r '.solver_evm_addr // empty')
 
 if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
-    log_and_echo "❌ ERROR: Failed to retrieve signature from coordinator/trusted-gmp"
+    log_and_echo "❌ ERROR: Failed to retrieve signature from coordinator/integrated-gmp"
     log_and_echo ""
     log_and_echo " Diagnostics:"
     
@@ -165,8 +165,8 @@ if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
         log_and_echo "   ️  Solver log file not found: $SOLVER_LOG_FILE"
     fi
     
-    # Show coordinator and trusted-gmp logs
-    for f in "$PROJECT_ROOT/.tmp/e2e-tests/coordinator.log" "$PROJECT_ROOT/.tmp/e2e-tests/trusted-gmp.log"; do
+    # Show coordinator and integrated-gmp logs
+    for f in "$PROJECT_ROOT/.tmp/e2e-tests/coordinator.log" "$PROJECT_ROOT/.tmp/e2e-tests/integrated-gmp.log"; do
         if [ -f "$f" ]; then
             log_and_echo ""
             log_and_echo "    $(basename "$f") (last 30 lines):"
@@ -202,9 +202,12 @@ log "     Desired metadata: $DESIRED_METADATA_HUB"
 log "     Solver address: $RETRIEVED_SOLVER"
 
 SOLVER_SIGNATURE_HEX="${RETRIEVED_SIGNATURE#0x}"
+# Zero-pad 20-byte EVM address to 32-byte Move address
+SOLVER_EVM_RAW="${SOLVER_EVM_ADDR#0x}"
+SOLVER_EVM_PADDED="0x000000000000000000000000${SOLVER_EVM_RAW}"
 aptos move run --profile requester-chain1 --assume-yes \
     --function-id "0x${HUB_MODULE_ADDR}::fa_intent_inflow::create_inflow_intent_entry" \
-    --args "address:${OFFERED_METADATA_EVM}" "u64:${OFFERED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "address:${DESIRED_METADATA_HUB}" "u64:${DESIRED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${RETRIEVED_SOLVER}" "hex:${SOLVER_SIGNATURE_HEX}" "address:${REQUESTER_EVM_ADDR}" >> "$LOG_FILE" 2>&1
+    --args "address:${OFFERED_METADATA_EVM}" "u64:${OFFERED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "address:${DESIRED_METADATA_HUB}" "u64:${DESIRED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${RETRIEVED_SOLVER}" "address:${SOLVER_EVM_PADDED}" "hex:${SOLVER_SIGNATURE_HEX}" "address:${REQUESTER_EVM_ADDR}" >> "$LOG_FILE" 2>&1
 
 # ============================================================================
 # SECTION 6: VERIFY RESULTS
@@ -220,7 +223,7 @@ if [ $? -eq 0 ]; then
     
     if [ -n "$HUB_INTENT_ADDR" ] && [ "$HUB_INTENT_ADDR" != "null" ]; then
         log "     ✅ Hub intent stored at: $HUB_INTENT_ADDR"
-        log_and_echo "✅ Intent created (via coordinator/trusted-gmp negotiation)"
+        log_and_echo "✅ Intent created (via coordinator/integrated-gmp negotiation)"
     else
         log_and_echo "     ❌ ERROR: Could not verify hub intent address"
         exit 1
@@ -231,7 +234,7 @@ else
     log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
     cat "$LOG_FILE"
     log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
-    # Include service logs (coordinator, trusted-gmp, solver) for easier debugging
+    # Include service logs (coordinator, integrated-gmp, solver) for easier debugging
     display_service_logs "EVM inflow hub intent creation failed"
     exit 1
 fi

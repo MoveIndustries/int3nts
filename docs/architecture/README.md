@@ -92,7 +92,7 @@ Documentation describing the conceptual design of the Intent Framework, includin
 - [Protocol Specification](../../docs/protocol.md#cross-chain-flow) - Cross-chain intent protocol implementation details
 - [Intent Frameworks](../../docs/intent-frameworks/README.md) - MVM, EVM, and SVM implementations
 - [Coordinator](../../docs/coordinator/README.md) - Event monitoring and coordination service
-- [Trusted GMP](../../docs/trusted-gmp/README.md) - Validation and signing service
+- [Integrated GMP](../../docs/integrated-gmp/README.md) - Validation and signing service
 
 ## Document Relationships
 

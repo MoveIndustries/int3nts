@@ -76,6 +76,23 @@ struct AccountInfoResult {
     value: Option<RpcAccount>,
 }
 
+#[derive(Debug, Deserialize)]
+struct SignatureInfo {
+    signature: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct TransactionResult {
+    meta: Option<TransactionMeta>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+struct TransactionMeta {
+    #[serde(rename = "logMessages")]
+    log_messages: Option<Vec<String>>,
+}
+
 // ============================================================================
 // CLIENT
 // ============================================================================
@@ -161,6 +178,83 @@ impl SvmClient {
         }
 
         Ok(escrows)
+    }
+
+    /// Get recent transaction signatures for the program
+    pub async fn get_signatures_for_address(&self, limit: u64) -> Result<Vec<String>> {
+        let params = serde_json::json!([
+            self.program_id.to_string(),
+            { "limit": limit }
+        ]);
+
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "getSignaturesForAddress".to_string(),
+            params,
+            id: 1,
+        };
+
+        let response: JsonRpcResponse<Vec<SignatureInfo>> = self
+            .client
+            .post(&self.rpc_url)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to call getSignaturesForAddress")?
+            .json()
+            .await
+            .context("Failed to parse getSignaturesForAddress response")?;
+
+        if let Some(error) = response.error {
+            return Err(anyhow::anyhow!("SVM RPC error: {}", error.message));
+        }
+
+        let signatures = response
+            .result
+            .unwrap_or_default()
+            .into_iter()
+            .map(|sig_info| sig_info.signature)
+            .collect();
+
+        Ok(signatures)
+    }
+
+    /// Get transaction details including logs
+    pub async fn get_transaction(&self, signature: &str) -> Result<Vec<String>> {
+        let params = serde_json::json!([
+            signature,
+            { "encoding": "json" }
+        ]);
+
+        let request = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "getTransaction".to_string(),
+            params,
+            id: 1,
+        };
+
+        let response: JsonRpcResponse<TransactionResult> = self
+            .client
+            .post(&self.rpc_url)
+            .json(&request)
+            .send()
+            .await
+            .context("Failed to call getTransaction")?
+            .json()
+            .await
+            .context("Failed to parse getTransaction response")?;
+
+        if let Some(error) = response.error {
+            return Err(anyhow::anyhow!("SVM RPC error: {}", error.message));
+        }
+
+        let logs = response
+            .result
+            .and_then(|r| r.meta)
+            .and_then(|m| m.log_messages)
+            .unwrap_or_default();
+
+        Ok(logs)
     }
 
     #[allow(dead_code)]

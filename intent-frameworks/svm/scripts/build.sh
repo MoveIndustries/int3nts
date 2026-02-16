@@ -39,8 +39,35 @@ echo "[build.sh] Environment:"
 echo "  cargo-build-sbf: $(which cargo-build-sbf 2>/dev/null || echo 'not found')"
 echo "  solana: $(solana --version 2>/dev/null || echo 'not found')"
 
-echo "[build.sh] Running cargo build-sbf..."
-cargo build-sbf --manifest-path programs/intent_escrow/Cargo.toml -- --locked
+# Helper function to clear stale toolchain before each build.
+# cargo build-sbf registers a platform-tools toolchain that can become stale
+# on subsequent invocations, causing registration conflicts. The Solana SDK
+# has a bug parsing linked toolchain paths from `rustup toolchain list`.
+clear_stale_toolchain() {
+    # Uninstall all solana-related toolchains via rustup (handles linked toolchains properly)
+    # Extract just the toolchain name (first field) to avoid the tab+path issue
+    rustup toolchain list | grep -E 'sbpf|solana' | cut -f1 | while read -r tc; do
+        rustup toolchain uninstall "$tc" 2>/dev/null || true
+    done
+    # Remove marker files so install.sh re-links the toolchain cleanly
+    local deps_dir="$HOME/.local/share/solana/install/active_release/bin/platform-tools-sdk/sbf/dependencies"
+    rm -f "$deps_dir"/platform-tools-*.md 2>/dev/null || true
+}
+
+echo "[build.sh] Running cargo build-sbf for intent_inflow_escrow..."
+clear_stale_toolchain
+cargo build-sbf --manifest-path programs/intent_inflow_escrow/Cargo.toml -- --locked
+
+echo "[build.sh] Running cargo build-sbf for intent-gmp..."
+clear_stale_toolchain
+cargo build-sbf --manifest-path programs/intent-gmp/Cargo.toml -- --locked
+
+echo "[build.sh] Running cargo build-sbf for intent-outflow-validator..."
+clear_stale_toolchain
+cargo build-sbf --manifest-path programs/intent-outflow-validator/Cargo.toml -- --locked
 
 echo "[build.sh] Build complete!"
-echo "[build.sh] Output: target/deploy/intent_escrow.so"
+echo "[build.sh] Output:"
+echo "  - target/deploy/intent_inflow_escrow.so"
+echo "  - target/deploy/intent_gmp.so"
+echo "  - target/deploy/intent_outflow_validator.so"

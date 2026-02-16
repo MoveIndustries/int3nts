@@ -10,6 +10,8 @@ export default defineConfig({
       // Test-only placeholder addresses (valid format, not real deployments)
       NEXT_PUBLIC_INTENT_CONTRACT_ADDRESS: '0x' + 'aa'.repeat(32),
       NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS: '0x' + 'bb'.repeat(20),
+      NEXT_PUBLIC_SVM_PROGRAM_ID: '11111111111111111111111111111111',
+      NEXT_PUBLIC_SVM_GMP_ENDPOINT_ID: '22222222222222222222222222222222',
     },
   },
   resolve: {

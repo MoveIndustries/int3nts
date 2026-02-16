@@ -21,8 +21,8 @@ This document covers development setup, testing, configuration, and dependencies
 2. **Run Tests**
 
    ```bash
-   # From project root
-   nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
+   # From project root (runs all 3 packages)
+   ./intent-frameworks/mvm/scripts/test.sh
    ```
 
 ## Testing
@@ -32,19 +32,31 @@ This document covers development setup, testing, configuration, and dependencies
 Run all tests with:
 
 ```bash
-movement move test --dev --named-addresses mvmt_intent=0x123
+# From project root (script handles nix shell automatically)
+./intent-frameworks/mvm/scripts/test.sh
 ```
 
 ### Test Structure
 
-The test suite includes:
+The test suite is split across three packages:
 
-- **Core Intent Tests**: [`intent_tests.move`](../../intent-frameworks/mvm/tests/intent_tests.move) - Tests for the base intent framework
-- **Fungible Asset Tests**: [`fa_tests.move`](../../intent-frameworks/mvm/tests/fa_tests.move) - Tests for fungible asset trading
-- **Reservation Tests**: [`intent_reservation_tests.move`](../../intent-frameworks/mvm/tests/intent_reservation_tests.move) - Tests for the reservation system
-- **Oracle Tests**: [`fa_intent_with_oracle_tests.move`](../../intent-frameworks/mvm/tests/fa_intent_with_oracle_tests.move) - Tests for oracle-based intents
-- **Entry Flow Tests**: [`fa_entryflow_tests.move`](../../intent-frameworks/mvm/tests/fa_entryflow_tests.move) - Tests for complete intent flows
-- **Test Utilities**: [`test_utils.move`](../../intent-frameworks/mvm/tests/test_utils.move) - Shared test helper functions
+**intent-hub tests** (hub chain functionality):
+
+- **Core Intent Tests**: [`intent_tests.move`](../../intent-frameworks/mvm/intent-hub/tests/intent_tests.move) - Tests for the base intent framework
+- **Fungible Asset Tests**: [`fa_tests.move`](../../intent-frameworks/mvm/intent-hub/tests/fa_tests.move) - Tests for fungible asset trading
+- **Reservation Tests**: [`intent_reservation_tests.move`](../../intent-frameworks/mvm/intent-hub/tests/intent_reservation_tests.move) - Tests for the reservation system
+- **Oracle Tests**: [`fa_intent_with_oracle_tests.move`](../../intent-frameworks/mvm/intent-hub/tests/fa_intent_with_oracle_tests.move) - Tests for oracle-based intents
+- **Entry Flow Tests**: [`fa_entryflow_tests.move`](../../intent-frameworks/mvm/intent-hub/tests/fa_entryflow_tests.move) - Tests for complete intent flows
+
+**intent-gmp tests** (shared GMP encoding):
+
+- **GMP Common Tests**: [`gmp_common_tests.move`](../../intent-frameworks/mvm/intent-gmp/tests/gmp_common_tests.move) - Tests for GMP message encoding/decoding
+
+**intent-connected tests** (connected chain functionality):
+
+- **Inflow Escrow Tests**: [`intent_inflow_escrow_tests.move`](../../intent-frameworks/mvm/intent-connected/tests/intent_inflow_escrow_tests.move) - Tests for inflow escrow
+- **Outflow Validator Tests**: [`intent_outflow_validator_tests.move`](../../intent-frameworks/mvm/intent-connected/tests/intent_outflow_validator_tests.move) - Tests for outflow validation
+- **GMP Endpoint Tests**: [`intent_gmp_tests.move`](../../intent-frameworks/mvm/intent-connected/tests/intent_gmp_tests.move) - Tests for GMP message routing
 
 ### Test Categories
 
