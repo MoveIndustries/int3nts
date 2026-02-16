@@ -48,4 +48,8 @@ fn test_poll_and_execute_transfers_empty() {
     assert_eq!(result.len(), 0);
 }
 
+// Note: Integration tests for get_trusted_gmp_approval() (trusted-gmp) are covered in coordinator_gmp_client_tests.rs
+// which test the underlying CoordinatorGmpClient::validate_outflow_fulfillment() method.
+// The OutflowService::get_trusted_gmp_approval() (trusted-gmp) is a thin wrapper that decodes the signature,
+// so testing CoordinatorGmpClient directly is sufficient.
 

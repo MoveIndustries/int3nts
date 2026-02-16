@@ -4,12 +4,6 @@
 //! (e.g., Aptos) via their HTTP REST API. It handles account queries, event polling, and
 //! transaction verification.
 //!
-//! TODO: Split into `mvm_hub_client` (solver registry, intent events on hub chain) and
-//! `mvm_con_client` (escrow events on connected MVM chain). Currently one MvmClient
-//! is used for both, which conflates two different RPC endpoints / chains.
-//! Also rename `evm_client` → `evm_con_client` and `svm_client` → `svm_con_client`
-//! for consistency.
-//!
 //! ## Features
 //!
 //! - Query account information
@@ -845,7 +839,7 @@ impl MvmClient {
         };
 
         // Parse EVM address bytes (handles both array and hex string formats)
-        let evm_bytes = match Self::parse_address_bytes(vec_array, solver_addr, 20, "EVM")? {
+        let evm_bytes = match Self::parse_evm_address_bytes(vec_array, solver_addr)? {
             Some(bytes) => bytes,
             None => return Ok(None),
         };
@@ -859,79 +853,6 @@ impl MvmClient {
             hex_string
         );
 
-        Ok(Some(hex_string))
-    }
-
-    /// Queries the solver registry to get a solver's SVM address.
-    ///
-    /// # Arguments
-    ///
-    /// * `solver_addr` - Move VM address of the solver
-    /// * `solver_registry_addr` - Address where the solver registry is deployed (usually @mvmt_intent)
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(Option<String>)` - SVM address (0x-prefixed hex) if registered, None otherwise
-    /// * `Err(anyhow::Error)` - Failed to query registry
-    pub async fn get_solver_svm_address(
-        &self,
-        solver_addr: &str,
-        solver_registry_addr: &str,
-    ) -> Result<Option<String>> {
-        let solver_addr_normalized = solver_addr
-            .strip_prefix("0x")
-            .unwrap_or(solver_addr)
-            .to_lowercase();
-
-        let resources = self.get_resources(solver_registry_addr).await?;
-
-        let registry_resource = match Self::find_solver_registry_resource(&resources, solver_registry_addr) {
-            Some(resource) => resource,
-            None => return Ok(None),
-        };
-
-        let data_array = match Self::extract_solvers_data_array(registry_resource) {
-            Some(array) => array,
-            None => return Ok(None),
-        };
-
-        let entry_obj = match Self::find_solver_entry(data_array, solver_addr, &solver_addr_normalized) {
-            Some(entry) => entry,
-            None => return Ok(None),
-        };
-
-        let solver_info = match entry_obj.get("value").and_then(|v| v.as_object()) {
-            Some(info) => info,
-            None => return Ok(None),
-        };
-
-        let svm_addr_field = match solver_info.get("connected_chain_svm_addr") {
-            Some(field) => field,
-            None => {
-                tracing::debug!(
-                    "connected_chain_svm_addr field not found for solver '{}'",
-                    solver_addr
-                );
-                return Ok(None);
-            }
-        };
-
-        let svm_addr = match svm_addr_field.as_object() {
-            Some(obj) => obj,
-            None => return Ok(None),
-        };
-
-        let vec_array = match svm_addr.get("vec") {
-            Some(vec) => vec,
-            None => return Ok(None),
-        };
-
-        let svm_bytes = match Self::parse_address_bytes(vec_array, solver_addr, 32, "SVM")? {
-            Some(bytes) => bytes,
-            None => return Ok(None),
-        };
-
-        let hex_string = format!("0x{}", svm_bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>());
         Ok(Some(hex_string))
     }
 
@@ -1053,7 +974,7 @@ impl MvmClient {
         solver_entry
     }
 
-    /// Parse address bytes from Option<vector<u8>> serialization.
+    /// Parse EVM address bytes from Option<vector<u8>> serialization.
     ///
     /// # Important
     ///
@@ -1065,11 +986,9 @@ impl MvmClient {
     ///
     /// This inconsistency in Aptos serialization caused EVM outflow validation to fail
     /// when addresses were returned as hex strings. We now handle both formats.
-    fn parse_address_bytes(
+    fn parse_evm_address_bytes(
         vec_array: &serde_json::Value,
         solver_addr: &str,
-        expected_len: usize,
-        chain_label: &str,
     ) -> Result<Option<Vec<u8>>> {
         let vec_array = vec_array.as_array().ok_or_else(|| {
             anyhow::anyhow!("vec field is not an array")
@@ -1077,23 +996,22 @@ impl MvmClient {
 
         if vec_array.is_empty() {
             tracing::debug!(
-                "Solver '{}' found but {} address vec is empty (None)",
-                solver_addr, chain_label
+                "Solver '{}' found but connected_chain_evm_addr vec is empty (None)",
+                solver_addr
             );
             return Ok(None);
         }
 
         tracing::debug!(
-            "{} address vec for solver '{}': length={}, vec[0]={}",
-            chain_label,
+            "connected_chain_evm_addr vec for solver '{}': length={}, vec[0]={}",
             solver_addr,
             vec_array.len(),
             serde_json::to_string(vec_array.get(0).unwrap_or(&serde_json::Value::Null)).unwrap_or_else(|_| "failed to serialize".to_string())
         );
 
-        let bytes_opt = vec_array.get(0);
-
-        let addr_bytes: Vec<u8> = if let Some(bytes_val) = bytes_opt {
+        let evm_bytes_opt = vec_array.get(0);
+        
+        let evm_bytes: Vec<u8> = if let Some(bytes_val) = evm_bytes_opt {
             // Try to parse as array of u64 (most common case for Move vector<u8>)
             if let Some(bytes_array) = bytes_val.as_array() {
                 let mut result = Vec::new();
@@ -1101,8 +1019,9 @@ impl MvmClient {
                     if let Some(byte) = byte_val.as_u64() {
                         if byte > 255 {
                             tracing::error!(
-                                "Invalid byte value {} (>255) in {} address for solver '{}'",
-                                byte, chain_label, solver_addr
+                                "Invalid byte value {} (>255) in EVM address for solver '{}'",
+                                byte,
+                                solver_addr
                             );
                             return Ok(None);
                         }
@@ -1110,19 +1029,22 @@ impl MvmClient {
                     } else {
                         let vec0_json = serde_json::to_string(byte_val).unwrap_or_else(|_| "failed to serialize".to_string());
                         tracing::error!(
-                            "Non-u64 value in {} address bytes array for solver '{}': {}",
-                            chain_label, solver_addr, vec0_json
+                            "Non-u64 value in EVM address bytes array for solver '{}': {}",
+                            solver_addr,
+                            vec0_json
                         );
                         return Ok(None);
                     }
                 }
                 result
             } else if let Some(hex_str) = bytes_val.as_str() {
+                // Try to parse as hex string (e.g., "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc")
                 let hex_clean = hex_str.strip_prefix("0x").unwrap_or(hex_str);
                 if hex_clean.len() % 2 != 0 {
                     tracing::error!(
-                        "Invalid hex string length {} in {} address for solver '{}'",
-                        hex_clean.len(), chain_label, solver_addr
+                        "Invalid hex string length {} in EVM address for solver '{}'",
+                        hex_clean.len(),
+                        solver_addr
                     );
                     return Ok(None);
                 }
@@ -1133,41 +1055,45 @@ impl MvmClient {
             } else {
                 let vec0_json = serde_json::to_string(bytes_val).unwrap_or_else(|_| "failed to serialize".to_string());
                 tracing::error!(
-                    "{} address vec[0] is neither an array nor a string for solver '{}'. vec[0] value: {}",
-                    chain_label, solver_addr, vec0_json
+                    "connected_chain_evm_addr vec[0] is neither an array nor a string for solver '{}'. vec[0] value: {}",
+                    solver_addr,
+                    vec0_json
                 );
                 return Ok(None);
             }
         } else {
             tracing::error!(
-                "{} address vec is non-empty but vec[0] is missing for solver '{}'",
-                chain_label, solver_addr
+                "connected_chain_evm_addr vec is non-empty but vec[0] is missing for solver '{}'",
+                solver_addr
             );
             return Ok(None);
         };
 
-        if addr_bytes.is_empty() {
+        if evm_bytes.is_empty() {
             tracing::error!(
-                "Solver '{}' found but {} address bytes array is empty",
-                solver_addr, chain_label
+                "Solver '{}' found but connected_chain_evm_addr bytes array is empty",
+                solver_addr
             );
             return Ok(None);
         }
 
-        if addr_bytes.len() != expected_len {
+        if evm_bytes.len() != 20 {
             tracing::error!(
-                "Solver '{}' found but {} address has invalid length {} (expected {} bytes)",
-                solver_addr, chain_label, addr_bytes.len(), expected_len
+                "Solver '{}' found but connected_chain_evm_addr has invalid length {} (expected 20 bytes for EVM address)",
+                solver_addr,
+                evm_bytes.len()
             );
             return Ok(None);
         }
 
         tracing::debug!(
-            "Successfully parsed {} address bytes for solver '{}': length={}",
-            chain_label, solver_addr, addr_bytes.len()
+            "Successfully parsed EVM address bytes for solver '{}': length={}, first 5 bytes: {:?}",
+            solver_addr,
+            evm_bytes.len(),
+            evm_bytes.iter().take(5).copied().collect::<Vec<_>>()
         );
 
-        Ok(Some(addr_bytes))
+        Ok(Some(evm_bytes))
     }
 
     /// Calls a view function on the Move VM blockchain.

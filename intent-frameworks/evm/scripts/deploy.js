@@ -1,152 +1,79 @@
-//! GMP contract deployment utility
+//! IntentEscrow contract deployment utility
 //!
-//! This script deploys all GMP-related contracts: IntentGmp, IntentInflowEscrow, IntentOutflowValidator.
-//! Configures remote GMP endpoint addresses and message routing for cross-chain communication.
+//! This script deploys the IntentEscrow contract with a specified approver address.
+//! If no approver address is provided via environment variable, uses the deployer account.
 
 const hre = require("hardhat");
 
-/// Deploys all GMP contracts and configures routing
+/// Deploys IntentEscrow contract with approver
 ///
 /// # Environment Variables
-/// - `HUB_CHAIN_ID`: Hub chain endpoint ID (default: 250 for Movement Bardock)
-/// - `MOVEMENT_INTENT_MODULE_ADDR`: Movement intent module address in hex format (required)
-/// - `RELAY_ADDRESS`: Optional relay address to authorize (defaults to deployer)
+/// - `APPROVER_ADDR`: Optional approver Ethereum address (defaults to deployer address)
 ///
 /// # Returns
-/// Outputs deployed contract addresses and configuration status.
+/// Outputs contract address, approver address, and deployment status on success.
 async function main() {
-  console.log("Deploying GMP Contracts...");
-  console.log("==========================");
+  console.log("Deploying IntentEscrow...");
 
   // Get signers
   const [deployer] = await hre.ethers.getSigners();
-  console.log("Deploying with account:", deployer.address);
-
-  // Configuration
-  const hubChainId = parseInt(process.env.HUB_CHAIN_ID || "250");
-  const movementModuleAddrHex = process.env.MOVEMENT_INTENT_MODULE_ADDR;
-  const relayAddress = process.env.RELAY_ADDRESS || deployer.address;
-
-  if (!movementModuleAddrHex) {
-    throw new Error("MOVEMENT_INTENT_MODULE_ADDR environment variable required (hex, 0x-prefixed)");
-  }
-
-  // Convert Movement module address to bytes32
-  let movementModuleAddr = movementModuleAddrHex;
-  if (!movementModuleAddr.startsWith("0x")) {
-    movementModuleAddr = "0x" + movementModuleAddr;
-  }
-  // Pad to 64 hex characters (32 bytes)
-  movementModuleAddr = "0x" + movementModuleAddr.slice(2).padStart(64, '0');
-
-  console.log("\nConfiguration:");
-  console.log("  Hub Chain ID:", hubChainId);
-  console.log("  Movement Intent Module:", movementModuleAddr);
-  console.log("  Relay Address:", relayAddress);
-
-  // Deploy IntentGmp
-  console.log("\n1. Deploying IntentGmp...");
-  const IntentGmp = await hre.ethers.getContractFactory("IntentGmp");
-  const gmpEndpoint = await IntentGmp.deploy(deployer.address);
-  await gmpEndpoint.waitForDeployment();
-  await gmpEndpoint.deploymentTransaction().wait(1);
-  const gmpEndpointAddress = await gmpEndpoint.getAddress();
-  console.log("   IntentGmp deployed to:", gmpEndpointAddress);
-
-  // Deploy IntentInflowEscrow
-  console.log("\n2. Deploying IntentInflowEscrow...");
-  const IntentInflowEscrow = await hre.ethers.getContractFactory("IntentInflowEscrow");
-  const escrowGmp = await IntentInflowEscrow.deploy(
-    deployer.address,
-    gmpEndpointAddress,
-    hubChainId,
-    movementModuleAddr
-  );
-  await escrowGmp.waitForDeployment();
-  await escrowGmp.deploymentTransaction().wait(1);
-  const escrowGmpAddress = await escrowGmp.getAddress();
-  console.log("   IntentInflowEscrow deployed to:", escrowGmpAddress);
-
-  // Deploy IntentOutflowValidator
-  console.log("\n3. Deploying IntentOutflowValidator...");
-  const IntentOutflowValidator = await hre.ethers.getContractFactory("IntentOutflowValidator");
-  const outflowValidator = await IntentOutflowValidator.deploy(
-    deployer.address,
-    gmpEndpointAddress,
-    hubChainId,
-    movementModuleAddr
-  );
-  await outflowValidator.waitForDeployment();
-  await outflowValidator.deploymentTransaction().wait(1);
-  const outflowValidatorAddress = await outflowValidator.getAddress();
-  console.log("   IntentOutflowValidator deployed to:", outflowValidatorAddress);
-
-  // Configure GMP endpoint
-  console.log("\n4. Configuring GMP endpoint...");
-
-  // Set escrow handler
-  console.log("   Setting escrow handler...");
-  const escrowTx = await gmpEndpoint.setEscrowHandler(escrowGmpAddress);
-  await escrowTx.wait(1);
-  console.log("   Escrow handler set to:", escrowGmpAddress);
-
-  // Set outflow handler
-  console.log("   Setting outflow handler...");
-  const outflowTx = await gmpEndpoint.setOutflowHandler(outflowValidatorAddress);
-  await outflowTx.wait(1);
-  console.log("   Outflow handler set to:", outflowValidatorAddress);
-
-  // Set remote GMP endpoint address for hub chain
-  console.log("   Setting remote GMP endpoint address for hub chain...");
-  const remoteTx = await gmpEndpoint.setRemoteGmpEndpointAddr(hubChainId, movementModuleAddr);
-  await remoteTx.wait(1);
-  console.log("   Remote GMP endpoint address set for chain", hubChainId);
-
-  // Add relay if different from deployer
-  if (relayAddress.toLowerCase() !== deployer.address.toLowerCase()) {
-    console.log("   Adding authorized relay...");
-    const relayTx = await gmpEndpoint.addRelay(relayAddress);
-    await relayTx.wait(1);
-    console.log("   Relay added:", relayAddress);
+  
+  // Get approver address from environment variable or use deployer as fallback
+  const approverAddress = process.env.APPROVER_ADDR;
+  let approverAddr;
+  
+  if (approverAddress) {
+    approverAddr = approverAddress;
+    console.log("Using approver address from config:", approverAddr);
   } else {
-    console.log("   Deployer is already authorized as relay");
+    // Fallback to deployer as approver
+    // Account 0 = deployer/approver, Account 1 = requester, Account 2 = solver
+    approverAddr = deployer.address;
+    console.log("Using deployer as approver:", approverAddr);
+  }
+  
+  console.log("Deploying with account:", deployer.address);
+  console.log("Approver address:", approverAddr);
+
+  // Deploy escrow with approver address
+  const IntentEscrow = await hre.ethers.getContractFactory("IntentEscrow");
+  const escrow = await IntentEscrow.deploy(approverAddr);
+
+  await escrow.waitForDeployment();
+
+  const escrowAddress = await escrow.getAddress();
+  console.log("IntentEscrow deployed to:", escrowAddress);
+  console.log("Approver set to:", approverAddr);
+
+  // Wait a moment for RPC indexing
+  console.log("Waiting for RPC indexing...");
+  await new Promise(r => setTimeout(r, 5000));
+
+  // Verify deployment with retry
+  let approverFromContract;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      approverFromContract = await escrow.approver();
+      break;
+    } catch (err) {
+      if (attempt === 3) {
+        console.log("Warning: Could not verify contract state, but deployment succeeded.");
+        console.log("\n✅ Deployment successful!");
+        console.log("Contract address:", escrowAddress);
+        process.exit(0);
+      }
+      console.log(`Retry ${attempt}/3...`);
+      await new Promise(r => setTimeout(r, 3000));
+    }
+  }
+  console.log("Approver from contract:", approverFromContract);
+  
+  if (approverFromContract.toLowerCase() !== approverAddr.toLowerCase()) {
+    throw new Error("Approver address mismatch!");
   }
 
-  // Wait for RPC indexing
-  console.log("\nWaiting for RPC indexing...");
-  await new Promise(r => setTimeout(r, 3000));
-
-  // Verify configuration
-  console.log("\n5. Verifying configuration...");
-  const escrowHandler = await gmpEndpoint.escrowHandler();
-  const outflowHandler = await gmpEndpoint.outflowHandler();
-  const isRelayAuthorized = await gmpEndpoint.isRelayAuthorized(relayAddress);
-  const hasRemoteGmpEndpoint = await gmpEndpoint.hasRemoteGmpEndpoint(hubChainId);
-
-  console.log("   Escrow handler:", escrowHandler);
-  console.log("   Outflow handler:", outflowHandler);
-  console.log("   Relay authorized:", isRelayAuthorized);
-  console.log("   Has remote GMP endpoint for hub:", hasRemoteGmpEndpoint);
-
-  if (escrowHandler.toLowerCase() !== escrowGmpAddress.toLowerCase()) {
-    throw new Error("Escrow handler mismatch!");
-  }
-  if (outflowHandler.toLowerCase() !== outflowValidatorAddress.toLowerCase()) {
-    throw new Error("Outflow handler mismatch!");
-  }
-
-  // Summary
-  console.log("\n========================================");
-  console.log("GMP DEPLOYMENT SUCCESSFUL!");
-  console.log("========================================");
-  console.log("\nDeployed Contracts:");
-  console.log("  IntentGmp:", gmpEndpointAddress);
-  console.log("  IntentInflowEscrow:", escrowGmpAddress);
-  console.log("  IntentOutflowValidator:", outflowValidatorAddress);
-  console.log("\nConfiguration:");
-  console.log("  Hub Chain ID:", hubChainId);
-  console.log("  Movement Intent Module:", movementModuleAddr);
-  console.log("  Relay Address:", relayAddress);
+  console.log("\n✅ Deployment successful!");
+  console.log("Contract address:", escrowAddress);
 }
 
 main()

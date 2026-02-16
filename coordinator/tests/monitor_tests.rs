@@ -3,7 +3,7 @@
 //! These tests verify event structures and cache behavior
 //! without requiring external services.
 //!
-//! Note: Validation-related tests are in integrated-gmp since the coordinator
+//! Note: Validation-related tests are in trusted-gmp since the coordinator
 //! is read-only and doesn't perform validation or signing.
 
 use coordinator::monitor::{EventMonitor, IntentEvent};

@@ -29,7 +29,7 @@ The frontend is built with:
 - `app/page.tsx` - Main intent creation page
 - `components/intent/IntentBuilder.tsx` - Intent creation form and status tracking
 - `components/wallet/` - Wallet connection UI components
-- `lib/coordinator.ts` - Coordinator API client with polling
+- `lib/coordinator.ts` - Coordinator and trusted-gmp API client with polling
 - `lib/types.ts` - Protocol types (DraftIntent, IntentStatus, etc.)
 - `config/chains.ts` - Chain configurations and contract addresses
 - `config/tokens.ts` - Supported token definitions
@@ -70,6 +70,7 @@ See the [component README](../../frontend/README.md) for installation and develo
 
 ```bash
 NEXT_PUBLIC_COORDINATOR_URL=http://localhost:3333
+NEXT_PUBLIC_TRUSTED_GMP_URL=http://localhost:3334
 NEXT_PUBLIC_HUB_RPC=https://testnet.movementnetwork.xyz/v1
 NEXT_PUBLIC_SVM_RPC_URL=https://api.devnet.solana.com
 NEXT_PUBLIC_SVM_PROGRAM_ID=<your-svm-program-id>
@@ -92,6 +93,6 @@ The frontend communicates with the coordinator service for:
 - Draft intent submission (`POST /draftintent`)
 - Signature polling (`GET /draftintent/:id/signature`)
 - Exchange rate queries (`GET /acceptance`)
-- Event polling for fulfillment status (`GET /events`)
+- Approval status checks (`GET /approved/:intent_id`)
 
-For detailed API documentation, see the [Coordinator API](../coordinator/README.md).
+For detailed API documentation, see the [Coordinator API](../coordinator/README.md) and [Trusted GMP API](../trusted-gmp/api.md).

@@ -67,7 +67,7 @@ public fun create_fa_to_fa_intent_entry(
     expiry_time: u64,
     solver_addr: address,
     solver_signature: vector<u8>,
-): Object<Intent<FungibleAsset, FALimitOrder>>
+): Object<Intent<FungibleAsset, FungibleAssetLimitOrder>>
 ```
 
 **Parameters:**
@@ -97,7 +97,7 @@ public fun create_inflow_intent(
     intent_id: address,
     solver: address,
     solver_signature: vector<u8>,
-): Object<Intent<FungibleStoreManager, FALimitOrder>>
+): Object<Intent<FungibleStoreManager, FungibleAssetLimitOrder>>
 ```
 
 **Returns:** The created intent object
@@ -159,11 +159,11 @@ public fun create_outflow_intent(
 - `expiry_time`: Unix timestamp when intent expires
 - `intent_id`: Intent ID for cross-chain linking
 - `requester_addr_connected_chain`: Address on connected chain where solver should send tokens
-- `approver_public_key`: Public key of the integrated-gmp that will approve the connected chain transaction (32 bytes)
+- `approver_public_key`: Public key of the trusted-gmp that will approve the connected chain transaction (32 bytes)
 - `solver`: Address of the solver authorized to fulfill this intent (must be registered in solver registry)
 - `solver_signature`: Ed25519 signature from the solver authorizing this intent
 
-**Note**: This intent locks actual tokens on the hub chain. The solver must transfer tokens on the connected chain first, then the integrated-gmp service approves that transaction. The solver receives the locked tokens from the hub as reward. This function uses `OracleGuardedLimitOrder` and requires integrated-gmp signature for fulfillment.
+**Note**: This intent locks actual tokens on the hub chain. The solver must transfer tokens on the connected chain first, then the trusted-gmp service approves that transaction. The solver receives the locked tokens from the hub as reward. This function uses `OracleGuardedLimitOrder` and requires trusted-gmp signature for fulfillment.
 
 **Aborts:**
 
@@ -178,7 +178,7 @@ public fun create_outflow_intent(
 ```move
 public entry fun fulfill_inflow_intent(
     solver: &signer,
-    intent: Object<Intent<FungibleStoreManager, FALimitOrder>>,
+    intent: Object<Intent<FungibleStoreManager, FungibleAssetLimitOrder>>,
     payment_amount: u64,
 )
 ```
@@ -189,7 +189,7 @@ public entry fun fulfill_inflow_intent(
 - `intent`: Object reference to the inflow intent to fulfill
 - `payment_amount`: Amount of tokens to provide
 
-**Note**: This function is used to fulfill inflow intents where tokens are locked on the connected chain (in escrow) and desired on the hub. The solver provides the desired tokens to the requester on the hub chain. No integrated-gmp signature is required for inflow intents.
+**Note**: This function is used to fulfill inflow intents where tokens are locked on the connected chain (in escrow) and desired on the hub. The solver provides the desired tokens to the requester on the hub chain. No trusted-gmp signature is required for inflow intents.
 
 ### Fulfilling an Outflow Request Intent
 
@@ -207,14 +207,14 @@ public entry fun fulfill_outflow_intent(
 - `intent`: Object reference to the outflow intent to fulfill
 - `approver_signature_bytes`: Approver's Ed25519 signature as bytes (signs the intent_id, proves connected chain transfer)
 
-**Note**: This function is used to fulfill outflow intents where tokens are locked on the hub chain and desired on the connected chain. The solver must first transfer tokens on the connected chain, then the integrated-gmp service approves that transaction. The solver receives the locked tokens from the hub as reward. Integrated-gmp signature is required - it proves the solver transferred tokens on the connected chain.
+**Note**: This function is used to fulfill outflow intents where tokens are locked on the hub chain and desired on the connected chain. The solver must first transfer tokens on the connected chain, then the trusted-gmp service approves that transaction. The solver receives the locked tokens from the hub as reward. Trusted-gmp signature is required - it proves the solver transferred tokens on the connected chain.
 
 ### Starting a Fungible Asset Session
 
 ```move
 public fun start_fa_offering_session(
-    intent: Object<Intent<FungibleAsset, FALimitOrder>>,
-): (FungibleAsset, Session<FALimitOrder>)
+    intent: Object<Intent<FungibleAsset, FungibleAssetLimitOrder>>,
+): (FungibleAsset, Session<FungibleAssetLimitOrder>)
 ```
 
 **Parameters:**
@@ -227,7 +227,7 @@ public fun start_fa_offering_session(
 
 ```move
 public fun finish_fa_receiving_session(
-    session: Session<FALimitOrder>,
+    session: Session<FungibleAssetLimitOrder>,
     payment: FungibleAsset,
 ): FungibleAsset
 ```
@@ -451,7 +451,7 @@ public entry fun register_solver(
 - The solver's connected chain EVM address (for EVM outflow validation)
 - The solver's connected chain SVM address (for SVM outflow validation)
 
-For outflow intents, the integrated-gmp service validates that the transaction solver on the connected chain matches the registered connected chain address from the hub registry.
+For outflow intents, the trusted-gmp service validates that the transaction solver on the connected chain matches the registered connected chain address from the hub registry.
 
 **Aborts:**
 
@@ -572,10 +572,10 @@ struct Session<Args> {
 }
 ```
 
-### FALimitOrder
+### FungibleAssetLimitOrder
 
 ```move
-struct FALimitOrder has store, drop {
+struct FungibleAssetLimitOrder has store, drop {
     desired_metadata: Object<Metadata>,
     desired_amount: u64,
     requester_addr: address,

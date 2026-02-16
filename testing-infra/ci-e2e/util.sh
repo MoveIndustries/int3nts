@@ -7,58 +7,6 @@
 export APTOS_DOCKER_IMAGE="aptoslabs/tools@sha256:b6d7fc304963929ad89ef74da020ed995da22dc11fd6cb68cf5f17b6bfff0ccf"
 
 
-# Build only if any of the specified output files are missing.
-# Used by --no-build to skip builds when binaries already exist.
-# Usage: build_if_missing <build_dir> <build_command> <description> <check_paths...>
-#   build_dir: Directory to run the build in (pushd target)
-#   build_command: The build command to run (e.g., "cargo build --bin coordinator")
-#   description: Human-readable description for log output
-#   check_paths: One or more output file paths to check; rebuilds if ANY is missing
-build_if_missing() {
-    local build_dir="$1"
-    local build_command="$2"
-    local description="$3"
-    shift 3
-
-    local needs_build=false
-    for check_path in "$@"; do
-        if [ ! -f "$check_path" ]; then
-            needs_build=true
-            break
-        fi
-    done
-
-    if [ "$needs_build" = "true" ]; then
-        pushd "$build_dir" > /dev/null
-        eval "$build_command" 2>&1 | tail -5
-        popd > /dev/null
-        log_and_echo "   ✅ $description (built)"
-    else
-        log_and_echo "   ✅ $description (exists)"
-    fi
-}
-
-# Build the common set of binaries required by all E2E test scripts.
-# Checks each binary individually and only builds what's missing.
-# Usage: build_common_bins_if_missing
-# Requires PROJECT_ROOT to be set.
-build_common_bins_if_missing() {
-    # Order: coordinator first (fastest independent build ~57s),
-    # then generate_keys before integrated-gmp (same crate, warms dep cache)
-    build_if_missing "$PROJECT_ROOT/coordinator" "cargo build --bin coordinator" \
-        "Coordinator: coordinator" \
-        "$PROJECT_ROOT/coordinator/target/debug/coordinator"
-    build_if_missing "$PROJECT_ROOT/integrated-gmp" "cargo build --bin generate_keys" \
-        "Integrated-GMP: generate_keys" \
-        "$PROJECT_ROOT/integrated-gmp/target/debug/generate_keys"
-    build_if_missing "$PROJECT_ROOT/integrated-gmp" "cargo build --bin integrated-gmp" \
-        "Integrated-GMP: integrated-gmp" \
-        "$PROJECT_ROOT/integrated-gmp/target/debug/integrated-gmp"
-    build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin solver" \
-        "Solver: solver" \
-        "$PROJECT_ROOT/solver/target/debug/solver"
-}
-
 # Get project root - can be called from any script location
 # Usage: Call this function to set PROJECT_ROOT and optionally change to it
 # Note: If SCRIPT_DIR is already set by the calling script, use that; otherwise derive from BASH_SOURCE
@@ -302,9 +250,9 @@ verify_solver_running() {
 # Note: verify_solver_registered() is defined in util_mvm.sh with auto-detection
 # Both MVM and EVM E2E tests source util_mvm.sh since the hub chain is always MVM
 
-# Display solver, coordinator, and integrated-gmp logs for debugging
+# Display solver, coordinator, and trusted-gmp logs for debugging
 # Usage: display_service_logs [context_message]
-# Shows last 100 lines of solver.log, coordinator.log, and integrated-gmp.log if they exist
+# Shows last 100 lines of solver.log, coordinator.log, and trusted-gmp.log if they exist
 display_service_logs() {
     local context="${1:-Error occurred}"
     
@@ -315,7 +263,7 @@ display_service_logs() {
     local log_dir="$PROJECT_ROOT/.tmp/e2e-tests"
     local solver_log="$log_dir/solver.log"
     local coordinator_log="$log_dir/coordinator.log"
-    local integrated_gmp_log="$log_dir/integrated-gmp.log"
+    local trusted_gmp_log="$log_dir/trusted-gmp.log"
     
     # Get current timestamp in ISO format (matches Rust log format)
     local error_timestamp=$(date -u +"%Y-%m-%dT%H:%M:%S.%NZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -336,14 +284,14 @@ display_service_logs() {
         log_and_echo "️  Coordinator log not found: $coordinator_log"
     fi
     
-    if [ -f "$integrated_gmp_log" ]; then
+    if [ -f "$trusted_gmp_log" ]; then
         log_and_echo ""
-        log_and_echo " Integrated-GMP logs:"
+        log_and_echo " Trusted-GMP logs:"
         log_and_echo "-----------------------------------"
-        tail -100 "$integrated_gmp_log" | sed 's/^/   /'
+        tail -100 "$trusted_gmp_log" | sed 's/^/   /'
     else
         log_and_echo ""
-        log_and_echo "️  Integrated-GMP log not found: $integrated_gmp_log"
+        log_and_echo "️  Trusted-GMP log not found: $trusted_gmp_log"
     fi
     
     if [ -f "$solver_log" ]; then
@@ -355,30 +303,7 @@ display_service_logs() {
         log_and_echo ""
         log_and_echo "️  Solver log not found: $solver_log"
     fi
-
-    # Show coordinator events summary
-    local coordinator_url="${COORDINATOR_URL:-http://127.0.0.1:3333}"
-    local events_response
-    events_response=$(curl -s "${coordinator_url}/events" 2>/dev/null)
-    if [ $? -eq 0 ]; then
-        local escrow_count fulfillment_count intent_count
-        escrow_count=$(echo "$events_response" | jq -r '.data.escrow_events | length' 2>/dev/null || echo "0")
-        fulfillment_count=$(echo "$events_response" | jq -r '.data.fulfillment_events | length' 2>/dev/null || echo "0")
-        intent_count=$(echo "$events_response" | jq -r '.data.intent_events | length' 2>/dev/null || echo "0")
-
-        log_and_echo ""
-        log_and_echo " Coordinator events:"
-        log_and_echo "   Intent events: $intent_count"
-        log_and_echo "   Escrow events: $escrow_count"
-        log_and_echo "   Fulfillment events: $fulfillment_count"
-
-        if [ "$escrow_count" != "0" ]; then
-            log_and_echo ""
-            log_and_echo "   Escrow details:"
-            echo "$events_response" | jq -r '.data.escrow_events[] | "      \(.intent_id) - amount: \(.offered_amount)"' 2>/dev/null || log_and_echo "      (parse error)"
-        fi
-    fi
-
+    
     log_and_echo ""
 }
 
@@ -715,188 +640,184 @@ start_coordinator() {
 }
 
 # ============================================================================
-# INTEGRATED GMP SERVICE FUNCTIONS (Phase 0 - Has Keys, Validation)
+# TRUSTED GMP SERVICE FUNCTIONS (Phase 0 - Has Keys, Validation)
 # ============================================================================
 
-# Stop integrated-gmp processes
-# Usage: stop_integrated_gmp
-# Stops any running integrated-gmp processes
-stop_integrated_gmp() {
-    log "   Checking for existing integrated-gmp..."
+# Stop trusted-gmp processes
+# Usage: stop_trusted_gmp
+# Stops any running trusted-gmp processes
+stop_trusted_gmp() {
+    log "   Checking for existing trusted-gmp..."
 
-    if pgrep -f "cargo.*integrated.gmp" > /dev/null || pgrep -f "target/debug/integrated.gmp" > /dev/null; then
-        log "   ️  Found existing integrated-gmp processes, stopping them..."
-        pkill -f "cargo.*integrated.gmp" || true
-        pkill -f "target/debug/integrated.gmp" || true
+    if pgrep -f "cargo.*trusted.gmp" > /dev/null || pgrep -f "target/debug/trusted.gmp" > /dev/null; then
+        log "   ️  Found existing trusted-gmp processes, stopping them..."
+        pkill -f "cargo.*trusted.gmp" || true
+        pkill -f "target/debug/trusted.gmp" || true
         sleep 2
-        log "   ✅ Integrated-GMP processes stopped"
+        log "   ✅ Trusted-GMP processes stopped"
     else
-        log "   ✅ No existing integrated-gmp processes"
+        log "   ✅ No existing trusted-gmp processes"
     fi
 }
 
-# Check integrated-gmp health
-# Usage: check_integrated_gmp_health
-# Checks if integrated-gmp process is running and has initialized
-# The integrated GMP relay has no HTTP server; we check the log for init message
+# Check trusted-gmp health
+# Usage: check_trusted_gmp_health [port]
+# Checks if trusted-gmp health endpoint responds
 # Returns 0 if healthy, 1 if not
-check_integrated_gmp_health() {
-    # Check process is alive
-    if [ -n "$INTEGRATED_GMP_PID" ] && ps -p "$INTEGRATED_GMP_PID" > /dev/null 2>&1; then
-        # Check log for successful initialization
-        local log_file="${INTEGRATED_GMP_LOG:-${LOG_DIR:-/dev/null}/integrated-gmp.log}"
-        if [ -f "$log_file" ] && grep -q "Integrated GMP relay initialized successfully" "$log_file" 2>/dev/null; then
-            return 0
-        fi
+check_trusted_gmp_health() {
+    local port="${1:-3334}"
+
+    if curl -s -f "http://127.0.0.1:${port}/health" > /dev/null 2>&1; then
+        return 0
+    else
+        return 1
     fi
-    return 1
 }
 
-# Verify integrated-gmp is running
-# Usage: verify_integrated_gmp_running
-# Checks integrated-gmp process is alive and initialized
-# Exits with error if integrated-gmp is not running
-verify_integrated_gmp_running() {
+# Verify trusted-gmp is running
+# Usage: verify_trusted_gmp_running
+# Checks trusted-gmp process, port, and health endpoint
+# Exits with error if trusted-gmp is not running
+verify_trusted_gmp_running() {
     # Ensure LOG_DIR is set (for reading PID files)
     if [ -z "$LOG_DIR" ] && [ -n "$PROJECT_ROOT" ]; then
         LOG_DIR="$PROJECT_ROOT/.tmp/e2e-tests"
     fi
 
     log ""
-    log " Verifying integrated-gmp is running..."
+    log " Verifying trusted-gmp is running..."
 
-    # Try to load INTEGRATED_GMP_PID from file if not set
-    if [ -z "$INTEGRATED_GMP_PID" ] && [ -n "$LOG_DIR" ] && [ -f "$LOG_DIR/integrated-gmp.pid" ]; then
-        INTEGRATED_GMP_PID=$(cat "$LOG_DIR/integrated-gmp.pid" 2>/dev/null || echo "")
-        export INTEGRATED_GMP_PID
+    # Try to load TRUSTED_GMP_PID from file if not set
+    if [ -z "$TRUSTED_GMP_PID" ] && [ -n "$LOG_DIR" ] && [ -f "$LOG_DIR/trusted-gmp.pid" ]; then
+        TRUSTED_GMP_PID=$(cat "$LOG_DIR/trusted-gmp.pid" 2>/dev/null || echo "")
+        export TRUSTED_GMP_PID
     fi
 
-    # Load log path if not set
-    if [ -z "$INTEGRATED_GMP_LOG" ] && [ -n "$LOG_DIR" ]; then
-        INTEGRATED_GMP_LOG="$LOG_DIR/integrated-gmp.log"
-    fi
-
-    # Check integrated-gmp process
-    if [ -z "$INTEGRATED_GMP_PID" ] || ! ps -p "$INTEGRATED_GMP_PID" > /dev/null 2>&1; then
-        log_and_echo "❌ ERROR: Integrated-GMP process is not running"
-        log_and_echo "   Expected PID: ${INTEGRATED_GMP_PID:-<not set>}"
-        log_and_echo "   Please start integrated-gmp first using start-integrated-gmp.sh"
+    # Check trusted-gmp process
+    if [ -z "$TRUSTED_GMP_PID" ] || ! ps -p "$TRUSTED_GMP_PID" > /dev/null 2>&1; then
+        log_and_echo "❌ ERROR: Trusted-GMP process is not running"
+        log_and_echo "   Expected PID: ${TRUSTED_GMP_PID:-<not set>}"
+        log_and_echo "   Please start trusted-gmp first using start-trusted-gmp.sh"
         exit 1
     fi
 
-    # Check integrated-gmp initialized (integrated GMP relay has no HTTP server)
-    if ! check_integrated_gmp_health; then
-        log_and_echo "❌ ERROR: Integrated-GMP health check failed"
-        log_and_echo "   Integrated-GMP PID: $INTEGRATED_GMP_PID"
-        log_and_echo "   Process is running but initialization not confirmed in log"
-        log_and_echo "   Check logs: ${INTEGRATED_GMP_LOG:-<not set>}"
+    # Check if trusted-gmp port is listening
+    TRUSTED_GMP_PORT="${TRUSTED_GMP_PORT:-3334}"
+    if ! check_port_listening "$TRUSTED_GMP_PORT"; then
+        log_and_echo "❌ ERROR: Trusted-GMP is not listening on port $TRUSTED_GMP_PORT"
+        log_and_echo "   Trusted-GMP PID: $TRUSTED_GMP_PID"
+        log_and_echo "   Process exists but port is not accessible"
+        log_and_echo "   Check logs: ${TRUSTED_GMP_LOG:-<not set>}"
         exit 1
     fi
-    log "   ✅ Integrated-GMP is running and healthy (PID: $INTEGRATED_GMP_PID)"
+
+    # Check trusted-gmp health endpoint
+    if ! check_trusted_gmp_health "$TRUSTED_GMP_PORT"; then
+        log_and_echo "❌ ERROR: Trusted-GMP health check failed"
+        log_and_echo "   Trusted-GMP PID: $TRUSTED_GMP_PID"
+        log_and_echo "   Port $TRUSTED_GMP_PORT is listening but /health endpoint failed"
+        log_and_echo "   Check logs: ${TRUSTED_GMP_LOG:-<not set>}"
+        exit 1
+    fi
+    log "   ✅ Trusted-GMP is running and healthy (PID: $TRUSTED_GMP_PID, port: $TRUSTED_GMP_PORT)"
 }
 
-# Generate integrated-gmp keys for E2E/CI testing
-# Usage: generate_integrated_gmp_keys
+# Generate trusted-gmp keys for E2E/CI testing
+# Usage: generate_trusted_gmp_keys
 # Generates fresh ephemeral keys for E2E/CI testing and exports them as env vars.
-generate_integrated_gmp_keys() {
+generate_trusted_gmp_keys() {
     if [ -z "$PROJECT_ROOT" ]; then
         setup_project_root
     fi
 
-    INTEGRATED_GMP_KEYS_FILE="$PROJECT_ROOT/testing-infra/ci-e2e/.integrated-gmp-keys.env"
-    INTEGRATED_GMP_CONFIG_FILE="$PROJECT_ROOT/integrated-gmp/config/integrated-gmp-e2e-ci-testing.toml"
+    TRUSTED_GMP_KEYS_FILE="$PROJECT_ROOT/testing-infra/ci-e2e/.trusted-gmp-keys.env"
+    TRUSTED_GMP_CONFIG_FILE="$PROJECT_ROOT/trusted-gmp/config/trusted-gmp-e2e-ci-testing.toml"
 
     # If keys already exist, just load them
-    if [ -f "$INTEGRATED_GMP_KEYS_FILE" ]; then
-        source "$INTEGRATED_GMP_KEYS_FILE"
-        export E2E_INTEGRATED_GMP_PRIVATE_KEY
-        export E2E_INTEGRATED_GMP_PUBLIC_KEY
-        export E2E_INTEGRATED_GMP_MOVE_ADDRESS
-        log_and_echo "   ✅ Loaded existing integrated-gmp ephemeral keys"
+    if [ -f "$TRUSTED_GMP_KEYS_FILE" ]; then
+        source "$TRUSTED_GMP_KEYS_FILE"
+        export E2E_TRUSTED_GMP_PRIVATE_KEY
+        export E2E_TRUSTED_GMP_PUBLIC_KEY
+        log_and_echo "   ✅ Loaded existing trusted-gmp ephemeral keys"
         return
     fi
 
-    log_and_echo "   Generating integrated-gmp ephemeral test keys..."
-    cd "$PROJECT_ROOT/integrated-gmp"
+    log_and_echo "   Generating trusted-gmp ephemeral test keys..."
+    cd "$PROJECT_ROOT/trusted-gmp"
 
     # Use pre-built binary (must be built in Step 1)
-    local generate_keys_bin="$PROJECT_ROOT/integrated-gmp/target/debug/generate_keys"
+    local generate_keys_bin="$PROJECT_ROOT/trusted-gmp/target/debug/generate_keys"
     if [ ! -x "$generate_keys_bin" ]; then
-        log_and_echo "❌ PANIC: integrated-gmp generate_keys not built. Step 1 (build binaries) failed."
+        log_and_echo "❌ PANIC: trusted-gmp generate_keys not built. Step 1 (build binaries) failed."
         exit 1
     fi
     KEYS_OUTPUT=$("$generate_keys_bin" 2>/dev/null)
 
-    # Extract keys and addresses from output (format: KEY=value).
-    # Use cut -d= -f2- to split on the first '=' only (base64 values contain '=' padding).
-    PRIVATE_KEY=$(echo "$KEYS_OUTPUT" | grep "INTEGRATED_GMP_PRIVATE_KEY=" | cut -d= -f2-)
-    PUBLIC_KEY=$(echo "$KEYS_OUTPUT" | grep "INTEGRATED_GMP_PUBLIC_KEY=" | cut -d= -f2-)
-    MOVE_ADDRESS=$(echo "$KEYS_OUTPUT" | grep "INTEGRATED_GMP_MVM_ADDR=" | cut -d= -f2-)
+    # Extract keys from output
+    PRIVATE_KEY=$(echo "$KEYS_OUTPUT" | grep "Private Key (base64):" | sed 's/.*: //')
+    PUBLIC_KEY=$(echo "$KEYS_OUTPUT" | grep "Public Key (base64):" | sed 's/.*: //')
 
     if [ -z "$PRIVATE_KEY" ] || [ -z "$PUBLIC_KEY" ]; then
-        log_and_echo "❌ ERROR: Failed to generate integrated-gmp test keys"
+        log_and_echo "❌ ERROR: Failed to generate trusted-gmp test keys"
         exit 1
     fi
 
     # Export keys as environment variables (E2E prefix to avoid collision)
-    export E2E_INTEGRATED_GMP_PRIVATE_KEY="$PRIVATE_KEY"
-    export E2E_INTEGRATED_GMP_PUBLIC_KEY="$PUBLIC_KEY"
-    export E2E_INTEGRATED_GMP_MOVE_ADDRESS="$MOVE_ADDRESS"
+    export E2E_TRUSTED_GMP_PRIVATE_KEY="$PRIVATE_KEY"
+    export E2E_TRUSTED_GMP_PUBLIC_KEY="$PUBLIC_KEY"
 
     # Save keys to file for reuse within the same test run
-    cat > "$INTEGRATED_GMP_KEYS_FILE" << EOF
-# Ephemeral integrated-gmp keys for E2E/CI testing
+    cat > "$TRUSTED_GMP_KEYS_FILE" << EOF
+# Ephemeral trusted-gmp keys for E2E/CI testing
 # Generated at: $(date)
 # WARNING: These keys are for testing only. Do not use in production.
-E2E_INTEGRATED_GMP_PRIVATE_KEY="$PRIVATE_KEY"
-E2E_INTEGRATED_GMP_PUBLIC_KEY="$PUBLIC_KEY"
-E2E_INTEGRATED_GMP_MOVE_ADDRESS="$MOVE_ADDRESS"
+E2E_TRUSTED_GMP_PRIVATE_KEY="$PRIVATE_KEY"
+E2E_TRUSTED_GMP_PUBLIC_KEY="$PUBLIC_KEY"
 EOF
 
     cd "$PROJECT_ROOT"
-    log_and_echo "   ✅ Generated fresh integrated-gmp ephemeral keys"
+    log_and_echo "   ✅ Generated fresh trusted-gmp ephemeral keys"
 }
 
-# Load integrated-gmp keys
-# Usage: load_integrated_gmp_keys
+# Load trusted-gmp keys
+# Usage: load_trusted_gmp_keys
 # Loads previously generated keys from the keys file.
-load_integrated_gmp_keys() {
+load_trusted_gmp_keys() {
     if [ -z "$PROJECT_ROOT" ]; then
         setup_project_root
     fi
 
-    INTEGRATED_GMP_KEYS_FILE="$PROJECT_ROOT/testing-infra/ci-e2e/.integrated-gmp-keys.env"
+    TRUSTED_GMP_KEYS_FILE="$PROJECT_ROOT/testing-infra/ci-e2e/.trusted-gmp-keys.env"
 
-    if [ -f "$INTEGRATED_GMP_KEYS_FILE" ]; then
-        source "$INTEGRATED_GMP_KEYS_FILE"
-        export E2E_INTEGRATED_GMP_PRIVATE_KEY
-        export E2E_INTEGRATED_GMP_PUBLIC_KEY
-        export E2E_INTEGRATED_GMP_MOVE_ADDRESS
+    if [ -f "$TRUSTED_GMP_KEYS_FILE" ]; then
+        source "$TRUSTED_GMP_KEYS_FILE"
+        export E2E_TRUSTED_GMP_PRIVATE_KEY
+        export E2E_TRUSTED_GMP_PUBLIC_KEY
     else
-        log_and_echo "❌ ERROR: Integrated-GMP keys file not found at $INTEGRATED_GMP_KEYS_FILE"
-        log_and_echo "   Run generate_integrated_gmp_keys first."
+        log_and_echo "❌ ERROR: Trusted-GMP keys file not found at $TRUSTED_GMP_KEYS_FILE"
+        log_and_echo "   Run generate_trusted_gmp_keys first."
         exit 1
     fi
 }
 
-# Start integrated-gmp service
-# Usage: start_integrated_gmp [log_file] [rust_log_level]
-# Starts integrated-gmp in background and waits for it to be ready
-# Sets INTEGRATED_GMP_PID and INTEGRATED_GMP_LOG global variables
-# Exits with error if integrated-gmp fails to start
-start_integrated_gmp() {
+# Start trusted-gmp service
+# Usage: start_trusted_gmp [log_file] [rust_log_level]
+# Starts trusted-gmp in background and waits for it to be ready
+# Sets TRUSTED_GMP_PID and TRUSTED_GMP_LOG global variables
+# Exits with error if trusted-gmp fails to start
+start_trusted_gmp() {
     if [ -z "$PROJECT_ROOT" ]; then
         setup_project_root
     fi
 
-    if [ -z "$INTEGRATED_GMP_CONFIG_PATH" ]; then
-        export INTEGRATED_GMP_CONFIG_PATH="$PROJECT_ROOT/integrated-gmp/config/integrated-gmp-e2e-ci-testing.toml"
+    if [ -z "$TRUSTED_GMP_CONFIG_PATH" ]; then
+        export TRUSTED_GMP_CONFIG_PATH="$PROJECT_ROOT/trusted-gmp/config/trusted-gmp-e2e-ci-testing.toml"
     fi
 
     # Load keys
-    load_integrated_gmp_keys
+    load_trusted_gmp_keys
 
-    local log_file="${1:-$LOG_DIR/integrated-gmp.log}"
+    local log_file="${1:-$LOG_DIR/trusted-gmp.log}"
     local rust_log="${2:-info}"
 
     # Ensure log directory exists
@@ -907,46 +828,44 @@ start_integrated_gmp() {
         rm -f "$log_file"
     fi
 
-    # Stop any existing integrated-gmp first
-    stop_integrated_gmp
+    # Stop any existing trusted-gmp first
+    stop_trusted_gmp
 
-    log "   Starting integrated-gmp service..."
-    log "   Using config: $INTEGRATED_GMP_CONFIG_PATH"
+    log "   Starting trusted-gmp service..."
+    log "   Using config: $TRUSTED_GMP_CONFIG_PATH"
     log "   Log file: $log_file"
 
     # Use pre-built binary (must be built in Step 1)
-    local integrated_gmp_binary="$PROJECT_ROOT/integrated-gmp/target/debug/integrated-gmp"
-    if [ ! -f "$integrated_gmp_binary" ]; then
-        log_and_echo "   ❌ PANIC: integrated-gmp not built. Step 1 (build binaries) failed."
+    local trusted_gmp_binary="$PROJECT_ROOT/trusted-gmp/target/debug/trusted-gmp"
+    if [ ! -f "$trusted_gmp_binary" ]; then
+        log_and_echo "   ❌ PANIC: trusted-gmp not built. Step 1 (build binaries) failed."
         exit 1
     fi
 
-    log "   Using binary: $integrated_gmp_binary"
-    INTEGRATED_GMP_CONFIG_PATH="$INTEGRATED_GMP_CONFIG_PATH" RUST_LOG="$rust_log" "$integrated_gmp_binary" >> "$log_file" 2>&1 &
-    INTEGRATED_GMP_PID=$!
+    log "   Using binary: $trusted_gmp_binary"
+    TRUSTED_GMP_CONFIG_PATH="$TRUSTED_GMP_CONFIG_PATH" RUST_LOG="$rust_log" "$trusted_gmp_binary" >> "$log_file" 2>&1 &
+    TRUSTED_GMP_PID=$!
 
     # Export PID so it persists across subshells
-    export INTEGRATED_GMP_PID
+    export TRUSTED_GMP_PID
 
     # Save PID to file for cross-script persistence
     if [ -n "$LOG_DIR" ]; then
-        echo "$INTEGRATED_GMP_PID" > "$LOG_DIR/integrated-gmp.pid"
+        echo "$TRUSTED_GMP_PID" > "$LOG_DIR/trusted-gmp.pid"
     fi
 
-    log "   ✅ Integrated-GMP started with PID: $INTEGRATED_GMP_PID"
+    log "   ✅ Trusted-GMP started with PID: $TRUSTED_GMP_PID"
 
-    # Wait for integrated-gmp to be ready
-    log "   - Waiting for integrated-gmp to initialize..."
-    INTEGRATED_GMP_LOG="$log_file"
-    export INTEGRATED_GMP_PID INTEGRATED_GMP_LOG
+    # Wait for trusted-gmp to be ready
+    log "   - Waiting for trusted-gmp to initialize..."
     RETRY_COUNT=0
-    MAX_RETRIES=30
+    MAX_RETRIES=180
 
     while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         # Check if process is still running
-        if ! ps -p "$INTEGRATED_GMP_PID" > /dev/null 2>&1; then
-            log_and_echo "   ❌ Integrated-GMP process died"
-            log_and_echo "   Integrated-GMP log:"
+        if ! ps -p "$TRUSTED_GMP_PID" > /dev/null 2>&1; then
+            log_and_echo "   ❌ Trusted-GMP process died"
+            log_and_echo "   Trusted-GMP log:"
             log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
             if [ -f "$log_file" ]; then
                 log_and_echo "   $(cat "$log_file")"
@@ -957,14 +876,16 @@ start_integrated_gmp() {
             exit 1
         fi
 
-        # Check health (process running + init log message present)
-        if check_integrated_gmp_health; then
-            log "   ✅ Integrated-GMP is ready!"
+        # Check health endpoint
+        if check_trusted_gmp_health; then
+            log "   ✅ Trusted-GMP is ready!"
 
-            # Give integrated-gmp time to start polling and collect initial events
-            log "   - Waiting for integrated-gmp to poll and collect events (10 seconds)..."
-            sleep 10
+            # Give trusted-gmp time to start polling and collect initial events
+            log "   - Waiting for trusted-gmp to poll and collect events (30 seconds)..."
+            sleep 30
 
+            TRUSTED_GMP_LOG="$log_file"
+            export TRUSTED_GMP_PID TRUSTED_GMP_LOG
             return 0
         fi
 
@@ -972,9 +893,9 @@ start_integrated_gmp() {
         RETRY_COUNT=$((RETRY_COUNT + 1))
     done
 
-    # If we get here, integrated-gmp didn't become healthy
-    log_and_echo "   ❌ Integrated-GMP failed to start after $MAX_RETRIES seconds"
-    log_and_echo "   Integrated-GMP log:"
+    # If we get here, trusted-gmp didn't become healthy
+    log_and_echo "   ❌ Trusted-GMP failed to start after $MAX_RETRIES seconds"
+    log_and_echo "   Trusted-GMP log:"
     log_and_echo "   + + + + + + + + + + + + + + + + + + + +"
     if [ -f "$log_file" ]; then
         log_and_echo "   $(cat "$log_file")"
@@ -1397,10 +1318,65 @@ wait_for_solver_fulfillment() {
         elapsed=$((elapsed + poll_interval))
     done
     
-    # Timeout - callers handle detailed log display via display_service_logs
+    # Timeout - show diagnostic info
     log ""
     log_and_echo "⏰ Timeout waiting for solver fulfillment after ${timeout_seconds}s"
-
+    log ""
+    log " Diagnostic Information:"
+    log "========================================"
+    
+    # Show solver logs (solver_log_file already declared above)
+    if [ -f "$solver_log_file" ]; then
+        log ""
+        log "   Solver logs (last 100 lines):"
+        log "   + + + + + + + + + + + + + + + + + + + +"
+        tail -100 "$solver_log_file" | while IFS= read -r line; do log "   $line"; done
+        log "   + + + + + + + + + + + + + + + + + + + +"
+    else
+        log "   Solver log file not found at: $solver_log_file"
+    fi
+    
+    # Show coordinator and trusted-gmp logs
+    local coordinator_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/coordinator.log"
+    local trusted_gmp_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/trusted-gmp.log"
+    for log_label in "Coordinator" "Trusted-GMP"; do
+        local f; [ "$log_label" = "Coordinator" ] && f="$coordinator_log_file" || f="$trusted_gmp_log_file"
+        if [ -f "$f" ]; then
+            log ""
+            log "   $log_label logs (last 100 lines):"
+            log "   + + + + + + + + + + + + + + + + + + + +"
+            tail -100 "$f" | while IFS= read -r line; do log "   $line"; done
+            log "   + + + + + + + + + + + + + + + + + + + +"
+        else
+            log ""
+            log "   $log_label log file not found (checked: $f)"
+        fi
+    done
+    
+    # Show coordinator events
+    log ""
+    log "   Coordinator events:"
+    local events_response
+    events_response=$(curl -s "${coordinator_url}/events" 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        local escrow_count fulfillment_count intent_count
+        escrow_count=$(echo "$events_response" | jq -r '.data.escrow_events | length' 2>/dev/null || echo "0")
+        fulfillment_count=$(echo "$events_response" | jq -r '.data.fulfillment_events | length' 2>/dev/null || echo "0")
+        intent_count=$(echo "$events_response" | jq -r '.data.intent_events | length' 2>/dev/null || echo "0")
+        
+        log "      Intent events: $intent_count"
+        log "      Escrow events: $escrow_count"
+        log "      Fulfillment events: $fulfillment_count"
+        
+        if [ "$escrow_count" != "0" ]; then
+            log ""
+            log "      Escrow details:"
+            echo "$events_response" | jq -r '.data.escrow_events[] | "         \(.intent_id) - amount: \(.offered_amount)"' 2>/dev/null || log "         (parse error)"
+        fi
+    else
+        log "      Failed to query coordinator events"
+    fi
+    
     return 1
 }
 

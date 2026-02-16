@@ -17,7 +17,7 @@ sequenceDiagram
     participant Requester
     participant SourceChain as Source Connected Chain
     participant Hub as Hub Chain
-    participant IntegratedGMP as Integrated-GMP
+    participant TrustedGMP as Trusted-GMP
     participant DestChain as Destination Connected Chain
     participant Solver
 
@@ -27,31 +27,28 @@ sequenceDiagram
     Solver->>Solver: Solver signs (off-chain)
     Solver->>Requester: Returns signature
 
-    Note over Requester,Solver: Intent creation on Hub + GMP to both chains
+    Note over Requester,Solver: Intent creation on Hub
     Requester->>Hub: Create reserved intent
-    Hub->>IntegratedGMP: GMP: IntentRequirements (to source)
-    IntegratedGMP->>SourceChain: Deliver IntentRequirements (escrow params)
-    Hub->>IntegratedGMP: GMP: IntentRequirements (to destination)
-    IntegratedGMP->>DestChain: Deliver IntentRequirements (fulfillment params)
+    Hub->>TrustedGMP: Request-intent event
 
-    Note over Requester,Solver: Escrow on Source Connected Chain (validated on-chain)
-    Requester->>SourceChain: Create escrow (validated against GMP-delivered requirements)
-    SourceChain->>IntegratedGMP: GMP: EscrowConfirmation
-    IntegratedGMP->>Hub: Deliver EscrowConfirmation
+    Note over Requester,Solver: Escrow on Source Connected Chain
+    Requester->>SourceChain: Create escrow (locks tokens)
+    SourceChain->>TrustedGMP: Escrow event
 
-    Note over Requester,Solver: Solver fulfillment on Destination Connected Chain (validated on-chain)
-    Solver->>DestChain: Call validation contract (fulfillIntent)
-    DestChain->>DestChain: Validate against GMP-delivered requirements
-    DestChain->>IntegratedGMP: GMP: FulfillmentProof
-    IntegratedGMP->>Hub: Deliver FulfillmentProof
+    Note over Requester,Solver: Solver fulfillment on Destination Connected Chain
+    Solver->>DestChain: Transfer desired tokens to requester
+    DestChain->>TrustedGMP: Transfer event
 
-    Note over Requester,Solver: Hub sends fulfillment proof to source chain
-    Hub->>IntegratedGMP: GMP: FulfillmentProof (to source)
-    IntegratedGMP->>SourceChain: Deliver FulfillmentProof
+    Note over Requester,Solver: Trusted-GMP validation and approval
+    TrustedGMP->>TrustedGMP: Validate all legs
+    TrustedGMP->>Solver: Generate approval signature
 
-    Note over Requester,Solver: Escrow auto-release + collateral release
-    SourceChain->>SourceChain: Auto-release escrow to reserved solver
-    Hub->>Hub: Release collateral
+    Note over Requester,Solver: Escrow release on Source Chain
+    Solver->>SourceChain: Release escrow (with trusted-gmp signature)
+    SourceChain->>SourceChain: Transfer to reserved solver
+
+    Note over Requester,Solver: Collateral release on Hub
+    Solver->>Hub: Release collateral (with trusted-gmp signature)
 ```
 
 ## Scenarios
@@ -73,9 +70,9 @@ sequenceDiagram
 #### Possible issues (Requester)
 
 1. The requester initial escrow transfer is too little or too much.
-    - _Mitigation: The solver verifies that the escrow transfer amount is the same as the request-intent offered amount before transferring the funds on the destination connected chain. Alternatively, the solver queries integrated-gmp which verifies that the escrow transfer amount is the same as the request-intent offered amount and informs the solver._
+    - _Mitigation: The solver verifies that the escrow transfer amount is the same as the request-intent offered amount before transferring the funds on the destination connected chain. Alternatively, the solver queries trusted-gmp which verifies that the escrow transfer amount is the same as the request-intent offered amount and informs the solver._
 2. The requester didn't get the right expected amount of USDcon on the destination connected chain.
-    - _Mitigation: The validation contract on the destination chain validates the transfer against GMP-delivered IntentRequirements on-chain. The fulfillment reverts if amounts don't match._
+    - _Mitigation: Trusted-gmp verifies that the transfer amount on the destination connected chain matches the request-intent desired amount. Only if the amount is correct, trusted-gmp signs the approval for escrow release._
 3. The escrow deposit on the source connected chain fails. How can the requester withdraw their tokens?
     - _Mitigation: The escrow eventually times out and the requester can withdraw their tokens._
 4. The requester reuses a Tx already attached to another intent.
@@ -94,24 +91,25 @@ sequenceDiagram
 2. When the requester creates the reserved request-intent on Hub chain
    - Then the solver observes the request-intent event
    - Then the solver observes the escrow event on source connected chain
-   - Then the solver calls the validation contract on the destination connected chain (fulfillIntent)
-   - Then the validation contract sends a GMP FulfillmentProof to the hub
-   - Then the hub sends a GMP FulfillmentProof to the source chain, auto-releasing the escrow
+   - Then the solver transfers the desired tokens to the requester on the destination connected chain
+   - Then the solver waits for trusted-gmp validation and approval
+   - Then the solver claims the escrow funds on the source connected chain
 
 #### Possible issues (Solver)
 
 - The solver doesn't send the right amount of desired tokens to the requester on destination chain.
-  - _Mitigation: The validation contract on the destination chain validates the transfer against GMP-delivered IntentRequirements on-chain. The fulfillment reverts if amounts don't match._
+  - _Mitigation: Trusted-gmp verifies that the transfer amount matches the request-intent desired amount before signing approval._
 - The solver doesn't receive the correct amount from escrow on source connected chain.
-  - _Mitigation: The escrow contract validates the deposit against GMP-delivered IntentRequirements on-chain. Escrow creation reverts if amounts don't match._
+  - _Mitigation: The solver verifies that the escrow transfer amount is the same as the request-intent offered amount before transferring the funds on the destination connected chain._
+  - _Mitigation: Trusted-gmp verifies that the escrow offered amount is the same as the request-intent offered amount and informs the solver._
 - The solver is not notified of new request-intent events.
-  - _Mitigation: Coordinator monitors intent events and can be queried by the solver._
+  - _Mitigation: Trusted-gmp (and coordinator) receive intent-requests from the contract and can be queried by the solver._
 - The solver attempts to fulfill an intent that wasn't reserved for them.
-  - _Mitigation: The validation contract checks that msg.sender matches the authorized solver from GMP-delivered IntentRequirements._
+  - _Mitigation: Trusted-gmp only signs approval for the reserved solver._
 - The solver provides the wrong token type on destination connected chain.
-  - _Mitigation: The validation contract validates the token against GMP-delivered IntentRequirements on-chain. The fulfillment reverts if the token type is incorrect._
-- The GMP FulfillmentProof is not delivered.
-  - _Mitigation: Escrow remains locked until a valid GMP FulfillmentProof is delivered or the escrow expires. On-chain expiry handles stuck intents._
+  - _Mitigation: Trusted-gmp verifies that the token metadata matches the desired_metadata. If the token type is incorrect, no approval signature is given._
+- The trusted-gmp signature verification fails during escrow release on source connected chain.
+  - _Mitigation: The escrow contract verifies the trusted-gmp (approver) signature. If verification fails, the release transaction aborts and funds remain locked until a valid signature is provided or the escrow expires._
 
 ### The requester is adverse
 
@@ -120,7 +118,8 @@ sequenceDiagram
    - Then the adversary sends a request-intent Tx to the M1 chain.
    - Then the adversary sends a Tx to the source connected chain that transfers too little USDcon token to an escrow.
    - Then the adversary hopes to get more USDcon on the destination chain than they have provided.
-      - _Mitigation: The escrow contract validates the deposit against GMP-delivered IntentRequirements on-chain. Escrow creation reverts if amounts don't match._
+      - _Mitigation: The solver verifies that the correct offered amount has been transferred to the escrow before fulfilling._
+      - _Mitigation: Trusted-gmp verifies that the escrow transfer amount is the same as the request-intent offered amount and informs the solver._
 2. When the adversary attempts to stall the intent, holding solver funds hostage.
    - Then the adversary submits a reserved request-intent on Hub chain
    - Then the adversary takes no action
@@ -133,7 +132,7 @@ sequenceDiagram
    - Then the adversary reserves the request-intent
    - Then the adversary transfers less funds than expected to the requester account on the destination connected chain.
    - Then the adversary hopes that the escrow is released.
-      - _Mitigation: The validation contract on the destination chain validates the transfer amount and type against GMP-delivered IntentRequirements on-chain. The fulfillment reverts if amount or type is incorrect._
+      - _Mitigation: Trusted-gmp verifies the transfer amount and type on the destination connected chain before signing approval. If amount or type is incorrect, no approval is given._
 2. When the adversary attempts to stall the request-intent.
    - Then the adversary reserves the request-intent
    - Then the adversary takes no action
@@ -141,10 +140,11 @@ sequenceDiagram
 
 ## Error Cases
 
-- **Source escrow amount mismatch**: Escrow on the source connected chain does not match the GMP-delivered IntentRequirements; escrow creation reverts.
-- **Destination fulfillment mismatch**: Transfer amount, recipient, or token metadata on the destination chain does not match the GMP-delivered IntentRequirements; validation contract reverts the fulfillment.
-- **GMP message not delivered**: Integrated-gmp relay fails to deliver a message; on-chain expiry handles stuck intents.
+- **Source escrow amount mismatch**: Escrow on the source connected chain does not match the offered amount; solver/trusted-gmp rejects fulfillment.
+- **Destination transfer mismatch**: Transfer amount, recipient, or token metadata on the destination chain does not match the intent; trusted-gmp refuses approval.
+- **Missing intent linkage**: Connected-chain transfer lacks the required intent metadata (memo/calldata); trusted-gmp rejects.
 - **Timeouts across legs**: Escrow or intent expires before the remaining leg completes; remaining actions must cancel or wait for expiry refund.
+- **Trusted-gmp validation failure**: Any leg fails validation (escrow, transfer, or signature); escrow release and collateral release are blocked.
 
 ## Protocol steps details
 
@@ -152,7 +152,7 @@ Steps 1-3 are generic to all flows. See [conception_generic.md](conception_gener
 
 ### 4) Requester deposit on source connected chain
 
-Requester deposits on the source connected chain the offered amount + fee token to an escrow contract. Deposit needs to be tracked by integrated-gmp.
+Requester deposits on the source connected chain the offered amount + fee token to an escrow contract. Deposit needs to be tracked by trusted-gmp.
 The requester calls the smart contract with the amount of token to swap + the pre-calculated fee.
 The contract:
 
@@ -167,36 +167,37 @@ The `intent_id` allows to associate the request-intent with a transfer/escrow on
 
 The solver monitors escrow events on the source connected chain to detect when the requester has deposited funds. The solver verifies that the requester has transferred the correct funds to the escrow and that the intent's data are consistent.
 
-Alternatively, the coordinator monitors the escrow events and the solver can query the coordinator.
+Alternatively, trusted-gmp monitors the escrow events and the solver can query trusted-gmp.
 
 ### 6) Solver fulfills on destination connected chain
 
 The solver transfers the desired amount to the requester on the destination connected chain.
 
-To verify the Solver transfer, integrated-gmp needs a proof. We can use the transfer Tx as proof, but we need to have a way to validate that the Tx hasn't been executed for another purpose. For this purpose, we add the `intent_id` to the transfer Tx as metadata. Or we develop a specific function that does the transfer and links it to the intent.
+To verify the Solver transfer, trusted-gmp needs a proof. We can use the transfer Tx as proof, but we need to have a way to validate that the Tx hasn't been executed for another purpose. For this purpose, we add the `intent_id` to the transfer Tx as metadata. Or we develop a specific function that does the transfer and links it to the intent.
 
-### 7) Validation contract validates and sends GMP FulfillmentProof
+### 7) Trusted-gmp verifies the execution of all legs and signs
 
-The validation contract on the destination connected chain validates the solver's fulfillment on-chain:
+Trusted-gmp verifies the correct execution of all legs:
 
-1. **Requirements check**: Validates that GMP-delivered IntentRequirements exist for the `intent_id`.
+1. **Escrow verification** (source connected chain): Trusted-gmp verifies that the requester has deposited the correct offered amount + fee to the escrow on the source connected chain, linked to the correct `intent_id`.
 
-2. **Fulfillment validation**: Validates that the solver is the authorized solver, the amount matches, and the token matches the stored requirements.
+2. **Fulfillment verification** (destination connected chain): Trusted-gmp verifies that the solver has transferred the correct desired amount to the requester on the destination connected chain, linked to the correct `intent_id`.
 
-3. **Token transfer**: Pulls tokens from the solver via `transferFrom`, forwards to the requester's wallet.
+After successful verification, trusted-gmp signs an approval for escrow release.
 
-After successful validation, the contract sends a GMP FulfillmentProof message to the hub chain.
+### 8) Escrow release on source connected chain
 
-### 8) Hub receives FulfillmentProof and forwards to source chain
-
-The hub receives the GMP FulfillmentProof from the destination chain. The hub forwards a GMP FulfillmentProof to the source connected chain.
-
-### 9) Escrow auto-release on source connected chain
-
-The source chain receives the GMP FulfillmentProof and auto-releases the escrow. The offered amount + solver fee is transferred to the solver account.
+Trusted-gmp or the solver (with trusted-gmp signature) releases the escrow on the source connected chain. The offered amount + solver fee is transferred to the solver account.
 
 (Optional) Deducts fixed protocol fee → Treasury.
 
-### 10) Collateral release and intent closed
+### 9) Trusted-gmp frees solver collateral
 
-The solver's collateral is released on the Hub chain. The intent is marked as closed on-chain.
+The solver's collateral is released on the Hub chain. The solver may free the collateral using the approval signature from trusted-gmp. Alternatively, trusted-gmp can free the collateral.
+
+### 10) Trusted-gmp closes the intent
+
+(Optional) Trusted-gmp updates the intent status to closed.
+Updates exposure metrics.
+
+Steps 8, 9, and 10 are done in the same Hub chain call.

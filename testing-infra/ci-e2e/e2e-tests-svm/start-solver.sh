@@ -35,16 +35,17 @@ generate_solver_config_svm() {
         log_and_echo "❌ ERROR: Missing SVM chain info. Run chain-connected-svm/setup-requester-solver.sh first."
         exit 1
     fi
-    if [ -z "$SVM_PROGRAM_ID" ] || [ -z "$SVM_GMP_ENDPOINT_ID" ] || [ -z "$SVM_OUTFLOW_VALIDATOR_ID" ]; then
-        log_and_echo "❌ ERROR: SVM program IDs not found. Run chain-connected-svm/deploy-contract.sh first."
+    if [ -z "$SVM_PROGRAM_ID" ]; then
+        log_and_echo "❌ ERROR: SVM_PROGRAM_ID not found. Run chain-connected-svm/deploy-contract.sh first."
         exit 1
     fi
 
     local coordinator_url="${COORDINATOR_URL:-http://127.0.0.1:3333}"
+    local trusted_gmp_url="${TRUSTED_GMP_URL:-http://127.0.0.1:3334}"
     local hub_rpc="${CHAIN1_URL:-http://127.0.0.1:8080/v1}"
     local hub_chain_id="${HUB_CHAIN_ID:-1}"
     local svm_rpc="${SVM_RPC_URL:-http://127.0.0.1:8899}"
-    local svm_chain_id="${SVM_CHAIN_ID:-901}"
+    local svm_chain_id="${SVM_CHAIN_ID:-4}"
     local module_addr="0x${chain1_addr}"
     local solver_addr="0x${solver_chain1_addr}"
 
@@ -57,6 +58,7 @@ generate_solver_config_svm() {
 
     log "   Generating solver config:"
     log "   - Coordinator URL: $coordinator_url"
+    log "   - Trusted GMP URL: $trusted_gmp_url"
     log "   - Hub RPC: $hub_rpc (chain ID: $hub_chain_id)"
     log "   - SVM RPC: $svm_rpc (chain ID: $svm_chain_id)"
     log "   - Hub module address: $module_addr"
@@ -72,6 +74,7 @@ generate_solver_config_svm() {
 
 [service]
 coordinator_url = "$coordinator_url"
+trusted_gmp_url = "$trusted_gmp_url"
 polling_interval_ms = 1000
 e2e_mode = true
 
@@ -89,8 +92,6 @@ name = "SVM Connected Chain (E2E Test)"
 rpc_url = "$svm_rpc"
 chain_id = $svm_chain_id
 escrow_program_id = "$SVM_PROGRAM_ID"
-gmp_endpoint_program_id = "$SVM_GMP_ENDPOINT_ID"
-outflow_validator_program_id = "$SVM_OUTFLOW_VALIDATOR_ID"
 private_key_env = "SOLANA_SOLVER_PRIVATE_KEY"
 
 [acceptance]

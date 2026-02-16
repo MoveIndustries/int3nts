@@ -40,7 +40,7 @@ cat > "$TEMP_FILE" << EOF
 name = "Connected EVM Chain"
 rpc_url = "http://127.0.0.1:8545"
 escrow_contract_addr = "$CONTRACT_ADDR"
-chain_id = 31337
+chain_id = 3
 EOF
 
 # Insert the EVM section before [api] section

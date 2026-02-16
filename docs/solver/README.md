@@ -62,7 +62,7 @@ solver/
 │   ├── acceptance.rs      # Token pair acceptance logic
 │   ├── config.rs          # Configuration management
 │   ├── crypto/            # Cryptographic operations (hashing, signing)
-│   └── coordinator_client.rs # HTTP client for coordinator API (drafts, negotiation)
+│   └── coordinator_gmp_client.rs # HTTP client for coordinator (drafts) and trusted-gmp (approvals) APIs
 ├── config/               # Configuration templates
 └── Cargo.toml
 ```
@@ -124,12 +124,12 @@ The solver automatically fulfills **inflow intents** (tokens locked on connected
 
 1. **Monitor Escrows**: Polls connected chain for escrow deposits matching tracked inflow intents
 2. **Fulfill Intent**: Calls hub chain `fulfill_inflow_intent` when escrow is detected
-3. **Release Escrow**: GMP delivers FulfillmentProof to connected chain, auto-releasing escrow to solver
+3. **Release Escrow**: Polls trusted-gmp for approval signature, then releases escrow on connected chain
 
 ### Supported Chains (Inflow)
 
 - **MVM Chains**: Uses `complete_escrow_from_fa` entry function
-- **EVM Chains**: Uses `IntentInflowEscrow.claim()` via connected EVM chain client
+- **EVM Chains**: Uses Hardhat script `claim-escrow.js` (calls `IntentEscrow.claim()`)
 - **SVM Chains**: Uses Solana escrow program claim instruction
 
 **Note**: EVM escrow claiming currently uses Hardhat scripts. Future improvement: implement directly using Rust Ethereum libraries (`ethers-rs` or `alloy`) for better error handling and type safety.
@@ -138,8 +138,9 @@ The solver automatically fulfills **inflow intents** (tokens locked on connected
 
 The solver automatically fulfills **outflow intents** (tokens locked on hub, desired on connected chain):
 
-1. **Call Validation Contract**: Calls validation contract on connected chain (validates requirements, transfers tokens, sends GMP FulfillmentProof)
-2. **Hub Auto-Release**: Hub receives FulfillmentProof via GMP and auto-releases locked tokens to solver
+1. **Execute Transfer**: Transfers tokens on connected chain to requester's address
+2. **Get Trusted GMP Approval**: Calls trusted-gmp `/validate-outflow-fulfillment` with transaction hash
+3. **Fulfill Intent**: Calls hub chain `fulfill_outflow_intent` with trusted-gmp signature
 
 ### Supported Chains (Outflow)
 
@@ -254,12 +255,12 @@ The solver includes chain clients for interacting with different blockchain type
 
 - **Query Escrow Events**: `get_escrow_events()` - Queries connected MVM chain for escrow creation events
 - **Transfer with Intent ID**: `transfer_with_intent_id()` - Executes token transfer with embedded `intent_id`
-- **Complete Escrow**: `complete_escrow_from_fa()` - Releases escrow (auto-released via GMP FulfillmentProof)
+- **Complete Escrow**: `complete_escrow_from_fa()` - Releases escrow with trusted-gmp signature
 
 ### Connected EVM Client (`chains/connected_evm.rs`)
 
 - **Query Escrow Events**: `get_escrow_events()` - Queries EVM chain for `EscrowInitialized` events via JSON-RPC
-- **Claim Escrow**: `claim_escrow()` - Claims escrow (calls `IntentInflowEscrow.claim()`)
+- **Claim Escrow**: `claim_escrow()` - Claims escrow using Hardhat script (calls `IntentEscrow.claim()`)
 - **Transfer with Intent ID**: `transfer_with_intent_id()` - Placeholder for ERC20 transfer with embedded `intent_id` (requires Ethereum signing library)
 
 **Note**: EVM operations currently use Hardhat scripts for transaction execution. Future improvement: implement directly using Rust Ethereum libraries (`ethers-rs` or `alloy`) for better integration and error handling.

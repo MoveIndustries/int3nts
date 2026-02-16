@@ -8,19 +8,17 @@ import { coordinatorClient } from '@/lib/coordinator';
 import type { DraftIntentRequest, DraftIntentSignature } from '@/lib/types';
 import { generateIntentId } from '@/lib/types';
 import { SUPPORTED_TOKENS, type TokenConfig, toSmallestUnits } from '@/config/tokens';
-import { CHAIN_CONFIGS, getChainType, getHubChainConfig, getSvmGmpEndpointId, isHubChain } from '@/config/chains';
+import { CHAIN_CONFIGS, getChainType, getHubChainConfig, isHubChain } from '@/config/chains';
 import { fetchTokenBalance, type TokenBalance } from '@/lib/balances';
 import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
 import { PublicKey } from '@solana/web3.js';
 import { INTENT_MODULE_ADDR, hexToBytes, padEvmAddressToMove } from '@/lib/move-transactions';
-import { INTENT_ESCROW_ABI, ERC20_ABI, intentIdToEvmBytes32, getEscrowContractAddress, checkHasRequirements, checkIsFulfilled } from '@/lib/escrow';
+import { INTENT_ESCROW_ABI, ERC20_ABI, intentIdToEvmFormat, getEscrowContractAddress } from '@/lib/escrow';
 import {
   buildCreateEscrowInstruction,
   getSvmTokenAccount,
   svmHexToPubkey,
   svmPubkeyToHex,
-  readGmpOutboundNonce,
-  checkIsFulfilledSvm,
 } from '@/lib/svm-escrow';
 import { fetchSolverSvmAddress, getSvmConnection, sendSvmTransaction } from '@/lib/svm-transactions';
 
@@ -245,10 +243,6 @@ export function IntentBuilder() {
   const [escrowHash, setEscrowHash] = useState<string | null>(null);
   const [approvingToken, setApprovingToken] = useState(false);
   const [creatingEscrow, setCreatingEscrow] = useState(false);
-
-  // GMP requirements delivery state (for EVM inflow intents)
-  const [requirementsDelivered, setRequirementsDelivered] = useState(false);
-  const [pollingRequirements, setPollingRequirements] = useState(false);
   
   // Wagmi hooks for escrow creation
   const { writeContract: writeApprove, data: approveHash, error: approveError, isPending: isApprovePending, reset: resetApprove } = useWriteContract();
@@ -380,53 +374,6 @@ export function IntentBuilder() {
     intentStatus,
   });
 
-  // Poll for GMP requirements delivery on EVM connected chain (inflow only).
-  // The escrow contract rejects createEscrow until IntentRequirements arrive via GMP.
-  useEffect(() => {
-    if (!transactionHash || !savedDraftData || escrowHash) return;
-    // Only for inflow on EVM chains
-    const isInflow = !isHubChainId(savedDraftData.offeredChainId);
-    const chainKey = Object.entries(CHAIN_CONFIGS).find(
-      ([, config]) => String(config.chainId) === savedDraftData.offeredChainId
-    )?.[0] || null;
-    if (!isInflow || !chainKey || getChainType(chainKey) !== 'evm') {
-      setRequirementsDelivered(true); // SVM/MVM don't need this gate
-      return;
-    }
-
-    let cancelled = false;
-    setPollingRequirements(true);
-    setRequirementsDelivered(false);
-
-    const poll = async () => {
-      let attempts = 0;
-      const maxAttempts = 60; // 60 * 3s = 3 minutes
-      while (!cancelled && attempts < maxAttempts) {
-        try {
-          const delivered = await checkHasRequirements(chainKey, savedDraftData.intentId);
-          if (delivered) {
-            if (!cancelled) {
-              console.log('GMP requirements delivered to EVM chain');
-              setRequirementsDelivered(true);
-              setPollingRequirements(false);
-            }
-            return;
-          }
-        } catch (err) {
-          console.warn('Error checking hasRequirements:', err);
-        }
-        attempts++;
-        await new Promise(r => setTimeout(r, 3000));
-      }
-      if (!cancelled) {
-        setPollingRequirements(false);
-      }
-    };
-
-    poll();
-    return () => { cancelled = true; };
-  }, [transactionHash, savedDraftData, escrowHash]);
-
   // Restore draft ID from localStorage after mount (to avoid hydration mismatch)
   useEffect(() => {
     setMounted(true);
@@ -531,8 +478,6 @@ export function IntentBuilder() {
     setEscrowHash(null);
     setApprovingToken(false);
     setCreatingEscrow(false);
-    setRequirementsDelivered(false);
-    setPollingRequirements(false);
     resetApprove();
     resetEscrow();
     if (typeof window !== 'undefined') {
@@ -732,7 +677,7 @@ export function IntentBuilder() {
   }, [savedDraftData?.intentId]);
 
   // Poll for fulfillment
-  // - Outflow: Check connected chain directly for solver fulfillment (isFulfilled on outflow validator)
+  // - Outflow: Check trusted-gmp approval (trusted-gmp confirms funds received on connected chain)
   // - Inflow: Check hub chain fulfillment events (solver fulfilled intent on hub chain)
   useEffect(() => {
     if (!transactionHash || !savedDraftData || pollingFulfillmentRef.current) return;
@@ -744,6 +689,13 @@ export function IntentBuilder() {
       
       const maxAttempts = 120; // 120 attempts * 5 seconds = 10 minutes max
       let attempts = 0;
+      
+      // Store initial desired balance for inflow comparison
+      let initialDesiredBalance: number | null = null;
+      if (flowType === 'inflow' && desiredBalance) {
+        initialDesiredBalance = parseFloat(desiredBalance.formatted);
+      }
+      
       const poll = async () => {
         try {
           // Use ref to get latest intentId (may have been updated with on-chain ID)
@@ -761,29 +713,21 @@ export function IntentBuilder() {
           }
           
           if (flowType === 'outflow') {
-            // Outflow: Check connected chain directly for solver fulfillment.
-            // The user's funds arrive when the solver fulfills on the connected chain,
-            // no need to wait for the GMP round-trip back to hub.
-            console.log('Checking connected chain fulfillment for outflow intent:', currentIntentId);
+            // Outflow: Check trusted-gmp approval (trusted-gmp confirms funds received on connected chain)
+            console.log('Checking approval status for outflow intent:', currentIntentId);
 
-            const desiredChainKey = savedDraftData ? getChainKeyFromId(savedDraftData.desiredChainId) : null;
-            if (desiredChainKey) {
-              const chainType = getChainType(desiredChainKey);
-              let fulfilled = false;
-
-              if (chainType === 'svm') {
-                fulfilled = await checkIsFulfilledSvm(desiredChainKey, currentIntentId);
-              } else if (chainType === 'evm') {
-                fulfilled = await checkIsFulfilled(desiredChainKey, currentIntentId);
-              }
-
-              if (fulfilled) {
-                console.log('Outflow intent fulfilled on connected chain!');
-                setIntentStatus('fulfilled');
-                setPollingFulfillment(false);
-                pollingFulfillmentRef.current = false;
-                return;
-              }
+            const trustedGmpUrl = process.env.NEXT_PUBLIC_TRUSTED_GMP_URL || 'http://localhost:3334';
+            const response = await fetch(`${trustedGmpUrl}/approved/${currentIntentId}`);
+            const data = await response.json();
+            
+            console.log('Approval check response:', data);
+            
+            if (data.success && data.data?.approved) {
+              console.log('Intent approved!');
+              setIntentStatus('fulfilled');
+              setPollingFulfillment(false);
+              pollingFulfillmentRef.current = false;
+              return;
             }
           } else {
             // Inflow: Check hub chain for fulfillment events
@@ -836,6 +780,22 @@ export function IntentBuilder() {
                 if (foundFulfillment) break;
               }
               
+              // Refresh desired balance to check for increase (backup method)
+              if (!foundFulfillment && desiredToken && mvmAddress) {
+                try {
+                  const refreshedBalance = await fetchTokenBalance(mvmAddress, desiredToken);
+                  if (refreshedBalance && initialDesiredBalance !== null) {
+                    const currentBalance = parseFloat(refreshedBalance.formatted);
+                    if (currentBalance > initialDesiredBalance) {
+                      console.log('Desired balance increased - intent fulfilled!');
+                      // Balance will be refreshed by the hook when intentStatus changes to 'fulfilled'
+                      foundFulfillment = true;
+                    }
+                  }
+                } catch (balanceError) {
+                  console.error('Error refreshing balance:', balanceError);
+                }
+              }
               
               if (foundFulfillment) {
                 console.log('Hub intent fulfilled!');
@@ -1055,12 +1015,6 @@ export function IntentBuilder() {
           const requesterAddrHex = svmPubkeyToHex(svmPublicKey);
           const offeredMetadataHex = svmPubkeyToHex(savedDraftData.offeredMetadata);
 
-          if (!signature.solver_svm_addr) {
-            throw new Error('Solver has no SVM address registered. The solver must register with an SVM address to fulfill SVM inflow intents.');
-          }
-          // Coordinator returns SVM address as 0x-prefixed hex already
-          const solverAddrConnectedChainHex = signature.solver_svm_addr;
-
           functionName = `${INTENT_MODULE_ADDR}::fa_intent_inflow::create_inflow_intent_entry`;
           functionArguments = [
             offeredMetadataHex,
@@ -1072,7 +1026,6 @@ export function IntentBuilder() {
             savedDraftData.expiryTime.toString(),
             savedDraftData.intentId,
             signature.solver_hub_addr,
-            solverAddrConnectedChainHex,
             signatureArray,
             requesterAddrHex,
           ];
@@ -1081,11 +1034,6 @@ export function IntentBuilder() {
           const paddedRequesterAddr = padEvmAddressToMove(evmAddressForInflow);
           // Pad offered metadata (EVM token address) to 32 bytes
           const paddedOfferedMetadata = padEvmAddressToMove(savedDraftData.offeredMetadata);
-
-          if (!signature.solver_evm_addr) {
-            throw new Error('Solver has no EVM address registered. The solver must register with an EVM address to fulfill EVM inflow intents.');
-          }
-          const paddedSolverAddrConnectedChain = padEvmAddressToMove(signature.solver_evm_addr);
 
           functionName = `${INTENT_MODULE_ADDR}::fa_intent_inflow::create_inflow_intent_entry`;
           functionArguments = [
@@ -1098,7 +1046,6 @@ export function IntentBuilder() {
             savedDraftData.expiryTime.toString(),
             savedDraftData.intentId,
             signature.solver_hub_addr,
-            paddedSolverAddrConnectedChain,
             signatureArray,
             paddedRequesterAddr,
           ];
@@ -1114,12 +1061,6 @@ export function IntentBuilder() {
           const requesterAddrHex = svmPubkeyToHex(svmPublicKey);
           const desiredMetadataHex = svmPubkeyToHex(savedDraftData.desiredMetadata);
 
-          if (!signature.solver_svm_addr) {
-            throw new Error('Solver has no SVM address registered. The solver must register with an SVM address to fulfill SVM outflow intents.');
-          }
-          // Coordinator returns SVM address as 0x-prefixed hex already
-          const solverAddrConnectedChainHex = signature.solver_svm_addr;
-
           functionName = `${INTENT_MODULE_ADDR}::fa_intent_outflow::create_outflow_intent_entry`;
           functionArguments = [
             savedDraftData.offeredMetadata, // Move token - already 32 bytes
@@ -1132,7 +1073,6 @@ export function IntentBuilder() {
             savedDraftData.intentId,
             requesterAddrHex,
             signature.solver_hub_addr,
-            solverAddrConnectedChainHex,
             signatureArray,
           ];
         } else {
@@ -1144,11 +1084,6 @@ export function IntentBuilder() {
           // Pad desired metadata (EVM token address) to 32 bytes
           const paddedDesiredMetadata = padEvmAddressToMove(savedDraftData.desiredMetadata);
           console.log('Padded desired metadata:', paddedDesiredMetadata);
-
-          if (!signature.solver_evm_addr) {
-            throw new Error('Solver has no EVM address registered. The solver must register with an EVM address to fulfill EVM outflow intents.');
-          }
-          const paddedSolverAddrConnectedChain = padEvmAddressToMove(signature.solver_evm_addr);
 
           functionName = `${INTENT_MODULE_ADDR}::fa_intent_outflow::create_outflow_intent_entry`;
           functionArguments = [
@@ -1162,7 +1097,6 @@ export function IntentBuilder() {
             savedDraftData.intentId,
             paddedRequesterAddr,
             signature.solver_hub_addr,
-            paddedSolverAddrConnectedChain,
             signatureArray,
           ];
         }
@@ -1307,15 +1241,6 @@ export function IntentBuilder() {
         const reservedSolver = svmHexToPubkey(solverSvmHex);
         console.log('SVM Escrow: Reserved solver pubkey:', reservedSolver.toBase58());
         const amount = BigInt(savedDraftData.offeredAmount);
-
-        // Read GMP nonce for EscrowConfirmation message PDA
-        const connection = getSvmConnection();
-        const gmpEndpointId = new PublicKey(getSvmGmpEndpointId('svm-devnet'));
-        const hubChainId = getHubChainConfig().chainId;
-        console.log('SVM Escrow: Reading GMP nonce for hub chain', hubChainId);
-        const currentNonce = await readGmpOutboundNonce(connection, gmpEndpointId, hubChainId);
-        console.log('SVM Escrow: Current GMP outbound nonce:', currentNonce.toString());
-
         const createIx = buildCreateEscrowInstruction({
           intentId: savedDraftData.intentId,
           amount,
@@ -1323,12 +1248,9 @@ export function IntentBuilder() {
           requesterToken,
           tokenMint,
           reservedSolver,
-          gmpParams: {
-            gmpEndpointProgramId: gmpEndpointId,
-            hubChainId,
-            currentNonce,
-          },
         });
+
+        const connection = getSvmConnection();
         const signatureHash = await sendSvmTransaction({
           wallet: svmWallet,
           connection,
@@ -1370,7 +1292,14 @@ export function IntentBuilder() {
       const tokenAddress = effectiveOfferedToken.metadata as `0x${string}`;
       // Use amount from savedDraftData since offeredAmount state might be stale
       const amount = BigInt(savedDraftData.offeredAmount);
-      const intentIdEvm = intentIdToEvmBytes32(savedDraftData.intentId);
+      const intentIdEvm = intentIdToEvmFormat(savedDraftData.intentId);
+      
+      // Get solver's EVM address from signature response (required for inflow escrows)
+      if (!signature.solver_evm_addr) {
+        throw new Error('Solver has no EVM address registered. The solver must register with an EVM address to fulfill inflow intents.');
+      }
+      const solverAddress = signature.solver_evm_addr;
+      console.log('Solver EVM address:', solverAddress);
 
       // First approve token (approve a large amount to avoid repeated approvals)
       const approveAmount = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'); // max uint256
@@ -1415,15 +1344,21 @@ export function IntentBuilder() {
       const escrowAddress = getEscrowContractAddress(offeredToken.chain);
       const tokenAddress = offeredToken.metadata as `0x${string}`;
       const amount = BigInt(toSmallestUnits(parseFloat(offeredAmount), offeredToken.decimals));
-      const intentIdEvm = intentIdToEvmBytes32(savedDraftData.intentId);
-
-      console.log('Creating escrow:', { escrowAddress, tokenAddress, amount: amount.toString(), intentIdEvm });
+      const intentIdEvm = intentIdToEvmFormat(savedDraftData.intentId);
+      
+      // Get solver's EVM address from signature response (required for inflow escrows)
+      if (!signature.solver_evm_addr) {
+        throw new Error('Solver has no EVM address registered. The solver must register with an EVM address to fulfill inflow intents.');
+      }
+      const solverAddress = signature.solver_evm_addr;
+      
+      console.log('Creating escrow:', { escrowAddress, tokenAddress, amount: amount.toString(), intentIdEvm: intentIdEvm.toString(), solverAddress });
 
       writeCreateEscrow({
         address: escrowAddress,
         abi: INTENT_ESCROW_ABI,
-        functionName: 'createEscrowWithValidation',
-        args: [intentIdEvm, tokenAddress, amount],
+        functionName: 'createEscrow',
+        args: [intentIdEvm, tokenAddress, amount, solverAddress as `0x${string}`],
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create escrow');
@@ -1701,24 +1636,22 @@ export function IntentBuilder() {
             <button
               type="button"
               onClick={handleCreateEscrow}
-              disabled={approvingToken || creatingEscrow || isApproving || isCreatingEscrow || isApprovePending || isEscrowPending || !escrowWalletReady || (!escrowRequiresSvm && !requirementsDelivered)}
+              disabled={approvingToken || creatingEscrow || isApproving || isCreatingEscrow || isApprovePending || isEscrowPending || !escrowWalletReady}
               className="w-full px-4 py-2 rounded text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {escrowRequiresSvm
                 ? creatingEscrow
                   ? 'Sending...'
-                  : 'Send'
-                : pollingRequirements
-                  ? 'Waiting for GMP relay...'
-                  : isApprovePending
-                    ? 'Confirm in wallet...'
-                    : approvingToken || isApproving
-                      ? 'Approving token...'
-                      : isEscrowPending
-                        ? 'Confirm in wallet...'
-                        : creatingEscrow || isCreatingEscrow
-                          ? 'Sending...'
-                          : 'Send'}
+                  : 'Create Escrow on SVM'
+                : isApprovePending
+                  ? 'Confirm in wallet...'
+                  : approvingToken || isApproving
+                    ? 'Approving token...'
+                    : isEscrowPending
+                      ? 'Confirm escrow in wallet...'
+                      : creatingEscrow || isCreatingEscrow
+                        ? 'Sending...'
+                        : 'Create Escrow on EVM'}
             </button>
           )}
           {(!isHubChainId(savedDraftData?.offeredChainId)) && transactionHash && escrowHash && (

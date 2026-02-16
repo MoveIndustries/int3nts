@@ -97,16 +97,12 @@ pub struct IntentEvent {
     pub expiry_time: u64,
     /// Timestamp when the event was received
     pub timestamp: u64,
-    /// Whether intent requirements have been delivered to connected chain (ready for solver fulfillment)
-    /// - True: IntentRequirementsReceived event observed on connected chain outflow validator
-    /// - False: Requirements not yet delivered or event not yet observed
-    pub ready_on_connected_chain: bool,
 }
 
 /// Escrow deposit event from the connected chain.
 ///
 /// This event is emitted when a solver deposits assets into an escrow
-/// on the connected chain. The integrated-gmp validates that this deposit
+/// on the connected chain. The trusted-gmp validates that this deposit
 /// fulfills the conditions specified in the original intent.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EscrowEvent {
@@ -394,36 +390,5 @@ impl EventMonitor {
     pub async fn get_cached_fulfillment_events(&self) -> Vec<FulfillmentEvent> {
         use super::outflow_generic;
         outflow_generic::get_cached_fulfillment_events(self).await
-    }
-
-    /// Mark an intent as ready when IntentRequirementsReceived event is observed on connected chain.
-    ///
-    /// This is called by connected chain monitors when they detect the outflow validator
-    /// received intent requirements via GMP.
-    ///
-    /// # Arguments
-    ///
-    /// * `intent_id` - The intent ID to mark as ready
-    pub async fn mark_intent_ready(&self, intent_id: &str) {
-        let mut cache = self.event_cache.write().await;
-
-        let normalized_intent_id = normalize_intent_id(intent_id);
-
-        if let Some(intent) = cache.iter_mut().find(|e| {
-            normalize_intent_id(&e.intent_id) == normalized_intent_id
-        }) {
-            if !intent.ready_on_connected_chain {
-                intent.ready_on_connected_chain = true;
-                tracing::info!(
-                    "Intent {} marked as ready on connected chain (requirements received)",
-                    intent_id
-                );
-            }
-        } else {
-            tracing::debug!(
-                "Intent {} not found in cache when marking ready (may not be created yet or already expired)",
-                intent_id
-            );
-        }
     }
 }

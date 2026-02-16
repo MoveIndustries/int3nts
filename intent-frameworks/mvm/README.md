@@ -7,9 +7,9 @@ Movement Move contracts for intents and escrows.
 ## Quick Start
 
 ```bash
-# Run tests (all 3 packages - script handles nix shell automatically)
-./scripts/test.sh
+# Run tests
+nix develop ./nix -c bash -c "cd intent-frameworks/mvm && movement move test --dev --named-addresses mvmt_intent=0x123"
 
-# Or from project root:
-./intent-frameworks/mvm/scripts/test.sh
+# Enter development environment
+nix develop ./nix
 ```

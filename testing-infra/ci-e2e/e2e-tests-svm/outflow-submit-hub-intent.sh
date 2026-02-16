@@ -12,13 +12,13 @@ setup_logging "submit-hub-intent-svm-outflow"
 cd "$PROJECT_ROOT"
 
 verify_coordinator_running
-verify_integrated_gmp_running
+verify_trusted_gmp_running
 verify_solver_running
 verify_solver_registered
 
 INTENT_ID="0x$(openssl rand -hex 32)"
 
-CONNECTED_CHAIN_ID=901
+CONNECTED_CHAIN_ID=4
 HUB_CHAIN_ID=1
 
 HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
@@ -78,7 +78,7 @@ log_and_echo ""
 
 log ""
 log " Starting coordinator-based negotiation routing..."
-log "   Flow: Requester → Coordinator/Integrated-GMP → Solver → Coordinator/Integrated-GMP → Requester"
+log "   Flow: Requester → Coordinator/Trusted-GMP → Solver → Coordinator/Trusted-GMP → Requester"
 
 log ""
 log "   Step 1: Requester submits draft intent to coordinator..."
@@ -104,7 +104,7 @@ RETRIEVED_SIGNATURE=$(echo "$SIGNATURE_DATA" | jq -r '.signature')
 RETRIEVED_SOLVER=$(echo "$SIGNATURE_DATA" | jq -r '.solver_hub_addr')
 
 if [ -z "$RETRIEVED_SIGNATURE" ] || [ "$RETRIEVED_SIGNATURE" = "null" ]; then
-    log_and_echo "❌ ERROR: Failed to retrieve signature from coordinator/integrated-gmp"
+    log_and_echo "❌ ERROR: Failed to retrieve signature from coordinator/trusted-gmp"
     display_service_logs "SVM outflow draft signature missing"
     exit 1
 fi
@@ -119,10 +119,9 @@ log "     Desired metadata (connected SVM): $DESIRED_METADATA_SVM"
 log "     Solver address: $RETRIEVED_SOLVER"
 
 SOLVER_SIGNATURE_HEX="${RETRIEVED_SIGNATURE#0x}"
-
 aptos move run --profile requester-chain1 --assume-yes \
     --function-id "0x${HUB_MODULE_ADDR}::fa_intent_outflow::create_outflow_intent_entry" \
-    --args "address:${OFFERED_METADATA_HUB}" "u64:${OFFERED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "address:${DESIRED_METADATA_SVM}" "u64:${DESIRED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${REQUESTER_SVM_ADDR}" "address:${RETRIEVED_SOLVER}" "address:${SOLVER_SVM_ADDR}" "hex:${SOLVER_SIGNATURE_HEX}" >> "$LOG_FILE" 2>&1
+    --args "address:${OFFERED_METADATA_HUB}" "u64:${OFFERED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "address:${DESIRED_METADATA_SVM}" "u64:${DESIRED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${REQUESTER_SVM_ADDR}" "address:${RETRIEVED_SOLVER}" "hex:${SOLVER_SIGNATURE_HEX}" >> "$LOG_FILE" 2>&1
 
 if [ $? -eq 0 ]; then
     log "     ✅ Request-intent created on Hub!"
@@ -131,7 +130,7 @@ if [ $? -eq 0 ]; then
         jq -r '.[0].events[] | select(.type | contains("LimitOrderEvent")) | .data.intent_addr' | head -n 1)
     if [ -n "$HUB_INTENT_ADDR" ] && [ "$HUB_INTENT_ADDR" != "null" ]; then
         log "     ✅ Hub intent stored at: $HUB_INTENT_ADDR"
-        log_and_echo "✅ Request-intent created (via coordinator/integrated-gmp negotiation)"
+        log_and_echo "✅ Request-intent created (via coordinator/trusted-gmp negotiation)"
     else
         log_and_echo "❌ ERROR: Could not verify hub intent address"
         exit 1

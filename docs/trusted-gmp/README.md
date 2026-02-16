@@ -1,50 +1,70 @@
-# Integrated GMP Service
+# Trusted GMP Service
 
-A integrated GMP relay service that watches for `MessageSent` events on source chains and delivers cross-chain messages by calling `deliver_message` on destination chains.
+A service that validates cross-chain fulfillment conditions and provides approval signatures for cross-chain operations.
 
-Integrated-gmp is a pure relay — invisible to clients. The coordinator is the single API surface for frontends and solvers.
+The trusted-gmp service supports two cross-chain flows:
+
+**Outflow (hub → connected chain):**
+
+1. Validates fulfillment transactions on connected chains (MVM, EVM, and SVM)
+2. Validates that transfer conditions match intent requirements
+3. Generates approval signatures for intent fulfillment on hub chain
+
+**Inflow (connected chain → hub):**
+
+1. Monitors escrow events on connected chains (MVM, EVM, and SVM)
+2. Monitors fulfillment events on the hub chain (when solver fulfills)
+3. Validates that fulfillment matches escrow conditions
+4. Generates approval signatures for escrow release on connected chain
 
 ## Architecture
 
-The integrated-gmp service is infrastructure only:
-
-1. Watches mock GMP endpoint contracts for `MessageSent` events on all chains
-2. Picks up pending messages and delivers them to destination chain GMP endpoints
-3. Destination contracts process the delivered messages (e.g., release escrows, confirm fulfillments)
-
-In production, this relay can be replaced by an external GMP provider's endpoint infrastructure.
-
 ### Components
 
-- **Integrated GMP Relay**: Watches `MessageSent` events and calls `deliver_message` on destination chains
-- **Event Monitor**: Listens for GMP events on hub and connected chains (MVM, EVM, SVM)
-- **Chain Clients**: MVM, EVM, and SVM clients for reading events and submitting transactions
+- **Cross-chain Validator**: Validates fulfillment conditions on hub and connected chains (MVM, EVM, and SVM)
+- **Approval Service**: Provides approval signatures by signing the `intent_id` (Ed25519 for MVM and SVM, ECDSA for EVM)
+- **Event Monitor**: Listens for intent and escrow events on hub and connected chains (MVM, EVM, and SVM)
 
 ## Project Structure
 
 ```text
-integrated-gmp/
-├── config/              # Configuration files (contains operator wallet keys)
+trusted-gmp/
+├── config/          # Configuration files (contains private keys)
 ├── src/
-│   ├── monitor/         # Event monitoring (hub and connected chains)
-│   ├── integrated_gmp_relay/ # Core relay logic
-│   ├── evm_client.rs    # EVM chain client
-│   ├── mvm_client.rs    # MVM chain client
-│   ├── svm_client.rs    # SVM chain client
-│   ├── config.rs        # Configuration loading
-│   ├── crypto/          # Cryptographic operations
-│   ├── validator/       # Cross-chain validation logic
-│   └── bin/             # Utility binaries (generate_keys, get_approver_eth_address)
+│   ├── monitor/     # Event monitoring (hub and connected chains)
+│   ├── validator/   # Cross-chain validation logic
+│   ├── crypto/      # Cryptographic operations and key management
+│   ├── api/         # REST API server
+│   └── bin/         # Utility binaries (generate_keys, get_approver_eth_address)
 └── Cargo.toml
 ```
 
-## Security Requirements
+## SVM Outflow Validation
 
-**CRITICAL**: This service has operator wallet keys and can deliver arbitrary messages. Ensure proper key management and access controls for production use.
+SVM outflow fulfillment transactions must include a strict memo + transfer pattern so the trusted-gmp service can tie the connected-chain transfer to the hub `intent_id`:
+
+- The first instruction is an SPL memo with `intent_id=0x...` (32-byte hex).
+- The transaction contains exactly one SPL `transferChecked` instruction.
+- The transfer authority is a signer and must match the solver address for the intent.
+- The transfer destination must match the intent's connected-chain recipient.
+- The transfer amount and mint must match the intent's desired amount and token metadata.
+
+This strict pattern prevents forged memos from being accepted without a matching SPL token transfer.
 
 ## Quick Start
 
-See the [component README](../../integrated-gmp/README.md) for quick start commands.
+See the [component README](../../trusted-gmp/README.md) for quick start commands.
+
+## API Endpoints
+
+- `GET /health` - Health check
+- `GET /public-key` - Get trusted-gmp public key
+- `GET /approvals` - Get cached approval signatures
+- `POST /approval` - Create approval signature
+- `POST /validate-outflow-fulfillment` - Validate connected chain transaction for outflow intent
+- `POST /validate-inflow-escrow` - Validate escrow for inflow intent
+
+For detailed API documentation, see [api.md](api.md). For usage guide, see [guide.md](guide.md).
 
 ## Dependencies
 

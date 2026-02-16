@@ -1,61 +1,70 @@
 # SVM Intent Framework
 
-Escrow and validation programs for cross-chain intents on Solana, using GMP for cross-chain message authentication.
+Escrow program for cross-chain intents on Solana that releases funds to solvers when trusted-gmp signatures check out.
 
 ## Overview
 
-### Inflow Escrow (`intent_inflow_escrow`)
-
-Secure escrow program for inflow intents:
+The `IntentEscrow` program implements a secure escrow system:
 
 - Requesters deposit SPL tokens into escrows tied to intent IDs
-- Escrow creation is validated against IntentRequirements delivered via GMP
-- Escrow auto-releases to reserved solver when FulfillmentProof arrives via GMP
+- Solvers can claim funds after providing a valid trusted-gmp signature
+- The trusted-gmp service signs approval messages off-chain after verifying cross-chain conditions
 - Requesters can cancel and reclaim funds after expiry
-
-### Outflow Validator (`intent-outflow-validator`)
-
-Validation program for outflow intents:
-
-- Receives IntentRequirements from hub via GMP
-- Solver calls `fulfill_intent` -- program validates parameters, pulls tokens, transfers to requester
-- Sends FulfillmentProof back to hub via GMP
 
 ## Architecture
 
-GMP messages handle cross-chain authentication. Programs validate requirements on-chain.
+Ed25519 signature verification similar to the Move/Aptos escrow system.
 
-Inflow flow:
+Flow:
 
-1. Hub sends IntentRequirements via GMP to connected chain
-2. Requester creates escrow -- program validates against stored requirements
-3. Escrow sends EscrowConfirmation back to hub via GMP
-4. Solver fulfills on hub -- FulfillmentProof sent via GMP to connected chain
-5. Escrow auto-releases to reserved solver
+1. Requester creates escrow and deposits funds atomically (must specify solver address)
+2. Trusted-gmp service monitors conditions and signs approval (off-chain)
+3. Solver claims with trusted-gmp signature (funds go to reserved solver)
+4. Requester can cancel and reclaim after expiry (2 minutes)
 
-Outflow flow:
+## Signature Verification
 
-1. Hub sends IntentRequirements via GMP to connected chain
-2. Solver calls validation program -- validates, transfers tokens, sends FulfillmentProof via GMP
-3. Hub receives proof -- releases locked tokens to solver
+The trusted-gmp service signs the `intent_id` - the signature itself is the approval.
+
+Uses Solana's Ed25519 instruction introspection:
+
+1. Transaction includes Ed25519 verify instruction (index 0)
+2. Program reads instruction via sysvar
+3. Verifies pubkey, signature, and message match expected values
+
+## Outflow Transfer Attribution (SVM)
+
+For SVM outflow transfers, we use a **Memo-based convention** to attach the `intent_id` to the transaction. This keeps implementation simple and avoids new on-chain programs, but it has tradeoffs:
+
+- **Pros:** No program changes, fast to implement, standard Solana tooling.
+- **Cons:** The trusted-gmp service must parse and trust a memo format; it is weaker than a PDA-backed record or a custom program instruction.
+
+**Alternative:** Use a dedicated program instruction (or PDA record) to write `intent_id` and transfer metadata on-chain. This provides stronger verification guarantees but requires additional on-chain code, deployment, and trusted-gmp parsing updates.
+
+**Effort to switch:** medium—new instruction definitions, program changes, deployment update, and trusted-gmp/parser changes, plus new tests.
+
+**Trusted-gmp requirements (current memo approach):**
+
+- The memo must be the first instruction and formatted as `intent_id=0x...`.
+- The transaction must include exactly one SPL `transferChecked` instruction.
+- The transfer authority must be a signer and match the solver address.
+- The transfer destination, amount, and mint must match the intent.
 
 ## Program Interface
 
 ### Instructions
 
 ```rust
-// Initialize program with GMP config
+// Initialize program with approver pubkey
 fn initialize(ctx: Context<Initialize>, approver: Pubkey) -> Result<()>
 
-// Receive GMP message (IntentRequirements or FulfillmentProof)
-fn gmp_receive(src_chain_id: u32, remote_gmp_endpoint_addr: [u8; 32], payload: Vec<u8>)
-
 // Create escrow and deposit tokens atomically
-// Validates against stored IntentRequirements
+// Expiry is set to current_time + 120 seconds (2 minutes)
 fn create_escrow(ctx: Context<CreateEscrow>, intent_id: [u8; 32], amount: u64) -> Result<()>
 
-// Claim funds (after FulfillmentProof received via GMP, no signature required)
-fn claim(ctx: Context<Claim>, intent_id: [u8; 32]) -> Result<()>
+// Claim funds with approver signature
+// Requires Ed25519 verify instruction at index 0 in transaction
+fn claim(ctx: Context<Claim>, intent_id: [u8; 32], signature: [u8; 64]) -> Result<()>
 
 // Cancel escrow and reclaim funds (requester only, after expiry)
 fn cancel(ctx: Context<Cancel>, intent_id: [u8; 32]) -> Result<()>
@@ -73,24 +82,81 @@ fn cancel(ctx: Context<Cancel>, intent_id: [u8; 32]) -> Result<()>
 - `EscrowDoesNotExist` - Intent ID doesn't match escrow
 - `NoDeposit` - No funds in escrow
 - `UnauthorizedRequester` - Caller is not the requester
+- `InvalidSignature` - Signature verification failed
+- `UnauthorizedApprover` - Signer is not the authorized approver
 - `EscrowExpired` - Cannot claim after expiry
 - `EscrowNotExpiredYet` - Cannot cancel before expiry
-- `RequirementsNotFound` - No IntentRequirements stored for this intent_id
-- `AmountMismatch` - Escrow amount doesn't match requirements
 
 ## Quick Start
 
 See the [component README](../../intent-frameworks/svm/README.md) for quick start commands.
 
+## Usage Example
+
+```typescript
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+  Ed25519Program,
+  SYSVAR_INSTRUCTIONS_PUBKEY,
+  sendAndConfirmTransaction,
+} from "@solana/web3.js";
+import * as nacl from "tweetnacl";
+import { buildCreateEscrowInstruction, buildClaimInstruction } from "./helpers";
+
+// Derive PDAs
+const [escrowPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("escrow"), intentId],
+  programId
+);
+const [vaultPda] = PublicKey.findProgramAddressSync(
+  [Buffer.from("vault"), intentId],
+  programId
+);
+
+// Create escrow instruction
+const createEscrowIx = buildCreateEscrowInstruction(
+  intentId,
+  amount,
+  requester.publicKey,
+  tokenMint,
+  requesterTokenAccount,
+  solver.publicKey
+);
+
+const createTx = new Transaction().add(createEscrowIx);
+await sendAndConfirmTransaction(connection, createTx, [requester]);
+
+// Approver (trusted-gmp) signs intent_id (off-chain)
+const signature = nacl.sign.detached(intentId, approver.secretKey);
+
+// Build claim transaction with Ed25519 instruction
+const ed25519Ix = Ed25519Program.createInstructionWithPrivateKey({
+  privateKey: approver.secretKey,
+  message: intentId,
+});
+
+const claimIx = buildClaimInstruction(
+  intentId,
+  signature,
+  solverTokenAccount,
+  statePda
+);
+
+// Ed25519 instruction must be first
+const claimTx = new Transaction().add(ed25519Ix).add(claimIx);
+await sendAndConfirmTransaction(connection, claimTx, [solver]);
+```
+
 ## Security Considerations
 
-- GMP message verification: Only messages from authorized GMP endpoints accepted
-- Remote endpoint verification: Source chain and address validated against stored config
-- Intent ID binding: Requirements keyed by intent_id prevent cross-escrow attacks
+- Signature verification: Only authorized trusted-gmp signatures accepted (Ed25519)
+- Intent ID binding: Prevents signature replay across escrows
 - PDA authority: Escrow vault is controlled by escrow PDA
 - Access control: Only requester can cancel (after expiry)
 - Solver reservation: Required at creation, prevents unauthorized recipients
-- On-chain validation: All requirement matching happens on-chain
 
 ## Testing
 
@@ -99,6 +165,6 @@ See the [component README](../../intent-frameworks/svm/README.md) for quick star
 ./scripts/test.sh
 ```
 
-Tests cover escrow initialization, deposits, claiming, cancellation, expiry enforcement, GMP message handling, and error cases.
+Tests cover escrow initialization, deposits, claiming, cancellation, expiry enforcement, and error cases.
 
 See [intent-frameworks/svm/README.md](../../intent-frameworks/svm/README.md) for toolchain constraints and workarounds.

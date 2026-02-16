@@ -22,7 +22,7 @@ This checklist provides a comprehensive security review guide for the Intent Fra
 
 ## 1. Endpoint Abuse Prevention
 
-**Time: 1.5 days** | **Components: Coordinator API, Solver endpoints**
+**Time: 1.5 days** | **Components: Coordinator/Trusted GMP API, Solver endpoints**
 
 Assume every endpoint will be abused. Attackers don't follow happy paths.
 
@@ -47,15 +47,16 @@ Assume every endpoint will be abused. Attackers don't follow happy paths.
 
 | Component | File/Module | Checks |
 |-----------|-------------|--------|
-| Coordinator API | `coordinator/src/api/` | Rate limits, input validation |
+| Coordinator/Trusted GMP API | `coordinator/src/api/`, `trusted-gmp/src/api/` | Rate limits, input validation |
 | Draft Intent Endpoint | `POST /draftintent` | Idempotency, rate limiting |
 | Signature Endpoint | `POST /draftintent/:id/signature` | FCFS protection, replay prevention |
+| Validation Endpoint | `POST /validate-outflow-fulfillment` | Input sanitization |
 
 ---
 
 ## 2. Client Trust Elimination
 
-**Time: 1 day** | **Components: Contracts, Integrated GMP relay**
+**Time: 1 day** | **Components: Trusted GMP, Move contracts**
 
 Frontend checks are for UX, not security. All security checks must be server-side.
 
@@ -73,7 +74,7 @@ Frontend checks are for UX, not security. All security checks must be server-sid
 
 ### Anti-Patterns to Eliminate
 
-```text
+```
 ❌ "The button is hidden" - not a security strategy
 ❌ "Frontend validates the input" - bots ignore this
 ❌ "Only authorized users see this page" - URL is guessable
@@ -84,14 +85,14 @@ Frontend checks are for UX, not security. All security checks must be server-sid
 | Component | Checks |
 |-----------|--------|
 | Move Contracts | `signer` verification, ownership checks |
-| GMP Endpoint Contracts | Relay authorization, remote endpoint verification |
+| Trusted GMP Service | Authorization middleware, signature verification |
 | Solver | Transaction signing, permission checks |
 
 ---
 
 ## 3. Auth Hardening
 
-**Time: 1.5 days** | **Components: GMP endpoint auth, relay authorization**
+**Time: 1.5 days** | **Components: Trusted GMP auth, signature verification**
 
 Auth working once doesn't mean auth is safe. Test edge cases.
 
@@ -104,34 +105,33 @@ Auth working once doesn't mean auth is safe. Test edge cases.
 - [ ] **Multi-Tab Behavior**: Multiple browser tabs with different states
 - [ ] **Session Expiry**: Actions during session timeout
 
-### GMP Message Authentication Hardening
+### Signature Verification Hardening
 
-- [ ] Verify relay is authorized on GMP endpoint before delivering messages
-- [ ] Check remote GMP endpoint address matches expected source
-- [ ] Prevent message replay across different intents (idempotency)
-- [ ] Validate GMP message payload covers all relevant fields
+- [ ] Verify Ed25519 signatures match expected public keys
+- [ ] Check signature hasn't expired (if time-bound)
+- [ ] Prevent signature replay across different intents
+- [ ] Validate signature covers all relevant fields
 
 ### Components to Review
 
 | Component | File | Checks |
 |-----------|------|--------|
-| Solver Registry | `intent-frameworks/mvm/intent-hub/sources/solver_registry.move` | Public key management |
-| GMP Endpoint | `intent-frameworks/mvm/intent-gmp/sources/gmp/intent_gmp.move` | Relay authorization, remote endpoint verification |
+| Solver Registry | `intent-frameworks/mvm/sources/solver_registry.move` | Public key management |
+| Signature Verification | `trusted-gmp/src/crypto/` | Ed25519/ECDSA validation |
 | Intent Creation | `create_inflow_intent`, `create_outflow_intent` | Solver signature verification |
 
 ---
 
 ## 4. Logging Infrastructure
 
-**Time: 1.5 days** | **Components: Integrated GMP relay, Solver**
+**Time: 1.5 days** | **Components: Trusted GMP, Solver**
 
 No logs means no answers. Not for bugs, not for breaches, not for refunds.
 
 ### Requirements
 
 - [ ] **Structured Logging**: Use consistent log format
-
-  ```json
+  ```
   {
     "timestamp": "2026-01-13T10:00:00Z",
     "level": "INFO",
@@ -146,8 +146,8 @@ No logs means no answers. Not for bugs, not for breaches, not for refunds.
 - [ ] **Sensitive Action Logging**: Log all critical operations
   - Intent creation/fulfillment
   - Escrow creation/claim/refund
-  - GMP message delivery
-  - Validation results
+  - Signature generation
+  - Validation approvals/rejections
   - Configuration changes
 
 - [ ] **Correlation IDs**: Track requests across services
@@ -174,8 +174,7 @@ Third-party services will fail. Design for it.
 ### Requirements
 
 - [ ] **Retries with Limits**: Implement exponential backoff
-
-  ```text
+  ```
   Max retries: 3-5
   Initial delay: 100ms
   Max delay: 10s
@@ -198,7 +197,7 @@ Third-party services will fail. Design for it.
 |---------|--------------|------------|
 | Chain RPC | Timeout, rate limit | Multiple providers, caching |
 | GMP Provider | Message delay | Timeout handling, retry |
-| Integrated GMP relay | Unavailable | Queue pending messages |
+| Trusted GMP | Unavailable | Queue pending validations |
 
 ---
 
@@ -216,8 +215,7 @@ API keys in code will leak. Not maybe. Will.
   - Different secrets per environment
 
 - [ ] **Proper .gitignore**: Exclude sensitive files
-
-  ```text
+  ```
   .env
   .env.local
   .env.*.local
@@ -240,7 +238,7 @@ API keys in code will leak. Not maybe. Will.
 
 | Secret | Location | Rotation Frequency |
 |--------|----------|-------------------|
-| Integrated GMP operator wallet key | `.env` | Quarterly |
+| Trusted GMP signing key | `.env` | Quarterly |
 | Chain RPC API keys | `.env` | On compromise |
 | Solver private keys | Secure storage | As needed |
 

@@ -11,7 +11,7 @@
 # - HUB_CHAIN_ID: Hub chain ID
 # - EVM_CHAIN_ID: Connected EVM chain ID
 # - ACCOUNT_ADDR: Hub chain module address
-# - ESCROW_GMP_ADDR: EVM IntentInflowEscrow contract address
+# - ESCROW_CONTRACT_ADDR: EVM escrow contract address
 # - EVM_PRIVATE_KEY_ENV: Environment variable name for EVM private key
 
 set -e
@@ -55,13 +55,11 @@ generate_solver_config_evm() {
         log_and_echo "❌ ERROR: USD_EVM_ADDR not found in chain-info.env"
         exit 1
     fi
-    local escrow_addr="${ESCROW_GMP_ADDR:-}"
+    local escrow_addr="${ESCROW_CONTRACT_ADDR:-}"
     if [ -z "$escrow_addr" ]; then
-        log_and_echo "❌ ERROR: ESCROW_GMP_ADDR not found in chain-info.env"
+        log_and_echo "❌ ERROR: ESCROW_CONTRACT_ADDR not found in chain-info.env"
         exit 1
     fi
-    local outflow_validator_addr="${OUTFLOW_VALIDATOR_ADDR:-}"
-    local gmp_endpoint_addr="${GMP_ENDPOINT_ADDR:-}"
     # Lowercase and pad to 32 bytes for Move compatibility (hub chain uses 32-byte addresses)
     local evm_token_no_prefix="${evm_token_addr#0x}"
     local evm_token_lower=$(echo "$evm_token_no_prefix" | tr '[:upper:]' '[:lower:]')
@@ -69,10 +67,11 @@ generate_solver_config_evm() {
     
     # Use environment variables from test setup
     local coordinator_url="${COORDINATOR_URL:-http://127.0.0.1:3333}"
+    local trusted_gmp_url="${TRUSTED_GMP_URL:-http://127.0.0.1:3334}"
     local hub_rpc="${CHAIN1_URL:-http://127.0.0.1:8080/v1}"
     local evm_rpc="${EVM_RPC_URL:-http://127.0.0.1:8545}"
     local hub_chain_id="${HUB_CHAIN_ID:-1}"
-    local evm_chain_id="${EVM_CHAIN_ID:-31337}"
+    local evm_chain_id="${EVM_CHAIN_ID:-3}"
     local module_addr="0x${chain1_addr}"
     local escrow_contract="${escrow_addr}"
     local solver_addr="0x${solver_chain1_addr}"
@@ -80,6 +79,7 @@ generate_solver_config_evm() {
     
     log "   Generating solver config:"
     log "   - Coordinator URL: $coordinator_url"
+    log "   - Trusted GMP URL: $trusted_gmp_url"
     log "   - Hub RPC: $hub_rpc (chain ID: $hub_chain_id)"
     log "   - EVM RPC: $evm_rpc (chain ID: $evm_chain_id)"
     log "   - Hub module address: $module_addr"
@@ -87,8 +87,6 @@ generate_solver_config_evm() {
     log "   - Solver address: $solver_addr"
     log "   - USDhub metadata (hub): $usdhub_metadata_chain1"
     log "   - USDcon metadata (EVM, padded): $usdcon_metadata_evm"
-    log "   - EVM outflow validator: $outflow_validator_addr"
-    log "   - EVM GMP endpoint: $gmp_endpoint_addr"
     
     cat > "$config_file" << EOF
 # Auto-generated solver config for EVM E2E tests
@@ -96,6 +94,7 @@ generate_solver_config_evm() {
 
 [service]
 coordinator_url = "$coordinator_url"
+trusted_gmp_url = "$trusted_gmp_url"
 polling_interval_ms = 1000  # Poll frequently for tests
 e2e_mode = true  # Use aptos CLI with profiles for E2E tests
 
@@ -114,8 +113,6 @@ rpc_url = "$evm_rpc"
 chain_id = $evm_chain_id
 escrow_contract_addr = "$escrow_contract"
 private_key_env = "$evm_private_key_env"
-outflow_validator_addr = "$outflow_validator_addr"
-gmp_endpoint_addr = "$gmp_endpoint_addr"
 
 [acceptance]
 # Accept USDhub/USDcon swaps at 1:1 rate for E2E testing

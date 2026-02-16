@@ -25,8 +25,8 @@ if [ ! -f "$COORDINATOR_CONFIG_PATH" ]; then
 fi
 export COORDINATOR_CONFIG_PATH
 
-# Load integrated-gmp keys (generated during deployment)
-load_integrated_gmp_keys
+# Load trusted-gmp keys (generated during deployment)
+load_trusted_gmp_keys
 
 
 # Create a temporary integration test entry point
