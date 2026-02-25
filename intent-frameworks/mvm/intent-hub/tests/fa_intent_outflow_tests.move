@@ -522,8 +522,8 @@ module mvmt_intent::fa_intent_outflow_tests {
             solver_signer,
         );
 
-        // Try to cancel before expiry — should abort
-        fa_intent_outflow::cancel_outflow_intent(requester_signer, intent_obj);
+        // Admin tries to cancel before expiry — should abort
+        fa_intent_outflow::cancel_outflow_intent(mvmt_intent, intent_obj);
     }
 
     #[test(
@@ -533,7 +533,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_signer = @0xdead
     )]
     /// What is tested: cancel_outflow_intent returns funds to requester after expiry
-    /// Why: Requesters need a way to reclaim funds if fulfillment doesn't occur before expiry
+    /// Why: Admin needs a way to return funds if fulfillment doesn't occur before expiry
     fun test_cancel_outflow_after_expiry_returns_funds(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -557,8 +557,8 @@ module mvmt_intent::fa_intent_outflow_tests {
         // Advance time past expiry (expiry = now + 3600, so 3601 is past)
         timestamp::update_global_time_for_test_secs(3601);
 
-        // Cancel — funds should return to requester
-        fa_intent_outflow::cancel_outflow_intent(requester_signer, intent_obj);
+        // Admin cancels — funds should return to requester
+        fa_intent_outflow::cancel_outflow_intent(mvmt_intent, intent_obj);
 
         // Verify funds returned (50 + 50 = 100)
         assert!(primary_fungible_store::balance(requester_addr, offered_metadata) == 100);
@@ -578,8 +578,8 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_signer = @0xdead
     )]
     #[expected_failure(abort_code = 0x50008, location = mvmt_intent::fa_intent_outflow)] // error::permission_denied(E_UNAUTHORIZED_CALLER = 8)
-    /// What is tested: cancel_outflow_intent rejects unauthorized callers
-    /// Why: Only the intent owner or admin should be able to cancel
+    /// What is tested: cancel_outflow_intent rejects non-admin callers (including requester)
+    /// Why: Only admin should be able to cancel expired intents
     fun test_cancel_outflow_rejects_unauthorized_caller(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -596,8 +596,8 @@ module mvmt_intent::fa_intent_outflow_tests {
         // Advance time past expiry
         timestamp::update_global_time_for_test_secs(3601);
 
-        // Solver (not owner, not admin) tries to cancel — should abort
-        fa_intent_outflow::cancel_outflow_intent(solver_signer, intent_obj);
+        // Requester (not admin) tries to cancel — should abort
+        fa_intent_outflow::cancel_outflow_intent(requester_signer, intent_obj);
     }
 
     #[test(
@@ -647,8 +647,8 @@ module mvmt_intent::fa_intent_outflow_tests {
         // Advance time past expiry
         timestamp::update_global_time_for_test_secs(3601);
 
-        // Try to cancel after fulfillment proof — should abort
-        fa_intent_outflow::cancel_outflow_intent(requester_signer, intent_obj);
+        // Admin tries to cancel after fulfillment proof — should abort
+        fa_intent_outflow::cancel_outflow_intent(mvmt_intent, intent_obj);
     }
 
     #[test(

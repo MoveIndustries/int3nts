@@ -62,11 +62,11 @@ SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/cancel.rs`
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
 | 1 | Should revert if escrow has not expired yet | [x] | [x] | [x] |
-| 2 | Should allow requester to cancel and reclaim funds after expiry | [x] | [x] | [x] |
-| 3 | Should revert if not requester or admin | [x] | [x] | [x] |
+| 2 | Should allow admin to cancel and return funds to requester after expiry | [x] | [x] | [x] |
+| 3 | Should revert if caller is not admin | [x] | [x] | [x] |
 | 4 | Should revert if already claimed | [x] | [x] | [x] |
 | 5 | Should revert if escrow does not exist | [x] | [x] | [x] |
-| 6 | Should allow admin to cancel and return funds to requester after expiry | [x] | [x] | [x] |
+| 6 | Should revert if already cancelled | [x] | [x] | [x] |
 
 ## expiry
 
@@ -76,7 +76,7 @@ SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/expiry.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 1 | Should allow requester to cancel expired escrow | [ ] | [x] | [x] |
+| 1 | Should allow admin to cancel expired escrow | [ ] | [x] | [x] |
 | 2 | Should verify expiry timestamp is stored correctly | [ ] | [x] | [x] |
 | 3 | Should prevent claim on expired escrow (EVM) / allow GMP fulfillment after local expiry (SVM) | [ ] | [x] | [x] |
 

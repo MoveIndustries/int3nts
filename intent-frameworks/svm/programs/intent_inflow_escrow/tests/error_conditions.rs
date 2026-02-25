@@ -220,6 +220,7 @@ async fn test_revert_cancel_on_non_existent_escrow() {
         env.requester_token,
         escrow_pda,
         vault_pda,
+        env.gmp_config_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();

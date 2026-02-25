@@ -601,12 +601,9 @@ module mvmt_intent::intent_inflow_escrow {
         // Verify not already released (covers both fulfillment and prior cancellation)
         assert!(!escrow.released, E_ALREADY_FULFILLED);
 
-        // Verify caller is the original requester or admin
+        // Verify caller is admin (only admin can cancel expired escrows)
         let caller_addr = signer::address_of(caller);
-        let caller_bytes = address_to_bytes32(caller_addr);
-        let is_requester = caller_bytes == escrow.creator_addr;
-        let is_admin = caller_addr == admin;
-        assert!(is_requester || is_admin, E_UNAUTHORIZED_CALLER);
+        assert!(caller_addr == admin, E_UNAUTHORIZED_CALLER);
 
         // Verify escrow has expired
         let req_store = borrow_global<IntentRequirementsStore>(@mvmt_intent);

@@ -403,12 +403,12 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
     }
 
     // ============================================================================
-    // CANCEL: Requester reclaims funds after expiry
+    // CANCEL: Admin returns funds to requester after expiry
     // ============================================================================
 
     /// @notice Cancel escrow and return funds to requester after expiry
-    /// @dev The original requester or admin (owner) can cancel after expiry.
-    ///      Funds always return to the original requester regardless of caller.
+    /// @dev Only the admin (owner) can cancel after expiry.
+    ///      Funds always return to the original requester.
     /// @param intentId 32-byte intent identifier
     function cancel(bytes32 intentId) external nonReentrant {
         // Verify escrow exists
@@ -419,9 +419,8 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
         // Verify not already released (fulfilled or cancelled)
         if (escrow.released) revert E_ALREADY_RELEASED();
 
-        // Verify caller is the requester or admin
-        bytes32 callerAddr32 = Messages.addressToBytes32(msg.sender);
-        if (callerAddr32 != escrow.creatorAddr && msg.sender != owner()) revert E_UNAUTHORIZED_CALLER();
+        // Verify caller is admin (only admin can cancel expired escrows)
+        if (msg.sender != owner()) revert E_UNAUTHORIZED_CALLER();
 
         // Verify intent has expired
         StoredRequirements storage req = requirements[intentId];

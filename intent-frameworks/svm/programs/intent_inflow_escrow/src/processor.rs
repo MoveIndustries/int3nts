@@ -618,7 +618,7 @@ impl Processor {
         let escrow_vault = next_account_info(account_info_iter)?;
         let requester_token_account = next_account_info(account_info_iter)?;
         let token_program = next_account_info(account_info_iter)?;
-        let gmp_config_account = next_account_info(account_info_iter).ok();
+        let gmp_config_account = next_account_info(account_info_iter)?;
 
         // Deserialize escrow
         let mut escrow = Escrow::try_from_slice(&escrow_account.data.borrow())?;
@@ -637,21 +637,16 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Verify caller is the original requester or admin
-        if escrow.requester != *caller.key {
-            // Not the requester — check if caller is admin
-            let config_account = gmp_config_account
-                .ok_or::<ProgramError>(EscrowError::UnauthorizedCaller.into())?;
-            let (config_pda, _) =
-                Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
-            if config_pda != *config_account.key {
-                return Err(EscrowError::InvalidPda.into());
-            }
-            let config = GmpConfig::try_from_slice(&config_account.data.borrow())
-                .map_err(|_| EscrowError::AccountNotInitialized)?;
-            if config.admin != *caller.key {
-                return Err(EscrowError::UnauthorizedCaller.into());
-            }
+        // Verify caller is admin (only admin can cancel expired escrows)
+        let (config_pda, _) =
+            Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
+        if config_pda != *gmp_config_account.key {
+            return Err(EscrowError::InvalidPda.into());
+        }
+        let config = GmpConfig::try_from_slice(&gmp_config_account.data.borrow())
+            .map_err(|_| EscrowError::AccountNotInitialized)?;
+        if config.admin != *caller.key {
+            return Err(EscrowError::UnauthorizedCaller.into());
         }
 
         let clock = Clock::get()?;

@@ -424,7 +424,7 @@ async fn test_complete_full_cancellation_workflow() {
     clock.unix_timestamp = escrow.expiry + 1;
     context.set_sysvar(&clock);
 
-    // Step 4: Cancel and reclaim
+    // Step 4: Admin cancels and funds return to requester
     let cancel_ix = create_cancel_ix(
         env.program_id,
         intent_id,
@@ -432,6 +432,7 @@ async fn test_complete_full_cancellation_workflow() {
         env.requester_token,
         escrow_pda,
         vault_pda,
+        env.gmp_config_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();

@@ -112,7 +112,7 @@ module mvmt_intent::cancel_tests {
     // ============================================================================
 
     // 1. Test: Should revert if escrow has not expired yet
-    // Verifies that requesters cannot cancel escrows before the expiry timestamp.
+    // Verifies that admin cannot cancel escrows before the expiry timestamp.
     // Why: Funds must remain locked until expiry to give the solver time to fulfill.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
     #[expected_failure(abort_code = 15, location = mvmt_intent::intent_inflow_escrow)] // E_ESCROW_NOT_EXPIRED
@@ -158,13 +158,13 @@ module mvmt_intent::cancel_tests {
             amount,
         );
 
-        // Try to cancel before expiry (current time 1000, expiry 2000)
-        intent_inflow_escrow::cancel_escrow(requester, intent_id);
+        // Admin tries to cancel before expiry (current time 1000, expiry 2000)
+        intent_inflow_escrow::cancel_escrow(admin, intent_id);
     }
 
-    // 2. Test: Should allow requester to cancel and reclaim funds after expiry
-    // Verifies that requesters can cancel escrows after expiry and reclaim their funds.
-    // Why: Requesters need a way to reclaim funds if the solver never fulfills.
+    // 2. Test: Should allow admin to cancel and return funds to requester after expiry
+    // Verifies that admin can cancel escrows after expiry and funds return to requester.
+    // Why: Admin needs a way to return funds if the solver never fulfills.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
     fun test_cancel_after_expiry_returns_funds(
         aptos_framework: &signer,
@@ -215,10 +215,10 @@ module mvmt_intent::cancel_tests {
         // Advance time past expiry
         timestamp::update_global_time_for_test_secs(2001);
 
-        // Cancel escrow
-        intent_inflow_escrow::cancel_escrow(requester, copy intent_id);
+        // Admin cancels escrow, funds return to requester
+        intent_inflow_escrow::cancel_escrow(admin, copy intent_id);
 
-        // Verify funds returned to requester
+        // Verify funds returned to requester (not admin)
         let balance_after_cancel = primary_fungible_store::balance(REQUESTER_ADDR, token_metadata);
         assert!(balance_after_cancel == 100, 2); // 50 + 50 = 100
 
@@ -226,17 +226,16 @@ module mvmt_intent::cancel_tests {
         assert!(intent_inflow_escrow::is_released(intent_id), 3);
     }
 
-    // 3. Test: Should revert if not requester or admin
-    // Verifies that only the original requester or admin can cancel the escrow.
-    // Why: Security requirement — prevents unauthorized parties from triggering cancellation.
-    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789, attacker = @0xDEAD)]
+    // 3. Test: Should revert if caller is not admin
+    // Verifies that only admin can cancel the escrow — requester cannot.
+    // Why: Security requirement — only admin can cancel expired escrows.
+    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
     #[expected_failure(abort_code = 17, location = mvmt_intent::intent_inflow_escrow)] // E_UNAUTHORIZED_CALLER
-    fun test_cancel_rejects_non_requester(
+    fun test_cancel_rejects_non_admin(
         aptos_framework: &signer,
         admin: &signer,
         token_creator: &signer,
         requester: &signer,
-        attacker: &signer,
     ) {
         // Setup FA token
         let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
@@ -277,8 +276,8 @@ module mvmt_intent::cancel_tests {
         // Advance time past expiry
         timestamp::update_global_time_for_test_secs(2001);
 
-        // Attacker tries to cancel — should fail
-        intent_inflow_escrow::cancel_escrow(attacker, intent_id);
+        // Requester tries to cancel — should fail (only admin can cancel)
+        intent_inflow_escrow::cancel_escrow(requester, intent_id);
     }
 
     // 4. Test: Should revert if already claimed
@@ -348,19 +347,18 @@ module mvmt_intent::cancel_tests {
         // Advance time past expiry
         timestamp::update_global_time_for_test_secs(2001);
 
-        // Try to cancel after fulfillment — should fail
-        intent_inflow_escrow::cancel_escrow(requester, intent_id);
+        // Admin tries to cancel after fulfillment — should fail
+        intent_inflow_escrow::cancel_escrow(admin, intent_id);
     }
 
     // 5. Test: Should revert if escrow does not exist
     // Verifies that cancelling a non-existent escrow is rejected.
     // Why: Prevents cancellation of non-existent escrows and ensures proper error handling.
-    #[test(aptos_framework = @0x1, admin = @mvmt_intent, requester = @0x789)]
+    #[test(aptos_framework = @0x1, admin = @mvmt_intent)]
     #[expected_failure(abort_code = 11, location = mvmt_intent::intent_inflow_escrow)] // E_ESCROW_NOT_FOUND
     fun test_cancel_rejects_nonexistent_escrow(
         aptos_framework: &signer,
         admin: &signer,
-        requester: &signer,
     ) {
         timestamp::set_time_has_started_for_testing(aptos_framework);
         timestamp::update_global_time_for_test_secs(1000);
@@ -368,16 +366,17 @@ module mvmt_intent::cancel_tests {
         // Initialize modules
         init_modules(admin);
 
-        // Try to cancel a non-existent escrow
+        // Admin tries to cancel a non-existent escrow
         let fake_intent_id = create_test_intent_id();
-        intent_inflow_escrow::cancel_escrow(requester, fake_intent_id);
+        intent_inflow_escrow::cancel_escrow(admin, fake_intent_id);
     }
 
-    // 6. Test: Should allow admin to cancel and return funds to requester after expiry
-    // Verifies that the admin can cancel an expired escrow on behalf of the requester.
-    // Why: Admin acts as a helper to unstick expired escrows; funds always go to requester.
+    // 6. Test: Should revert if already cancelled
+    // Verifies that cancelling an already-cancelled escrow is rejected (double-cancel prevention).
+    // Why: Prevents double-refund by ensuring released escrows cannot be cancelled again.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
-    fun test_admin_cancel_after_expiry_returns_funds_to_requester(
+    #[expected_failure(abort_code = 12, location = mvmt_intent::intent_inflow_escrow)] // E_ALREADY_FULFILLED (released)
+    fun test_cancel_rejects_already_cancelled(
         aptos_framework: &signer,
         admin: &signer,
         token_creator: &signer,
@@ -419,21 +418,13 @@ module mvmt_intent::cancel_tests {
             amount,
         );
 
-        // Verify requester balance dropped by escrow amount
-        let balance_after_escrow = primary_fungible_store::balance(REQUESTER_ADDR, token_metadata);
-        assert!(balance_after_escrow == 50, 1); // 100 - 50 = 50
-
         // Advance time past expiry
         timestamp::update_global_time_for_test_secs(2001);
 
-        // Admin cancels on behalf of requester
+        // First cancel succeeds
         intent_inflow_escrow::cancel_escrow(admin, copy intent_id);
 
-        // Verify funds returned to requester (not admin)
-        let balance_after_cancel = primary_fungible_store::balance(REQUESTER_ADDR, token_metadata);
-        assert!(balance_after_cancel == 100, 2); // 50 + 50 = 100
-
-        // Verify escrow marked as released
-        assert!(intent_inflow_escrow::is_released(intent_id), 3);
+        // Second cancel should fail — escrow already released
+        intent_inflow_escrow::cancel_escrow(admin, intent_id);
     }
 }

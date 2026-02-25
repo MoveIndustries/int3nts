@@ -20,11 +20,11 @@ use bincode::deserialize;
 // EXPIRY HANDLING TESTS
 // ============================================================================
 
-/// 1. Test: Expired Escrow Cancellation
-/// Verifies that requesters can cancel escrows after expiry and reclaim funds.
-/// Why: Requesters need a way to reclaim funds if fulfillment doesn't occur before expiry. Cancellation before expiry is blocked to ensure funds remain locked until expiry.
+/// 1. Test: Expired Escrow Cancellation by Admin
+/// Verifies that admin can cancel escrows after expiry and funds return to requester.
+/// Why: Admin needs to be able to return funds if fulfillment doesn't occur before expiry. Cancellation before expiry is blocked to ensure funds remain locked until expiry.
 #[tokio::test]
-async fn test_allow_requester_to_cancel_expired_escrow() {
+async fn test_allow_admin_to_cancel_expired_escrow() {
     let program_test = program_test();
     let mut context = program_test.start_with_context().await;
     let env = setup_basic_env(&mut context).await;
@@ -78,7 +78,7 @@ async fn test_allow_requester_to_cancel_expired_escrow() {
     );
     context.banks_client.process_transaction(create_tx).await.unwrap();
 
-    // Cancellation blocked before expiry
+    // Admin cancellation blocked before expiry (requester = admin in basic env)
     let cancel_ix_early = create_cancel_ix(
         env.program_id,
         intent_id,
@@ -86,6 +86,7 @@ async fn test_allow_requester_to_cancel_expired_escrow() {
         env.requester_token,
         escrow_pda,
         vault_pda,
+        env.gmp_config_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -120,7 +121,7 @@ async fn test_allow_requester_to_cancel_expired_escrow() {
     clock.unix_timestamp = escrow.expiry + 1;
     context.set_sysvar(&clock);
 
-    // Cancellation allowed after expiry
+    // Admin cancellation allowed after expiry
     let initial_balance = get_token_balance(&mut context, env.requester_token).await;
 
     let cancel_ix = create_cancel_ix(
@@ -130,6 +131,7 @@ async fn test_allow_requester_to_cancel_expired_escrow() {
         env.requester_token,
         escrow_pda,
         vault_pda,
+        env.gmp_config_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -248,7 +250,7 @@ async fn test_verify_expiry_timestamp_is_stored_correctly() {
 /// Verifies that expired escrows CAN still be fulfilled via GMP fulfillment proof.
 /// Why: In GMP mode, the hub is the source of truth. If the hub sends a fulfillment proof,
 /// it means the solver fulfilled the intent on the other chain, so funds should be released.
-/// Local expiry is only relevant for the Cancel operation (requester reclaiming funds).
+/// The escrow's expiry timestamp only gates the admin Cancel operation, not GMP fulfillment.
 #[tokio::test]
 async fn test_expired_escrow_can_be_fulfilled_via_gmp() {
     let program_test = program_test();

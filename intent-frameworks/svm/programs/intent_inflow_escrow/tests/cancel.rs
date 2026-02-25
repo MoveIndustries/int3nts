@@ -1,7 +1,7 @@
 mod common;
 
 use common::{
-    create_admin_cancel_ix, create_cancel_ix, create_escrow_ix,
+    create_cancel_ix, create_escrow_ix,
     create_gmp_receive_fulfillment_proof_ix, create_gmp_receive_requirements_ix,
     create_set_gmp_config_ix, generate_intent_id, get_token_balance, program_test, read_escrow,
     setup_basic_env, setup_gmp_requirements, setup_gmp_requirements_custom, test_program_id,
@@ -23,7 +23,7 @@ use bincode::deserialize;
 // ============================================================================
 
 /// 1. Test: Cancellation Before Expiry Prevention
-/// Verifies that requesters cannot cancel escrows before expiry.
+/// Verifies that admin cannot cancel escrows before expiry.
 /// Why: Funds must remain locked until expiry to give solvers time to fulfill.
 #[tokio::test]
 async fn test_revert_if_escrow_has_not_expired_yet() {
@@ -63,6 +63,7 @@ async fn test_revert_if_escrow_has_not_expired_yet() {
     let (vault_pda, _) =
         Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
 
+    // Admin (= requester in basic env) tries to cancel before expiry — should fail
     let cancel_ix = create_cancel_ix(
         env.program_id,
         intent_id,
@@ -70,6 +71,7 @@ async fn test_revert_if_escrow_has_not_expired_yet() {
         env.requester_token,
         escrow_pda,
         vault_pda,
+        env.gmp_config_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -84,9 +86,9 @@ async fn test_revert_if_escrow_has_not_expired_yet() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// 2. Test: Cancellation After Expiry
-/// Verifies that requesters can cancel escrows after expiry and reclaim funds.
-/// Why: Requesters need a way to reclaim funds if fulfillment doesn't occur.
+/// 2. Test: Admin Cancellation After Expiry
+/// Verifies that admin can cancel escrows after expiry and funds return to requester.
+/// Why: Admin needs a way to return funds if fulfillment doesn't occur.
 ///
 /// NOTE: Uses 1-second expiry for fast testing. Production uses 120 seconds.
 #[tokio::test]
@@ -155,6 +157,7 @@ async fn test_cancel_after_expiry() {
     clock.unix_timestamp = escrow.expiry + 1;
     context.set_sysvar(&clock);
 
+    // Admin (= requester in basic env) cancels after expiry
     let cancel_ix = create_cancel_ix(
         env.program_id,
         intent_id,
@@ -162,6 +165,7 @@ async fn test_cancel_after_expiry() {
         env.requester_token,
         escrow_pda,
         vault_pda,
+        env.gmp_config_pda,
     );
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let cancel_tx = Transaction::new_signed_with_payer(
@@ -192,67 +196,131 @@ async fn test_cancel_after_expiry() {
 // AUTHORIZATION TESTS
 // ============================================================================
 
-/// 3. Test: Unauthorized Cancellation Prevention
-/// Verifies that only the requester can cancel their escrow.
-/// Why: Security requirement - only the escrow creator should be able to cancel.
+/// 3. Test: Requester Cannot Cancel (only admin can)
+/// Verifies that the requester cannot cancel their own escrow — only admin can.
+/// Why: Security requirement - only admin can cancel expired escrows.
 #[tokio::test]
-async fn test_revert_if_not_requester() {
-    let program_test = program_test();
-    let mut context = program_test.start_with_context().await;
-    let env = setup_basic_env(&mut context).await;
+async fn test_revert_if_not_admin() {
+    // Custom setup where admin ≠ requester
+    let pt = program_test();
+    let mut context = pt.start_with_context().await;
+    let payer = context.payer.insecure_clone();
+    let program_id = test_program_id();
+    let admin = Keypair::new();
+    let requester = Keypair::new();
+    let solver = Keypair::new();
+    let mint_authority = Keypair::new();
+
+    // Fund accounts
+    let fund_ixs = vec![
+        solana_sdk::system_instruction::transfer(&payer.pubkey(), &admin.pubkey(), 2_000_000_000),
+        solana_sdk::system_instruction::transfer(&payer.pubkey(), &requester.pubkey(), 2_000_000_000),
+        solana_sdk::system_instruction::transfer(&payer.pubkey(), &solver.pubkey(), 2_000_000_000),
+    ];
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let fund_tx = Transaction::new_signed_with_payer(
+        &fund_ixs,
+        Some(&payer.pubkey()),
+        &[&payer],
+        blockhash,
+    );
+    context.banks_client.process_transaction(fund_tx).await.unwrap();
+
+    // Create mint and token accounts
+    let mint = common::create_mint(&mut context, &payer, &mint_authority, 6).await;
+    let requester_token =
+        common::create_token_account(&mut context, &payer, mint, requester.pubkey()).await;
+    common::mint_to(&mut context, &payer, mint, &mint_authority, requester_token, 1_000_000).await;
+
+    // Initialize program
+    let approver = Keypair::new();
+    common::initialize_program(&mut context, &requester, program_id, approver.pubkey()).await;
+
+    // Initialize GMP config with admin (NOT requester) as admin
+    let gmp_endpoint = Pubkey::new_unique();
+    let (gmp_config_pda, _) =
+        Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], &program_id);
+    let set_gmp_config_ix = create_set_gmp_config_ix(
+        program_id,
+        gmp_config_pda,
+        admin.pubkey(),
+        DUMMY_HUB_CHAIN_ID,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
+        gmp_endpoint,
+    );
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[set_gmp_config_ix],
+        Some(&payer.pubkey()),
+        &[&payer, &admin],
+        blockhash,
+    );
+    context.banks_client.process_transaction(tx).await.unwrap();
 
     let intent_id = generate_intent_id();
     let amount = 1_000_000u64;
 
-    // Use u64::MAX for expiry
-    let requirements_pda =
-        setup_gmp_requirements(&mut context, &env, intent_id, amount, u64::MAX).await;
+    let requirements_pda = setup_gmp_requirements_custom(
+        &mut context,
+        program_id,
+        gmp_config_pda,
+        DUMMY_HUB_CHAIN_ID,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
+        intent_id,
+        requester.pubkey(),
+        mint,
+        solver.pubkey(),
+        amount,
+        u64::MAX,
+    )
+    .await;
 
     let create_ix = create_escrow_ix(
-        env.program_id,
+        program_id,
         intent_id,
         amount,
-        env.requester.pubkey(),
-        env.mint,
-        env.requester_token,
-        env.solver.pubkey(),
+        requester.pubkey(),
+        mint,
+        requester_token,
+        solver.pubkey(),
         requirements_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let create_tx = Transaction::new_signed_with_payer(
         &[create_ix],
-        Some(&env.requester.pubkey()),
-        &[&env.requester],
+        Some(&requester.pubkey()),
+        &[&requester],
         blockhash,
     );
     context.banks_client.process_transaction(create_tx).await.unwrap();
 
     let (escrow_pda, _) =
-        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
+        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &program_id);
     let (vault_pda, _) =
-        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
+        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &program_id);
 
-    // Try to cancel with solver (wrong requester)
+    // Requester (not admin) tries to cancel — should fail
     let cancel_ix = create_cancel_ix(
-        env.program_id,
+        program_id,
         intent_id,
-        env.solver.pubkey(), // Wrong requester
-        env.solver_token,
+        requester.pubkey(),
+        requester_token,
         escrow_pda,
         vault_pda,
+        gmp_config_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let cancel_tx = Transaction::new_signed_with_payer(
         &[cancel_ix],
-        Some(&env.solver.pubkey()),
-        &[&env.solver],
+        Some(&requester.pubkey()),
+        &[&requester],
         blockhash,
     );
 
     let result = context.banks_client.process_transaction(cancel_tx).await;
-    assert!(result.is_err(), "Should have thrown an error");
+    assert!(result.is_err(), "Should fail - requester is not admin");
 }
 
 /// 4. Test: Cancellation After Claim Prevention (GMP Mode)
@@ -360,7 +428,7 @@ async fn test_revert_if_already_claimed() {
     );
     context.banks_client.process_transaction(claim_tx).await.unwrap();
 
-    // Step 4: Now try to cancel - should fail because already claimed
+    // Step 4: Now try to cancel as admin - should fail because already claimed
     let cancel_ix = create_cancel_ix(
         env.program_id,
         intent_id,
@@ -368,6 +436,7 @@ async fn test_revert_if_already_claimed() {
         env.requester_token,
         escrow_pda,
         vault_pda,
+        env.gmp_config_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -413,6 +482,7 @@ async fn test_revert_if_escrow_does_not_exist() {
         env.requester_token,
         escrow_pda,
         vault_pda,
+        env.gmp_config_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -431,72 +501,17 @@ async fn test_revert_if_escrow_does_not_exist() {
 // ADMIN CANCEL TESTS
 // ============================================================================
 
-/// 6. Test: Admin Cancel After Expiry
-/// Verifies that admin can cancel an expired escrow and funds go to the original requester.
-/// Why: Admin acts as a helper to unstick expired escrows; funds always go to requester.
+/// 6. Test: Double Cancellation Prevention
+/// Verifies that canceling an already-cancelled escrow reverts.
+/// Why: Prevents double-refund by ensuring released escrows cannot be cancelled again.
 #[tokio::test]
-async fn test_admin_cancel_after_expiry_returns_funds_to_requester() {
-    // Custom setup where admin != requester (setup_basic_env sets requester as GMP admin)
-    let pt = program_test();
-    let mut context = pt.start_with_context().await;
-    let payer = context.payer.insecure_clone();
-    let program_id = test_program_id();
-    let admin = Keypair::new();
-    let requester = Keypair::new();
-    let solver = Keypair::new();
-    let mint_authority = Keypair::new();
+async fn test_revert_if_already_cancelled() {
+    let program_test = program_test();
+    let mut context = program_test.start_with_context().await;
+    let env = setup_basic_env(&mut context).await;
 
-    // Fund accounts
-    let fund_ixs = vec![
-        solana_sdk::system_instruction::transfer(&payer.pubkey(), &admin.pubkey(), 2_000_000_000),
-        solana_sdk::system_instruction::transfer(
-            &payer.pubkey(),
-            &requester.pubkey(),
-            2_000_000_000,
-        ),
-        solana_sdk::system_instruction::transfer(&payer.pubkey(), &solver.pubkey(), 2_000_000_000),
-    ];
-    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let fund_tx = Transaction::new_signed_with_payer(
-        &fund_ixs,
-        Some(&payer.pubkey()),
-        &[&payer],
-        blockhash,
-    );
-    context.banks_client.process_transaction(fund_tx).await.unwrap();
-
-    // Create mint and token accounts
-    let mint = common::create_mint(&mut context, &payer, &mint_authority, 6).await;
-    let requester_token =
-        common::create_token_account(&mut context, &payer, mint, requester.pubkey()).await;
-
-    // Mint tokens to requester
-    common::mint_to(&mut context, &payer, mint, &mint_authority, requester_token, 1_000_000).await;
-
-    // Initialize program
-    let approver = Keypair::new();
-    common::initialize_program(&mut context, &requester, program_id, approver.pubkey()).await;
-
-    // Initialize GMP config with admin (NOT requester) as admin
-    let gmp_endpoint = Pubkey::new_unique();
-    let (gmp_config_pda, _) =
-        Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], &program_id);
-    let set_gmp_config_ix = create_set_gmp_config_ix(
-        program_id,
-        gmp_config_pda,
-        admin.pubkey(), // admin is the GMP config admin
-        DUMMY_HUB_CHAIN_ID,
-        DUMMY_HUB_GMP_ENDPOINT_ADDR,
-        gmp_endpoint,
-    );
-    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let tx = Transaction::new_signed_with_payer(
-        &[set_gmp_config_ix],
-        Some(&payer.pubkey()),
-        &[&payer, &admin],
-        blockhash,
-    );
-    context.banks_client.process_transaction(tx).await.unwrap();
+    let intent_id = [7u8; 32];
+    let amount = 500_000u64;
 
     // Get current clock timestamp before setting up requirements
     let clock_account = context
@@ -508,49 +523,34 @@ async fn test_admin_cancel_after_expiry_returns_funds_to_requester() {
     let clock: Clock = deserialize(&clock_account.data).unwrap();
     let current_time = clock.unix_timestamp;
 
-    // Create escrow with short expiry using setup_gmp_requirements_custom
-    let intent_id = [7u8; 32];
-    let amount = 500_000u64;
+    // Use a short expiry: current_time + 1 second
     let expiry = (current_time as u64) + 1;
-
-    let requirements_pda = setup_gmp_requirements_custom(
-        &mut context,
-        program_id,
-        gmp_config_pda,
-        DUMMY_HUB_CHAIN_ID,
-        DUMMY_HUB_GMP_ENDPOINT_ADDR,
-        intent_id,
-        requester.pubkey(),
-        mint,
-        solver.pubkey(),
-        amount,
-        expiry,
-    )
-    .await;
+    let requirements_pda =
+        setup_gmp_requirements(&mut context, &env, intent_id, amount, expiry).await;
 
     let create_ix = create_escrow_ix(
-        program_id,
+        env.program_id,
         intent_id,
         amount,
-        requester.pubkey(),
-        mint,
-        requester_token,
-        solver.pubkey(),
+        env.requester.pubkey(),
+        env.mint,
+        env.requester_token,
+        env.solver.pubkey(),
         requirements_pda,
     );
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let create_tx = Transaction::new_signed_with_payer(
         &[create_ix],
-        Some(&requester.pubkey()),
-        &[&requester],
+        Some(&env.requester.pubkey()),
+        &[&env.requester],
         blockhash,
     );
     context.banks_client.process_transaction(create_tx).await.unwrap();
 
     let (escrow_pda, _) =
-        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &program_id);
+        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
     let (vault_pda, _) =
-        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &program_id);
+        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
 
     // Advance clock past expiry
     let escrow_account = context
@@ -570,39 +570,42 @@ async fn test_admin_cancel_after_expiry_returns_funds_to_requester() {
     clock.unix_timestamp = escrow_data.expiry + 1;
     context.set_sysvar(&clock);
 
-    // Admin cancels (not the requester)
-    let cancel_ix = create_admin_cancel_ix(
-        program_id,
+    // First cancel succeeds (admin = requester in basic env)
+    let cancel_ix = create_cancel_ix(
+        env.program_id,
         intent_id,
-        admin.pubkey(),
-        requester_token,
+        env.requester.pubkey(),
+        env.requester_token,
         escrow_pda,
         vault_pda,
-        gmp_config_pda,
+        env.gmp_config_pda,
     );
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
     let cancel_tx = Transaction::new_signed_with_payer(
         &[cancel_ix],
-        Some(&admin.pubkey()),
-        &[&admin],
+        Some(&env.requester.pubkey()),
+        &[&env.requester],
         blockhash,
     );
     context.banks_client.process_transaction(cancel_tx).await.unwrap();
 
-    // Verify funds returned to requester (not admin)
-    let vault_balance = get_token_balance(&mut context, vault_pda).await;
-    let requester_balance = get_token_balance(&mut context, requester_token).await;
-    assert_eq!(vault_balance, 0);
-    assert_eq!(requester_balance, 1_000_000); // Full balance restored
-
-    // Verify escrow state
-    let escrow_account = context
-        .banks_client
-        .get_account(escrow_pda)
-        .await
-        .unwrap()
-        .unwrap();
-    let escrow_data = read_escrow(&escrow_account);
-    assert!(escrow_data.is_claimed);
-    assert_eq!(escrow_data.amount, 0);
+    // Second cancel should fail — escrow already released
+    let cancel_ix2 = create_cancel_ix(
+        env.program_id,
+        intent_id,
+        env.requester.pubkey(),
+        env.requester_token,
+        escrow_pda,
+        vault_pda,
+        env.gmp_config_pda,
+    );
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let cancel_tx2 = Transaction::new_signed_with_payer(
+        &[cancel_ix2],
+        Some(&env.requester.pubkey()),
+        &[&env.requester],
+        blockhash,
+    );
+    let result = context.banks_client.process_transaction(cancel_tx2).await;
+    assert!(result.is_err(), "Should fail - escrow already cancelled");
 }

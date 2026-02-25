@@ -283,32 +283,8 @@ pub fn create_claim_ix(
     }
 }
 
-/// Helper: Build a Cancel instruction
+/// Helper: Build a Cancel instruction (admin-only, requires gmp_config for auth)
 pub fn create_cancel_ix(
-    program_id: Pubkey,
-    intent_id: [u8; 32],
-    requester: Pubkey,
-    requester_token: Pubkey,
-    escrow_pda: Pubkey,
-    vault_pda: Pubkey,
-) -> Instruction {
-    Instruction {
-        program_id,
-        accounts: vec![
-            AccountMeta::new(escrow_pda, false),
-            AccountMeta::new(requester, true),
-            AccountMeta::new(vault_pda, false),
-            AccountMeta::new(requester_token, false),
-            AccountMeta::new_readonly(spl_token::id(), false),
-        ],
-        data: EscrowInstruction::Cancel { intent_id }
-            .try_to_vec()
-            .unwrap(),
-    }
-}
-
-/// Helper: Build an admin Cancel instruction (includes gmp_config for admin auth)
-pub fn create_admin_cancel_ix(
     program_id: Pubkey,
     intent_id: [u8; 32],
     admin: Pubkey,

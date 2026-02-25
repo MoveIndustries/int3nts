@@ -213,11 +213,9 @@ module mvmt_intent::fa_intent_outflow {
         let caller_addr = signer::address_of(caller);
         let intent_addr = object::object_address(&intent);
 
-        // 1. Auth: caller must be intent owner (requester) or admin
-        let is_owner = object::owner(intent) == caller_addr;
-        let is_admin = caller_addr == @mvmt_intent;
+        // 1. Auth: caller must be admin (only admin can cancel expired intents)
         assert!(
-            is_owner || is_admin,
+            caller_addr == @mvmt_intent,
             error::permission_denied(E_UNAUTHORIZED_CALLER)
         );
 
