@@ -55,17 +55,17 @@ SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/claim.rs`
 
 ## cancel
 
-MVM: `intent-frameworks/mvm/tests/cancel_tests.move` (FILE NOT FOUND)
+MVM: `intent-frameworks/mvm/intent-connected/tests/cancel_tests.move`
 EVM: `intent-frameworks/evm/test/inflow-escrow-gmp/cancel.test.js`
 SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/cancel.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 1 | Should revert if escrow has not expired yet | [ ] | [x] | [x] |
-| 2 | Should allow requester to cancel and reclaim funds after expiry | [ ] | [x] | [x] |
-| 3 | Should revert if not requester | [ ] | [x] | [x] |
-| 4 | Should revert if already claimed | [ ] | [x] | [x] |
-| 5 | Should revert if escrow does not exist | [ ] | [x] | [x] |
+| 1 | Should revert if escrow has not expired yet | [x] | [x] | [x] |
+| 2 | Should allow requester to cancel and reclaim funds after expiry | [x] | [x] | [x] |
+| 3 | Should revert if not requester | [x] | [x] | [x] |
+| 4 | Should revert if already claimed | [x] | [x] | [x] |
+| 5 | Should revert if escrow does not exist | [x] | [x] | [x] |
 
 ## expiry
 

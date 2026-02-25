@@ -66,6 +66,8 @@ module mvmt_intent::intent_inflow_escrow {
     const E_UNAUTHORIZED_SOLVER: u64 = 14;
     /// Requester mismatch
     const E_REQUESTER_MISMATCH: u64 = 16;
+    /// Escrow has not expired yet (cannot cancel before expiry)
+    const E_ESCROW_NOT_EXPIRED: u64 = 15;
 
     // ============================================================================
     // EVENTS
@@ -125,6 +127,14 @@ module mvmt_intent::intent_inflow_escrow {
     struct EscrowReleased has drop, store {
         intent_id: vector<u8>,
         solver: address,
+        amount: u64,
+    }
+
+    #[event]
+    /// Emitted when escrow is cancelled and funds returned to requester.
+    struct EscrowCancelled has drop, store {
+        intent_id: vector<u8>,
+        requester: address,
         amount: u64,
     }
 
@@ -548,6 +558,79 @@ module mvmt_intent::intent_inflow_escrow {
         });
     }
 
+
+    // ============================================================================
+    // CANCELLATION
+    // ============================================================================
+
+    /// Cancel an expired escrow and return funds to the requester.
+    ///
+    /// Only the original requester can cancel, and only after the escrow's
+    /// expiry timestamp has passed. This matches the cancel-after-expiry
+    /// pattern used by EVM and SVM escrow contracts.
+    ///
+    /// # Arguments
+    /// - `requester`: The signer of the original escrow creator
+    /// - `intent_id`: 32-byte intent identifier
+    ///
+    /// # Aborts
+    /// - `E_CONFIG_NOT_INITIALIZED`: Module not initialized
+    /// - `E_ESCROW_NOT_FOUND`: No escrow exists for this intent_id
+    /// - `E_ALREADY_FULFILLED`: Escrow already released (fulfilled or cancelled)
+    /// - `E_REQUESTER_MISMATCH`: Caller is not the original requester
+    /// - `E_ESCROW_NOT_EXPIRED`: Escrow has not expired yet
+    public entry fun cancel_escrow(
+        requester: &signer,
+        intent_id: vector<u8>,
+    ) acquires IntentRequirementsStore, EscrowStore, EscrowVault {
+        // Verify config exists
+        assert!(exists<InflowEscrowConfig>(@mvmt_intent), E_CONFIG_NOT_INITIALIZED);
+
+        // Load escrow
+        let escrow_store = borrow_global_mut<EscrowStore>(@mvmt_intent);
+        assert!(table::contains(&escrow_store.escrows, intent_id), E_ESCROW_NOT_FOUND);
+
+        let escrow = table::borrow_mut(&mut escrow_store.escrows, intent_id);
+
+        // Verify not already released (covers both fulfillment and prior cancellation)
+        assert!(!escrow.released, E_ALREADY_FULFILLED);
+
+        // Verify caller is the original requester
+        let requester_addr = signer::address_of(requester);
+        let requester_bytes = address_to_bytes32(requester_addr);
+        assert!(requester_bytes == escrow.creator_addr, E_REQUESTER_MISMATCH);
+
+        // Verify escrow has expired
+        let req_store = borrow_global<IntentRequirementsStore>(@mvmt_intent);
+        let requirements = table::borrow(&req_store.requirements, intent_id);
+        let current_time = aptos_framework::timestamp::now_seconds();
+        assert!(current_time > requirements.expiry, E_ESCROW_NOT_EXPIRED);
+
+        // Mark as released
+        escrow.released = true;
+        let amount = escrow.amount;
+        let token_addr_bytes = escrow.token_addr;
+
+        // Get token metadata from stored token address
+        let token_addr = bytes32_to_address(&token_addr_bytes);
+        let token_metadata = object::address_to_object<Metadata>(token_addr);
+
+        // Transfer tokens from vault back to requester
+        let vault_signer = get_vault_signer();
+        primary_fungible_store::transfer(
+            &vault_signer,
+            token_metadata,
+            requester_addr,
+            amount,
+        );
+
+        // Emit cancellation event
+        event::emit(EscrowCancelled {
+            intent_id,
+            requester: requester_addr,
+            amount,
+        });
+    }
 
     // ============================================================================
     // VIEW FUNCTIONS
