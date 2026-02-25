@@ -74,6 +74,9 @@ pub enum EscrowError {
 
     #[error("Unauthorized GMP source")]
     UnauthorizedGmpSource,
+
+    #[error("Intent has expired")]
+    IntentExpired,
 }
 
 impl From<EscrowError> for ProgramError {

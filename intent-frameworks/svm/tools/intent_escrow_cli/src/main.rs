@@ -214,10 +214,7 @@ fn handle_create_escrow(
     let solver = parse_pubkey(required_option(options, "solver")?)?;
     let intent_id = parse_intent_id(required_option(options, "intent-id")?)?;
     let amount = parse_u64(required_option(options, "amount")?)?;
-    let expiry = options
-        .get("expiry")
-        .map(|value| parse_i64(value))
-        .transpose()?;
+    // Expiry comes from hub-provided GMP requirements, not from CLI
 
     // Optional GMP endpoint for sending EscrowConfirmation
     let gmp_endpoint = options
@@ -256,7 +253,6 @@ fn handle_create_escrow(
         token_mint,
         requester_token,
         solver,
-        expiry,
         gmp_endpoint,
         hub_chain_id,
         current_nonce,
@@ -613,7 +609,6 @@ fn build_create_escrow_ix(
     token_mint: Pubkey,
     requester_token: Pubkey,
     reserved_solver: Pubkey,
-    expiry_duration: Option<i64>,
     gmp_endpoint: Option<Pubkey>,
     hub_chain_id: u32,
     current_nonce: u64,
@@ -675,7 +670,6 @@ fn build_create_escrow_ix(
         data: EscrowInstruction::CreateEscrow {
             intent_id,
             amount,
-            expiry_duration,
         }
         .try_to_vec()?,
     })

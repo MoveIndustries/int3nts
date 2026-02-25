@@ -2,10 +2,10 @@ mod common;
 
 use common::{
     create_cancel_ix, create_escrow_ix, create_gmp_receive_fulfillment_proof_ix,
-    create_gmp_receive_requirements_ix, generate_intent_id, get_token_balance, program_test,
-    read_escrow, setup_basic_env, DUMMY_HUB_CHAIN_ID, DUMMY_HUB_GMP_ENDPOINT_ADDR,
+    generate_intent_id, get_token_balance, program_test, read_escrow, setup_basic_env,
+    setup_gmp_requirements, DUMMY_HUB_CHAIN_ID, DUMMY_HUB_GMP_ENDPOINT_ADDR,
 };
-use gmp_common::messages::{FulfillmentProof, IntentRequirements};
+use gmp_common::messages::FulfillmentProof;
 use intent_inflow_escrow::state::seeds;
 use solana_sdk::{
     clock::Clock,
@@ -37,7 +37,27 @@ async fn test_allow_requester_to_cancel_expired_escrow() {
     let (vault_pda, _) =
         Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
 
-    // Create escrow with short expiry (2 seconds)
+    // Get current clock time
+    let clock_account = context
+        .banks_client
+        .get_account(sysvar::clock::id())
+        .await
+        .unwrap()
+        .unwrap();
+    let clock: Clock = deserialize(&clock_account.data).unwrap();
+    let current_time = clock.unix_timestamp;
+
+    // Set up GMP requirements with short expiry (2 seconds from now)
+    let requirements_pda = setup_gmp_requirements(
+        &mut context,
+        &env,
+        intent_id,
+        amount,
+        (current_time as u64) + 2,
+    )
+    .await;
+
+    // Create escrow with that requirements_pda
     let create_ix = create_escrow_ix(
         env.program_id,
         intent_id,
@@ -46,8 +66,7 @@ async fn test_allow_requester_to_cancel_expired_escrow() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        Some(2), // 2 second expiry
-        None,    // No requirements PDA
+        requirements_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -142,8 +161,8 @@ async fn test_allow_requester_to_cancel_expired_escrow() {
 }
 
 /// 2. Test: Expiry Timestamp Validation
-/// Verifies that expiry timestamp is correctly calculated and stored.
-/// Why: Correct expiry calculation is critical for time-based cancellation logic.
+/// Verifies that expiry timestamp is correctly stored from requirements.
+/// Why: Correct expiry storage is critical for time-based cancellation logic.
 #[tokio::test]
 async fn test_verify_expiry_timestamp_is_stored_correctly() {
     let program_test = program_test();
@@ -166,6 +185,16 @@ async fn test_verify_expiry_timestamp_is_stored_correctly() {
     let clock: Clock = deserialize(&clock_account.data).unwrap();
     let block_time = clock.unix_timestamp;
 
+    // Set up GMP requirements with explicit expiry (block_time + 120)
+    let requirements_pda = setup_gmp_requirements(
+        &mut context,
+        &env,
+        intent_id,
+        amount,
+        (block_time as u64) + 120,
+    )
+    .await;
+
     let ix = create_escrow_ix(
         env.program_id,
         intent_id,
@@ -174,8 +203,7 @@ async fn test_verify_expiry_timestamp_is_stored_correctly() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        None, // Default expiry
-        None, // No requirements PDA
+        requirements_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -208,12 +236,11 @@ async fn test_verify_expiry_timestamp_is_stored_correctly() {
     // Verify isClaimed = false
     assert!(!escrow.is_claimed);
 
-    // Verify expiry
-    const DEFAULT_EXPIRY_DURATION: i64 = 120;
-    let expected_expiry = block_time + DEFAULT_EXPIRY_DURATION;
+    // Verify expiry: comes directly from requirements (block_time + 120)
+    let expected_expiry = block_time + 120;
     assert!(
         (escrow.expiry - expected_expiry).abs() < 10,
-        "Expiry should be approximately block_time + DEFAULT_EXPIRY_DURATION (10 second tolerance)"
+        "Expiry should be approximately block_time + 120 seconds (10 second tolerance)"
     );
 }
 
@@ -237,42 +264,28 @@ async fn test_expired_escrow_can_be_fulfilled_via_gmp() {
         Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &env.program_id);
     let (vault_pda, _) =
         Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &env.program_id);
-    let (requirements_pda, _) =
-        Pubkey::find_program_address(&[seeds::REQUIREMENTS_SEED, &intent_id], &env.program_id);
 
-    // Step 1: Receive requirements via GMP
-    let requirements = IntentRequirements {
+    // Get current clock time
+    let clock_account = context
+        .banks_client
+        .get_account(sysvar::clock::id())
+        .await
+        .unwrap()
+        .unwrap();
+    let clock: Clock = deserialize(&clock_account.data).unwrap();
+    let clock_time = clock.unix_timestamp;
+
+    // Step 1: Set up GMP requirements with short expiry (2 seconds from now)
+    let requirements_pda = setup_gmp_requirements(
+        &mut context,
+        &env,
         intent_id,
-        requester_addr: env.requester.pubkey().to_bytes(),
-        amount_required: amount,
-        token_addr: env.mint.to_bytes(),
-        solver_addr: env.solver.pubkey().to_bytes(),
-        expiry: u64::MAX,
-    };
-    let requirements_payload = requirements.encode().to_vec();
+        amount,
+        (clock_time as u64) + 2,
+    )
+    .await;
 
-    let gmp_caller = context.payer.insecure_clone();
-    let gmp_receive_req_ix = create_gmp_receive_requirements_ix(
-        env.program_id,
-        requirements_pda,
-        env.gmp_config_pda, // PDA - must be derived, cannot be a DUMMY constant
-        gmp_caller.pubkey(),
-        gmp_caller.pubkey(),
-        src_chain_id,
-        remote_gmp_endpoint_addr,
-        requirements_payload,
-    );
-
-    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-    let tx = Transaction::new_signed_with_payer(
-        &[gmp_receive_req_ix],
-        Some(&gmp_caller.pubkey()),
-        &[&gmp_caller],
-        blockhash,
-    );
-    context.banks_client.process_transaction(tx).await.unwrap();
-
-    // Step 2: Create escrow with short expiry (2 seconds)
+    // Step 2: Create escrow with that requirements_pda
     let create_ix = create_escrow_ix(
         env.program_id,
         intent_id,
@@ -281,8 +294,7 @@ async fn test_expired_escrow_can_be_fulfilled_via_gmp() {
         env.mint,
         env.requester_token,
         env.solver.pubkey(),
-        Some(2), // 2 second expiry
-        Some(requirements_pda),
+        requirements_pda,
     );
 
     let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
@@ -321,6 +333,7 @@ async fn test_expired_escrow_can_be_fulfilled_via_gmp() {
     };
     let proof_payload = proof.encode().to_vec();
 
+    let gmp_caller = context.payer.insecure_clone();
     let gmp_receive_proof_ix = create_gmp_receive_fulfillment_proof_ix(
         env.program_id,
         requirements_pda,
