@@ -1,16 +1,17 @@
 mod common;
 
 use common::{
-    create_cancel_ix, create_escrow_ix, create_gmp_receive_fulfillment_proof_ix,
-    create_gmp_receive_requirements_ix, generate_intent_id, get_token_balance, program_test,
-    read_escrow, setup_basic_env, DUMMY_HUB_CHAIN_ID, DUMMY_HUB_GMP_ENDPOINT_ADDR,
+    create_admin_cancel_ix, create_cancel_ix, create_escrow_ix,
+    create_gmp_receive_fulfillment_proof_ix, create_gmp_receive_requirements_ix,
+    create_set_gmp_config_ix, generate_intent_id, get_token_balance, program_test, read_escrow,
+    setup_basic_env, test_program_id, DUMMY_HUB_CHAIN_ID, DUMMY_HUB_GMP_ENDPOINT_ADDR,
 };
 use gmp_common::messages::{FulfillmentProof, IntentRequirements};
 use intent_inflow_escrow::state::seeds;
 use solana_sdk::{
     clock::Clock,
     pubkey::Pubkey,
-    signature::Signer,
+    signature::{Keypair, Signer},
     sysvar,
     transaction::Transaction,
 };
@@ -404,4 +405,158 @@ async fn test_revert_if_escrow_does_not_exist() {
 
     let result = context.banks_client.process_transaction(cancel_tx).await;
     assert!(result.is_err(), "Should have thrown an error");
+}
+
+// ============================================================================
+// ADMIN CANCEL TESTS
+// ============================================================================
+
+/// 6. Test: Admin Cancel After Expiry
+/// Verifies that admin can cancel an expired escrow and funds go to the original requester.
+/// Why: Admin acts as a helper to unstick expired escrows; funds always go to requester.
+#[tokio::test]
+async fn test_admin_cancel_after_expiry_returns_funds_to_requester() {
+    // Custom setup where admin != requester (setup_basic_env sets requester as GMP admin)
+    let pt = program_test();
+    let mut context = pt.start_with_context().await;
+    let payer = context.payer.insecure_clone();
+    let program_id = test_program_id();
+    let admin = Keypair::new();
+    let requester = Keypair::new();
+    let solver = Keypair::new();
+    let mint_authority = Keypair::new();
+
+    // Fund accounts
+    let fund_ixs = vec![
+        solana_sdk::system_instruction::transfer(&payer.pubkey(), &admin.pubkey(), 2_000_000_000),
+        solana_sdk::system_instruction::transfer(
+            &payer.pubkey(),
+            &requester.pubkey(),
+            2_000_000_000,
+        ),
+        solana_sdk::system_instruction::transfer(&payer.pubkey(), &solver.pubkey(), 2_000_000_000),
+    ];
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let fund_tx = Transaction::new_signed_with_payer(
+        &fund_ixs,
+        Some(&payer.pubkey()),
+        &[&payer],
+        blockhash,
+    );
+    context.banks_client.process_transaction(fund_tx).await.unwrap();
+
+    // Create mint and token accounts
+    let mint = common::create_mint(&mut context, &payer, &mint_authority, 6).await;
+    let requester_token =
+        common::create_token_account(&mut context, &payer, mint, requester.pubkey()).await;
+
+    // Mint tokens to requester
+    common::mint_to(&mut context, &payer, mint, &mint_authority, requester_token, 1_000_000).await;
+
+    // Initialize program
+    let approver = Keypair::new();
+    common::initialize_program(&mut context, &requester, program_id, approver.pubkey()).await;
+
+    // Initialize GMP config with admin (NOT requester) as admin
+    let gmp_endpoint = Pubkey::new_unique();
+    let (gmp_config_pda, _) =
+        Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], &program_id);
+    let set_gmp_config_ix = create_set_gmp_config_ix(
+        program_id,
+        gmp_config_pda,
+        admin.pubkey(), // admin is the GMP config admin
+        DUMMY_HUB_CHAIN_ID,
+        DUMMY_HUB_GMP_ENDPOINT_ADDR,
+        gmp_endpoint,
+    );
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let tx = Transaction::new_signed_with_payer(
+        &[set_gmp_config_ix],
+        Some(&payer.pubkey()),
+        &[&payer, &admin],
+        blockhash,
+    );
+    context.banks_client.process_transaction(tx).await.unwrap();
+
+    // Create escrow with 1-second expiry
+    let intent_id = [7u8; 32];
+    let amount = 500_000u64;
+    let create_ix = create_escrow_ix(
+        program_id,
+        intent_id,
+        amount,
+        requester.pubkey(),
+        mint,
+        requester_token,
+        solver.pubkey(),
+        Some(1), // 1 second expiry
+        None,
+    );
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let create_tx = Transaction::new_signed_with_payer(
+        &[create_ix],
+        Some(&requester.pubkey()),
+        &[&requester],
+        blockhash,
+    );
+    context.banks_client.process_transaction(create_tx).await.unwrap();
+
+    let (escrow_pda, _) =
+        Pubkey::find_program_address(&[seeds::ESCROW_SEED, &intent_id], &program_id);
+    let (vault_pda, _) =
+        Pubkey::find_program_address(&[seeds::VAULT_SEED, &intent_id], &program_id);
+
+    // Advance clock past expiry
+    let escrow_account = context
+        .banks_client
+        .get_account(escrow_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let escrow_data = read_escrow(&escrow_account);
+    let clock_account = context
+        .banks_client
+        .get_account(sysvar::clock::id())
+        .await
+        .unwrap()
+        .unwrap();
+    let mut clock: Clock = deserialize(&clock_account.data).unwrap();
+    clock.unix_timestamp = escrow_data.expiry + 1;
+    context.set_sysvar(&clock);
+
+    // Admin cancels (not the requester)
+    let cancel_ix = create_admin_cancel_ix(
+        program_id,
+        intent_id,
+        admin.pubkey(),
+        requester_token,
+        escrow_pda,
+        vault_pda,
+        gmp_config_pda,
+    );
+    let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+    let cancel_tx = Transaction::new_signed_with_payer(
+        &[cancel_ix],
+        Some(&admin.pubkey()),
+        &[&admin],
+        blockhash,
+    );
+    context.banks_client.process_transaction(cancel_tx).await.unwrap();
+
+    // Verify funds returned to requester (not admin)
+    let vault_balance = get_token_balance(&mut context, vault_pda).await;
+    let requester_balance = get_token_balance(&mut context, requester_token).await;
+    assert_eq!(vault_balance, 0);
+    assert_eq!(requester_balance, 1_000_000); // Full balance restored
+
+    // Verify escrow state
+    let escrow_account = context
+        .banks_client
+        .get_account(escrow_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let escrow_data = read_escrow(&escrow_account);
+    assert!(escrow_data.is_claimed);
+    assert_eq!(escrow_data.amount, 0);
 }

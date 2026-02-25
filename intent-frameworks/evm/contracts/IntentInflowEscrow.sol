@@ -50,8 +50,8 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
     error E_ZERO_AMOUNT();
     /// @notice Escrow has not expired yet
     error E_ESCROW_NOT_EXPIRED();
-    /// @notice Caller is not the requester
-    error E_UNAUTHORIZED_REQUESTER();
+    /// @notice Caller is not the requester or admin
+    error E_UNAUTHORIZED_CALLER();
 
     // ============================================================================
     // EVENTS
@@ -407,7 +407,8 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
     // ============================================================================
 
     /// @notice Cancel escrow and return funds to requester after expiry
-    /// @dev Only the original requester can cancel, and only after expiry
+    /// @dev The original requester or admin (owner) can cancel after expiry.
+    ///      Funds always return to the original requester regardless of caller.
     /// @param intentId 32-byte intent identifier
     function cancel(bytes32 intentId) external nonReentrant {
         // Verify escrow exists
@@ -418,9 +419,9 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
         // Verify not already released (fulfilled or cancelled)
         if (escrow.released) revert E_ALREADY_RELEASED();
 
-        // Verify caller is the requester
+        // Verify caller is the requester or admin
         bytes32 callerAddr32 = Messages.addressToBytes32(msg.sender);
-        if (callerAddr32 != escrow.creatorAddr) revert E_UNAUTHORIZED_REQUESTER();
+        if (callerAddr32 != escrow.creatorAddr && msg.sender != owner()) revert E_UNAUTHORIZED_CALLER();
 
         // Verify intent has expired
         StoredRequirements storage req = requirements[intentId];
@@ -429,10 +430,11 @@ contract IntentInflowEscrow is IMessageHandler, Ownable, ReentrancyGuard {
         // Mark as released (prevents double-cancel)
         escrow.released = true;
 
-        // Transfer tokens back to requester
-        IERC20(escrow.token).safeTransfer(msg.sender, escrow.amount);
+        // Transfer tokens back to original requester (not the caller)
+        address requester = Messages.bytes32ToAddress(escrow.creatorAddr);
+        IERC20(escrow.token).safeTransfer(requester, escrow.amount);
 
-        emit EscrowCancelled(intentId, msg.sender, escrow.amount);
+        emit EscrowCancelled(intentId, requester, escrow.amount);
     }
 
     // ============================================================================

@@ -63,9 +63,10 @@ SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/cancel.rs`
 | --- | ------ | ----- | ----- | ----- |
 | 1 | Should revert if escrow has not expired yet | [x] | [x] | [x] |
 | 2 | Should allow requester to cancel and reclaim funds after expiry | [x] | [x] | [x] |
-| 3 | Should revert if not requester | [x] | [x] | [x] |
+| 3 | Should revert if not requester or admin | [x] | [x] | [x] |
 | 4 | Should revert if already claimed | [x] | [x] | [x] |
 | 5 | Should revert if escrow does not exist | [x] | [x] | [x] |
+| 6 | Should allow admin to cancel and return funds to requester after expiry | [x] | [x] | [x] |
 
 ## expiry
 

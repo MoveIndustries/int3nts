@@ -312,6 +312,32 @@ pub fn create_cancel_ix(
     }
 }
 
+/// Helper: Build an admin Cancel instruction (includes gmp_config for admin auth)
+pub fn create_admin_cancel_ix(
+    program_id: Pubkey,
+    intent_id: [u8; 32],
+    admin: Pubkey,
+    requester_token: Pubkey,
+    escrow_pda: Pubkey,
+    vault_pda: Pubkey,
+    gmp_config_pda: Pubkey,
+) -> Instruction {
+    Instruction {
+        program_id,
+        accounts: vec![
+            AccountMeta::new(escrow_pda, false),
+            AccountMeta::new(admin, true),
+            AccountMeta::new(vault_pda, false),
+            AccountMeta::new(requester_token, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(gmp_config_pda, false),
+        ],
+        data: EscrowInstruction::Cancel { intent_id }
+            .try_to_vec()
+            .unwrap(),
+    }
+}
+
 /// Helper: Build a SetGmpConfig instruction
 pub fn create_set_gmp_config_ix(
     program_id: Pubkey,

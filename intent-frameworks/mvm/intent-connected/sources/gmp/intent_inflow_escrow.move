@@ -68,6 +68,8 @@ module mvmt_intent::intent_inflow_escrow {
     const E_REQUESTER_MISMATCH: u64 = 16;
     /// Escrow has not expired yet (cannot cancel before expiry)
     const E_ESCROW_NOT_EXPIRED: u64 = 15;
+    /// Caller is not authorized (not the requester or admin)
+    const E_UNAUTHORIZED_CALLER: u64 = 17;
 
     // ============================================================================
     // EVENTS
@@ -565,26 +567,30 @@ module mvmt_intent::intent_inflow_escrow {
 
     /// Cancel an expired escrow and return funds to the requester.
     ///
-    /// Only the original requester can cancel, and only after the escrow's
-    /// expiry timestamp has passed. This matches the cancel-after-expiry
-    /// pattern used by EVM and SVM escrow contracts.
+    /// The original requester or the admin can cancel, but only after the
+    /// escrow's expiry timestamp has passed. Funds always return to the
+    /// original requester regardless of who initiates the cancellation.
     ///
     /// # Arguments
-    /// - `requester`: The signer of the original escrow creator
+    /// - `caller`: The signer — must be the original requester or admin
     /// - `intent_id`: 32-byte intent identifier
     ///
     /// # Aborts
     /// - `E_CONFIG_NOT_INITIALIZED`: Module not initialized
     /// - `E_ESCROW_NOT_FOUND`: No escrow exists for this intent_id
     /// - `E_ALREADY_FULFILLED`: Escrow already released (fulfilled or cancelled)
-    /// - `E_REQUESTER_MISMATCH`: Caller is not the original requester
+    /// - `E_UNAUTHORIZED_CALLER`: Caller is not the original requester or admin
     /// - `E_ESCROW_NOT_EXPIRED`: Escrow has not expired yet
     public entry fun cancel_escrow(
-        requester: &signer,
+        caller: &signer,
         intent_id: vector<u8>,
-    ) acquires IntentRequirementsStore, EscrowStore, EscrowVault {
+    ) acquires InflowEscrowConfig, IntentRequirementsStore, EscrowStore, EscrowVault {
         // Verify config exists
         assert!(exists<InflowEscrowConfig>(@mvmt_intent), E_CONFIG_NOT_INITIALIZED);
+
+        // Read admin from config
+        let config = borrow_global<InflowEscrowConfig>(@mvmt_intent);
+        let admin = config.admin;
 
         // Load escrow
         let escrow_store = borrow_global_mut<EscrowStore>(@mvmt_intent);
@@ -595,10 +601,12 @@ module mvmt_intent::intent_inflow_escrow {
         // Verify not already released (covers both fulfillment and prior cancellation)
         assert!(!escrow.released, E_ALREADY_FULFILLED);
 
-        // Verify caller is the original requester
-        let requester_addr = signer::address_of(requester);
-        let requester_bytes = address_to_bytes32(requester_addr);
-        assert!(requester_bytes == escrow.creator_addr, E_REQUESTER_MISMATCH);
+        // Verify caller is the original requester or admin
+        let caller_addr = signer::address_of(caller);
+        let caller_bytes = address_to_bytes32(caller_addr);
+        let is_requester = caller_bytes == escrow.creator_addr;
+        let is_admin = caller_addr == admin;
+        assert!(is_requester || is_admin, E_UNAUTHORIZED_CALLER);
 
         // Verify escrow has expired
         let req_store = borrow_global<IntentRequirementsStore>(@mvmt_intent);
@@ -615,7 +623,8 @@ module mvmt_intent::intent_inflow_escrow {
         let token_addr = bytes32_to_address(&token_addr_bytes);
         let token_metadata = object::address_to_object<Metadata>(token_addr);
 
-        // Transfer tokens from vault back to requester
+        // Transfer tokens from vault back to original requester (not the caller)
+        let requester_addr = bytes32_to_address(&escrow.creator_addr);
         let vault_signer = get_vault_signer();
         primary_fungible_store::transfer(
             &vault_signer,

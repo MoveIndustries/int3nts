@@ -95,7 +95,7 @@ describe("IntentInflowEscrow - Cancel", function () {
 
     await expect(
       escrow.connect(solver).cancel(intentId)
-    ).to.be.revertedWithCustomError(escrow, "E_UNAUTHORIZED_REQUESTER");
+    ).to.be.revertedWithCustomError(escrow, "E_UNAUTHORIZED_CALLER");
   });
 
   /// 4. Test: test_cancel_after_fulfillment: Cancellation After Fulfillment Prevention
@@ -130,5 +130,30 @@ describe("IntentInflowEscrow - Cancel", function () {
     await expect(
       escrow.connect(requester).cancel(nonExistentIntentId)
     ).to.be.revertedWithCustomError(escrow, "E_ESCROW_NOT_FOUND");
+  });
+
+  /// 6. Test: Admin cancel returns funds to requester
+  /// Verifies that admin can cancel an expired escrow and funds go to the original requester.
+  /// Why: Admin acts as a helper to unstick expired escrows; funds always go to requester.
+  it("Should allow admin to cancel and return funds to requester after expiry", async function () {
+    const [admin] = await ethers.getSigners();
+
+    // Advance time past expiry
+    await advanceTime(DEFAULT_EXPIRY_OFFSET + 1);
+
+    const initialRequesterBalance = await token.balanceOf(requester.address);
+
+    await expect(escrow.connect(admin).cancel(intentId))
+      .to.emit(escrow, "EscrowCancelled")
+      .withArgs(intentId, requester.address, DEFAULT_AMOUNT);
+
+    // Funds go to requester, not admin
+    expect(await token.balanceOf(requester.address)).to.equal(initialRequesterBalance + DEFAULT_AMOUNT);
+    expect(await token.balanceOf(escrow.target)).to.equal(0n);
+
+    // Verify escrow state
+    expect(await escrow.isReleased(intentId)).to.equal(true);
+    expect(await escrow.isFulfilled(intentId)).to.equal(false);
+    expect(await escrow.isCancelled(intentId)).to.equal(true);
   });
 });

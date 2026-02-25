@@ -14,8 +14,8 @@ pub enum EscrowError {
     #[error("No deposit")]
     NoDeposit,
 
-    #[error("Unauthorized requester")]
-    UnauthorizedRequester,
+    #[error("Unauthorized caller")]
+    UnauthorizedCaller,
 
     #[error("Invalid signature")]
     InvalidSignature,

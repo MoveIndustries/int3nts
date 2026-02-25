@@ -226,11 +226,11 @@ module mvmt_intent::cancel_tests {
         assert!(intent_inflow_escrow::is_released(intent_id), 3);
     }
 
-    // 3. Test: Should revert if not requester
-    // Verifies that only the original requester can cancel their escrow.
-    // Why: Security requirement — prevents unauthorized parties from stealing escrowed funds.
+    // 3. Test: Should revert if not requester or admin
+    // Verifies that only the original requester or admin can cancel the escrow.
+    // Why: Security requirement — prevents unauthorized parties from triggering cancellation.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789, attacker = @0xDEAD)]
-    #[expected_failure(abort_code = 16, location = mvmt_intent::intent_inflow_escrow)] // E_REQUESTER_MISMATCH
+    #[expected_failure(abort_code = 17, location = mvmt_intent::intent_inflow_escrow)] // E_UNAUTHORIZED_CALLER
     fun test_cancel_rejects_non_requester(
         aptos_framework: &signer,
         admin: &signer,
@@ -371,5 +371,69 @@ module mvmt_intent::cancel_tests {
         // Try to cancel a non-existent escrow
         let fake_intent_id = create_test_intent_id();
         intent_inflow_escrow::cancel_escrow(requester, fake_intent_id);
+    }
+
+    // 6. Test: Should allow admin to cancel and return funds to requester after expiry
+    // Verifies that the admin can cancel an expired escrow on behalf of the requester.
+    // Why: Admin acts as a helper to unstick expired escrows; funds always go to requester.
+    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
+    fun test_admin_cancel_after_expiry_returns_funds_to_requester(
+        aptos_framework: &signer,
+        admin: &signer,
+        token_creator: &signer,
+        requester: &signer,
+    ) {
+        // Setup FA token
+        let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
+            aptos_framework,
+            token_creator,
+            100,
+        );
+        timestamp::update_global_time_for_test_secs(1000);
+
+        // Transfer tokens to requester
+        primary_fungible_store::transfer(token_creator, token_metadata, REQUESTER_ADDR, 100);
+
+        // Initialize modules
+        init_modules(admin);
+
+        let intent_id = create_test_intent_id();
+        let token_addr = address_to_bytes32(object::object_address(&token_metadata));
+        let amount = 50u64;
+        let expiry = 2000u64;
+
+        // Store requirements and create escrow
+        store_requirements(
+            copy intent_id,
+            address_to_bytes32(REQUESTER_ADDR),
+            amount,
+            token_addr,
+            address_to_bytes32(SOLVER_ADDR),
+            expiry,
+        );
+
+        intent_inflow_escrow::create_escrow_with_validation(
+            requester,
+            copy intent_id,
+            token_metadata,
+            amount,
+        );
+
+        // Verify requester balance dropped by escrow amount
+        let balance_after_escrow = primary_fungible_store::balance(REQUESTER_ADDR, token_metadata);
+        assert!(balance_after_escrow == 50, 1); // 100 - 50 = 50
+
+        // Advance time past expiry
+        timestamp::update_global_time_for_test_secs(2001);
+
+        // Admin cancels on behalf of requester
+        intent_inflow_escrow::cancel_escrow(admin, copy intent_id);
+
+        // Verify funds returned to requester (not admin)
+        let balance_after_cancel = primary_fungible_store::balance(REQUESTER_ADDR, token_metadata);
+        assert!(balance_after_cancel == 100, 2); // 50 + 50 = 100
+
+        // Verify escrow marked as released
+        assert!(intent_inflow_escrow::is_released(intent_id), 3);
     }
 }

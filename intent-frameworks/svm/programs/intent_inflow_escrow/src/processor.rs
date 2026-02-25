@@ -607,16 +607,17 @@ impl Processor {
     }
 
     fn process_cancel(
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
         accounts: &[AccountInfo],
         intent_id: [u8; 32],
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
         let escrow_account = next_account_info(account_info_iter)?;
-        let requester = next_account_info(account_info_iter)?;
+        let caller = next_account_info(account_info_iter)?;
         let escrow_vault = next_account_info(account_info_iter)?;
         let requester_token_account = next_account_info(account_info_iter)?;
         let token_program = next_account_info(account_info_iter)?;
+        let gmp_config_account = next_account_info(account_info_iter).ok();
 
         // Deserialize escrow
         let mut escrow = Escrow::try_from_slice(&escrow_account.data.borrow())?;
@@ -631,11 +632,25 @@ impl Processor {
         if escrow.amount == 0 {
             return Err(EscrowError::NoDeposit.into());
         }
-        if escrow.requester != *requester.key {
-            return Err(EscrowError::UnauthorizedRequester.into());
-        }
-        if !requester.is_signer {
+        if !caller.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Verify caller is the original requester or admin
+        if escrow.requester != *caller.key {
+            // Not the requester — check if caller is admin
+            let config_account = gmp_config_account
+                .ok_or::<ProgramError>(EscrowError::UnauthorizedCaller.into())?;
+            let (config_pda, _) =
+                Pubkey::find_program_address(&[seeds::GMP_CONFIG_SEED], program_id);
+            if config_pda != *config_account.key {
+                return Err(EscrowError::InvalidPda.into());
+            }
+            let config = GmpConfig::try_from_slice(&config_account.data.borrow())
+                .map_err(|_| EscrowError::AccountNotInitialized)?;
+            if config.admin != *caller.key {
+                return Err(EscrowError::UnauthorizedCaller.into());
+            }
         }
 
         let clock = Clock::get()?;

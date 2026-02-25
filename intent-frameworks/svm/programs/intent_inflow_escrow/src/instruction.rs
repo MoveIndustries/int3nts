@@ -97,12 +97,16 @@ pub enum EscrowInstruction {
 
     /// Cancel escrow and return funds to requester (only after expiry)
     ///
+    /// The original requester or the admin can cancel. Funds always return
+    /// to the original requester regardless of who initiates cancellation.
+    ///
     /// Accounts expected:
     /// 0. `[writable]` Escrow account (PDA)
-    /// 1. `[writable, signer]` Requester
+    /// 1. `[writable, signer]` Caller (requester or admin)
     /// 2. `[writable]` Escrow vault (PDA)
     /// 3. `[writable]` Requester token account
     /// 4. `[]` Token program
+    /// 5. `[]` GMP config account (PDA) — required when caller is admin
     Cancel { intent_id: [u8; 32] },
 
     /// Receive intent requirements from hub via GMP
