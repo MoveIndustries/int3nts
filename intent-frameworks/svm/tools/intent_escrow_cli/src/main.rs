@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use intent_inflow_escrow::{
     instruction::EscrowInstruction,
-    state::{seeds, Escrow, EscrowState},
+    state::{seeds, Escrow, EscrowState, StoredIntentRequirements},
 };
 use intent_escrow_cli::{
     parse_32_byte_hex, parse_i64, parse_intent_id, parse_options, parse_signature, parse_u32,
@@ -163,6 +163,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         "claim" => handle_claim(&client, &options, program_id),
         "cancel" => handle_cancel(&client, &options, program_id),
         "get-escrow" => handle_get_escrow(&client, &options, program_id),
+        "check-requirements" => handle_check_requirements(&client, &options, program_id),
         _ => {
             print_usage();
             Ok(())
@@ -346,6 +347,31 @@ fn handle_get_escrow(
     println!("Expiry: {}", escrow.expiry);
     println!("Reserved solver: {}", escrow.reserved_solver);
     println!("Claimed: {}", escrow.is_claimed);
+    Ok(())
+}
+
+fn handle_check_requirements(
+    client: &RpcClient,
+    options: &HashMap<String, String>,
+    program_id: Pubkey,
+) -> Result<(), Box<dyn Error>> {
+    let intent_id = parse_intent_id(required_option(options, "intent-id")?)?;
+    let (req_pda, _) =
+        Pubkey::find_program_address(&[seeds::REQUIREMENTS_SEED, &intent_id], &program_id);
+    match client.get_account(&req_pda) {
+        Ok(account) => {
+            let req = StoredIntentRequirements::try_from_slice(&account.data)?;
+            println!("HasRequirements: true");
+            println!("Requirements PDA: {req_pda}");
+            println!("Amount required: {}", req.amount_required);
+            println!("Expiry: {}", req.expiry);
+            println!("Escrow created: {}", req.escrow_created);
+            println!("Fulfilled: {}", req.fulfilled);
+        }
+        Err(_) => {
+            println!("HasRequirements: false");
+        }
+    }
     Ok(())
 }
 
@@ -797,6 +823,7 @@ Escrow Commands:
   cancel             --program-id <pubkey> --payer <keypair> --admin <keypair> --requester-token <pubkey>
                      --intent-id <hex> [--rpc <url>]
   get-escrow         --program-id <pubkey> --intent-id <hex> [--rpc <url>]
+  check-requirements --program-id <pubkey> --intent-id <hex> [--rpc <url>]
   get-token-balance  --token-account <pubkey> [--rpc <url>]
 
 GMP Endpoint Commands:
