@@ -559,13 +559,13 @@ impl HubChainClient {
     ///
     /// # Returns
     ///
-    /// * `Ok(u64)` - Token balance
+    /// * `Ok(u128)` - Token balance
     /// * `Err(anyhow::Error)` - Failed to query balance
     pub async fn get_token_balance(
         &self,
         account_addr: &str,
         token_metadata: &str,
-    ) -> Result<u64> {
+    ) -> Result<u128> {
         let account_normalized = if account_addr.starts_with("0x") {
             account_addr.to_string()
         } else {
@@ -580,7 +580,7 @@ impl HubChainClient {
         let view_url = format!("{}/v1/view", self.base_url);
         let request_body = serde_json::json!({
             "function": "0x1::primary_fungible_store::balance",
-            "type_arguments": [],
+            "type_arguments": ["0x1::fungible_asset::Metadata"],
             "arguments": [account_normalized, token_normalized]
         });
 
@@ -610,11 +610,11 @@ impl HubChainClient {
         if let Some(first_result) = result.first() {
             if let Some(balance_str) = first_result.as_str() {
                 return balance_str
-                    .parse::<u64>()
-                    .context("Failed to parse balance as u64");
+                    .parse::<u128>()
+                    .context("Failed to parse balance as u128");
             }
             if let Some(balance_num) = first_result.as_u64() {
-                return Ok(balance_num);
+                return Ok(balance_num as u128);
             }
         }
 

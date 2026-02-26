@@ -508,9 +508,9 @@ impl ConnectedEvmClient {
     ///
     /// # Returns
     ///
-    /// * `Ok(u64)` - Token balance
+    /// * `Ok(u128)` - Token balance
     /// * `Err(anyhow::Error)` - Failed to query balance
-    pub async fn get_token_balance(&self, token_addr: &str, account_addr: &str) -> Result<u64> {
+    pub async fn get_token_balance(&self, token_addr: &str, account_addr: &str) -> Result<u128> {
         // Normalize addresses — configs may store 32-byte padded addresses for Move compatibility
         let token_normalized = normalize_evm_address(token_addr)?;
         let account_normalized = normalize_evm_address(account_addr)?;
@@ -560,25 +560,23 @@ impl ConnectedEvmClient {
             .result
             .context("No result in balanceOf response")?;
 
-        // ABI uint256: 32 bytes hex-encoded. Parse as u64 from the last 16 hex chars (8 bytes).
+        // ABI uint256: 32 bytes hex-encoded. Parse as u128 (supports up to 32 hex chars).
         let clean = result.strip_prefix("0x").unwrap_or(&result);
         if clean.is_empty() || clean == "0" {
             return Ok(0);
         }
 
-        // Take at most the last 16 hex chars to fit in u64
-        let hex_to_parse = if clean.len() > 16 {
-            // Check that the higher bytes are all zero
-            let high_bytes = &clean[..clean.len() - 16];
+        let hex_to_parse = if clean.len() > 32 {
+            let high_bytes = &clean[..clean.len() - 32];
             if high_bytes.chars().any(|c| c != '0') {
-                anyhow::bail!("Token balance exceeds u64 range: 0x{}", clean);
+                anyhow::bail!("Token balance exceeds u128 range: 0x{}", clean);
             }
-            &clean[clean.len() - 16..]
+            &clean[clean.len() - 32..]
         } else {
             clean
         };
 
-        let balance = u64::from_str_radix(hex_to_parse, 16)
+        let balance = u128::from_str_radix(hex_to_parse, 16)
             .context("Failed to parse balance from hex")?;
 
         Ok(balance)
@@ -595,9 +593,9 @@ impl ConnectedEvmClient {
     ///
     /// # Returns
     ///
-    /// * `Ok(u64)` - Native ETH balance in wei
+    /// * `Ok(u128)` - Native ETH balance in wei
     /// * `Err(anyhow::Error)` - Failed to query balance
-    pub async fn get_native_balance(&self, account_addr: &str) -> Result<u64> {
+    pub async fn get_native_balance(&self, account_addr: &str) -> Result<u128> {
         let account_normalized = normalize_evm_address(account_addr)?;
 
         let request = JsonRpcRequest {
@@ -638,18 +636,7 @@ impl ConnectedEvmClient {
             return Ok(0);
         }
 
-        // Take at most the last 16 hex chars to fit in u64
-        let hex_to_parse = if clean.len() > 16 {
-            let high_bytes = &clean[..clean.len() - 16];
-            if high_bytes.chars().any(|c| c != '0') {
-                anyhow::bail!("Native ETH balance exceeds u64 range: 0x{}", clean);
-            }
-            &clean[clean.len() - 16..]
-        } else {
-            clean
-        };
-
-        let balance = u64::from_str_radix(hex_to_parse, 16)
+        let balance = u128::from_str_radix(clean, 16)
             .context("Failed to parse ETH balance from hex")?;
 
         Ok(balance)

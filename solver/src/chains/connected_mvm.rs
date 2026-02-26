@@ -68,13 +68,13 @@ impl ConnectedMvmClient {
     ///
     /// # Returns
     ///
-    /// * `Ok(u64)` - Token balance
+    /// * `Ok(u128)` - Token balance
     /// * `Err(anyhow::Error)` - Failed to query balance
     pub async fn get_token_balance(
         &self,
         account_addr: &str,
         token_metadata: &str,
-    ) -> Result<u64> {
+    ) -> Result<u128> {
         let account_normalized = Self::normalize_hex_to_address(account_addr);
         let metadata_normalized = Self::normalize_hex_to_address(token_metadata);
 
@@ -82,7 +82,7 @@ impl ConnectedMvmClient {
         let view_url = format!("{}/view", self.base_url);
         let request_body = serde_json::json!({
             "function": "0x1::primary_fungible_store::balance",
-            "type_arguments": [],
+            "type_arguments": ["0x1::fungible_asset::Metadata"],
             "arguments": [account_normalized, metadata_normalized]
         });
 
@@ -115,8 +115,8 @@ impl ConnectedMvmClient {
             .context("Unexpected response format from balance view function")?;
 
         let balance = balance_str
-            .parse::<u64>()
-            .context("Failed to parse balance as u64")?;
+            .parse::<u128>()
+            .context("Failed to parse balance as u128")?;
 
         Ok(balance)
     }

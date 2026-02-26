@@ -34,16 +34,16 @@ pub struct InFlightCommitment {
 /// Liquidity state for a single token on a single chain.
 #[derive(Debug, Clone)]
 pub struct TokenLiquidity {
-    pub confirmed_balance: u64,
+    pub confirmed_balance: u128,
     pub last_updated: Instant,
     pub in_flight: Vec<InFlightCommitment>,
 }
 
 impl TokenLiquidity {
     /// Returns the available budget: confirmed balance minus in-flight commitments.
-    pub fn available_budget(&self) -> u64 {
+    pub fn available_budget(&self) -> u128 {
         let in_flight_total: u64 = self.in_flight.iter().map(|c| c.amount).sum();
-        self.confirmed_balance.saturating_sub(in_flight_total)
+        self.confirmed_balance.saturating_sub(in_flight_total as u128)
     }
 }
 
@@ -213,7 +213,7 @@ impl LiquidityMonitor {
             in_flight: Vec::new(),
         });
 
-        if liquidity.available_budget() < amount {
+        if liquidity.available_budget() < amount as u128 {
             anyhow::bail!(
                 "Insufficient budget for chain {} token {}: available={}, requested={}",
                 chain_token.chain_id,
@@ -260,7 +260,7 @@ impl LiquidityMonitor {
     pub async fn has_sufficient_budget(&self, chain_token: &ChainToken, amount: u64) -> bool {
         let state = self.state.read().await;
         match state.get(chain_token) {
-            Some(liquidity) => liquidity.available_budget() >= amount,
+            Some(liquidity) => liquidity.available_budget() >= amount as u128,
             None => false,
         }
     }
@@ -315,7 +315,7 @@ impl LiquidityMonitor {
             ))?
             .min_balance;
 
-        Ok(available >= amount.saturating_add(threshold))
+        Ok(available >= (amount as u128).saturating_add(threshold as u128))
     }
 
     /// Check if available budget is above the configured minimum threshold.
@@ -340,7 +340,7 @@ impl LiquidityMonitor {
                 chain_token.chain_id, chain_token.token
             ))?;
 
-        Ok(liquidity.available_budget() >= threshold.min_balance)
+        Ok(liquidity.available_budget() >= threshold.min_balance as u128)
     }
 
     // =========================================================================
@@ -380,7 +380,7 @@ impl LiquidityMonitor {
 
     /// Query the on-chain balance for a specific token, dispatching to the
     /// correct chain client based on chain_id.
-    async fn query_balance(&self, chain_token: &ChainToken, solver_addr: &str) -> Result<u64> {
+    async fn query_balance(&self, chain_token: &ChainToken, solver_addr: &str) -> Result<u128> {
         let hub_chain_id = self.solver_config.hub_chain.chain_id;
 
         if chain_token.chain_id == hub_chain_id {
@@ -490,7 +490,7 @@ impl LiquidityMonitor {
                 ))?;
 
             let available = liquidity.available_budget();
-            if available < threshold.min_balance {
+            if available < threshold.min_balance as u128 {
                 warn!(
                     "LOW LIQUIDITY: chain {} token {} \u{2014} available: {}, threshold: {}",
                     threshold.chain_id, threshold.token, available, threshold.min_balance

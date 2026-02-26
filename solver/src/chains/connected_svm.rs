@@ -191,9 +191,9 @@ impl ConnectedSvmClient {
     ///
     /// # Returns
     ///
-    /// * `Ok(u64)` - Token balance in base units
+    /// * `Ok(u128)` - Token balance in base units
     /// * `Err(anyhow::Error)` - Failed to query balance
-    pub fn get_token_balance(&self, token_mint: &str, owner: &str) -> Result<u64> {
+    pub fn get_token_balance(&self, token_mint: &str, owner: &str) -> Result<u128> {
         let mint_pubkey = Pubkey::from_str(token_mint)
             .context("Invalid token mint address")?;
         let owner_pubkey = Pubkey::from_str(owner)
@@ -208,8 +208,8 @@ impl ConnectedSvmClient {
 
         let amount_str = &token_balance.amount;
         let balance = amount_str
-            .parse::<u64>()
-            .context("Failed to parse token balance amount as u64")?;
+            .parse::<u128>()
+            .context("Failed to parse token balance amount as u128")?;
 
         Ok(balance)
     }
@@ -225,16 +225,16 @@ impl ConnectedSvmClient {
     ///
     /// # Returns
     ///
-    /// * `Ok(u64)` - Native SOL balance in lamports
+    /// * `Ok(u128)` - Native SOL balance in lamports
     /// * `Err(anyhow::Error)` - Failed to query balance
-    pub fn get_native_balance(&self, owner: &str) -> Result<u64> {
+    pub fn get_native_balance(&self, owner: &str) -> Result<u128> {
         let owner_pubkey = Pubkey::from_str(owner)
             .context("Invalid owner address")?;
         let balance = self
             .rpc_client
             .get_balance(&owner_pubkey)
             .context("Failed to get native SOL balance")?;
-        Ok(balance)
+        Ok(balance as u128)
     }
 
     /// Checks if GMP outflow requirements have been delivered for an intent.

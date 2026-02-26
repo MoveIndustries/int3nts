@@ -457,10 +457,10 @@ fn test_is_escrow_released_error_handling() {
 // EVM ADDRESS NORMALIZATION
 // ============================================================================
 
-/// 32. Test: get_native_balance returns error for balances exceeding u64
-/// Verifies that get_native_balance() returns Err when balance exceeds u64 range.
+/// 32. Test: get_native_balance returns exact u128 value for large ETH balances
+/// Verifies that get_native_balance() returns the true balance as u128.
 /// Why: Hardhat's default 10000 ETH (0x21e19e0c9bab2400000) exceeds u64::MAX.
-/// The solver must fail explicitly rather than silently truncating the balance.
+/// The balance system uses u128 to represent the exact value.
 #[tokio::test]
 async fn test_get_native_balance_exceeds_u64() {
     let mock_server = MockServer::start().await;
@@ -480,9 +480,8 @@ async fn test_get_native_balance_exceeds_u64() {
     config.rpc_url = base_url;
     let client = ConnectedEvmClient::new(&config).unwrap();
 
-    let result = client.get_native_balance(DUMMY_REQUESTER_ADDR_EVM).await;
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("exceeds u64 range"));
+    let balance = client.get_native_balance(DUMMY_REQUESTER_ADDR_EVM).await.unwrap();
+    assert_eq!(balance, 10_000_000_000_000_000_000_000u128);
 }
 
 /// 33. Test: get_token_balance succeeds with 32-byte padded token address

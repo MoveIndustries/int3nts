@@ -184,9 +184,8 @@ async fn test_is_escrow_released_error() {
 
 /// 16. Test: get_token_balance returns correct FA balance
 /// Verifies that get_token_balance() calls the primary_fungible_store::balance view function
-/// with empty type_arguments and parses the string response as u64.
+/// with the required Metadata type argument and parses the string response as u128.
 /// Why: Liquidity monitoring depends on accurate balance reads from MVM chains.
-/// The request must use empty type_arguments (not ["0x1::fungible_asset::Metadata"]).
 #[tokio::test]
 async fn test_get_token_balance_success() {
     let mock_server = MockServer::start().await;
@@ -196,7 +195,7 @@ async fn test_get_token_balance_success() {
         .and(path("/v1/view"))
         .and(body_partial_json(json!({
             "function": "0x1::primary_fungible_store::balance",
-            "type_arguments": []
+            "type_arguments": ["0x1::fungible_asset::Metadata"]
         })))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!(["1000000"])))
         .mount(&mock_server)
