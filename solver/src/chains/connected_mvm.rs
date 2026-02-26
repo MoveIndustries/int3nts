@@ -82,7 +82,7 @@ impl ConnectedMvmClient {
         let view_url = format!("{}/view", self.base_url);
         let request_body = serde_json::json!({
             "function": "0x1::primary_fungible_store::balance",
-            "type_arguments": ["0x1::fungible_asset::Metadata"],
+            "type_arguments": [],
             "arguments": [account_normalized, metadata_normalized]
         });
 

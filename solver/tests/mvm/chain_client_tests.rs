@@ -7,7 +7,7 @@
 
 use serde_json::json;
 use solver::chains::ConnectedMvmClient;
-use wiremock::matchers::{method, path};
+use wiremock::matchers::{body_partial_json, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[path = "../helpers.rs"]
@@ -184,8 +184,9 @@ async fn test_is_escrow_released_error() {
 
 /// 16. Test: get_token_balance returns correct FA balance
 /// Verifies that get_token_balance() calls the primary_fungible_store::balance view function
-/// and parses the string response as u64.
+/// with empty type_arguments and parses the string response as u64.
 /// Why: Liquidity monitoring depends on accurate balance reads from MVM chains.
+/// The request must use empty type_arguments (not ["0x1::fungible_asset::Metadata"]).
 #[tokio::test]
 async fn test_get_token_balance_success() {
     let mock_server = MockServer::start().await;
@@ -193,6 +194,10 @@ async fn test_get_token_balance_success() {
 
     Mock::given(method("POST"))
         .and(path("/v1/view"))
+        .and(body_partial_json(json!({
+            "function": "0x1::primary_fungible_store::balance",
+            "type_arguments": []
+        })))
         .respond_with(ResponseTemplate::new(200).set_body_json(json!(["1000000"])))
         .mount(&mock_server)
         .await;
@@ -392,3 +397,14 @@ async fn test_has_outflow_requirements_error() {
 // #29: is_escrow_released_output_parsing - N/A for MVM (EVM-specific Hardhat script mechanics)
 // #30: is_escrow_released_command_building - N/A for MVM (EVM-specific Hardhat script mechanics)
 // #31: is_escrow_released_error_handling - N/A for MVM (EVM-specific Hardhat script mechanics)
+
+// ============================================================================
+// EVM ADDRESS NORMALIZATION (EVM-specific)
+// ============================================================================
+
+// #32: get_native_balance_exceeds_u64 - N/A for MVM (EVM-specific u64 overflow from large ETH balances)
+// #33: get_token_balance_with_padded_address - N/A for MVM (EVM-specific 32-byte address padding)
+// #34: get_native_balance_with_padded_address - N/A for MVM (EVM-specific 32-byte address padding)
+// #35: normalize_evm_address_padded - N/A for MVM (EVM-specific address normalization)
+// #36: normalize_evm_address_passthrough - N/A for MVM (EVM-specific address normalization)
+// #37: normalize_evm_address_rejects_non_zero_high_bytes - N/A for MVM (EVM-specific address normalization)

@@ -6,7 +6,7 @@
 use hex;
 use serde_json::json;
 use sha3::{Digest, Keccak256};
-use solver::chains::ConnectedEvmClient;
+use solver::chains::{normalize_evm_address, ConnectedEvmClient};
 use solver::config::EvmChainConfig;
 use wiremock::matchers::method;
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -451,4 +451,131 @@ fn test_is_escrow_released_error_handling() {
     // In real code, this would bail with: "intent-frameworks/evm directory not found at: ..."
     // We're just verifying the path construction logic here
     assert!(evm_framework_dir.to_string_lossy().contains("intent-frameworks/evm"));
+}
+
+// ============================================================================
+// EVM ADDRESS NORMALIZATION
+// ============================================================================
+
+/// 32. Test: get_native_balance returns error for balances exceeding u64
+/// Verifies that get_native_balance() returns Err when balance exceeds u64 range.
+/// Why: Hardhat's default 10000 ETH (0x21e19e0c9bab2400000) exceeds u64::MAX.
+/// The solver must fail explicitly rather than silently truncating the balance.
+#[tokio::test]
+async fn test_get_native_balance_exceeds_u64() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    // 10000 ETH in wei — exceeds u64::MAX
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "jsonrpc": "2.0",
+            "result": "0x21e19e0c9bab2400000",
+            "id": 1
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_evm_config();
+    config.rpc_url = base_url;
+    let client = ConnectedEvmClient::new(&config).unwrap();
+
+    let result = client.get_native_balance(DUMMY_REQUESTER_ADDR_EVM).await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("exceeds u64 range"));
+}
+
+/// 33. Test: get_token_balance succeeds with 32-byte padded token address
+/// Verifies that get_token_balance() normalizes 32-byte padded addresses to 20-byte EVM addresses.
+/// Why: Solver configs pad EVM addresses to 32 bytes for Move compatibility. The EVM client
+/// must strip the padding before making eth_call, or the RPC node rejects the request.
+#[tokio::test]
+async fn test_get_token_balance_with_padded_address() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    let balance_hex = format!("0x{:064x}", 500_000u64);
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "jsonrpc": "2.0",
+            "result": balance_hex,
+            "id": 1
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_evm_config();
+    config.rpc_url = base_url;
+    let client = ConnectedEvmClient::new(&config).unwrap();
+
+    // 32-byte padded address (as stored in solver config for Move compatibility)
+    let padded_token = "0x000000000000000000000000a513e6e4b8f2a923d98304ec87f64353c4d5c853";
+    let balance = client
+        .get_token_balance(padded_token, DUMMY_REQUESTER_ADDR_EVM)
+        .await
+        .unwrap();
+    assert_eq!(balance, 500_000);
+}
+
+/// 34. Test: get_native_balance succeeds with 32-byte padded account address
+/// Verifies that get_native_balance() normalizes 32-byte padded addresses to 20-byte EVM addresses.
+/// Why: Solver address may be stored in 32-byte format. The EVM client must normalize it
+/// before calling eth_getBalance, or the RPC node rejects the request.
+#[tokio::test]
+async fn test_get_native_balance_with_padded_address() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    let balance_hex = format!("0x{:x}", 1_000_000_000_000_000u64);
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "jsonrpc": "2.0",
+            "result": balance_hex,
+            "id": 1
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_evm_config();
+    config.rpc_url = base_url;
+    let client = ConnectedEvmClient::new(&config).unwrap();
+
+    // 32-byte padded account address
+    let padded_account = "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266";
+    let balance = client.get_native_balance(padded_account).await.unwrap();
+    assert_eq!(balance, 1_000_000_000_000_000);
+}
+
+/// 35. Test: normalize_evm_address extracts 20 bytes from 32-byte padded address
+/// Verifies that normalize_evm_address correctly strips 12 zero-byte prefix.
+/// Why: Core normalization logic used by get_token_balance and get_native_balance.
+#[test]
+fn test_normalize_evm_address_padded() {
+    let padded = "0x000000000000000000000000a513e6e4b8f2a923d98304ec87f64353c4d5c853";
+    let result = normalize_evm_address(padded).unwrap();
+    assert_eq!(result, "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853");
+}
+
+/// 36. Test: normalize_evm_address passes through 20-byte addresses unchanged
+/// Verifies that already-correct EVM addresses are returned as-is.
+/// Why: Normal EVM addresses must not be corrupted by normalization.
+#[test]
+fn test_normalize_evm_address_passthrough() {
+    let normal = "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853";
+    let result = normalize_evm_address(normal).unwrap();
+    assert_eq!(result, normal);
+}
+
+/// 37. Test: normalize_evm_address rejects 32-byte address with non-zero high bytes
+/// Verifies that a 32-byte address where the first 12 bytes are non-zero returns Err.
+/// Why: Non-zero high bytes means this is not a padded EVM address — it's likely a
+/// Move address passed by mistake. Must fail, not silently truncate.
+#[test]
+fn test_normalize_evm_address_rejects_non_zero_high_bytes() {
+    let bad = "0x0000000000000000000000010000000000000000000000000000000000000001";
+    let result = normalize_evm_address(bad);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("non-zero high bytes"));
 }

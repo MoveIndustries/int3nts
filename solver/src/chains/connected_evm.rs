@@ -108,6 +108,29 @@ pub struct ConnectedEvmClient {
     private_key_env: String,
 }
 
+/// Normalize an EVM address that may be 32-byte padded (for Move compatibility) to 20 bytes.
+///
+/// Addresses in solver configs may be stored as 32-byte hex (64 chars) for cross-chain
+/// compatibility with Move VMs. EVM nodes expect 20-byte addresses (40 hex chars).
+///
+/// - 40 hex chars (20 bytes): returned as-is with 0x prefix
+/// - 64 hex chars (32 bytes): extracts last 40 chars if first 24 are zeros
+/// - Other lengths: returned as-is (let the RPC node validate)
+pub fn normalize_evm_address(addr: &str) -> Result<String> {
+    let clean = addr.strip_prefix("0x").unwrap_or(addr);
+    if clean.len() == 64 {
+        let high_bytes = &clean[..24];
+        if high_bytes.chars().all(|c| c == '0') {
+            return Ok(format!("0x{}", &clean[24..]));
+        }
+        anyhow::bail!(
+            "32-byte address has non-zero high bytes, not a valid padded EVM address: {}",
+            addr
+        );
+    }
+    Ok(format!("0x{}", clean))
+}
+
 impl ConnectedEvmClient {
     /// Creates a new connected EVM chain client
     ///
@@ -488,11 +511,15 @@ impl ConnectedEvmClient {
     /// * `Ok(u64)` - Token balance
     /// * `Err(anyhow::Error)` - Failed to query balance
     pub async fn get_token_balance(&self, token_addr: &str, account_addr: &str) -> Result<u64> {
+        // Normalize addresses — configs may store 32-byte padded addresses for Move compatibility
+        let token_normalized = normalize_evm_address(token_addr)?;
+        let account_normalized = normalize_evm_address(account_addr)?;
+
         // balanceOf(address) selector: 0x70a08231
         let selector = "70a08231";
 
         // ABI-encode account address as address (left-padded to 32 bytes)
-        let account_clean = account_addr.strip_prefix("0x").unwrap_or(account_addr);
+        let account_clean = account_normalized.strip_prefix("0x").unwrap_or(&account_normalized);
         let account_padded = format!("{:0>64}", account_clean);
 
         let calldata = format!("0x{}{}", selector, account_padded);
@@ -502,7 +529,7 @@ impl ConnectedEvmClient {
             method: "eth_call".to_string(),
             params: vec![
                 serde_json::json!({
-                    "to": token_addr,
+                    "to": token_normalized,
                     "data": calldata,
                 }),
                 serde_json::json!("latest"),
@@ -571,11 +598,13 @@ impl ConnectedEvmClient {
     /// * `Ok(u64)` - Native ETH balance in wei
     /// * `Err(anyhow::Error)` - Failed to query balance
     pub async fn get_native_balance(&self, account_addr: &str) -> Result<u64> {
+        let account_normalized = normalize_evm_address(account_addr)?;
+
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             method: "eth_getBalance".to_string(),
             params: vec![
-                serde_json::json!(account_addr),
+                serde_json::json!(account_normalized),
                 serde_json::json!("latest"),
             ],
             id: 1,

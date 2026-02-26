@@ -59,3 +59,9 @@ SVM: `solver/tests/svm/chain_client_tests.rs`
 | 29 | is_escrow_released_output_parsing | N/A | ✅ | N/A |
 | 30 | is_escrow_released_command_building | N/A | ✅ | N/A |
 | 31 | is_escrow_released_error_handling | N/A | ✅ | N/A |
+| 32 | get_native_balance_exceeds_u64 | N/A | ✅ | N/A |
+| 33 | get_token_balance_with_padded_address | N/A | ✅ | N/A |
+| 34 | get_native_balance_with_padded_address | N/A | ✅ | N/A |
+| 35 | normalize_evm_address_padded | N/A | ✅ | N/A |
+| 36 | normalize_evm_address_passthrough | N/A | ✅ | N/A |
+| 37 | normalize_evm_address_rejects_non_zero_high_bytes | N/A | ✅ | N/A |

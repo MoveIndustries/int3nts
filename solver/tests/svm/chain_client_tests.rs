@@ -474,3 +474,14 @@ async fn test_get_native_balance_error() {
 // #29: is_escrow_released_output_parsing - N/A for SVM (EVM-specific Hardhat script mechanics)
 // #30: is_escrow_released_command_building - N/A for SVM (EVM-specific Hardhat script mechanics)
 // #31: is_escrow_released_error_handling - N/A for SVM (EVM-specific Hardhat script mechanics)
+
+// ============================================================================
+// EVM ADDRESS NORMALIZATION (EVM-specific)
+// ============================================================================
+
+// #32: get_native_balance_exceeds_u64 - N/A for SVM (EVM-specific u64 overflow from large ETH balances)
+// #33: get_token_balance_with_padded_address - N/A for SVM (EVM-specific 32-byte address padding)
+// #34: get_native_balance_with_padded_address - N/A for SVM (EVM-specific 32-byte address padding)
+// #35: normalize_evm_address_padded - N/A for SVM (EVM-specific address normalization)
+// #36: normalize_evm_address_passthrough - N/A for SVM (EVM-specific address normalization)
+// #37: normalize_evm_address_rejects_non_zero_high_bytes - N/A for SVM (EVM-specific address normalization)
