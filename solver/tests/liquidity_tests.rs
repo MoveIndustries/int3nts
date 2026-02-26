@@ -11,7 +11,7 @@ use test_helpers::{
 };
 
 use solver::config::{
-    AcceptanceConfig, LiquidityMonitorConfig, LiquidityThresholdConfig, TokenPairConfig,
+    self, AcceptanceConfig, LiquidityMonitorConfig, LiquidityThresholdConfig, TokenPairConfig,
 };
 use solver::service::liquidity::{ChainToken, InFlightCommitment, LiquidityMonitor, TokenLiquidity};
 use std::time::Instant;
@@ -287,7 +287,7 @@ async fn test_above_threshold_returns_true() {
         liq.confirmed_balance = 1000; // well above 500 threshold
     }
 
-    assert!(monitor.is_above_threshold(&target).await);
+    assert!(monitor.is_above_threshold(&target).await.unwrap());
 }
 
 /// Test: is_above_threshold returns false when budget is below minimum
@@ -305,15 +305,14 @@ async fn test_below_threshold_returns_false() {
         liq.confirmed_balance = 200; // below 500 threshold
     }
 
-    assert!(!monitor.is_above_threshold(&target).await);
+    assert!(!monitor.is_above_threshold(&target).await.unwrap());
 }
 
-/// Test: is_above_threshold panics when no threshold is configured
-/// Verifies: Missing threshold is a bug (startup validation should have caught it)
+/// Test: is_above_threshold returns error when no threshold is configured
+/// Verifies: Missing threshold returns an error (startup validation should have caught it)
 /// Why: Every token the solver operates on must have an explicit threshold
 #[tokio::test]
-#[should_panic(expected = "BUG: no liquidity threshold")]
-async fn test_no_threshold_configured_panics() {
+async fn test_no_threshold_configured_returns_error() {
     let monitor = create_test_monitor();
 
     // Use a token that is tracked in state but has no threshold configured
@@ -332,8 +331,10 @@ async fn test_no_threshold_configured_panics() {
         });
     }
 
-    // This must panic — missing threshold is a startup validation bug
-    monitor.is_above_threshold(&unconfigured).await;
+    // Must return error — missing threshold is a startup validation bug
+    let result = monitor.is_above_threshold(&unconfigured).await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("No liquidity threshold"));
 }
 
 /// Test: is_above_threshold accounts for in-flight reservations
@@ -352,12 +353,12 @@ async fn test_threshold_accounts_for_in_flight() {
     }
 
     // Above threshold before reservation
-    assert!(monitor.is_above_threshold(&target).await);
+    assert!(monitor.is_above_threshold(&target).await.unwrap());
 
     // Reserve 300 → available = 400 (below 500 threshold)
     monitor.reserve(&target, "draft-1", 300).await.unwrap();
 
-    assert!(!monitor.is_above_threshold(&target).await);
+    assert!(!monitor.is_above_threshold(&target).await.unwrap());
 }
 
 // ============================================================================
@@ -514,7 +515,7 @@ fn test_gas_token_hub_chain() {
     let liq_config = config.liquidity.clone();
     let monitor = LiquidityMonitor::new(config, liq_config).unwrap();
 
-    let gas = monitor.gas_token_for_chain(1);
+    let gas = monitor.gas_token_for_chain(1).unwrap();
     assert_eq!(gas.chain_id, 1);
     assert_eq!(gas.token, GAS_TOKEN_MVM);
 }
@@ -528,7 +529,7 @@ fn test_gas_token_connected_mvm() {
     let liq_config = config.liquidity.clone();
     let monitor = LiquidityMonitor::new(config, liq_config).unwrap();
 
-    let gas = monitor.gas_token_for_chain(2);
+    let gas = monitor.gas_token_for_chain(2).unwrap();
     assert_eq!(gas.chain_id, 2);
     assert_eq!(gas.token, GAS_TOKEN_MVM);
 }
@@ -542,7 +543,7 @@ fn test_gas_token_connected_evm() {
     let liq_config = config.liquidity.clone();
     let monitor = LiquidityMonitor::new(config, liq_config).unwrap();
 
-    let gas = monitor.gas_token_for_chain(3);
+    let gas = monitor.gas_token_for_chain(3).unwrap();
     assert_eq!(gas.chain_id, 3);
     assert_eq!(gas.token, "0x0000000000000000000000000000000000000000");
 }
@@ -556,22 +557,23 @@ fn test_gas_token_connected_svm() {
     let liq_config = config.liquidity.clone();
     let monitor = LiquidityMonitor::new(config, liq_config).unwrap();
 
-    let gas = monitor.gas_token_for_chain(4);
+    let gas = monitor.gas_token_for_chain(4).unwrap();
     assert_eq!(gas.chain_id, 4);
     assert_eq!(gas.token, "11111111111111111111111111111111");
 }
 
-/// Test: gas_token_for_chain panics for unknown chain
-/// Verifies: Unknown chain_id is a bug (startup validation guarantees all chains are known)
+/// Test: gas_token_for_chain returns error for unknown chain
+/// Verifies: Unknown chain_id returns an error (startup validation guarantees all chains are known)
 /// Why: Missing chain config at runtime means startup validation has a bug
 #[test]
-#[should_panic(expected = "BUG: no chain config for chain_id")]
-fn test_gas_token_unknown_chain_panics() {
+fn test_gas_token_unknown_chain_returns_error() {
     let config = create_multi_chain_solver_config();
     let liq_config = config.liquidity.clone();
     let monitor = LiquidityMonitor::new(config, liq_config).unwrap();
 
-    monitor.gas_token_for_chain(999);
+    let result = monitor.gas_token_for_chain(999);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("No chain config for chain_id"));
 }
 
 // ============================================================================
@@ -594,17 +596,16 @@ async fn test_has_budget_after_spend_with_threshold() {
     }
 
     // Can spend 500 (leaves 500 = threshold) → true
-    assert!(monitor.has_budget_after_spend(&target, 500).await);
+    assert!(monitor.has_budget_after_spend(&target, 500).await.unwrap());
     // Cannot spend 501 (would leave 499 < threshold) → false
-    assert!(!monitor.has_budget_after_spend(&target, 501).await);
+    assert!(!monitor.has_budget_after_spend(&target, 501).await.unwrap());
 }
 
-/// Test: has_budget_after_spend panics when no threshold is configured
-/// Verifies: Missing threshold is a bug (startup validation should have caught it)
+/// Test: has_budget_after_spend returns error when no state exists
+/// Verifies: Missing state returns an error (startup validation should have caught it)
 /// Why: Every token the solver spends must have an explicit threshold
 #[tokio::test]
-#[should_panic(expected = "BUG: no liquidity state")]
-async fn test_has_budget_after_spend_panics_without_threshold() {
+async fn test_has_budget_after_spend_returns_error_without_state() {
     let monitor = create_test_monitor();
 
     // Use a token that has no threshold and no state — a completely unknown token
@@ -613,8 +614,10 @@ async fn test_has_budget_after_spend_panics_without_threshold() {
         token: "0x0000000000000000000000000000000000000000000000000000000000ffffff".to_string(),
     };
 
-    // This must panic — missing state/threshold is a startup validation bug
-    monitor.has_budget_after_spend(&unconfigured, 100).await;
+    // Must return error — missing state/threshold is a startup validation bug
+    let result = monitor.has_budget_after_spend(&unconfigured, 100).await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("No liquidity state"));
 }
 
 /// Test: has_budget_after_spend accounts for in-flight commitments
@@ -636,17 +639,16 @@ async fn test_has_budget_after_spend_with_in_flight() {
     monitor.reserve(&target, "draft-1", 300).await.unwrap();
 
     // Can spend 400 (leaves 500 = threshold) → true
-    assert!(monitor.has_budget_after_spend(&target, 400).await);
+    assert!(monitor.has_budget_after_spend(&target, 400).await.unwrap());
     // Cannot spend 401 (would leave 499 < threshold) → false
-    assert!(!monitor.has_budget_after_spend(&target, 401).await);
+    assert!(!monitor.has_budget_after_spend(&target, 401).await.unwrap());
 }
 
-/// Test: has_budget_after_spend panics for unknown chain+token
-/// Verifies: Unknown tokens are a bug, not a runtime condition
+/// Test: has_budget_after_spend returns error for unknown chain+token
+/// Verifies: Unknown tokens return an error, not a panic
 /// Why: Untracked tokens indicate startup validation missed something
 #[tokio::test]
-#[should_panic(expected = "BUG: no liquidity state")]
-async fn test_has_budget_after_spend_unknown_token_panics() {
+async fn test_has_budget_after_spend_unknown_token_returns_error() {
     let monitor = create_test_monitor();
 
     let unknown = ChainToken {
@@ -654,6 +656,68 @@ async fn test_has_budget_after_spend_unknown_token_panics() {
         token: "0xunknown".to_string(),
     };
 
-    // This must panic — unknown token is a startup validation bug
-    monitor.has_budget_after_spend(&unknown, 1).await;
+    // Must return error — unknown token is a startup validation bug
+    let result = monitor.has_budget_after_spend(&unknown, 1).await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("No liquidity state"));
+}
+
+// ============================================================================
+// ERROR PROPAGATION TESTS (replacing former panics)
+// ============================================================================
+
+/// Test: gas_token_for_chain_type returns error for unknown chain type
+/// Verifies: config::gas_token_for_chain_type("unknown") returns Err, not panic
+/// Why: Unknown chain types must propagate errors, not kill the runtime
+#[test]
+fn test_gas_token_for_chain_type_returns_error_for_unknown() {
+    let result = config::gas_token_for_chain_type("unknown");
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("Unknown chain type"));
+}
+
+/// Test: has_budget_after_spend returns error when token is in state but has no threshold
+/// Verifies: Token tracked in state but missing from threshold config → Err
+/// Why: Exercises the second lookup failure (threshold missing, not state missing)
+#[tokio::test]
+async fn test_has_budget_after_spend_missing_threshold_returns_error() {
+    let monitor = create_test_monitor();
+
+    // Insert a token into state that is NOT in the threshold config
+    let unthresholded = ChainToken {
+        chain_id: 1,
+        token: "0x0000000000000000000000000000000000000000000000000000000000aaaaaa".to_string(),
+    };
+    {
+        let mut state = monitor.state().write().await;
+        state.insert(unthresholded.clone(), TokenLiquidity {
+            confirmed_balance: 5000,
+            last_updated: Instant::now(),
+            in_flight: Vec::new(),
+        });
+    }
+
+    // State exists but threshold doesn't — must return error
+    let result = monitor.has_budget_after_spend(&unthresholded, 100).await;
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("No liquidity threshold"));
+}
+
+/// Test: config validation catches unknown chain type before runtime
+/// Verifies: validate() returns error for gas token threshold referencing an unknown chain type
+/// Why: Proves that startup validation prevents the runtime errors we fixed
+#[test]
+fn test_config_validation_catches_unknown_chain_before_runtime() {
+    // Build a config where acceptance references a chain the solver doesn't have
+    let mut config = test_solver_config_with_pairs();
+    // Add a token pair that targets a chain_id with no connected chain config
+    config.acceptance.token_pairs.push(TokenPairConfig {
+        source_chain_id: 1,
+        source_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+        target_chain_id: 999, // no connected chain for this
+        target_token: "0xdeadbeef".to_string(),
+        ratio: 1.0,
+    });
+    let result = config.validate();
+    assert!(result.is_err(), "validate() must reject acceptance pairs targeting unconfigured chains");
 }

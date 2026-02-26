@@ -190,7 +190,9 @@ impl LiquidityMonitor {
         loop {
             self.poll_balances().await;
             self.cleanup_expired_commitments().await;
-            self.check_and_warn_thresholds().await;
+            if let Err(e) = self.check_and_warn_thresholds().await {
+                error!("Error checking thresholds: {}", e);
+            }
             tokio::time::sleep(poll_interval).await;
         }
     }
@@ -267,50 +269,38 @@ impl LiquidityMonitor {
     ///
     /// Hub and MVM chains use MOVE (full 32-byte FA metadata), EVM chains use
     /// native ETH (zero address), SVM chains use native SOL (system program).
-    ///
-    /// # Panics
-    ///
-    /// Panics if chain_id is not found — this indicates a bug in startup
-    /// validation (`SolverConfig::validate` guarantees all acceptance chain IDs
-    /// reference known chains).
-    pub fn gas_token_for_chain(&self, chain_id: u64) -> ChainToken {
+    pub fn gas_token_for_chain(&self, chain_id: u64) -> Result<ChainToken> {
         let chain_type = if chain_id == self.solver_config.hub_chain.chain_id {
             "mvm"
         } else {
             self.solver_config
                 .get_connected_chain_by_id(chain_id)
-                .unwrap_or_else(|| panic!(
-                    "BUG: no chain config for chain_id {} — \
+                .ok_or_else(|| anyhow::anyhow!(
+                    "No chain config for chain_id {} — \
                      startup validation should have caught this",
                     chain_id
-                ))
+                ))?
                 .chain_type()
         };
-        ChainToken {
+        Ok(ChainToken {
             chain_id,
-            token: gas_token_for_chain_type(chain_type).to_string(),
-        }
+            token: gas_token_for_chain_type(chain_type)?.to_string(),
+        })
     }
 
     /// Check if there is sufficient budget for a spend AND the remaining balance
     /// stays above the configured minimum threshold.
     ///
     /// Returns `true` if `available_budget >= amount + threshold`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no threshold or state is configured for the token — this indicates
-    /// a bug in startup validation (`SolverConfig::validate` guarantees every
-    /// acceptance target token and gas token has a threshold).
-    pub async fn has_budget_after_spend(&self, chain_token: &ChainToken, amount: u64) -> bool {
+    pub async fn has_budget_after_spend(&self, chain_token: &ChainToken, amount: u64) -> Result<bool> {
         let state = self.state.read().await;
         let available = state
             .get(chain_token)
-            .unwrap_or_else(|| panic!(
-                "BUG: no liquidity state for chain {} token {} — \
+            .ok_or_else(|| anyhow::anyhow!(
+                "No liquidity state for chain {} token {} — \
                  startup validation should have caught this",
                 chain_token.chain_id, chain_token.token
-            ))
+            ))?
             .available_budget();
 
         let threshold = self
@@ -318,45 +308,39 @@ impl LiquidityMonitor {
             .thresholds
             .iter()
             .find(|t| t.chain_id == chain_token.chain_id && t.token == chain_token.token)
-            .unwrap_or_else(|| panic!(
-                "BUG: no liquidity threshold for chain {} token {} — \
+            .ok_or_else(|| anyhow::anyhow!(
+                "No liquidity threshold for chain {} token {} — \
                  startup validation should have caught this",
                 chain_token.chain_id, chain_token.token
-            ))
+            ))?
             .min_balance;
 
-        available >= amount.saturating_add(threshold)
+        Ok(available >= amount.saturating_add(threshold))
     }
 
     /// Check if available budget is above the configured minimum threshold.
-    ///
-    /// # Panics
-    ///
-    /// Panics if no threshold or state is configured for the token — this indicates
-    /// a bug in startup validation (`SolverConfig::validate` guarantees every
-    /// acceptance target token and gas token has a threshold).
-    pub async fn is_above_threshold(&self, chain_token: &ChainToken) -> bool {
+    pub async fn is_above_threshold(&self, chain_token: &ChainToken) -> Result<bool> {
         let threshold = self
             .config
             .thresholds
             .iter()
             .find(|t| t.chain_id == chain_token.chain_id && t.token == chain_token.token)
-            .unwrap_or_else(|| panic!(
-                "BUG: no liquidity threshold for chain {} token {} — \
+            .ok_or_else(|| anyhow::anyhow!(
+                "No liquidity threshold for chain {} token {} — \
                  startup validation should have caught this",
                 chain_token.chain_id, chain_token.token
-            ));
+            ))?;
 
         let state = self.state.read().await;
         let liquidity = state
             .get(chain_token)
-            .unwrap_or_else(|| panic!(
-                "BUG: no liquidity state for chain {} token {} — \
+            .ok_or_else(|| anyhow::anyhow!(
+                "No liquidity state for chain {} token {} — \
                  startup validation should have caught this",
                 chain_token.chain_id, chain_token.token
-            ));
+            ))?;
 
-        liquidity.available_budget() >= threshold.min_balance
+        Ok(liquidity.available_budget() >= threshold.min_balance)
     }
 
     // =========================================================================
@@ -429,7 +413,7 @@ impl LiquidityMonitor {
                     .evm_client
                     .as_ref()
                     .context("EVM client not available")?;
-                if chain_token.token == gas_token_for_chain_type("evm") {
+                if chain_token.token == gas_token_for_chain_type("evm")? {
                     client.get_native_balance(solver_addr).await
                 } else {
                     client
@@ -442,7 +426,7 @@ impl LiquidityMonitor {
                     .svm_client
                     .as_ref()
                     .context("SVM client not available")?;
-                if chain_token.token == gas_token_for_chain_type("svm") {
+                if chain_token.token == gas_token_for_chain_type("svm")? {
                     let owner_b58 = to_base58_pubkey(solver_addr)?;
                     client.get_native_balance(&owner_b58)
                 } else {
@@ -488,7 +472,7 @@ impl LiquidityMonitor {
     }
 
     /// Log warnings for any chain+token where available budget is below threshold.
-    async fn check_and_warn_thresholds(&self) {
+    async fn check_and_warn_thresholds(&self) -> Result<()> {
         let state = self.state.read().await;
 
         for threshold in &self.config.thresholds {
@@ -499,11 +483,11 @@ impl LiquidityMonitor {
 
             let liquidity = state
                 .get(&chain_token)
-                .unwrap_or_else(|| panic!(
-                    "BUG: no liquidity state for chain {} token {} — \
+                .ok_or_else(|| anyhow::anyhow!(
+                    "No liquidity state for chain {} token {} — \
                      startup validation should have caught this",
                     chain_token.chain_id, chain_token.token
-                ));
+                ))?;
 
             let available = liquidity.available_budget();
             if available < threshold.min_balance {
@@ -513,6 +497,7 @@ impl LiquidityMonitor {
                 );
             }
         }
+        Ok(())
     }
 }
 

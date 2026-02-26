@@ -188,7 +188,7 @@ impl SigningService {
                     token: draft_data.desired_token.clone(),
                 };
 
-                if !self.liquidity_monitor.has_budget_after_spend(&target, draft_data.desired_amount).await {
+                if !self.liquidity_monitor.has_budget_after_spend(&target, draft_data.desired_amount).await? {
                     warn!(
                         "Draft {} rejected: insufficient budget for {} on chain {} token {} (must retain threshold after spend)",
                         draft.draft_id, draft_data.desired_amount, target.chain_id, target.token
@@ -197,8 +197,8 @@ impl SigningService {
                 }
 
                 // A) Target chain: gas token must be above threshold
-                let gas_target = self.liquidity_monitor.gas_token_for_chain(draft_data.desired_chain_id);
-                if !self.liquidity_monitor.is_above_threshold(&gas_target).await {
+                let gas_target = self.liquidity_monitor.gas_token_for_chain(draft_data.desired_chain_id)?;
+                if !self.liquidity_monitor.is_above_threshold(&gas_target).await? {
                     warn!(
                         "Draft {} rejected: gas token below threshold on target chain {}",
                         draft.draft_id, draft_data.desired_chain_id
@@ -207,8 +207,8 @@ impl SigningService {
                 }
 
                 // B) Source chain: gas token must be above threshold
-                let gas_source = self.liquidity_monitor.gas_token_for_chain(draft_data.offered_chain_id);
-                if !self.liquidity_monitor.is_above_threshold(&gas_source).await {
+                let gas_source = self.liquidity_monitor.gas_token_for_chain(draft_data.offered_chain_id)?;
+                if !self.liquidity_monitor.is_above_threshold(&gas_source).await? {
                     warn!(
                         "Draft {} rejected: gas token below threshold on source chain {}",
                         draft.draft_id, draft_data.offered_chain_id

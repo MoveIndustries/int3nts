@@ -462,7 +462,7 @@ impl SolverConfig {
                         "Unknown chain_id {} referenced in acceptance pairs",
                         chain_id
                     ))?;
-                let gas_sentinel = gas_token_for_chain_type(chain_type);
+                let gas_sentinel = gas_token_for_chain_type(chain_type)?;
                 let has_gas_threshold = liq.thresholds.iter().any(|t|
                     t.chain_id == chain_id && t.token == gas_sentinel
                 );
@@ -588,12 +588,12 @@ fn validate_token_format(token: &str, chain_type: &str) -> anyhow::Result<()> {
 /// - MVM: `0xa` (MOVE FA metadata, 32-byte padded)
 /// - EVM: zero address (20 bytes)
 /// - SVM: system program (base58)
-pub fn gas_token_for_chain_type(chain_type: &str) -> &'static str {
+pub fn gas_token_for_chain_type(chain_type: &str) -> anyhow::Result<&'static str> {
     match chain_type {
-        "mvm" => "0x000000000000000000000000000000000000000000000000000000000000000a",
-        "evm" => "0x0000000000000000000000000000000000000000",
-        "svm" => "11111111111111111111111111111111",
-        _ => unreachable!("Unknown chain type: {}", chain_type),
+        "mvm" => Ok("0x000000000000000000000000000000000000000000000000000000000000000a"),
+        "evm" => Ok("0x0000000000000000000000000000000000000000"),
+        "svm" => Ok("11111111111111111111111111111111"),
+        _ => anyhow::bail!("Unknown chain type: {}", chain_type),
     }
 }
 
