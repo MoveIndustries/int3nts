@@ -44,7 +44,7 @@ fn create_test_evm_config() -> EvmChainConfig {
 /// Why: Client initialization is the entry point for all EVM operations. A failure
 /// here would prevent any solver operations on connected EVM chains.
 #[test]
-fn test_evm_client_new() {
+fn test_client_new() {
     let config = create_test_evm_config();
     let _client = ConnectedEvmClient::new(&config).unwrap();
 }
@@ -60,7 +60,7 @@ fn test_evm_client_new() {
 /// Why: The solver needs to parse escrow events from connected EVM chains to
 /// identify fulfillment opportunities. A parsing bug would cause missed escrows.
 #[tokio::test]
-async fn test_get_escrow_events_evm_success() {
+async fn test_get_escrow_events_success() {
     let mock_server = MockServer::start().await;
     let base_url = mock_server.uri().to_string();
 
@@ -121,7 +121,7 @@ async fn test_get_escrow_events_evm_success() {
 /// Why: A chain with no escrows should return an empty list, not an error.
 /// The solver should handle this gracefully and continue polling.
 #[tokio::test]
-async fn test_get_escrow_events_evm_empty() {
+async fn test_get_escrow_events_empty() {
     let mock_server = MockServer::start().await;
     let base_url = mock_server.uri().to_string();
 
@@ -148,7 +148,7 @@ async fn test_get_escrow_events_evm_empty() {
 /// Why: RPC errors should be propagated to the caller, not silently ignored.
 /// The solver needs to know when queries fail to retry or alert operators.
 #[tokio::test]
-async fn test_get_escrow_events_evm_error() {
+async fn test_get_escrow_events_error() {
     let mock_server = MockServer::start().await;
     let base_url = mock_server.uri().to_string();
 
@@ -176,15 +176,203 @@ async fn test_get_escrow_events_evm_error() {
 // #6: escrow_event_deserialization - N/A for EVM (parses directly in get_escrow_events)
 
 // ============================================================================
-// ESCROW RELEASE (GMP Auto-Release)
+// FULFILLMENT OPERATIONS
 // ============================================================================
 
-/// 7. Test: Is Escrow Released Intent ID Formatting
+// #7: fulfillment_id_formatting - TODO: implement for EVM
+// #8: fulfillment_signature_encoding - TODO: implement for EVM
+// #9: fulfillment_command_building - TODO: implement for EVM
+// #10: fulfillment_error_handling - TODO: implement for EVM
+
+// ============================================================================
+// INPUT PARSING
+// ============================================================================
+
+// #11: pubkey_from_hex_with_leading_zeros - N/A for EVM (SVM-specific)
+// #12: pubkey_from_hex_no_leading_zeros - N/A for EVM (SVM-specific)
+
+// ============================================================================
+// ESCROW RELEASE QUERYING
+// ============================================================================
+
+// #13: is_escrow_released_success - TODO: implement for EVM (currently uses Hardhat script, not easily mockable)
+// #14: is_escrow_released_false - TODO: implement for EVM
+// #15: is_escrow_released_error - TODO: implement for EVM
+
+// ============================================================================
+// BALANCE QUERIES
+// ============================================================================
+
+/// 16. Test: get_token_balance returns correct ERC20 balance
+/// Verifies that get_token_balance() calls eth_call with balanceOf selector and parses hex result.
+/// Why: Liquidity monitoring depends on accurate token balance reads from EVM chains.
+#[tokio::test]
+async fn test_get_token_balance_success() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    // 1000000 in hex, ABI-encoded as 32-byte word
+    let balance_hex = format!("0x{:064x}", 1_000_000u64);
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "jsonrpc": "2.0",
+            "result": balance_hex,
+            "id": 1
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_evm_config();
+    config.rpc_url = base_url;
+    let client = ConnectedEvmClient::new(&config).unwrap();
+
+    let balance = client
+        .get_token_balance(DUMMY_TOKEN_ADDR_EVM, DUMMY_REQUESTER_ADDR_EVM)
+        .await
+        .unwrap();
+    assert_eq!(balance, 1_000_000);
+}
+
+/// 17. Test: get_token_balance propagates RPC errors
+/// Verifies that get_token_balance() returns Err on JSON-RPC error.
+/// Why: RPC errors must propagate so the liquidity monitor can log and retry.
+#[tokio::test]
+async fn test_get_token_balance_error() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32000,
+                "message": "execution reverted"
+            },
+            "id": 1
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_evm_config();
+    config.rpc_url = base_url;
+    let client = ConnectedEvmClient::new(&config).unwrap();
+
+    let result = client.get_token_balance(DUMMY_TOKEN_ADDR_EVM, DUMMY_REQUESTER_ADDR_EVM).await;
+    assert!(result.is_err());
+}
+
+/// 18. Test: get_token_balance returns zero for empty result
+/// Verifies that get_token_balance() returns 0 when the contract returns "0x0".
+/// Why: Zero balance is a valid state (empty wallet), not an error.
+#[tokio::test]
+async fn test_get_token_balance_zero() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "jsonrpc": "2.0",
+            "result": "0x0",
+            "id": 1
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_evm_config();
+    config.rpc_url = base_url;
+    let client = ConnectedEvmClient::new(&config).unwrap();
+
+    let balance = client
+        .get_token_balance(DUMMY_TOKEN_ADDR_EVM, DUMMY_REQUESTER_ADDR_EVM)
+        .await
+        .unwrap();
+    assert_eq!(balance, 0);
+}
+
+/// 19. Test: get_native_balance returns correct ETH balance
+/// Verifies that get_native_balance() calls eth_getBalance and parses hex result.
+/// Why: Gas token monitoring uses native balance, not ERC20 balanceOf.
+#[tokio::test]
+async fn test_get_native_balance_success() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    // 0.01 ETH = 10000000000000000 wei
+    let balance_hex = format!("0x{:x}", 10_000_000_000_000_000u64);
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "jsonrpc": "2.0",
+            "result": balance_hex,
+            "id": 1
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_evm_config();
+    config.rpc_url = base_url;
+    let client = ConnectedEvmClient::new(&config).unwrap();
+
+    let balance = client.get_native_balance(DUMMY_REQUESTER_ADDR_EVM).await.unwrap();
+    assert_eq!(balance, 10_000_000_000_000_000);
+}
+
+/// 20. Test: get_native_balance propagates RPC errors
+/// Verifies that get_native_balance() returns Err on JSON-RPC error.
+/// Why: RPC errors must propagate so the liquidity monitor can log and retry.
+#[tokio::test]
+async fn test_get_native_balance_error() {
+    let mock_server = MockServer::start().await;
+    let base_url = mock_server.uri().to_string();
+
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "jsonrpc": "2.0",
+            "error": {
+                "code": -32602,
+                "message": "invalid argument"
+            },
+            "id": 1
+        })))
+        .mount(&mock_server)
+        .await;
+
+    let mut config = create_test_evm_config();
+    config.rpc_url = base_url;
+    let client = ConnectedEvmClient::new(&config).unwrap();
+
+    let result = client.get_native_balance(DUMMY_REQUESTER_ADDR_EVM).await;
+    assert!(result.is_err());
+}
+
+// ============================================================================
+// HEX ADDRESS NORMALIZATION (MVM-specific)
+// ============================================================================
+
+// #21: normalize_hex_to_address_full_length - N/A for EVM (MVM-specific Move address normalization)
+// #22: normalize_hex_to_address_short_address - N/A for EVM (MVM-specific Move address normalization)
+// #23: normalize_hex_to_address_odd_length - N/A for EVM (MVM-specific Move address normalization)
+// #24: normalize_hex_to_address_no_prefix - N/A for EVM (MVM-specific Move address normalization)
+
+// ============================================================================
+// HAS OUTFLOW REQUIREMENTS (MVM-specific)
+// ============================================================================
+
+// #25: has_outflow_requirements_success - N/A for EVM (MVM-specific GMP view function)
+// #26: has_outflow_requirements_false - N/A for EVM (MVM-specific GMP view function)
+// #27: has_outflow_requirements_error - N/A for EVM (MVM-specific GMP view function)
+
+// ============================================================================
+// IS ESCROW RELEASED HELPERS (EVM-specific, Hardhat script mechanics)
+// ============================================================================
+
+/// 28. Test: is_escrow_released intent ID formatting
 /// Verifies that intent_id is correctly formatted for Hardhat script.
 /// Why: EVM expects 0x-prefixed hex strings. Missing prefix would cause the
 /// Hardhat script to fail with a parse error.
 #[test]
-fn test_is_escrow_released_intent_id_formatting() {
+fn test_is_escrow_released_id_formatting() {
     // Test that intent_id with 0x prefix is preserved
     let intent_id_with_prefix = "0x1234567890abcdef";
     let formatted = if intent_id_with_prefix.starts_with("0x") {
@@ -204,7 +392,7 @@ fn test_is_escrow_released_intent_id_formatting() {
     assert_eq!(formatted, "0x1234567890abcdef");
 }
 
-/// 8. Test: Is Escrow Released Output Parsing
+/// 29. Test: is_escrow_released output parsing
 /// Verifies that "isReleased: true/false" is correctly parsed from Hardhat output.
 /// Why: The solver needs to know when escrow is auto-released to complete the flow.
 /// Wrong parsing would cause the solver to wait forever or miss releases.
@@ -221,7 +409,7 @@ fn test_is_escrow_released_output_parsing() {
     assert!(!output_false.contains("isReleased: true"));
 }
 
-/// 9. Test: Is Escrow Released Command Building
+/// 30. Test: is_escrow_released command building
 /// Verifies that the Hardhat command is built correctly with all required arguments.
 /// Why: The is_escrow_released function invokes a Hardhat script with environment variables.
 /// Wrong command formatting would cause the script to fail or use wrong parameters.
@@ -248,12 +436,12 @@ fn test_is_escrow_released_command_building() {
     assert!(command.contains("--network localhost"));
 }
 
-/// 10. Test: Is Escrow Released Missing Directory Error
+/// 31. Test: is_escrow_released missing directory error
 /// Verifies that proper error is returned when intent-frameworks/evm directory is missing.
 /// Why: A clear error message helps operators diagnose deployment issues.
 /// Silent failures would make debugging much harder.
 #[test]
-fn test_is_escrow_released_missing_directory_error() {
+fn test_is_escrow_released_error_handling() {
     // Simulate the directory check logic
     let current_dir = std::env::current_dir().unwrap();
     let project_root = current_dir.parent().unwrap();
@@ -264,6 +452,3 @@ fn test_is_escrow_released_missing_directory_error() {
     // We're just verifying the path construction logic here
     assert!(evm_framework_dir.to_string_lossy().contains("intent-frameworks/evm"));
 }
-
-// #11: pubkey_from_hex_with_leading_zeros - N/A for EVM (SVM-specific)
-// #12: pubkey_from_hex_no_leading_zeros - N/A for EVM (SVM-specific)
