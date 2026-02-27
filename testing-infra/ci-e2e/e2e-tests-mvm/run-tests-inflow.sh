@@ -107,8 +107,8 @@ echo "   Submitting inflow cross-chain intents via coordinator negotiation routi
 echo ""
 echo " Pre-Escrow Balance Validation"
 echo "=========================================="
-# Nobody should have done anything yet: all four actors start with 1 USDhub/USDcon on each chain
-./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 1000000 1000000 1000000 1000000
+# Nobody should have done anything yet: all four actors start with 2 USDhub/USDcon on each chain
+./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 2000000 2000000 2000000 2000000
 
 ./testing-infra/ci-e2e/e2e-tests-mvm/inflow-submit-escrow.sh
 
@@ -145,7 +145,7 @@ echo " Final Balance Validation"
 echo "=========================================="
 # Inflow: Solver transfers to hub requester (0 on hub, 2000000 on MVM from escrow)
 #         Requester receives on hub (2000000 on hub, 0 on MVM locked in escrow)
-./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 0 2000000 2000000 0
+./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 1000000 3000000 3000000 1000000
 
 echo ""
 echo "✅ E2E inflow test completed!"

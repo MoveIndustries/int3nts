@@ -347,6 +347,16 @@ display_service_logs() {
     fi
     
     if [ -f "$solver_log" ]; then
+        # Surface WARN/ERROR lines first for quick diagnosis
+        local warn_error_lines
+        warn_error_lines=$(grep -E 'WARN|ERROR' "$solver_log" 2>/dev/null | sed 's/^/   /' || true)
+        if [ -n "$warn_error_lines" ]; then
+            log_and_echo ""
+            log_and_echo "⚠ Solver WARN/ERROR lines:"
+            log_and_echo "-----------------------------------"
+            echo "$warn_error_lines" | while IFS= read -r line; do log_and_echo "$line"; done
+            log_and_echo "-----------------------------------"
+        fi
         log_and_echo ""
         log_and_echo " Solver logs:"
         log_and_echo "-----------------------------------"

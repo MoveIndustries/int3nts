@@ -94,7 +94,7 @@ echo "==========================================================================
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-integrated-gmp.sh
 
 # Assert solver has USDcon before starting (should have 1 USDcon from deploy)
-assert_usdxyz_balance "solver-chain2" "2" "$USD_MVMCON_MODULE_ADDR" "1000000" "pre-solver-start"
+assert_usdxyz_balance "solver-chain2" "2" "$USD_MVMCON_MODULE_ADDR" "2000000" "pre-solver-start"
 echo "   [DEBUG] Balance assertion completed, continuing..."
 
 # Start solver service for automatic signing and fulfillment
@@ -114,8 +114,8 @@ echo "   Submitting outflow cross-chain intents via coordinator negotiation rout
 echo ""
 echo " Pre-Intent Balance Validation"
 echo "=========================================="
-# Everybody starts with 1 USDhub/USDcon on each chain
-./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 1000000 1000000 1000000 1000000
+# Everybody starts with 2 USDhub/USDcon on each chain
+./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 2000000 2000000 2000000 2000000
 
 ./testing-infra/ci-e2e/e2e-tests-mvm/outflow-submit-hub-intent.sh
 
@@ -148,7 +148,7 @@ echo " Final Balance View"
 echo "=========================================="
 # Outflow: Solver gets from hub intent (2000000 on hub, 0 on MVM transferred to requester)
 #          Requester receives on MVM (0 on hub locked in intent, 2000000 on MVM)
-./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 2000000 0 0 2000000
+./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 3000000 1000000 1000000 3000000
 
 echo ""
 echo "✅ E2E outflow test completed!"

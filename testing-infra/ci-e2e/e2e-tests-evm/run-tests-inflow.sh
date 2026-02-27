@@ -114,8 +114,8 @@ log_and_echo "==================================================================
 log_and_echo ""
 log_and_echo " Pre-Escrow Balance Validation"
 log_and_echo "=========================================="
-log_and_echo "   Nobody should have moved funds yet; all four actors start with 1 USDhub/USDcon token on each chain"
-./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 1000000 1000000 1000000 1000000
+log_and_echo "   Nobody should have moved funds yet; all four actors start with 2 USDhub/USDcon tokens on each chain"
+./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 2000000 2000000 2000000 2000000
 
 ./testing-infra/ci-e2e/e2e-tests-evm/inflow-submit-escrow.sh
 # Load intent ID for solver fulfillment wait
@@ -150,7 +150,7 @@ log_and_echo " Final Balance Validation"
 log_and_echo "=========================================="
 # Inflow: Solver transfers to hub requester (0 on hub, 2000000 on EVM from escrow)
 #         Requester receives on hub (2000000 on hub, 0 on EVM locked in escrow)
-./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 0 2000000 2000000 0
+./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 1000000 3000000 3000000 1000000
 
 log_and_echo ""
 log_and_echo "✅ E2E inflow test completed!"

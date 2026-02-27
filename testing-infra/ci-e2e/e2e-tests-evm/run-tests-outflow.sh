@@ -113,8 +113,8 @@ log_and_echo "   Submitting outflow cross-chain intents via coordinator negotiat
 log_and_echo ""
 log_and_echo " Pre-Intent Balance Validation"
 log_and_echo "=========================================="
-log_and_echo "   Everybody starts with 1 USDhub/USDcon on each chain"
-./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 1000000 1000000 1000000 1000000
+log_and_echo "   Everybody starts with 2 USDhub/USDcon on each chain"
+./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 2000000 2000000 2000000 2000000
 
 ./testing-infra/ci-e2e/e2e-tests-evm/outflow-submit-hub-intent.sh
 
@@ -147,7 +147,7 @@ log_and_echo " Final Balance View"
 log_and_echo "=========================================="
 # Outflow: Solver gets from hub intent (2000000 on hub, 0 on EVM transferred to requester)
 #          Requester receives on EVM (0 on hub locked in intent, 2000000 on EVM)
-./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 2000000 0 0 2000000
+./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 3000000 1000000 1000000 3000000
 
 log_and_echo ""
 log_and_echo "✅ E2E outflow test completed!"
