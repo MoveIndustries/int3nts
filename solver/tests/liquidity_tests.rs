@@ -177,11 +177,11 @@ async fn test_reserve_reduces_budget() {
     assert!(!monitor.has_sufficient_budget(&target, 601).await);
 }
 
-/// Test: release restores budget
-/// Verifies: Releasing a reservation makes the budget available again
-/// Why: Fulfilled intents should free budget
+/// Test: release deducts spent amount from confirmed_balance
+/// Verifies: After release, confirmed_balance reflects the on-chain spend
+/// Why: Prevents stale cached balance from inflating available budget between polls
 #[tokio::test]
-async fn test_release_restores_budget() {
+async fn test_release_deducts_spent_from_confirmed_balance() {
     let monitor = create_test_monitor();
 
     let target = hub_chain_token();
@@ -193,10 +193,40 @@ async fn test_release_restores_budget() {
     }
 
     monitor.reserve(&target, "draft-1", 400).await.unwrap();
+    // available = 1000 - 400 = 600
     assert!(!monitor.has_sufficient_budget(&target, 700).await);
 
     monitor.release("draft-1").await;
-    assert!(monitor.has_sufficient_budget(&target, 1000).await);
+    // confirmed_balance deducted: 1000 - 400 = 600, in_flight = 0, available = 600
+    assert!(monitor.has_sufficient_budget(&target, 600).await);
+    assert!(!monitor.has_sufficient_budget(&target, 601).await);
+}
+
+/// Test: release prevents stale balance from accepting a second draft
+/// Verifies: After reserve → release (simulating fulfillment), budget reflects the spend
+/// Why: Reproduces the race condition where the solver signed a draft it couldn't cover
+#[tokio::test]
+async fn test_release_prevents_stale_balance_over_commitment() {
+    let monitor = create_test_monitor();
+
+    let target = connected_chain_token(); // threshold = 500
+
+    {
+        let mut state = monitor.state().write().await;
+        let liq = state.get_mut(&target).expect("test setup: target token must be in state");
+        liq.confirmed_balance = 2_000_000;
+    }
+
+    // First intent: reserve 1,000,000 → available = 1,000,000
+    monitor.reserve(&target, "draft-1", 1_000_000).await.unwrap();
+
+    // Fulfillment completes, release the reservation.
+    // confirmed_balance is deducted: 2,000,000 - 1,000,000 = 1,000,000
+    monitor.release("draft-1").await;
+
+    // Second intent tries 1,000,000 — must fail because threshold = 500,
+    // so we need available >= 1,000,000 + 500 = 1,500,000, but only 1,000,000.
+    assert!(!monitor.has_budget_after_spend(&target, 1_000_000).await.unwrap());
 }
 
 /// Test: release of unknown draft_id is a no-op

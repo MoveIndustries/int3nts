@@ -241,15 +241,31 @@ impl LiquidityMonitor {
         Ok(())
     }
 
-    /// Release budget for a fulfilled or failed draft.
+    /// Release budget for a fulfilled draft.
+    ///
+    /// Removes the in-flight commitment AND deducts the spent amount from
+    /// `confirmed_balance`.  This prevents a stale-balance window between the
+    /// release and the next `poll_balances()` cycle — without this deduction
+    /// the monitor would briefly think the pre-fulfillment balance is still
+    /// available, causing it to accept drafts it cannot actually cover.
+    ///
+    /// The next balance poll will overwrite `confirmed_balance` with the true
+    /// on-chain value, correcting any minor discrepancy (e.g., gas costs).
     ///
     /// No-op if the draft_id is not found (may have already been released via timeout).
     pub async fn release(&self, draft_id: &str) {
         let mut state = self.state.write().await;
         for liquidity in state.values_mut() {
             let before = liquidity.in_flight.len();
+            let spent: u128 = liquidity
+                .in_flight
+                .iter()
+                .filter(|c| c.draft_id == draft_id)
+                .map(|c| c.amount as u128)
+                .sum();
             liquidity.in_flight.retain(|c| c.draft_id != draft_id);
             if liquidity.in_flight.len() < before {
+                liquidity.confirmed_balance = liquidity.confirmed_balance.saturating_sub(spent);
                 info!("Released budget for draft {}", draft_id);
                 return;
             }
