@@ -21,6 +21,8 @@ module mvmt_intent::fa_intent_outflow_tests {
     use mvmt_intent::gmp_sender;
     use mvmt_intent::intent_gmp_hub;
 
+    const FEE_IN_OFFERED_TOKEN: u64 = 500;
+
     // ============================================================================
     // TEST HELPERS
     // ============================================================================
@@ -89,7 +91,7 @@ module mvmt_intent::fa_intent_outflow_tests {
             2, // desired_chain_id (connected chain)
             expiry_time,
             signer::address_of(requester_signer),
-            0, // fee_in_offered_token: outflow fees not yet implemented
+            FEE_IN_OFFERED_TOKEN,
         );
 
         // Step 2: Add solver to draft and create intent to sign
@@ -148,6 +150,7 @@ module mvmt_intent::fa_intent_outflow_tests {
             solver_addr,
             solver_addr, // solver_addr_connected_chain (same as hub addr in tests)
             solver_signature_bytes,
+            FEE_IN_OFFERED_TOKEN,
         );
 
         (intent_obj, offered_metadata, desired_metadata, intent_id)
@@ -197,8 +200,9 @@ module mvmt_intent::fa_intent_outflow_tests {
             solver_addr,
             solver_addr, // solver_addr_connected_chain (same as hub addr in tests)
             solver_signature_bytes,
+            FEE_IN_OFFERED_TOKEN,
         );
-        
+
         // Verify tokens were actually locked (balance decreased from 100 to 50)
         assert!(primary_fungible_store::balance(signer::address_of(requester_signer), offered_metadata) == 50);
         
@@ -266,6 +270,7 @@ module mvmt_intent::fa_intent_outflow_tests {
             false,
             intent_id,
             option::some(requester_addr_connected_chain), // Store requester address
+            FEE_IN_OFFERED_TOKEN,
             option::some(reservation),
         );
         
@@ -494,6 +499,7 @@ module mvmt_intent::fa_intent_outflow_tests {
             solver_addr,
             solver_addr, // solver_addr_connected_chain (same as hub addr in tests)
             solver_signature_bytes,
+            FEE_IN_OFFERED_TOKEN,
         );
     }
 

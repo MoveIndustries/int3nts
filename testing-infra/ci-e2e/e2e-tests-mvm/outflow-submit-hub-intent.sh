@@ -49,7 +49,7 @@ EXPIRY_TIME=$(date -d "+1 hour" +%s)
 OFFERED_AMOUNT="1000000"  # 1 USDhub = 1_000_000 (6 decimals, on hub)
 DESIRED_AMOUNT="1000000"  # 1 USDcon = 1_000_000 (6 decimals, on connected MVM chain)
 HUB_CHAIN_ID=1
-FEE_IN_OFFERED_TOKEN="0"  # Outflow fees not yet implemented (hardcoded 0 in fa_intent_outflow.move)
+FEE_IN_OFFERED_TOKEN="1000000"  # base_fee_in_move(1000000) * ratio(1.0) = 1000000
 EVM_ADDR="0x0000000000000000000000000000000000000001"
 
 log ""
@@ -193,7 +193,7 @@ SOLVER_SIGNATURE_HEX="${RETRIEVED_SIGNATURE#0x}"
 
 aptos move run --profile requester-chain1 --assume-yes \
     --function-id "0x${HUB_MODULE_ADDR}::fa_intent_outflow::create_outflow_intent_entry" \
-    --args "address:${OFFERED_METADATA_HUB}" "u64:${OFFERED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "address:${DESIRED_METADATA_MVMCON}" "u64:${DESIRED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${REQUESTER_MVMCON_ADDR}" "address:${RETRIEVED_SOLVER}" "address:${SOLVER_MVMCON_ADDR}" "hex:${SOLVER_SIGNATURE_HEX}" >> "$LOG_FILE" 2>&1
+    --args "address:${OFFERED_METADATA_HUB}" "u64:${OFFERED_AMOUNT}" "u64:${HUB_CHAIN_ID}" "address:${DESIRED_METADATA_MVMCON}" "u64:${DESIRED_AMOUNT}" "u64:${CONNECTED_CHAIN_ID}" "u64:${EXPIRY_TIME}" "address:${INTENT_ID}" "address:${REQUESTER_MVMCON_ADDR}" "address:${RETRIEVED_SOLVER}" "address:${SOLVER_MVMCON_ADDR}" "hex:${SOLVER_SIGNATURE_HEX}" "u64:${FEE_IN_OFFERED_TOKEN}" >> "$LOG_FILE" 2>&1
 
 # ============================================================================
 # SECTION 6: VERIFY RESULTS

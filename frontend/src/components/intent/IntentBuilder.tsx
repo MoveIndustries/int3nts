@@ -1159,6 +1159,7 @@ export function IntentBuilder() {
             signature.solver_hub_addr,
             solverAddrConnectedChainHex,
             signatureArray,
+            savedDraftData.feeInOfferedToken,
           ];
         } else {
           if (!evmAddress) {
@@ -1189,6 +1190,7 @@ export function IntentBuilder() {
             signature.solver_hub_addr,
             paddedSolverAddrConnectedChain,
             signatureArray,
+            savedDraftData.feeInOfferedToken,
           ];
         }
       }

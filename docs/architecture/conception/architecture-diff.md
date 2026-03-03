@@ -53,7 +53,6 @@ See [conception_inflow.md](conception_inflow.md) for the conceptual design.
 
 **[UNIMPLEMENTED] Features:**
 
-- Protocol fee deduction
 - Solver collateral release
 - Collateral slashing (0.5-1%) on validation failure or expiry
 
@@ -89,7 +88,6 @@ See [conception_outflow.md](conception_outflow.md) for the conceptual design.
 **[UNIMPLEMENTED] Features:**
 
 - Solver claims intent and locks collateral (lock_ratio ~ 10-20%)
-- Protocol fee deduction
 - Collateral penalty (0.5-1%) on validation failure or expiry
 
 ### Router Flow (Connected Chain → Connected Chain) - Not Yet Implemented

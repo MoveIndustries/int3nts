@@ -66,34 +66,34 @@ effective rate:    998.9 / 1000 = 0.9989
 ## Fee Breakdown Diagram
 
 ```text
-                         User's offered_amount
-                    ┌─────────────────────────────────┐
-                    │                                  │
-                    │         e.g. 1,000 USDC          │
-                    │                                  │
-                    └──────┬──────────────┬────────────┘
-                           │              │
-              ┌────────────┘              └──────────────────┐
-              │                                              │
-              ▼                                              ▼
-   ┌─────────────────────┐                    ┌──────────────────────────┐
-   │     total_fee        │                    │   offered - total_fee    │
-   │     (to solver)      │                    │   (converted at rate)    │
-   │                      │                    │                          │
-   │  ┌────────────────┐  │                    │  998.9 USDC * 1.0       │
-   │  │  base fee       │  │                    │  = 998.9 desired        │
-   │  │  (fixed cost)   │  │                    │                          │
-   │  │  0.1 USDC       │  │                    │  effective rate: 0.9989 │
-   │  │  (from MOVE)    │  │                    │  (998.9 / 1000 — what   │
-   │  ├────────────────┤  │                    │   user actually gets)   │
-   │  │  bps fee        │  │                    │                          │
-   │  │  (% cost)       │  │                    │         ┌────────────┐   │
-   │  │  1.0 USDC       │  │                    │         │ user gets  │   │
-   │  │  (10bps on 1k)  │  │                    │         │ 998.9 tkn  │   │
-   │  └────────────────┘  │                    │         └────────────┘   │
-   │                      │                    │                          │
-   │  total = 1.1 USDC    │                    └──────────────────────────┘
-   └─────────────────────┘
+                       User's offered_amount
+                  ┌──────────────────────────────────┐
+                  │                                   │
+                  │         e.g. 1,000 USDC           │
+                  │                                   │
+                  └──────┬───────────────┬────────────┘
+                         │               │
+            ┌────────────┘               └───────────────────┐
+            │                                                │
+            ▼                                                ▼
+   ┌───────────────────────┐                    ┌──────────────────────────┐
+   │  total_fee            │                    │  offered - total_fee     │
+   │  (to solver)          │                    │  (converted at rate)     │
+   │                       │                    │                          │
+   │  ┌────────────────┐   │                    │  998.9 USDC * 1.0       │
+   │  │ base fee       │   │                    │  = 998.9 desired        │
+   │  │ (fixed cost)   │   │                    │                          │
+   │  │ 0.1 USDC       │   │                    │  effective rate: 0.9989  │
+   │  │ (from MOVE)    │   │                    │  (998.9 / 1000 -- what   │
+   │  ├────────────────┤   │                    │   user actually gets)    │
+   │  │ bps fee        │   │                    │                          │
+   │  │ (% cost)       │   │                    │        ┌────────────┐    │
+   │  │ 1.0 USDC       │   │                    │        │ user gets  │    │
+   │  │ (10bps on 1k)  │   │                    │        │ 998.9 tkn  │    │
+   │  └────────────────┘   │                    │        └────────────┘    │
+   │                       │                    │                          │
+   │  total = 1.1 USDC     │                    └──────────────────────────┘
+   └───────────────────────┘
 
    min_fee_offered = ceil(base_fee_in_move * move_rate)
    total_fee = min_fee_offered + ceil(offered_amount * fee_bps / 10000)
@@ -108,9 +108,9 @@ effective rate:    998.9 / 1000 = 0.9989
 | Effective rate | `desired_amount / offered_amount` | What the user actually gets per token offered (after fees) |
 | Total fee | `total_fee` in offered token units | Base fee (converted from MOVE) + percentage fee |
 
-## Fee Flow (Inflow)
+## Fee Flow
 
-For inflow intents (Connected Chain → Hub):
+The fee flow is the same for both inflow and outflow intents:
 
 ```mermaid
 sequenceDiagram
@@ -118,7 +118,6 @@ sequenceDiagram
     participant C as Coordinator
     participant S as Solver
     participant H as Hub Chain
-    participant CC as Connected Chain
 
     rect rgb(240, 248, 255)
     Note over F,S: 1. Fetch solver fee params
@@ -145,8 +144,8 @@ sequenceDiagram
     end
 
     rect rgb(255, 240, 255)
-    Note over F,H: 4. Intent creation
-    F->>H: create_inflow_intent(offered, desired, fee_in_offered_token, signature)
+    Note over F,H: 4. Intent creation on hub
+    F->>H: create_[inflow|outflow]_intent(offered, desired, fee_in_offered_token, signature)
     Note over H: Intent created:<br/>offered_amount, desired_amount, fee_in_offered_token
     end
 
@@ -188,8 +187,3 @@ min_fee_offered = ceil(base_fee_in_move * move_rate)
 required_fee = min_fee_offered + ceil(offered_amount * fee_bps / 10000)
 if fee_in_offered_token < required_fee → reject draft
 ```
-
-## Scope
-
-- **Implemented**: Inflow (Connected Chain → Hub)
-- **Planned**: Outflow (Hub → Connected Chain) — follow-up work
