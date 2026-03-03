@@ -22,6 +22,10 @@ pub struct TokenPairInfo {
     pub rate: f64,
     /// Fee in basis points (e.g., 50 = 0.5%, covers solver opportunity cost)
     pub fee_bps: u64,
+    /// MOVE-to-offered-token conversion rate in base units.
+    /// How many offered-token smallest units per 1 MOVE smallest unit (Octa).
+    /// e.g., for USD tokens (6 decimals) with MOVE (8 decimals) at 1:1 price: 0.01
+    pub move_rate: f64,
 }
 
 /// Acceptance config structure
@@ -119,10 +123,9 @@ pub fn evaluate_draft_acceptance(draft: &DraftintentData, config: &AcceptanceCon
         ));
     }
 
-    // Convert base_fee_in_move from MOVE to offered token using the pair's exchange rate.
-    // The exchange rate is offered_per_desired; for MOVE conversion we use it as the move_rate
-    // since the solver's cost basis is in MOVE and the rate relates to the offered token.
-    let min_fee_offered = convert_base_fee_in_move_to_offered(config.base_fee_in_move, info.rate);
+    // Convert base_fee_in_move from MOVE to offered token using the pair's move_rate.
+    // move_rate = offered-token-smallest-units per 1 Octa (MOVE smallest unit).
+    let min_fee_offered = convert_base_fee_in_move_to_offered(config.base_fee_in_move, info.move_rate);
 
     // Validate fee_in_offered_token meets solver's minimum requirements
     let required_fee = calculate_required_fee(draft.offered_amount, min_fee_offered, info.fee_bps);

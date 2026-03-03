@@ -26,7 +26,7 @@ fn test_config() -> AcceptanceConfig {
     // Token A -> Token B (1:1 rate, 0.5% fee)
     token_pairs.insert(
         create_default_token_pair(),
-        TokenPairInfo { rate: 1.0, fee_bps: 50 },
+        TokenPairInfo { rate: 1.0, fee_bps: 50, move_rate: 1.0 },
     );
 
     // Token A -> Token C (chain 2) (0.5 rate: 1 Token C = 0.5 Token A, cross-chain, 0.5% fee)
@@ -35,7 +35,7 @@ fn test_config() -> AcceptanceConfig {
             desired_token: DUMMY_TOKEN_ADDR_UNSUPPORTED.to_string(), // Different token address on chain 2 to test multiple token pairs
             ..create_default_token_pair()
         },
-        TokenPairInfo { rate: 0.5, fee_bps: 50 },
+        TokenPairInfo { rate: 0.5, fee_bps: 50, move_rate: 0.5 },
     );
 
     AcceptanceConfig {
@@ -128,7 +128,7 @@ fn test_config_with_fees() -> AcceptanceConfig {
     let mut token_pairs = HashMap::new();
     token_pairs.insert(
         create_default_token_pair(),
-        TokenPairInfo { rate: 1.0, fee_bps: 50 },
+        TokenPairInfo { rate: 1.0, fee_bps: 50, move_rate: 1.0 },
     );
     AcceptanceConfig { base_fee_in_move: 1000, token_pairs }
 }
@@ -229,7 +229,7 @@ fn test_fee_zero_accepted_when_no_fees() {
     let mut token_pairs = HashMap::new();
     token_pairs.insert(
         create_default_token_pair(),
-        TokenPairInfo { rate: 1.0, fee_bps: 0 },
+        TokenPairInfo { rate: 1.0, fee_bps: 0, move_rate: 1.0 },
     );
     let config = AcceptanceConfig {
         base_fee_in_move: 0,

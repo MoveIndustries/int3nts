@@ -51,6 +51,7 @@ fn test_solver_config_with_pairs() -> solver::config::SolverConfig {
                     target_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
                     ratio: 1.0,
                     fee_bps: 50,
+                    move_rate: 1.0,
                 },
                 // Outflow: requester offers on hub, solver spends on connected
                 TokenPairConfig {
@@ -60,6 +61,7 @@ fn test_solver_config_with_pairs() -> solver::config::SolverConfig {
                     target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
                     ratio: 1.0,
                     fee_bps: 50,
+                    move_rate: 1.0,
                 },
             ],
         },
@@ -751,6 +753,7 @@ fn test_config_validation_catches_unknown_chain_before_runtime() {
         target_token: "0xdeadbeef".to_string(),
         ratio: 1.0,
         fee_bps: 50,
+        move_rate: 1.0,
     });
     let result = config.validate();
     assert!(result.is_err(), "validate() must reject acceptance pairs targeting unconfigured chains");

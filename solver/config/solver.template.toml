@@ -87,6 +87,10 @@ target_token = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 ratio = 1.0
 # Fee in basis points (e.g., 50 = 0.5%, covers solver opportunity cost). REQUIRED.
 fee_bps = 50
+# MOVE-to-offered-token conversion rate in base units. REQUIRED.
+# How many offered-token smallest units per 1 MOVE smallest unit (Octa).
+# e.g., for USD tokens (6 decimals) with MOVE (8 decimals) at 1:1 price: 0.01
+move_rate = 0.01
 
 # Example: USDC (Base Sepolia) -> USDC (Ethereum Sepolia) at 1:1 rate
 # [[acceptance.tokenpair]]

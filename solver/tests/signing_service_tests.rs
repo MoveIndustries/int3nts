@@ -58,6 +58,7 @@ fn create_test_solver_config() -> solver::config::SolverConfig {
                 target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
                 ratio: 0.5,
                 fee_bps: 50,
+                move_rate: 0.5,
             }],
         },
         liquidity: liq,

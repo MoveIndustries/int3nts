@@ -258,6 +258,10 @@ pub struct TokenPairConfig {
     /// Fee in basis points (e.g., 50 = 0.5%, covers solver opportunity cost).
     /// Required — must be explicitly set (use 0 for no percentage fee).
     pub fee_bps: u64,
+    /// MOVE-to-offered-token conversion rate in base units.
+    /// How many offered-token smallest units per 1 MOVE smallest unit (Octa).
+    /// e.g., for USD tokens (6 decimals) with MOVE (8 decimals) at 1:1 price: 0.01
+    pub move_rate: f64,
 }
 
 /// Solver signing configuration.
@@ -412,6 +416,18 @@ impl SolverConfig {
                 ));
             }
 
+            // Validate move_rate is positive
+            if pair.move_rate <= 0.0 {
+                return Err(anyhow::anyhow!(
+                    "Invalid move_rate {} for token pair {}:{} -> {}:{}: must be positive",
+                    pair.move_rate,
+                    pair.source_chain_id,
+                    pair.source_token,
+                    pair.target_chain_id,
+                    pair.target_token
+                ));
+            }
+
             // Validate fee_bps is within range (0-10000 basis points = 0-100%)
             if pair.fee_bps > 10000 {
                 return Err(anyhow::anyhow!(
@@ -521,6 +537,7 @@ impl SolverConfig {
             pairs.insert(token_pair, TokenPairInfo {
                 rate: pair.ratio,
                 fee_bps: pair.fee_bps,
+                move_rate: pair.move_rate,
             });
         }
 

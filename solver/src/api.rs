@@ -145,7 +145,7 @@ async fn get_exchange_rate_handler(
             desired_chain_id: pair.desired_chain_id,
             exchange_rate: info.rate,
             base_fee_in_move: config.acceptance.base_fee_in_move,
-            move_rate: info.rate,
+            move_rate: info.move_rate,
             fee_bps: info.fee_bps,
         }),
         error: None,

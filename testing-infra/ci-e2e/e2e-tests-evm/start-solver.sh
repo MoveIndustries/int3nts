@@ -129,6 +129,7 @@ target_chain_id = $hub_chain_id
 target_token = "$usdhub_metadata_chain1"
 ratio = 1.0
 fee_bps = 50  # 0.5% fee
+move_rate = 0.01  # 1 Octa = 0.01 micro-USD (MOVE 8 dec, USD 6 dec, 1:1 price)
 
 # Outflow: offered on hub, desired on EVM (connected)
 [[acceptance.tokenpair]]
@@ -138,6 +139,7 @@ target_chain_id = $evm_chain_id
 target_token = "$usdcon_metadata_evm"
 ratio = 1.0
 fee_bps = 50  # 0.5% fee
+move_rate = 0.01  # 1 Octa = 0.01 micro-USD (MOVE 8 dec, USD 6 dec, 1:1 price)
 
 [liquidity]
 balance_poll_interval_ms = 10000

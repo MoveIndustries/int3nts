@@ -37,6 +37,7 @@ fn create_test_config() -> SolverConfig {
                 target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
                 ratio: 1.0,
                 fee_bps: 50,
+                move_rate: 1.0,
             }],
         },
         liquidity: liq,
@@ -109,8 +110,8 @@ fn test_config_validation_unknown_chain_id_in_token_pair() {
         target_chain_id: 2,
         target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
         ratio: 1.0,
-
         fee_bps: 50,
+        move_rate: 1.0,
     }];
 
     let result = config.validate();
@@ -138,8 +139,8 @@ fn test_config_validation_rejects_svm_invalid_hex_length() {
         target_chain_id: 901,
         target_token: "0xdeadbeef".to_string(), // Invalid: 4 bytes, not 32
         ratio: 1.0,
-
         fee_bps: 50,
+        move_rate: 1.0,
     }];
 
     let result = config.validate();
@@ -167,8 +168,8 @@ fn test_config_validation_rejects_invalid_svm_base58_token() {
         target_chain_id: 901,
         target_token: "not_base58".to_string(),
         ratio: 1.0,
-
         fee_bps: 50,
+        move_rate: 1.0,
     }];
 
     let result = config.validate();
@@ -187,8 +188,8 @@ fn test_config_validation_fee_bps_too_high() {
         target_chain_id: 2,
         target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
         ratio: 1.0,
-
         fee_bps: 10001,
+        move_rate: 1.0,
     }];
 
     let result = config.validate();
@@ -207,8 +208,8 @@ fn test_config_validation_fee_bps_max_accepted() {
         target_chain_id: 2,
         target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
         ratio: 1.0,
-
         fee_bps: 10000,
+        move_rate: 1.0,
     }];
 
     assert!(config.validate().is_ok());
@@ -227,6 +228,7 @@ fn test_get_token_pairs_with_fees() {
         target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
         ratio: 1.0,
         fee_bps: 100,
+        move_rate: 1.0,
     }];
 
     assert_eq!(config.acceptance.base_fee_in_move, 500);
@@ -246,8 +248,8 @@ fn test_config_validation_negative_exchange_rate() {
         target_chain_id: 2,
         target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
         ratio: -1.0,
-
         fee_bps: 50,
+        move_rate: 1.0,
     }];
 
     let result = config.validate();
@@ -266,8 +268,8 @@ fn test_config_validation_zero_exchange_rate() {
         target_chain_id: 2,
         target_token: DUMMY_TOKEN_ADDR_MVMCON.to_string(),
         ratio: 0.0,
-
         fee_bps: 50,
+        move_rate: 1.0,
     }];
 
     let result = config.validate();
@@ -305,8 +307,8 @@ fn test_get_token_pairs_multiple() {
         target_chain_id: 1,
         target_token: DUMMY_TOKEN_ADDR_HUB.to_string(),
         ratio: 0.5,
-
         fee_bps: 50,
+        move_rate: 0.5,
     });
 
     let pairs = config.get_token_pairs().unwrap();
@@ -334,8 +336,8 @@ fn test_get_token_pairs_token_address() {
         target_chain_id: 3,
         target_token: DUMMY_TOKEN_ADDR_EVM.to_string(),
         ratio: 0.5,
-
         fee_bps: 50,
+        move_rate: 0.5,
     }];
 
     let pairs = config.get_token_pairs().unwrap();
@@ -485,6 +487,7 @@ target_chain_id = 2
 target_token = "{con_token}"
 ratio = 1.0
 fee_bps = 50
+move_rate = 1.0
 
 [liquidity]
 balance_poll_interval_ms = 10000
