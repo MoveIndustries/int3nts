@@ -98,7 +98,6 @@ See [conception_routerflow.md](conception_routerflow.md) for the conceptual desi
 
 ## Future Enhancements (All Flows)
 
-- **Protocol Fees**: Automatic fee deduction from escrow/hub transfers to solver
 - **Solver Collateral**: Solvers lock collateral that can be slashed (0.5-1%) if validation fails or intent expires
 
 ---
