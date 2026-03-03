@@ -291,6 +291,7 @@ pub fn create_default_solver_config() -> solver::config::SolverConfig {
             solver::config::ConnectedChainConfig::Mvm(create_default_connected_mvm_chain_config()),
         ],
         acceptance: solver::config::AcceptanceConfig {
+            base_fee_in_move: 1_000_000,
             token_pairs: Vec::new(),
         },
         solver: create_default_solver_signing_config(),

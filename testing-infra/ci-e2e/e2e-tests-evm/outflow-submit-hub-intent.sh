@@ -51,6 +51,7 @@ EXPIRY_TIME=$(date -d "+1 hour" +%s)
 OFFERED_AMOUNT="1000000"  # 1 USDhub = 1_000_000 (6 decimals, on hub)
 DESIRED_AMOUNT="1000000"  # 1 USDcon = 1_000_000 (6 decimals, on EVM connected chain)
 HUB_CHAIN_ID=1
+FEE_IN_OFFERED_TOKEN="0"  # Outflow fees not yet implemented (hardcoded 0 in fa_intent_outflow.move)
 
 log ""
 log " Configuration:"
@@ -103,6 +104,7 @@ DRAFT_DATA=$(build_draft_data \
     "$EXPIRY_TIME" \
     "$INTENT_ID" \
     "$REQUESTER_HUB_ADDR" \
+    "$FEE_IN_OFFERED_TOKEN" \
     "{\"chain_addr\": \"$HUB_MODULE_ADDR\", \"flow_type\": \"outflow\", \"connected_chain_type\": \"evm\", \"requester_addr_connected_chain\": \"$REQUESTER_EVM_ADDR\"}")
 
 DRAFT_ID=$(submit_draft_intent "$REQUESTER_HUB_ADDR" "$DRAFT_DATA" "$EXPIRY_TIME")

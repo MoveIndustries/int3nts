@@ -89,6 +89,7 @@ module mvmt_intent::fa_intent_outflow_tests {
             2, // desired_chain_id (connected chain)
             expiry_time,
             signer::address_of(requester_signer),
+            0, // fee_in_offered_token: outflow fees not yet implemented
         );
 
         // Step 2: Add solver to draft and create intent to sign

@@ -7,7 +7,7 @@ import { useWallet as useSvmWallet } from '@solana/wallet-adapter-react';
 import { coordinatorClient } from '@/lib/coordinator';
 import type { DraftIntentRequest, DraftIntentSignature } from '@/lib/types';
 import { generateIntentId } from '@/lib/types';
-import { SUPPORTED_TOKENS, type TokenConfig, toSmallestUnits } from '@/config/tokens';
+import { SUPPORTED_TOKENS, type TokenConfig, toSmallestUnits, fromSmallestUnits } from '@/config/tokens';
 import { CHAIN_CONFIGS, getChainType, getHubChainConfig, getSvmGmpEndpointId, isHubChain } from '@/config/chains';
 import { fetchTokenBalance, type TokenBalance } from '@/lib/balances';
 import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
@@ -214,6 +214,8 @@ export function IntentBuilder() {
   };
   // Desired amount is auto-calculated based on solver's exchange rate
   const [desiredAmount, setDesiredAmount] = useState('');
+  // Fee parameters from solver's exchange rate response
+  const [feeInfo, setFeeInfo] = useState<{ minFee: number; feeBps: number; totalFee: bigint } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -356,6 +358,7 @@ export function IntentBuilder() {
     desiredAmount: string;
     desiredChainId: string;
     expiryTime: number;
+    feeInOfferedToken: string;
   } | null>(null);
 
   const connectedChainKey =
@@ -682,6 +685,7 @@ export function IntentBuilder() {
       if (desiredAmount !== 'not available yet') {
         setDesiredAmount('');
       }
+      setFeeInfo(null);
       return;
     }
 
@@ -703,15 +707,29 @@ export function IntentBuilder() {
         if (!response.success || !response.data) {
           // Exchange rate not available - show "not available yet" instead of error
           setDesiredAmount('not available yet');
+          setFeeInfo(null);
           setError(null);
           return;
         }
 
-        const { exchange_rate } = response.data;
+        const { exchange_rate, base_fee_in_move, move_rate, fee_bps } = response.data;
+
+        // Convert base_fee_in_move from MOVE to offered token: ceil(base_fee_in_move * move_rate)
+        const minFeeOffered = base_fee_in_move > 0 && move_rate > 0
+          ? BigInt(Math.ceil(base_fee_in_move * move_rate))
+          : BigInt(0);
+
+        // Calculate bps fee in smallest units of the offered token
+        const offeredAmountNum = parseFloat(offeredAmount);
+        const offeredSmallest = BigInt(toSmallestUnits(offeredAmountNum, offeredToken.decimals).toString());
+        const bpsFee = fee_bps > 0
+          ? (offeredSmallest * BigInt(fee_bps) + BigInt(9999)) / BigInt(10000)
+          : BigInt(0);
+        const totalFee = minFeeOffered + bpsFee;
+        setFeeInfo({ minFee: Number(minFeeOffered), feeBps: fee_bps, totalFee });
 
         // Calculate desired amount, adjusting for decimal differences
         // The exchange_rate is in smallest units, so we need to adjust for decimals
-        const offeredAmountNum = parseFloat(offeredAmount);
         const decimalAdjustment = Math.pow(10, offeredToken.decimals - desiredToken.decimals);
         const desiredAmountNum = (offeredAmountNum * decimalAdjustment) / exchange_rate;
         setDesiredAmount(desiredAmountNum.toFixed(desiredToken.decimals));
@@ -719,6 +737,7 @@ export function IntentBuilder() {
       } catch (err) {
         // Exchange rate not available - show "not available yet" instead of error
         setDesiredAmount('not available yet');
+        setFeeInfo(null);
         setError(null);
       }
     };
@@ -955,6 +974,8 @@ export function IntentBuilder() {
 
     setLoading(true);
     try {
+      const feeInOfferedToken = feeInfo ? feeInfo.totalFee.toString() : '0';
+
       const request: DraftIntentRequest = {
         requester_addr: requesterAddr,
         draft_data: {
@@ -967,6 +988,7 @@ export function IntentBuilder() {
           desired_chain_id: desiredChainId.toString(),
           expiry_time: expiryTime,
           issuer: requesterAddr,
+          fee_in_offered_token: feeInOfferedToken,
           flow_type: flowType,
         },
         expiry_time: expiryTime,
@@ -992,6 +1014,7 @@ export function IntentBuilder() {
           desiredAmount: desiredAmountSmallest.toString(),
           desiredChainId: desiredChainId.toString(),
           expiryTime,
+          feeInOfferedToken,
         });
         
         // Save to localStorage
@@ -1075,6 +1098,7 @@ export function IntentBuilder() {
             solverAddrConnectedChainHex,
             signatureArray,
             requesterAddrHex,
+            savedDraftData.feeInOfferedToken,
           ];
         } else {
           const evmAddressForInflow = evmAddress || '0x' + '0'.repeat(40);
@@ -1101,6 +1125,7 @@ export function IntentBuilder() {
             paddedSolverAddrConnectedChain,
             signatureArray,
             paddedRequesterAddr,
+            savedDraftData.feeInOfferedToken,
           ];
         }
       } else {
@@ -1632,6 +1657,24 @@ export function IntentBuilder() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Fee & Effective Rate */}
+        {feeInfo && offeredToken && desiredToken && feeInfo.totalFee > BigInt(0) && offeredAmount && desiredAmount && desiredAmount !== 'not available yet' && (
+          <div className="p-3 bg-gray-800/50 border border-gray-700 rounded text-xs text-gray-400 space-y-1">
+            <div className="flex justify-between">
+              <span>Total fee</span>
+              <span>
+                {fromSmallestUnits(Number(feeInfo.totalFee), offeredToken.decimals).toFixed(offeredToken.decimals)} {offeredToken.symbol}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Effective rate</span>
+              <span>
+                {(parseFloat(desiredAmount) / parseFloat(offeredAmount)).toFixed(6)} {desiredToken.symbol}/{offeredToken.symbol}
+              </span>
+            </div>
           </div>
         )}
 

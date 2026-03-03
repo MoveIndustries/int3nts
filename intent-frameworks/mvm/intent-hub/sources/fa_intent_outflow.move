@@ -65,7 +65,8 @@ module mvmt_intent::fa_intent_outflow {
         desired_amount: u64,
         desired_chain_id: u64,
         expiry_time: u64,
-        requester: address
+        requester: address,
+        fee_in_offered_token: u64
     ): intent_reservation::Draftintent {
         intent_reservation::create_draft_intent(
             offered_metadata,
@@ -75,7 +76,8 @@ module mvmt_intent::fa_intent_outflow {
             desired_amount,
             desired_chain_id,
             expiry_time,
-            requester
+            requester,
+            fee_in_offered_token
         )
     }
 
@@ -362,7 +364,8 @@ module mvmt_intent::fa_intent_outflow {
                 desired_chain_id,
                 expiry_time,
                 signer::address_of(requester_signer),
-                solver
+                solver,
+                0 // fee_in_offered_token: outflow fees not yet implemented
             );
 
         // Use verify_and_create_reservation_from_registry_raw to look up public key from registry

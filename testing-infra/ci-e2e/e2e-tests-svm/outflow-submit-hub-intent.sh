@@ -47,6 +47,7 @@ log "   Solver SVM (hex):                      $SOLVER_SVM_ADDR"
 EXPIRY_TIME=$(date -d "+1 hour" +%s)
 OFFERED_AMOUNT="1000000"
 DESIRED_AMOUNT="1000000"
+FEE_IN_OFFERED_TOKEN="0"  # Outflow fees not yet implemented (hardcoded 0 in fa_intent_outflow.move)
 
 log ""
 log " Configuration:"
@@ -92,6 +93,7 @@ DRAFT_DATA=$(build_draft_data \
     "$EXPIRY_TIME" \
     "$INTENT_ID" \
     "$REQUESTER_HUB_ADDR" \
+    "$FEE_IN_OFFERED_TOKEN" \
     "{\"chain_addr\": \"$HUB_MODULE_ADDR\", \"flow_type\": \"outflow\", \"connected_chain_type\": \"svm\", \"requester_addr_connected_chain\": \"$REQUESTER_SVM_ADDR\"}")
 
 DRAFT_ID=$(submit_draft_intent "$REQUESTER_HUB_ADDR" "$DRAFT_DATA" "$EXPIRY_TIME")
