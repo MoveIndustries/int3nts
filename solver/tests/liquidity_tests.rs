@@ -493,6 +493,7 @@ fn test_config_rejects_unknown_threshold_chain_id() {
     config.liquidity.thresholds.push(LiquidityThresholdConfig {
         chain_id: 999,
         token: DUMMY_TOKEN_ADDR_HUB.to_string(),
+        label: None,
         min_balance: 100,
     });
     assert!(config.validate().is_err());
