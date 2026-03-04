@@ -474,11 +474,11 @@ export function IntentBuilder() {
   const [fixedExpiryTime, setFixedExpiryTime] = useState<number | null>(null);
 
   // Set fixed expiry time based on when draft was created
-  // Frontend shows 60 seconds, but actual intent expiry is 90 seconds
-  // This gives 30 seconds buffer after frontend timer expires
+  // Frontend shows 120 seconds, but actual intent expiry is 180 seconds
+  // This gives 60 seconds buffer after frontend timer expires
   useEffect(() => {
     if (draftCreatedAt) {
-      setFixedExpiryTime(Math.floor(draftCreatedAt / 1000) + 60); // Frontend timer: 60 seconds
+      setFixedExpiryTime(Math.floor(draftCreatedAt / 1000) + 120); // Frontend timer: 120 seconds
     } else {
       setFixedExpiryTime(null);
     }
@@ -577,7 +577,7 @@ export function IntentBuilder() {
     const pollSignature = async () => {
       pollingActiveRef.current = true;
       setPollingSignature(true);
-      const maxAttempts = 60; // 60 attempts * 2 seconds = 120 seconds max (longer than 90s expiry)
+      const maxAttempts = 120; // 120 attempts * 2 seconds = 240 seconds max (longer than 180s expiry)
       let attempts = 0;
 
       const poll = async () => {
@@ -728,10 +728,17 @@ export function IntentBuilder() {
         const totalFee = minFeeOffered + bpsFee;
         setFeeInfo({ minFee: Number(minFeeOffered), feeBps: fee_bps, totalFee });
 
-        // Calculate desired amount, adjusting for decimal differences
-        // The exchange_rate is in smallest units, so we need to adjust for decimals
+        // Calculate desired amount: deduct fee from offered amount, then apply exchange rate
+        // The fee is in smallest units, so convert to human-readable for the calculation
+        const feeInHuman = Number(totalFee) / Math.pow(10, offeredToken.decimals);
+        const offeredAfterFee = offeredAmountNum - feeInHuman;
+        if (offeredAfterFee <= 0) {
+          setDesiredAmount('0');
+          setError(`Amount too small: fee (${feeInHuman.toFixed(offeredToken.decimals)} ${offeredToken.symbol}) exceeds offered amount.`);
+          return;
+        }
         const decimalAdjustment = Math.pow(10, offeredToken.decimals - desiredToken.decimals);
-        const desiredAmountNum = (offeredAmountNum * decimalAdjustment) / exchange_rate;
+        const desiredAmountNum = (offeredAfterFee * decimalAdjustment) / exchange_rate;
         setDesiredAmount(desiredAmountNum.toFixed(desiredToken.decimals));
         setError(null); // Clear any previous errors
       } catch (err) {
@@ -761,7 +768,7 @@ export function IntentBuilder() {
       setPollingFulfillment(true);
       setIntentStatus('created');
       
-      const maxAttempts = 120; // 120 attempts * 5 seconds = 10 minutes max
+      const maxAttempts = 240; // 240 attempts * 5 seconds = 20 minutes max
       let attempts = 0;
       const poll = async () => {
         try {
@@ -805,12 +812,14 @@ export function IntentBuilder() {
               }
             }
           } else {
-            // Inflow: Check hub chain for fulfillment events
-            // Query requester's transactions on hub chain to find fulfillment events
+            // Inflow: Check hub chain for fulfillment by querying the solver's
+            // recent transactions for a LimitOrderFulfillmentEvent matching our intent.
+            // The solver (not the requester) sends the fulfillment tx on the hub chain.
             console.log('Checking hub chain fulfillment for inflow intent:', currentIntentId);
-            
-            if (!mvmAddress) {
-              console.log('No MVM address, waiting...');
+
+            const solverAddr = signature?.solver_hub_addr;
+            if (!solverAddr) {
+              console.log('No solver address yet, waiting...');
               attempts++;
               if (attempts < maxAttempts) {
                 setTimeout(poll, 5000);
@@ -820,42 +829,39 @@ export function IntentBuilder() {
               }
               return;
             }
-            
-            // Query hub chain for fulfillment events
+
             const hubRpcUrl = getHubChainConfig().rpcUrl;
-            const accountAddress = mvmAddress.startsWith('0x') ? mvmAddress.slice(2) : mvmAddress;
-            const transactionsUrl = `${hubRpcUrl}/accounts/${accountAddress}/transactions?limit=10`;
-            
+            const solverAccount = solverAddr.startsWith('0x') ? solverAddr : `0x${solverAddr}`;
+            const transactionsUrl = `${hubRpcUrl}/accounts/${solverAccount}/transactions?limit=10`;
+
             try {
               const txResponse = await fetch(transactionsUrl);
               const transactions = await txResponse.json();
-              
-              // Look for fulfillment events in recent transactions
+
+              const normalizeId = (id: string) => {
+                const stripped = id?.replace(/^0x/i, '').toLowerCase() || '';
+                return stripped.replace(/^0+/, '') || '0';
+              };
+
               let foundFulfillment = false;
-              for (const tx of transactions) {
-                if (tx.events && Array.isArray(tx.events)) {
-                  for (const event of tx.events) {
-                    // Check for LimitOrderFulfillmentEvent
-                    if (event.type?.includes('LimitOrderFulfillmentEvent')) {
-                      const eventIntentId = event.data?.intent_id || event.data?.intent_addr;
-                      // Normalize intent IDs for comparison (remove 0x prefix, lowercase)
-                      const normalizeId = (id: string) => {
-                        const stripped = id?.replace(/^0x/i, '').toLowerCase() || '';
-                        return stripped.replace(/^0+/, '') || '0';
-                      };
-                      
-                      if (eventIntentId && normalizeId(eventIntentId) === normalizeId(currentIntentId)) {
-                        console.log('Found fulfillment event on hub chain!');
-                        foundFulfillment = true;
-                        break;
+              if (Array.isArray(transactions)) {
+                for (const tx of transactions) {
+                  if (tx.events && Array.isArray(tx.events)) {
+                    for (const event of tx.events) {
+                      if (event.type?.includes('LimitOrderFulfillmentEvent')) {
+                        const eventIntentId = event.data?.intent_id || event.data?.intent_addr;
+                        if (eventIntentId && normalizeId(eventIntentId) === normalizeId(currentIntentId)) {
+                          console.log('Found fulfillment event in solver transactions!');
+                          foundFulfillment = true;
+                          break;
+                        }
                       }
                     }
                   }
+                  if (foundFulfillment) break;
                 }
-                if (foundFulfillment) break;
               }
-              
-              
+
               if (foundFulfillment) {
                 console.log('Hub intent fulfilled!');
                 setIntentStatus('fulfilled');
@@ -864,7 +870,7 @@ export function IntentBuilder() {
                 return;
               }
             } catch (hubError) {
-              console.error('Error querying hub chain:', hubError);
+              console.error('Error querying solver transactions:', hubError);
             }
           }
           
@@ -961,9 +967,9 @@ export function IntentBuilder() {
     const offeredAmountSmallest = toSmallestUnits(offeredAmountNum, offeredToken.decimals);
     const desiredAmountSmallest = toSmallestUnits(desiredAmountNum, desiredToken.decimals);
 
-    // Actual expiry is 90 seconds, but frontend timer shows 60 seconds
-    // This gives 30 seconds buffer after frontend timer expires for user to sign
-    const expiryTime = Math.floor(Date.now() / 1000) + 90;
+    // Actual expiry is 180 seconds, but frontend timer shows 120 seconds
+    // This gives 60 seconds buffer after frontend timer expires for user to sign
+    const expiryTime = Math.floor(Date.now() / 1000) + 180;
 
     // Get chain IDs from config
     const offeredChainId = CHAIN_CONFIGS[offeredToken.chain].chainId;

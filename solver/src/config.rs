@@ -569,6 +569,9 @@ pub struct LiquidityThresholdConfig {
     pub chain_id: u64,
     /// Token address or mint
     pub token: String,
+    /// Human-readable token symbol for log messages (e.g. "MOVE", "USDC")
+    #[serde(default)]
+    pub label: Option<String>,
     /// Minimum balance below which the solver stops accepting new intents
     pub min_balance: u64,
 }

@@ -131,18 +131,21 @@ in_flight_timeout_secs = 300             # How long before an in-flight commitme
 # Asset token threshold (must match acceptance target_token)
 [[liquidity.threshold]]
 chain_id = 2
+label = "TOKEN"
 token = "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 min_balance = 100000
 
 # Gas token threshold for hub chain (MOVE)
 [[liquidity.threshold]]
 chain_id = 1
+label = "MOVE"
 token = "0x000000000000000000000000000000000000000000000000000000000000000a"
 min_balance = 100000
 
 # Gas token threshold for connected chain (MOVE for MVM, ETH for EVM, SOL for SVM)
 [[liquidity.threshold]]
 chain_id = 2
+label = "MOVE"
 token = "0x000000000000000000000000000000000000000000000000000000000000000a"
 min_balance = 100000
 
