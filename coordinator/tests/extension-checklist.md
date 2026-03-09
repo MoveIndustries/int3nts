@@ -13,13 +13,9 @@ All tests listed here are VM-specific; generic tests are intentionally excluded 
 
 ## tests/*vm_client_tests.rs (read-only queries)
 
-MVM client tests (solver registry, public key, address lookups) moved to `chain-clients/mvm/tests/mvm_client_hub_tests.rs`. See [chain-clients extension checklist](../../chain-clients/extension-checklist.md).
-
-SVM escrow parsing test remains here until chain-clients-svm extraction:
-
-| # | Test | MVM | EVM | SVM |
-| --- | ------ | ----- | ----- | ----- |
-| 1 | test_get_all_escrows_parses_program_accounts | N/A | N/A | ✅ |
+MVM client tests moved to `chain-clients/mvm/tests/mvm_client_hub_tests.rs`.
+SVM client tests moved to `chain-clients/svm/tests/svm_client_tests.rs`.
+See [chain-clients extension checklist](../../chain-clients/extension-checklist.md).
 
 ## tests/readiness_*vm_tests.rs (IntentRequirementsReceived monitoring)
 

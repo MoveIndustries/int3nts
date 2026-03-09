@@ -5,13 +5,7 @@
 pub mod config;
 pub mod crypto;
 pub mod svm_client;
-pub mod mvm_client;
 pub mod integrated_gmp_relay;
-
-/// Re-export EVM types from chain-clients-evm for backward compatibility
-pub mod evm_client {
-    pub use chain_clients_evm::{EvmClient, EvmLog, EscrowCreatedEvent, EvmTransaction};
-}
 
 // Re-export commonly used types
 pub use config::{ApiConfig, ChainConfig, Config, EvmChainConfig, SvmChainConfig, IntegratedGmpConfig};

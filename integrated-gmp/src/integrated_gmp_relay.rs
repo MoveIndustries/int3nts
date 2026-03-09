@@ -42,8 +42,8 @@ use tracing::{debug, error, info, warn};
 
 use crate::config::Config;
 use crate::crypto::CryptoService;
-use crate::evm_client::EvmLog;
-use crate::mvm_client::MvmClient;
+use chain_clients_evm::EvmLog;
+use chain_clients_mvm::MvmClient;
 use crate::svm_client::SvmClient;
 
 // Well-known Solana program IDs.

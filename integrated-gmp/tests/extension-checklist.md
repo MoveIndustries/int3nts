@@ -33,4 +33,4 @@ All tests listed here are VM-specific; generic tests are intentionally excluded 
 
 ## tests/*vm_client_tests.rs
 
-MVM client tests (solver registry, public key, address lookups) moved to `chain-clients/mvm/tests/mvm_client_hub_tests.rs`. SVM escrow parsing tests will move to chain-clients-svm. See [chain-clients extension checklist](../../chain-clients/extension-checklist.md).
+MVM client tests moved to `chain-clients/mvm/tests/mvm_client_hub_tests.rs`. SVM escrow parsing tests are duplicated in `chain-clients/svm/tests/svm_client_tests.rs`; integrated-gmp copies remain until `svm_client.rs` extraction (see [todo.md](../../docs/architecture/plan/todo.md#chain-clients-extraction)). See [chain-clients extension checklist](../../chain-clients/extension-checklist.md).
