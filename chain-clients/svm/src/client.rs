@@ -76,18 +76,15 @@ impl SvmClient {
         Pubkey::find_program_address(&[b"escrow", intent_id], &self.program_id).0
     }
 
-    /// Checks if an inflow escrow has been released (is_claimed == true).
+    /// Reads raw account data (base64-decoded) for any Solana account.
     ///
-    /// Reads the escrow PDA account via getAccountInfo and parses the Borsh data.
-    pub async fn is_escrow_released(&self, intent_id: &str) -> Result<bool> {
-        let intent_bytes = parse_intent_id(intent_id)?;
-        let escrow_pda = self.escrow_pda(&intent_bytes);
-
+    /// Returns `None` if the account doesn't exist.
+    pub async fn get_raw_account_data(&self, pubkey: &Pubkey) -> Result<Option<Vec<u8>>> {
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             method: "getAccountInfo".to_string(),
             params: serde_json::json!([
-                escrow_pda.to_string(),
+                pubkey.to_string(),
                 { "encoding": "base64" }
             ]),
             id: 1,
@@ -108,12 +105,34 @@ impl SvmClient {
             return Err(anyhow::anyhow!("SVM RPC error: {}", error.message));
         }
 
-        let account = response
-            .result
-            .and_then(|r| r.value)
+        let Some(result) = response.result else {
+            return Ok(None);
+        };
+
+        let Some(account) = result.value else {
+            return Ok(None);
+        };
+
+        let data = STANDARD
+            .decode(&account.data.0)
+            .context("Failed to decode base64 account data")?;
+        Ok(Some(data))
+    }
+
+    /// Checks if an inflow escrow has been released (is_claimed == true).
+    ///
+    /// Reads the escrow PDA account via getAccountInfo and parses the Borsh data.
+    pub async fn is_escrow_released(&self, intent_id: &str) -> Result<bool> {
+        let intent_bytes = parse_intent_id(intent_id)?;
+        let escrow_pda = self.escrow_pda(&intent_bytes);
+
+        let data = self
+            .get_raw_account_data(&escrow_pda)
+            .await?
             .context("Escrow account not found")?;
 
-        let escrow = parse_escrow_data(&account.data.0)
+        let escrow = EscrowAccount::try_from_slice(&data)
+            .ok()
             .context("Failed to parse escrow account data")?;
 
         Ok(escrow.is_claimed)
@@ -250,40 +269,13 @@ impl SvmClient {
     ) -> Result<Option<EscrowAccount>> {
         let escrow_pda = self.escrow_pda(intent_id);
 
-        let request = JsonRpcRequest {
-            jsonrpc: "2.0".to_string(),
-            method: "getAccountInfo".to_string(),
-            params: serde_json::json!([
-                escrow_pda.to_string(),
-                { "encoding": "base64" }
-            ]),
-            id: 1,
-        };
-
-        let response: JsonRpcResponse<AccountInfoResult> = self
-            .client
-            .post(&self.rpc_url)
-            .json(&request)
-            .send()
-            .await
-            .context("Failed to call getAccountInfo")?
-            .json()
-            .await
-            .context("Failed to parse getAccountInfo response")?;
-
-        if let Some(error) = response.error {
-            return Err(anyhow::anyhow!("SVM RPC error: {}", error.message));
-        }
-
-        let Some(result) = response.result else {
+        let data = self.get_raw_account_data(&escrow_pda).await?;
+        let Some(data) = data else {
             return Ok(None);
         };
 
-        let Some(account) = result.value else {
-            return Ok(None);
-        };
-
-        let escrow = parse_escrow_data(&account.data.0)
+        let escrow = EscrowAccount::try_from_slice(&data)
+            .ok()
             .context("Failed to parse escrow account data")?;
 
         Ok(Some(escrow))

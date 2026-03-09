@@ -24,13 +24,8 @@ All tests listed here are VM-specific; generic tests are intentionally excluded 
 | 4 | test_evm_chain_config_with_all_fields | N/A | ✅ | N/A |
 | 5 | test_evm_config_loading | N/A | ✅ | N/A |
 
-## tests/*vm/escrow_parsing_tests.rs
+## tests/*vm/escrow_parsing_tests.rs and tests/*vm_client_tests.rs
 
-| # | Test | MVM | EVM | SVM |
-| --- | ------ | ----- | ----- | ----- |
-| 1 | test_escrow_account_borsh_roundtrip | N/A | N/A | ✅ |
-| 2 | test_escrow_account_invalid_base64 | N/A | N/A | ✅ |
-
-## tests/*vm_client_tests.rs
-
-MVM client tests moved to `chain-clients/mvm/tests/mvm_client_hub_tests.rs`. SVM escrow parsing tests are duplicated in `chain-clients/svm/tests/svm_client_tests.rs`; integrated-gmp copies remain until `svm_client.rs` extraction (see [todo.md](../../docs/architecture/plan/todo.md#chain-clients-extraction)). See [chain-clients extension checklist](../../chain-clients/extension-checklist.md).
+MVM client tests moved to `chain-clients/mvm/tests/mvm_client_hub_tests.rs`.
+SVM escrow tests moved to `chain-clients/svm/tests/svm_client_tests.rs`.
+See [chain-clients extension checklist](../../chain-clients/extension-checklist.md).

@@ -43,6 +43,7 @@ borsh = "0.10"
 # Shared chain client libraries
 chain-clients-mvm = { path = "../chain-clients/mvm" }
 chain-clients-evm = { path = "../chain-clients/evm" }
+chain-clients-svm = { path = "../chain-clients/svm" }
 
 # HTTP client for cross-chain communication
 reqwest = { version = "0.11", features = ["json"] }
