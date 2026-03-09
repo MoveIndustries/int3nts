@@ -9,7 +9,7 @@ OVERALL_EXIT=0
 
 echo "Running Chain-Clients tests..."
 CHAIN_CLIENTS_EXIT=0
-CHAIN_CLIENTS_TEST_OUTPUT=$(RUST_LOG=off nix develop ./nix -c bash -c "cd chain-clients/common && cargo test --quiet 2>&1") || CHAIN_CLIENTS_EXIT=$?
+CHAIN_CLIENTS_TEST_OUTPUT=$(nix develop ./nix -c bash -c "./chain-clients/scripts/test.sh 2>&1") || CHAIN_CLIENTS_EXIT=$?
 if [ $CHAIN_CLIENTS_EXIT -ne 0 ]; then
     echo "Chain-Clients tests failed (exit code $CHAIN_CLIENTS_EXIT):"
     echo "$CHAIN_CLIENTS_TEST_OUTPUT"

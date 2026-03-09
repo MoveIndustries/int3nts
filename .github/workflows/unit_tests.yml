@@ -25,7 +25,7 @@ jobs:
   chain-clients:
     uses: ./.github/workflows/unit-tests-reusable.yml
     with:
-      script: "cd chain-clients/common && cargo test"
+      script: "./chain-clients/scripts/test.sh"
 
   solver:
     uses: ./.github/workflows/unit-tests-reusable.yml

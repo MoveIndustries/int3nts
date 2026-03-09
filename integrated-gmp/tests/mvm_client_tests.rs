@@ -108,7 +108,7 @@ async fn test_get_solver_connected_chain_mvm_addr_success() {
     .await;
 
     let result = client
-        .get_solver_connected_chain_mvm_address(solver_addr, solver_registry_addr)
+        .get_solver_mvm_address(solver_addr, solver_registry_addr)
         .await;
 
     assert!(result.is_ok(), "Query should succeed");
@@ -136,7 +136,7 @@ async fn test_get_solver_connected_chain_mvm_addr_none() {
     .await;
 
     let result = client
-        .get_solver_connected_chain_mvm_address(solver_addr, solver_registry_addr)
+        .get_solver_mvm_address(solver_addr, solver_registry_addr)
         .await;
 
     assert!(result.is_ok(), "Query should succeed");
@@ -164,7 +164,7 @@ async fn test_get_solver_connected_chain_mvm_addr_solver_not_found() {
     .await;
 
     let result = client
-        .get_solver_connected_chain_mvm_address(
+        .get_solver_mvm_address(
             unregistered_solver, // Query for unregistered solver
             solver_registry_addr,
         )
@@ -197,7 +197,7 @@ async fn test_get_solver_connected_chain_mvm_addr_registry_not_found() {
     let client = MvmClient::new(&mock_server.uri()).expect("Failed to create MvmClient");
 
     let result = client
-        .get_solver_connected_chain_mvm_address(solver_addr, solver_registry_addr)
+        .get_solver_mvm_address(solver_addr, solver_registry_addr)
         .await;
 
     assert!(result.is_ok(), "Query should succeed");
@@ -228,7 +228,7 @@ async fn test_get_solver_connected_chain_mvm_addr_address_normalization() {
 
     // Query with address without 0x prefix
     let result = client
-        .get_solver_connected_chain_mvm_address(solver_addr_without_prefix, solver_registry_addr)
+        .get_solver_mvm_address(solver_addr_without_prefix, solver_registry_addr)
         .await;
 
     assert!(result.is_ok(), "Query should succeed");
@@ -488,7 +488,7 @@ async fn test_get_solver_mvm_address_leading_zero_mismatch() {
 
     // Query with the full address (with leading zero)
     let result = client
-        .get_solver_connected_chain_mvm_address(solver_addr, solver_registry_addr_full)
+        .get_solver_mvm_address(solver_addr, solver_registry_addr_full)
         .await;
 
     assert!(
