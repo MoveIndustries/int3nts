@@ -34,9 +34,11 @@ fn is_safe_for_escrow(event: &IntentEvent) -> bool {
 fn test_normalize_intent_id_leading_zeros() {
     use coordinator::monitor::normalize_intent_id;
 
-    // Test case from the actual error: one has leading zero, one doesn't
-    let with_leading_zero = "0x0911ddf3c2ef882c7c42af3f65b2c32b3f26fde142cf30afd2ea58f8a16ef9b7";
-    let without_leading_zero = "0x911ddf3c2ef882c7c42af3f65b2c32b3f26fde142cf30afd2ea58f8a16ef9b7";
+    // Synthetic 63-char hex (odd length triggers the leading-zero difference)
+    let with_leading_zero =
+        "0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde";
+    let without_leading_zero =
+        "0x123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde";
 
     let normalized_with = normalize_intent_id(with_leading_zero);
     let normalized_without = normalize_intent_id(without_leading_zero);
@@ -47,7 +49,7 @@ fn test_normalize_intent_id_leading_zeros() {
     );
     assert_eq!(
         normalized_with,
-        "0x911ddf3c2ef882c7c42af3f65b2c32b3f26fde142cf30afd2ea58f8a16ef9b7"
+        "0x123456789abcdef0123456789abcdef0123456789abcdef0123456789abcde"
     );
 }
 

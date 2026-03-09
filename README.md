@@ -37,6 +37,8 @@ Run from project root:
 nix develop ./nix -c bash -c "cd intent-frameworks/evm && npm install && npm test"
 # SVM (Solana)
 ./intent-frameworks/svm/scripts/test.sh
+# Chain clients
+RUST_LOG=off nix develop ./nix -c bash -c "cd chain-clients/common && cargo test --quiet"
 # Rust services
 RUST_LOG=off nix develop ./nix -c bash -c "cd coordinator && cargo test --quiet"
 RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --quiet"

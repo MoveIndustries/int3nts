@@ -678,16 +678,16 @@ mod tests {
     #[test]
     fn test_pubkey_from_hex_with_leading_zeros() {
         // Full 64-char hex (32 bytes) - normal case
-        let full_hex = "0x00d30e3caf2adf837ead1c43d8fca0825b70993bf75053ad7d89dc66a7e31144";
+        let full_hex = "0x00aabbccdd00aabbccdd00aabbccdd00aabbccdd00aabbccdd00aabbccdd0011";
         let pk1 = pubkey_from_hex(full_hex).expect("full hex");
-        
+
         // Stripped leading zeros (62 chars / 31 bytes) - Move address format
-        let stripped_hex = "0xd30e3caf2adf837ead1c43d8fca0825b70993bf75053ad7d89dc66a7e31144";
+        let stripped_hex = "0xaabbccdd00aabbccdd00aabbccdd00aabbccdd00aabbccdd00aabbccdd0011";
         let pk2 = pubkey_from_hex(stripped_hex).expect("stripped hex");
-        
+
         // Both should produce the same pubkey
         assert_eq!(pk1, pk2, "Leading zeros should be restored");
-        
+
         // Verify the pubkey bytes start with 0x00
         assert_eq!(pk1.to_bytes()[0], 0x00, "First byte should be zero");
     }
@@ -695,8 +695,8 @@ mod tests {
     /// Test that hex pubkey parsing works for addresses without leading zeros
     #[test]
     fn test_pubkey_from_hex_no_leading_zeros() {
-        let hex = "0xf48282d15ca5c2b19e3e619aee72648fa1e5087fe91f933cd595eeef03468141";
+        let hex = "0xaa11223344556677aa11223344556677aa11223344556677aa11223344556677";
         let pk = pubkey_from_hex(hex).expect("parse hex");
-        assert_eq!(pk.to_bytes()[0], 0xf4, "First byte should be 0xf4");
+        assert_eq!(pk.to_bytes()[0], 0xaa, "First byte should be 0xaa");
     }
 }
