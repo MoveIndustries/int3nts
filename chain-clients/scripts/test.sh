@@ -12,4 +12,7 @@ cd "$CHAIN_CLIENTS_DIR/common" && RUST_LOG=off cargo test --quiet
 echo "Running chain-clients/mvm tests..."
 cd "$CHAIN_CLIENTS_DIR/mvm" && RUST_LOG=off cargo test --quiet
 
+echo "Running chain-clients/evm tests..."
+cd "$CHAIN_CLIENTS_DIR/evm" && RUST_LOG=off cargo test --quiet
+
 echo "All chain-clients tests passed."

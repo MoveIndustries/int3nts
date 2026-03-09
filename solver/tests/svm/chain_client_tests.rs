@@ -59,13 +59,13 @@ fn test_client_new_rejects_invalid() {
     assert!(result.is_err(), "Expected invalid program id to fail");
 }
 
-// #3: get_escrow_events_success - TODO: implement for SVM
-// #4: get_escrow_events_empty - TODO: implement for SVM
-// #5: get_escrow_events_error - TODO: implement for SVM
-// #6: escrow_event_deserialization - N/A for SVM (parses program accounts directly)
-// #7: fulfillment_id_formatting - TODO: implement for SVM
-// #8: fulfillment_signature_encoding - N/A for SVM (uses different mechanism)
-// #9: fulfillment_command_building - TODO: implement for SVM
+// #3: test_get_escrow_events_success - TODO: implement for SVM
+// #4: test_get_escrow_events_empty - TODO: implement for SVM
+// #5: test_get_escrow_events_error - TODO: implement for SVM
+// #6: test_escrow_event_deserialization - N/A for SVM (parses program accounts directly)
+// #7: test_fulfillment_id_formatting - TODO: implement for SVM
+// #8: test_fulfillment_signature_encoding - N/A for SVM (uses different mechanism)
+// #9: test_fulfillment_command_building - TODO: implement for SVM
 
 // ============================================================================
 // GMP FULFILLMENT
@@ -370,7 +370,7 @@ async fn test_get_token_balance_error() {
     assert!(result.is_err(), "Expected RPC error to propagate");
 }
 
-// #18: get_token_balance_zero - N/A for SVM (token account either exists with balance or doesn't exist)
+// #18: test_get_token_balance_zero - N/A for SVM (token account either exists with balance or doesn't exist)
 
 /// 19. Test: get_native_balance returns correct SOL balance
 /// Verifies that get_native_balance() calls getBalance and returns lamports.
@@ -453,35 +453,35 @@ async fn test_get_native_balance_error() {
 // HEX ADDRESS NORMALIZATION (MVM-specific)
 // ============================================================================
 
-// #21: normalize_hex_to_address_full_length - N/A for SVM (MVM-specific Move address normalization)
-// #22: normalize_hex_to_address_short_address - N/A for SVM (MVM-specific Move address normalization)
-// #23: normalize_hex_to_address_odd_length - N/A for SVM (MVM-specific Move address normalization)
-// #24: normalize_hex_to_address_no_prefix - N/A for SVM (MVM-specific Move address normalization)
+// #21: test_normalize_hex_to_address_full_length - N/A for SVM (MVM-specific Move address normalization)
+// #22: test_normalize_hex_to_address_short_address - N/A for SVM (MVM-specific Move address normalization)
+// #23: test_normalize_hex_to_address_odd_length - N/A for SVM (MVM-specific Move address normalization)
+// #24: test_normalize_hex_to_address_no_prefix - N/A for SVM (MVM-specific Move address normalization)
 
 // ============================================================================
 // HAS OUTFLOW REQUIREMENTS (MVM-specific)
 // ============================================================================
 
-// #25: has_outflow_requirements_success - N/A for SVM (MVM-specific GMP view function)
-// #26: has_outflow_requirements_false - N/A for SVM (MVM-specific GMP view function)
-// #27: has_outflow_requirements_error - N/A for SVM (MVM-specific GMP view function)
+// #25: test_has_outflow_requirements_success - N/A for SVM (MVM-specific GMP view function)
+// #26: test_has_outflow_requirements_false - N/A for SVM (MVM-specific GMP view function)
+// #27: test_has_outflow_requirements_error - N/A for SVM (MVM-specific GMP view function)
 
 // ============================================================================
 // IS ESCROW RELEASED HELPERS (EVM-specific)
 // ============================================================================
 
-// #28: is_escrow_released_id_formatting - N/A for SVM (EVM-specific Hardhat script mechanics)
-// #29: is_escrow_released_output_parsing - N/A for SVM (EVM-specific Hardhat script mechanics)
-// #30: is_escrow_released_command_building - N/A for SVM (EVM-specific Hardhat script mechanics)
-// #31: is_escrow_released_error_handling - N/A for SVM (EVM-specific Hardhat script mechanics)
+// #28: test_is_escrow_released_id_formatting - N/A for SVM (EVM-specific Hardhat script mechanics)
+// #29: test_is_escrow_released_output_parsing - N/A for SVM (EVM-specific Hardhat script mechanics)
+// #30: test_is_escrow_released_command_building - N/A for SVM (EVM-specific Hardhat script mechanics)
+// #31: test_is_escrow_released_error_handling - N/A for SVM (EVM-specific Hardhat script mechanics)
 
 // ============================================================================
 // EVM ADDRESS NORMALIZATION (EVM-specific)
 // ============================================================================
 
-// #32: get_native_balance_exceeds_u64 - N/A for SVM (EVM-specific u64 overflow from large ETH balances)
-// #33: get_token_balance_with_padded_address - N/A for SVM (EVM-specific 32-byte address padding)
-// #34: get_native_balance_with_padded_address - N/A for SVM (EVM-specific 32-byte address padding)
-// #35: normalize_evm_address_padded - N/A for SVM (EVM-specific address normalization)
-// #36: normalize_evm_address_passthrough - N/A for SVM (EVM-specific address normalization)
-// #37: normalize_evm_address_rejects_non_zero_high_bytes - N/A for SVM (EVM-specific address normalization)
+// #32: test_get_native_balance_exceeds_u64 - N/A for SVM (EVM-specific u64 overflow from large ETH balances)
+// #33: test_get_token_balance_with_padded_address - N/A for SVM (EVM-specific 32-byte address padding)
+// #34: test_get_native_balance_with_padded_address - N/A for SVM (EVM-specific 32-byte address padding)
+// #35: test_normalize_evm_address_padded - N/A for SVM (EVM-specific address normalization)
+// #36: test_normalize_evm_address_passthrough - N/A for SVM (EVM-specific address normalization)
+// #37: test_normalize_evm_address_rejects_non_zero_high_bytes - N/A for SVM (EVM-specific address normalization)

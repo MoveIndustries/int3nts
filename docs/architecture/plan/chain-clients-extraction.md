@@ -81,13 +81,13 @@ These tests are chain-agnostic (no MVM/EVM/SVM columns). They apply universally.
 
 | # | Test |
 | --- | ------ |
-| 1 | normalize_intent_id_strips_leading_zeros |
-| 2 | normalize_intent_id_lowercases |
-| 3 | normalize_intent_id_all_zeros |
-| 4 | normalize_intent_id_no_prefix |
-| 5 | normalize_intent_id_to_64_chars_pads |
-| 6 | normalize_intent_id_to_64_chars_lowercases |
-| 7 | normalize_intent_id_to_64_chars_no_prefix |
+| 1 | test_normalize_intent_id_strips_leading_zeros |
+| 2 | test_normalize_intent_id_lowercases |
+| 3 | test_normalize_intent_id_all_zeros |
+| 4 | test_normalize_intent_id_no_prefix |
+| 5 | test_normalize_intent_id_to_64_chars_pads |
+| 6 | test_normalize_intent_id_to_64_chars_lowercases |
+| 7 | test_normalize_intent_id_to_64_chars_no_prefix |
 
 Source: coordinator/tests/monitor_tests.rs (3 existing tests, expanded for full coverage)
 
@@ -99,8 +99,8 @@ SVM: `chain-clients/svm/tests/svm_client_tests.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 1 | client_new | ✅ | ✅ | ✅ |
-| 2 | client_new_rejects_invalid | N/A | N/A | ✅ |
+| 1 | test_client_new | ✅ | ✅ | ✅ |
+| 2 | test_client_new_rejects_invalid | N/A | N/A | ✅ |
 
 Source: solver/tests/{mvm,evm,svm}/chain_client_tests.rs #1-#2
 
@@ -117,9 +117,9 @@ SVM: `chain-clients/svm/tests/svm_client_tests.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 3 | is_escrow_released_success | ✅ | ✅ | ✅ |
-| 4 | is_escrow_released_false | ✅ | ✅ | ✅ |
-| 5 | is_escrow_released_error | ✅ | ✅ | ✅ |
+| 3 | test_is_escrow_released_success | ✅ | ✅ | ✅ |
+| 4 | test_is_escrow_released_false | ✅ | ✅ | ✅ |
+| 5 | test_is_escrow_released_error | ✅ | ✅ | ✅ |
 
 Source: solver/tests/{mvm,evm,svm}/chain_client_tests.rs #13-#15
 
@@ -137,14 +137,14 @@ SVM: `chain-clients/svm/tests/svm_client_tests.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 6 | get_token_balance_success | ✅ | ✅ | ✅ |
-| 7 | get_token_balance_error | ✅ | ✅ | ✅ |
-| 8 | get_token_balance_zero | ✅ | ✅ | N/A |
-| 9 | get_native_balance_success | N/A | ✅ | ✅ |
-| 10 | get_native_balance_error | N/A | ✅ | ✅ |
-| 11 | get_native_balance_exceeds_u64 | N/A | ✅ | N/A |
-| 12 | get_token_balance_with_padded_address | N/A | ✅ | N/A |
-| 13 | get_native_balance_with_padded_address | N/A | ✅ | N/A |
+| 6 | test_get_token_balance_success | ✅ | ✅ | ✅ |
+| 7 | test_get_token_balance_error | ✅ | ✅ | ✅ |
+| 8 | test_get_token_balance_zero | ✅ | ✅ | N/A |
+| 9 | test_get_native_balance_success | N/A | ✅ | ✅ |
+| 10 | test_get_native_balance_error | N/A | ✅ | ✅ |
+| 11 | test_get_native_balance_exceeds_u64 | N/A | ✅ | N/A |
+| 12 | test_get_token_balance_with_padded_address | N/A | ✅ | N/A |
+| 13 | test_get_native_balance_with_padded_address | N/A | ✅ | N/A |
 
 Source: solver/tests/{mvm,evm,svm}/chain_client_tests.rs #16-#20, #32-#34
 
@@ -164,10 +164,10 @@ SVM: `chain-clients/svm/tests/svm_client_tests.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 14 | get_escrow_events_success | N/A | ✅ | ⚠️ |
-| 15 | get_escrow_events_empty | N/A | ✅ | ⚠️ |
-| 16 | get_escrow_events_error | N/A | ✅ | ⚠️ |
-| 17 | get_all_escrows_parses_program_accounts | N/A | N/A | ✅ |
+| 14 | test_get_escrow_events_success | N/A | ✅ | ⚠️ |
+| 15 | test_get_escrow_events_empty | N/A | ✅ | ⚠️ |
+| 16 | test_get_escrow_events_error | N/A | ✅ | ⚠️ |
+| 17 | test_get_all_escrows_parses_program_accounts | N/A | N/A | ✅ |
 
 Source: solver/tests/evm/chain_client_tests.rs #3-#5, coordinator/tests/svm_client_tests.rs #1
 
@@ -185,15 +185,15 @@ SVM: `chain-clients/svm/tests/svm_client_tests.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 18 | normalize_hex_to_address_full_length | ✅ | N/A | N/A |
-| 19 | normalize_hex_to_address_short_address | ✅ | N/A | N/A |
-| 20 | normalize_hex_to_address_odd_length | ✅ | N/A | N/A |
-| 21 | normalize_hex_to_address_no_prefix | ✅ | N/A | N/A |
-| 22 | normalize_evm_address_padded | N/A | ✅ | N/A |
-| 23 | normalize_evm_address_passthrough | N/A | ✅ | N/A |
-| 24 | normalize_evm_address_rejects_non_zero_high_bytes | N/A | ✅ | N/A |
-| 25 | pubkey_from_hex_with_leading_zeros | N/A | N/A | ✅ |
-| 26 | pubkey_from_hex_no_leading_zeros | N/A | N/A | ✅ |
+| 18 | test_normalize_hex_to_address_full_length | ✅ | N/A | N/A |
+| 19 | test_normalize_hex_to_address_short_address | ✅ | N/A | N/A |
+| 20 | test_normalize_hex_to_address_odd_length | ✅ | N/A | N/A |
+| 21 | test_normalize_hex_to_address_no_prefix | ✅ | N/A | N/A |
+| 22 | test_normalize_evm_address_padded | N/A | ✅ | N/A |
+| 23 | test_normalize_evm_address_passthrough | N/A | ✅ | N/A |
+| 24 | test_normalize_evm_address_rejects_non_zero_high_bytes | N/A | ✅ | N/A |
+| 25 | test_pubkey_from_hex_with_leading_zeros | N/A | N/A | ✅ |
+| 26 | test_pubkey_from_hex_no_leading_zeros | N/A | N/A | ✅ |
 
 Source: solver/tests/mvm/chain_client_tests.rs #21-#24, solver/tests/evm/chain_client_tests.rs #35-#37, solver/tests/svm/chain_client_tests.rs #4-#5
 
@@ -212,8 +212,8 @@ SVM: `chain-clients/svm/tests/svm_client_tests.rs`
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 27 | escrow_account_borsh_roundtrip | N/A | N/A | ✅ |
-| 28 | escrow_account_invalid_base64 | N/A | N/A | ✅ |
+| 27 | test_escrow_account_borsh_roundtrip | N/A | N/A | ✅ |
+| 28 | test_escrow_account_invalid_base64 | N/A | N/A | ✅ |
 
 Source: integrated-gmp/tests/svm/escrow_parsing_tests.rs #1-#2
 
@@ -231,18 +231,18 @@ These tests query the MVM hub chain specifically (solver registry, public keys, 
 
 | # | Test |
 | --- | ------ |
-| 1 | get_solver_connected_chain_mvm_addr_success |
-| 2 | get_solver_connected_chain_mvm_addr_none |
-| 3 | get_solver_connected_chain_mvm_addr_solver_not_found |
-| 4 | get_solver_connected_chain_mvm_addr_registry_not_found |
-| 5 | get_solver_connected_chain_mvm_addr_address_normalization |
-| 6 | get_solver_evm_address_array_format |
-| 7 | get_solver_evm_address_hex_string_format |
-| 8 | get_solver_mvm_address_leading_zero_mismatch |
-| 9 | get_solver_evm_address_leading_zero_mismatch |
-| 10 | get_solver_svm_address_array_format |
-| 11 | get_solver_svm_address_hex_string_format |
-| 12 | get_solver_svm_address_leading_zero_mismatch |
+| 1 | test_get_solver_connected_chain_mvm_addr_success |
+| 2 | test_get_solver_connected_chain_mvm_addr_none |
+| 3 | test_get_solver_connected_chain_mvm_addr_solver_not_found |
+| 4 | test_get_solver_connected_chain_mvm_addr_registry_not_found |
+| 5 | test_get_solver_connected_chain_mvm_addr_address_normalization |
+| 6 | test_get_solver_evm_address_array_format |
+| 7 | test_get_solver_evm_address_hex_string_format |
+| 8 | test_get_solver_mvm_address_leading_zero_mismatch |
+| 9 | test_get_solver_evm_address_leading_zero_mismatch |
+| 10 | test_get_solver_svm_address_array_format |
+| 11 | test_get_solver_svm_address_hex_string_format |
+| 12 | test_get_solver_svm_address_leading_zero_mismatch |
 
 Source: coordinator/tests/mvm_client_tests.rs #1-#6, integrated-gmp/tests/mvm_client_tests.rs #1-#5 (merged, deduplicated)
 
@@ -250,16 +250,16 @@ Source: coordinator/tests/mvm_client_tests.rs #1-#6, integrated-gmp/tests/mvm_cl
 
 | # | Test |
 | --- | ------ |
-| 13 | get_solver_public_key_success |
-| 14 | get_solver_public_key_not_registered |
-| 15 | get_solver_public_key_empty_hex_string |
-| 16 | get_solver_public_key_errors_on_unexpected_format |
-| 17 | get_solver_public_key_ed25519_format |
-| 18 | get_solver_public_key_errors_on_empty_array |
-| 19 | get_solver_public_key_errors_on_non_string_element |
-| 20 | get_solver_public_key_errors_on_invalid_hex |
-| 21 | get_solver_public_key_errors_on_http_error |
-| 22 | get_solver_public_key_rejects_address_without_prefix |
+| 13 | test_get_solver_public_key_success |
+| 14 | test_get_solver_public_key_not_registered |
+| 15 | test_get_solver_public_key_empty_hex_string |
+| 16 | test_get_solver_public_key_errors_on_unexpected_format |
+| 17 | test_get_solver_public_key_ed25519_format |
+| 18 | test_get_solver_public_key_errors_on_empty_array |
+| 19 | test_get_solver_public_key_errors_on_non_string_element |
+| 20 | test_get_solver_public_key_errors_on_invalid_hex |
+| 21 | test_get_solver_public_key_errors_on_http_error |
+| 22 | test_get_solver_public_key_rejects_address_without_prefix |
 
 Source: coordinator/tests/mvm_client_tests.rs #7-#16 (identical in integrated-gmp, deduplicated)
 
@@ -267,12 +267,12 @@ Source: coordinator/tests/mvm_client_tests.rs #7-#16 (identical in integrated-gm
 
 | # | Test |
 | --- | ------ |
-| 23 | is_solver_registered_true |
-| 24 | is_solver_registered_false |
-| 25 | is_solver_registered_address_normalization |
-| 26 | is_solver_registered_http_error |
-| 27 | is_solver_registered_invalid_json |
-| 28 | is_solver_registered_unexpected_format |
+| 23 | test_is_solver_registered_true |
+| 24 | test_is_solver_registered_false |
+| 25 | test_is_solver_registered_address_normalization |
+| 26 | test_is_solver_registered_http_error |
+| 27 | test_is_solver_registered_invalid_json |
+| 28 | test_is_solver_registered_unexpected_format |
 
 Source: solver/tests/mvm/hub_client_tests.rs #5-#10
 
@@ -280,9 +280,9 @@ Source: solver/tests/mvm/hub_client_tests.rs #5-#10
 
 | # | Test |
 | --- | ------ |
-| 29 | has_outflow_requirements_success |
-| 30 | has_outflow_requirements_false |
-| 31 | has_outflow_requirements_error |
+| 29 | test_has_outflow_requirements_success |
+| 30 | test_has_outflow_requirements_false |
+| 31 | test_has_outflow_requirements_error |
 
 Source: solver/tests/mvm/chain_client_tests.rs #25-#27
 
@@ -340,23 +340,23 @@ After — solver `chain-client` section keeps only:
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 1 | fulfillment_id_formatting | ✅ | ⚠️ | ⚠️ |
-| 2 | fulfillment_signature_encoding | N/A | ⚠️ | N/A |
-| 3 | fulfillment_command_building | ✅ | ⚠️ | ⚠️ |
-| 4 | fulfillment_error_handling | ⚠️ | ⚠️ | ✅ |
-| 5 | is_escrow_released_id_formatting | N/A | ✅ | N/A |
-| 6 | is_escrow_released_output_parsing | N/A | ✅ | N/A |
-| 7 | is_escrow_released_command_building | N/A | ✅ | N/A |
-| 8 | is_escrow_released_error_handling | N/A | ✅ | N/A |
+| 1 | test_fulfillment_id_formatting | ✅ | ⚠️ | ⚠️ |
+| 2 | test_fulfillment_signature_encoding | N/A | ⚠️ | N/A |
+| 3 | test_fulfillment_command_building | ✅ | ⚠️ | ⚠️ |
+| 4 | test_fulfillment_error_handling | ⚠️ | ⚠️ | ✅ |
+| 5 | test_is_escrow_released_id_formatting | N/A | ✅ | N/A |
+| 6 | test_is_escrow_released_output_parsing | N/A | ✅ | N/A |
+| 7 | test_is_escrow_released_command_building | N/A | ✅ | N/A |
+| 8 | test_is_escrow_released_error_handling | N/A | ✅ | N/A |
 
 Plus a new `hub-client` section (NOT tracked for VM symmetry — hub is always MVM):
 
 | # | Test |
 | --- | ------ |
-| 1 | hub_client_new |
-| 2 | intent_created_event_deserialization |
-| 3 | get_intent_events_success |
-| 4 | get_intent_events_empty |
+| 1 | test_hub_client_new |
+| 2 | test_intent_created_event_deserialization |
+| 3 | test_get_intent_events_success |
+| 4 | test_get_intent_events_empty |
 
 ### docs/intent-frameworks/framework-extension-guide.md
 
