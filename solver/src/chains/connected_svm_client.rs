@@ -3,10 +3,24 @@
 //! Client for interacting with connected SVM chains to query escrow accounts
 //! and check escrow release status via GMP flow.
 //!
-//! Query methods (get_escrow_events) delegate to the shared chain-clients-svm
-//! SvmClient. Sync methods (is_escrow_released, get_token_balance, get_native_balance)
-//! use solana_client::RpcClient directly. CLI methods (fulfill_outflow_via_gmp)
-//! remain solver-specific.
+//! ## Design: why sync query methods don't delegate to chain-clients-svm
+//!
+//! MVM and EVM solver clients delegate query methods (is_escrow_released,
+//! get_token_balance, get_native_balance) to their shared async chain-clients
+//! crate. SVM does not — these methods are sync and use `solana_client::RpcClient`
+//! directly.
+//!
+//! The reason is the fulfillment strategy: MVM/EVM solvers shell out to external
+//! CLIs (aptos CLI, Hardhat scripts) for transaction signing, so they only need
+//! the async shared client. The SVM solver builds and signs transactions in-process
+//! using `solana_sdk` types (Keypair, Transaction, Instruction), which requires
+//! `solana_client::RpcClient` (blocking) for blockhash fetching, tx submission,
+//! and confirmation. Since that blocking client is already here, the query methods
+//! use it too rather than wrapping async calls in block_on().
+//!
+//! This is intentional, not tech debt. Wrapping async in block_on() adds
+//! complexity with no functional benefit. If the Solana SDK gains a stable async
+//! client, revisit.
 
 use anyhow::{Context, Result};
 use borsh::{BorshDeserialize, BorshSerialize};

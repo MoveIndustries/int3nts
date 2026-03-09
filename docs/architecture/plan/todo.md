@@ -26,10 +26,11 @@
 
 ## Chain-Clients Extraction
 
-1. **Solver SVM sync→async migration**
-   - Solver's `ConnectedSvmClient` keeps its own sync `RpcClient` methods for `is_escrow_released`, `get_token_balance`, `get_native_balance` instead of delegating to the shared async `SvmClient`
-   - MVM and EVM solver clients delegate these calls to the shared client; SVM does not (asymmetry)
-   - Refactor to delegate via blocking async wrapper, then mark solver tests #13-20 as X (moved to chain-clients/svm)
+1. ~~**Solver SVM sync→async migration**~~ — **Deferred (intentional)**
+   - Solver's `ConnectedSvmClient` keeps sync query methods (`is_escrow_released`, `get_token_balance`, `get_native_balance`) using `solana_client::RpcClient` directly instead of delegating to the shared async `SvmClient`
+   - MVM/EVM solver clients delegate because they only need the async shared client (fulfillment uses external CLIs). SVM builds/signs transactions in-process via `solana_sdk`, which requires the blocking `RpcClient` — so query methods reuse it
+   - Wrapping async in `block_on()` adds complexity with no functional benefit. Revisit if Solana SDK gains a stable async client
+   - See: `solver/src/chains/connected_svm_client.rs` module doc comment
 
 2. **Integrated-GMP SVM client extraction (step 7)**
    - `integrated-gmp/src/svm_client.rs` still has a full custom `SvmClient` with GMP-specific methods (`get_raw_account_data`, `get_outbound_nonce`, `get_message_data`)
