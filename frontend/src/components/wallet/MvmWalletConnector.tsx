@@ -92,7 +92,8 @@ export function MvmWalletConnector() {
     checkWallets();
     
     // Also check after a short delay in case extensions load later
-    const timeout = setTimeout(checkWallets, 500);
+    const WALLET_DETECT_DELAY_MS = 500;
+    const timeout = setTimeout(checkWallets, WALLET_DETECT_DELAY_MS);
     
     return () => clearTimeout(timeout);
   }, []);

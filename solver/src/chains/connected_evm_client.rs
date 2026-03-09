@@ -116,7 +116,8 @@ impl ConnectedEvmClient {
             format!("0x{}", intent_id)
         };
 
-        let solver_private_key = std::env::var(&self.private_key_env).unwrap_or_default();
+        let solver_private_key = std::env::var(&self.private_key_env)
+            .with_context(|| format!("Missing required env var {} for EVM private key", self.private_key_env))?;
         let nix_dir = project_root.join("nix");
         let output = Command::new("nix")
             .args(&[
@@ -278,7 +279,8 @@ impl ConnectedEvmClient {
             );
         }
 
-        let result = response.result.unwrap_or_else(|| "0x".to_string());
+        let result = response.result
+            .context("eth_call hasRequirements returned no result")?;
 
         // ABI bool: 32 bytes, last byte is 0x01 (true) or 0x00 (false)
         let clean = result.strip_prefix("0x").unwrap_or(&result);
@@ -313,7 +315,8 @@ impl ConnectedEvmClient {
             );
         }
 
-        let solver_private_key = std::env::var(&self.private_key_env).unwrap_or_default();
+        let solver_private_key = std::env::var(&self.private_key_env)
+            .with_context(|| format!("Missing required env var {} for EVM private key", self.private_key_env))?;
         let nix_dir = project_root.join("nix");
         let output = Command::new("nix")
             .args(&[

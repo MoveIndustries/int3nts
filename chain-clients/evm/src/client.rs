@@ -179,9 +179,11 @@ impl EvmClient {
             }
 
             let escrow_id = format!("0x{}", &data[0..64]);
-            let amount = u64::from_str_radix(&data[112..128], 16).unwrap_or(0);
+            let amount = u64::from_str_radix(&data[112..128], 16)
+                .context("Failed to parse escrow amount from EVM log data")?;
             let reserved_solver = format!("0x{}", &data[128..192]);
-            let expiry = u64::from_str_radix(&data[240..256], 16).unwrap_or(0);
+            let expiry = u64::from_str_radix(&data[240..256], 16)
+                .context("Failed to parse escrow expiry from EVM log data")?;
 
             events.push(EscrowCreatedEvent {
                 intent_id,

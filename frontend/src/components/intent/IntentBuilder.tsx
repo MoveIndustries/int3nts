@@ -32,6 +32,35 @@ import { fetchSolverSvmAddress, getSvmConnection, sendSvmTransaction } from '@/l
 type FlowType = 'inflow' | 'outflow';
 
 // ============================================================================
+// Timing Constants
+// ============================================================================
+
+/** Actual on-chain intent expiry (seconds). */
+const INTENT_EXPIRY_SECS = 180;
+/** Frontend countdown display (seconds). Shorter than actual expiry to give signing buffer. */
+const FRONTEND_TIMER_SECS = 120;
+/** Interval between signature poll requests (ms). */
+const POLL_SIGNATURE_INTERVAL_MS = 2000;
+/** Interval between fulfillment poll requests (ms). */
+const POLL_FULFILLMENT_INTERVAL_MS = 5000;
+/** Delay before starting requirement checks (ms). */
+const POLL_REQUIREMENTS_INTERVAL_MS = 3000;
+/** Delay before first fulfillment poll to let solver pick up intent (ms). */
+const POLL_FULFILLMENT_INITIAL_DELAY_MS = 3000;
+/** Timer display update interval (ms). */
+const TIMER_UPDATE_INTERVAL_MS = 1000;
+/** Max signature poll attempts (attempts × POLL_SIGNATURE_INTERVAL_MS = total timeout). */
+const MAX_SIGNATURE_POLL_ATTEMPTS = 120;
+// ============================================================================
+// Fee Constants
+// ============================================================================
+
+/** Basis points denominator (10000 bps = 100%). */
+const BPS_DENOMINATOR = BigInt(10000);
+/** Rounding offset for ceiling division in bps fee calculation. */
+const BPS_ROUNDING_OFFSET = BigInt(9999);
+
+// ============================================================================
 // Hooks
 // ============================================================================
 
@@ -435,7 +464,7 @@ export function IntentBuilder() {
           console.warn('Error checking hasRequirements:', err);
         }
         attempts++;
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, POLL_REQUIREMENTS_INTERVAL_MS));
       }
       if (!cancelled) {
         setPollingRequirements(false);
@@ -494,7 +523,7 @@ export function IntentBuilder() {
   // This gives 60 seconds buffer after frontend timer expires
   useEffect(() => {
     if (draftCreatedAt) {
-      setFixedExpiryTime(Math.floor(draftCreatedAt / 1000) + 120); // Frontend timer: 120 seconds
+      setFixedExpiryTime(Math.floor(draftCreatedAt / 1000) + FRONTEND_TIMER_SECS);
     } else {
       setFixedExpiryTime(null);
     }
@@ -529,7 +558,7 @@ export function IntentBuilder() {
     updateTimer();
 
     // Update every second
-    const interval = setInterval(updateTimer, 1000);
+    const interval = setInterval(updateTimer, TIMER_UPDATE_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [fixedExpiryTime]); // Only depend on fixedExpiryTime, not draftCreatedAt or savedDraftData
@@ -593,7 +622,7 @@ export function IntentBuilder() {
     const pollSignature = async () => {
       pollingActiveRef.current = true;
       setPollingSignature(true);
-      const maxAttempts = 120; // 120 attempts * 2 seconds = 240 seconds max (longer than 180s expiry)
+      const maxAttempts = MAX_SIGNATURE_POLL_ATTEMPTS;
       let attempts = 0;
 
       const poll = async () => {
@@ -636,7 +665,7 @@ export function IntentBuilder() {
             (fixedExpiryTime === null || Math.floor(Date.now() / 1000) < fixedExpiryTime);
           
           if (shouldContinue) {
-            setTimeout(poll, 2000); // Poll every 2 seconds
+            setTimeout(poll, POLL_SIGNATURE_INTERVAL_MS);
           } else {
             console.log('Stopping signature polling:', { attempts, maxAttempts, fixedExpiryTime });
             setPollingSignature(false);
@@ -646,7 +675,7 @@ export function IntentBuilder() {
           console.error('Error polling signature:', error);
           attempts++;
           if (attempts < maxAttempts) {
-            setTimeout(poll, 2000);
+            setTimeout(poll, POLL_SIGNATURE_INTERVAL_MS);
           } else {
             setPollingSignature(false);
             pollingActiveRef.current = false;
@@ -739,7 +768,7 @@ export function IntentBuilder() {
         const offeredAmountNum = parseFloat(offeredAmount);
         const offeredSmallest = BigInt(toSmallestUnits(offeredAmountNum, offeredToken.decimals).toString());
         const bpsFee = fee_bps > 0
-          ? (offeredSmallest * BigInt(fee_bps) + BigInt(9999)) / BigInt(10000)
+          ? (offeredSmallest * BigInt(fee_bps) + BPS_ROUNDING_OFFSET) / BPS_DENOMINATOR
           : BigInt(0);
         const totalFee = minFeeOffered + bpsFee;
         setFeeInfo({ minFee: Number(minFeeOffered), feeBps: fee_bps, totalFee });
@@ -794,7 +823,7 @@ export function IntentBuilder() {
             console.log('No intent ID yet, waiting...');
             attempts++;
             if (attempts < maxAttempts) {
-              setTimeout(poll, 5000);
+              setTimeout(poll, POLL_FULFILLMENT_INTERVAL_MS);
             } else {
               setPollingFulfillment(false);
               pollingFulfillmentRef.current = false;
@@ -838,7 +867,7 @@ export function IntentBuilder() {
               console.log('No solver address yet, waiting...');
               attempts++;
               if (attempts < maxAttempts) {
-                setTimeout(poll, 5000);
+                setTimeout(poll, POLL_FULFILLMENT_INTERVAL_MS);
               } else {
                 setPollingFulfillment(false);
                 pollingFulfillmentRef.current = false;
@@ -892,7 +921,7 @@ export function IntentBuilder() {
           
           attempts++;
           if (attempts < maxAttempts) {
-            setTimeout(poll, 5000); // Poll every 5 seconds
+            setTimeout(poll, POLL_FULFILLMENT_INTERVAL_MS); // Poll every 5 seconds
           } else {
             setPollingFulfillment(false);
             pollingFulfillmentRef.current = false;
@@ -901,7 +930,7 @@ export function IntentBuilder() {
           console.error('Error polling fulfillment:', error);
           attempts++;
           if (attempts < maxAttempts) {
-            setTimeout(poll, 5000);
+            setTimeout(poll, POLL_FULFILLMENT_INTERVAL_MS);
           } else {
             setPollingFulfillment(false);
             pollingFulfillmentRef.current = false;
@@ -910,7 +939,7 @@ export function IntentBuilder() {
       };
       
       // Start polling after a short delay to let the solver pick up the intent
-      setTimeout(poll, 3000);
+      setTimeout(poll, POLL_FULFILLMENT_INITIAL_DELAY_MS);
     };
     
     pollFulfillment();
@@ -985,7 +1014,7 @@ export function IntentBuilder() {
 
     // Actual expiry is 180 seconds, but frontend timer shows 120 seconds
     // This gives 60 seconds buffer after frontend timer expires for user to sign
-    const expiryTime = Math.floor(Date.now() / 1000) + 180;
+    const expiryTime = Math.floor(Date.now() / 1000) + INTENT_EXPIRY_SECS;
 
     // Get chain IDs from config
     const offeredChainId = CHAIN_CONFIGS[offeredToken.chain].chainId;
