@@ -85,47 +85,6 @@ pub async fn monitor_hub_chain(monitor: &EventMonitor) -> Result<()> {
             }
         }
 
-        // Poll connected chains for IntentRequirementsReceived events
-        // This marks intents as ready when requirements are delivered to connected chains
-        if monitor.config.connected_chain_mvm.is_some() {
-            match super::outflow_mvm::poll_mvm_requirements_received(monitor).await {
-                Ok(count) => {
-                    if count > 0 {
-                        info!("Marked {} MVM intent(s) as ready", count);
-                    }
-                }
-                Err(e) => {
-                    error!("Error polling MVM requirements: {}", e);
-                }
-            }
-        }
-
-        if monitor.config.connected_chain_evm.is_some() {
-            match super::outflow_evm::poll_evm_requirements_received(monitor).await {
-                Ok(count) => {
-                    if count > 0 {
-                        info!("Marked {} EVM intent(s) as ready", count);
-                    }
-                }
-                Err(e) => {
-                    error!("Error polling EVM requirements: {}", e);
-                }
-            }
-        }
-
-        if monitor.config.connected_chain_svm.is_some() {
-            match super::outflow_svm::poll_svm_requirements_received(monitor).await {
-                Ok(count) => {
-                    if count > 0 {
-                        info!("Marked {} SVM intent(s) as ready", count);
-                    }
-                }
-                Err(e) => {
-                    error!("Error polling SVM requirements: {}", e);
-                }
-            }
-        }
-
         // Wait before next poll
         tokio::time::sleep(std::time::Duration::from_millis(
             monitor.config.coordinator.polling_interval_ms,

@@ -371,22 +371,14 @@ display_service_logs() {
     local events_response
     events_response=$(curl -s "${coordinator_url}/events" 2>/dev/null)
     if [ $? -eq 0 ]; then
-        local escrow_count fulfillment_count intent_count
-        escrow_count=$(echo "$events_response" | jq -r '.data.escrow_events | length' 2>/dev/null || echo "0")
+        local fulfillment_count intent_count
         fulfillment_count=$(echo "$events_response" | jq -r '.data.fulfillment_events | length' 2>/dev/null || echo "0")
         intent_count=$(echo "$events_response" | jq -r '.data.intent_events | length' 2>/dev/null || echo "0")
 
         log_and_echo ""
         log_and_echo " Coordinator events:"
         log_and_echo "   Intent events: $intent_count"
-        log_and_echo "   Escrow events: $escrow_count"
         log_and_echo "   Fulfillment events: $fulfillment_count"
-
-        if [ "$escrow_count" != "0" ]; then
-            log_and_echo ""
-            log_and_echo "   Escrow details:"
-            echo "$events_response" | jq -r '.data.escrow_events[] | "      \(.intent_id) - amount: \(.offered_amount)"' 2>/dev/null || log_and_echo "      (parse error)"
-        fi
     fi
 
     log_and_echo ""

@@ -13,13 +13,14 @@ import { fetchTokenBalance, type TokenBalance } from '@/lib/balances';
 import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
 import { PublicKey } from '@solana/web3.js';
 import { INTENT_MODULE_ADDR, hexToBytes, padEvmAddressToMove } from '@/lib/move-transactions';
-import { INTENT_ESCROW_ABI, ERC20_ABI, intentIdToEvmBytes32, getEscrowContractAddress, checkHasRequirements, checkIsFulfilled } from '@/lib/escrow';
+import { INTENT_ESCROW_ABI, ERC20_ABI, intentIdToEvmBytes32, getEscrowContractAddress, checkHasRequirements, checkHasRequirementsMvm, checkIsFulfilled } from '@/lib/escrow';
 import {
   buildCreateEscrowInstruction,
   getSvmTokenAccount,
   svmHexToPubkey,
   svmPubkeyToHex,
   readGmpOutboundNonce,
+  checkHasRequirementsSvm,
   checkIsFulfilledSvm,
 } from '@/lib/svm-escrow';
 import { fetchSolverSvmAddress, getSvmConnection, sendSvmTransaction } from '@/lib/svm-transactions';
@@ -383,33 +384,48 @@ export function IntentBuilder() {
     intentStatus,
   });
 
-  // Poll for GMP requirements delivery on EVM connected chain (inflow only).
+  // Poll for GMP requirements delivery on connected chain (inflow only).
   // The escrow contract rejects createEscrow until IntentRequirements arrive via GMP.
   useEffect(() => {
     if (!transactionHash || !savedDraftData || escrowHash) return;
-    // Only for inflow on EVM chains
     const isInflow = !isHubChainId(savedDraftData.offeredChainId);
     const chainKey = Object.entries(CHAIN_CONFIGS).find(
       ([, config]) => String(config.chainId) === savedDraftData.offeredChainId
     )?.[0] || null;
-    if (!isInflow || !chainKey || getChainType(chainKey) !== 'evm') {
-      setRequirementsDelivered(true); // SVM/MVM don't need this gate
+    if (!isInflow || !chainKey) {
+      setRequirementsDelivered(true);
+      return;
+    }
+
+    // Select the chain-specific requirements check function
+    const chainType = getChainType(chainKey);
+    let checkFn: ((ck: string, id: string) => Promise<boolean>) | null = null;
+    if (chainType === 'evm') {
+      checkFn = checkHasRequirements;
+    } else if (chainType === 'svm') {
+      checkFn = checkHasRequirementsSvm;
+    } else if (chainType === 'mvm') {
+      checkFn = checkHasRequirementsMvm;
+    }
+    if (!checkFn) {
+      setRequirementsDelivered(true);
       return;
     }
 
     let cancelled = false;
     setPollingRequirements(true);
     setRequirementsDelivered(false);
+    const checkRequirements = checkFn;
 
     const poll = async () => {
       let attempts = 0;
       const maxAttempts = 60; // 60 * 3s = 3 minutes
       while (!cancelled && attempts < maxAttempts) {
         try {
-          const delivered = await checkHasRequirements(chainKey, savedDraftData.intentId);
+          const delivered = await checkRequirements(chainKey, savedDraftData.intentId);
           if (delivered) {
             if (!cancelled) {
-              console.log('GMP requirements delivered to EVM chain');
+              console.log(`GMP requirements delivered to ${chainType} chain`);
               setRequirementsDelivered(true);
               setPollingRequirements(false);
             }

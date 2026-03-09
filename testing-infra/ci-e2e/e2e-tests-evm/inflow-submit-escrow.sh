@@ -80,7 +80,7 @@ log "   Intent ID (EVM): $INTENT_ID_EVM"
 
 GMP_DELIVERED=0
 for attempt in $(seq 1 30); do
-    HAS_REQ=$(has_requirements_evm "$ESCROW_GMP_ADDR" "$INTENT_ID_EVM" 2>/dev/null || echo "false")
+    HAS_REQ=$(has_requirements "$ESCROW_GMP_ADDR" "$INTENT_ID_EVM" 2>/dev/null || echo "false")
     if [ "$HAS_REQ" = "true" ]; then
         log "   ✅ IntentRequirements delivered via GMP (attempt $attempt)"
         GMP_DELIVERED=1
