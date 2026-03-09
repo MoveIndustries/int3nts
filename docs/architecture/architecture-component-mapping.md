@@ -279,15 +279,13 @@ Two services work together in this domain:
 
 - **`coordinator/src/monitor/`**
   - **`mod.rs`**: Main monitor module with `EventMonitor` struct, shared types, and generic monitoring logic
-  - **`inflow_mvm.rs`**: Move VM-specific escrow event polling (`poll_mvm_escrow_events()`)
-  - **`inflow_evm.rs`**: EVM-specific escrow event polling (`poll_evm_escrow_events()`)
-  - **Purpose**: Monitors blockchain events from hub and connected chains (MVM, EVM, SVM)
-  - **Key Structures**: `RequestIntentEvent`, `EscrowEvent`, `FulfillmentEvent`, `EventMonitor`
-  - **Key Functions**: `poll_hub_events()`, `poll_connected_events()`, `poll_evm_events()`, `monitor_hub_chain()`, `monitor_connected_chain()`, `monitor_evm_chain()`, `get_cached_events()`
+  - **`hub_mvm.rs`**: Move VM-specific hub chain event parsing
+  - **Purpose**: Monitors hub chain events (intent creation, fulfillment)
+  - **Key Structures**: `IntentEvent`, `FulfillmentEvent`, `EventMonitor`
+  - **Key Functions**: `poll_hub_events()`, `monitor_hub_chain()`, `get_cached_events()`, `get_cached_fulfillment_events()`
   - **Responsibilities**:
-    - Event polling from multiple chains
-    - Event caching (MVM, EVM, SVM escrows)
-    - Cross-chain event correlation
+    - Hub chain event polling
+    - Event caching (intents, fulfillments)
 
 #### GMP Message Relay (Integrated GMP)
 
