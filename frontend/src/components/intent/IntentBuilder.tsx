@@ -129,7 +129,7 @@ function useTokenBalances(params: {
         console.log('Offered balance result:', balance);
         setOfferedBalance(balance);
       })
-      .catch(() => setOfferedBalance(null))
+      .catch((err: unknown) => { console.error('Failed to fetch offered balance:', err); setOfferedBalance(null); })
       .finally(() => setLoadingOfferedBalance(false));
   }, [offeredToken, resolveAddress]);
 
@@ -150,7 +150,7 @@ function useTokenBalances(params: {
         console.log('Desired balance result:', balance);
         setDesiredBalance(balance);
       })
-      .catch(() => setDesiredBalance(null))
+      .catch((err: unknown) => { console.error('Failed to fetch desired balance:', err); setDesiredBalance(null); })
       .finally(() => setLoadingDesiredBalance(false));
   }, [desiredToken, resolveAddress]);
 
@@ -164,7 +164,7 @@ function useTokenBalances(params: {
         setLoadingOfferedBalance(true);
         fetchTokenBalance(offeredAddress, offeredToken)
           .then(setOfferedBalance)
-          .catch(() => setOfferedBalance(null))
+          .catch((err: unknown) => { console.error('Failed to fetch offered balance:', err); setOfferedBalance(null); })
           .finally(() => setLoadingOfferedBalance(false));
       }
     }
@@ -174,7 +174,7 @@ function useTokenBalances(params: {
         setLoadingDesiredBalance(true);
         fetchTokenBalance(desiredAddress, desiredToken)
           .then(setDesiredBalance)
-          .catch(() => setDesiredBalance(null))
+          .catch((err: unknown) => { console.error('Failed to fetch desired balance:', err); setDesiredBalance(null); })
           .finally(() => setLoadingDesiredBalance(false));
       }
     }
@@ -787,7 +787,7 @@ export function IntentBuilder() {
         setDesiredAmount(desiredAmountNum.toFixed(desiredToken.decimals));
         setError(null); // Clear any previous errors
       } catch (err) {
-        // Exchange rate not available - show "not available yet" instead of error
+        console.error('Failed to fetch exchange rate:', err);
         setDesiredAmount('not available yet');
         setFeeInfo(null);
         setError(null);
@@ -1330,7 +1330,7 @@ export function IntentBuilder() {
             }
           }
         } catch (waitErr) {
-          console.warn('Could not wait for transaction:', waitErr);
+          console.error('Failed to wait for transaction confirmation:', waitErr);
         }
       } else {
         throw new Error('Transaction submitted but no hash returned');

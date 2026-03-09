@@ -247,7 +247,8 @@ impl SvmClient {
             return Err(anyhow::anyhow!("SVM RPC error: {}", error.message));
         }
 
-        let accounts = response.result.unwrap_or_default();
+        let accounts = response.result
+            .context("No result in getProgramAccounts response")?;
         let mut escrows = Vec::new();
 
         for account in accounts {
@@ -310,7 +311,7 @@ impl SvmClient {
 
         let signatures = response
             .result
-            .unwrap_or_default()
+            .context("No result in getSignaturesForAddress response")?
             .into_iter()
             .map(|sig_info| sig_info.signature)
             .collect();
@@ -347,9 +348,11 @@ impl SvmClient {
             return Err(anyhow::anyhow!("SVM RPC error: {}", error.message));
         }
 
-        let logs = response
+        let transaction = response
             .result
-            .and_then(|r| r.meta)
+            .context("No result in getTransaction response")?;
+        let logs = transaction
+            .meta
             .and_then(|m| m.log_messages)
             .unwrap_or_default();
 

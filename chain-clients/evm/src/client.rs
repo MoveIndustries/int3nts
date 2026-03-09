@@ -161,7 +161,8 @@ impl EvmClient {
             ));
         }
 
-        let logs = response.result.unwrap_or_default();
+        let logs = response.result
+            .context("No result in eth_getLogs response")?;
         let mut events = Vec::new();
 
         for log in logs {
@@ -366,7 +367,8 @@ impl EvmClient {
             );
         }
 
-        let result = response.result.unwrap_or_default();
+        let result = response.result
+            .context("No result in eth_call isReleased response")?;
 
         // ABI bool: 32 bytes, last byte is 0x01 (true) or 0x00 (false)
         let clean = result.strip_prefix("0x").unwrap_or(&result);
