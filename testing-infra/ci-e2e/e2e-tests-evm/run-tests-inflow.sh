@@ -148,16 +148,16 @@ log_and_echo ""
 log_and_echo ""
 log_and_echo " Final Balance Validation"
 log_and_echo "=========================================="
-# Inflow: Solver transfers to hub requester (0 on hub, 2000000 on EVM from escrow)
-#         Requester receives on hub (2000000 on hub, 0 on EVM locked in escrow)
-./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 1000000 3000000 3000000 1000000
+# Inflow: Solver sends 985,000 (desired) to requester on hub, receives 1,000,000 (offered) from escrow
+#         Fee = 15,000 embedded in exchange rate (solver keeps the spread)
+./testing-infra/ci-e2e/e2e-tests-evm/balance-check.sh 1015000 2985000 3000000 1000000
 
 log_and_echo ""
 log_and_echo " Step 6: Verify solver rejects intent when liquidity is insufficient..."
 log_and_echo "=========================================================================="
-log_and_echo "   Solver started with 2,000,000 USDhub on hub, spent 1,000,000 fulfilling intent 1."
-log_and_echo "   Remaining: 1,000,000. Second intent requests 1,000,000."
-log_and_echo "   Liquidity check: available >= requested + min_balance => 1,000,000 >= 1,000,000 + 1 => false."
+log_and_echo "   Solver started with 2,000,000 USDhub on hub, spent 985,000 fulfilling intent 1."
+log_and_echo "   Remaining: 1,015,000. Second intent requests 1,015,000 desired."
+log_and_echo "   Liquidity check: available >= requested + min_balance => 1,015,000 >= 1,015,000 + 1 => false."
 log_and_echo "   Solver must reject: not enough to cover the request AND retain the min_balance threshold."
 
 CONNECTED_CHAIN_ID=31337
@@ -176,15 +176,15 @@ EXPIRY_TIME=$(date -d "+1 hour" +%s)
 SECOND_INTENT_ID="0x$(openssl rand -hex 32)"
 DRAFT_DATA=$(build_draft_data \
     "$OFFERED_METADATA_EVM" \
-    "1000000" \
+    "1030000" \
     "$CONNECTED_CHAIN_ID" \
     "$USDHUB_METADATA_HUB" \
-    "1000000" \
+    "1015000" \
     "$HUB_CHAIN_ID" \
     "$EXPIRY_TIME" \
     "$SECOND_INTENT_ID" \
     "$REQUESTER_HUB_ADDR" \
-    "15000" \
+    "15150" \
     "{\"chain_addr\": \"$HUB_MODULE_ADDR\", \"flow_type\": \"inflow\", \"connected_chain_type\": \"evm\"}")
 
 assert_solver_rejects_draft "$REQUESTER_HUB_ADDR" "$DRAFT_DATA" "$EXPIRY_TIME"

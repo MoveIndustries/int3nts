@@ -148,14 +148,14 @@ log_and_echo ""
 
 log_and_echo " Final Balance Validation"
 log_and_echo "=========================================="
-./testing-infra/ci-e2e/e2e-tests-svm/balance-check.sh 3000000 1000000 1000000 3000000
+./testing-infra/ci-e2e/e2e-tests-svm/balance-check.sh 3000000 1000000 1015000 2985000
 
 log_and_echo ""
 log_and_echo " Step 6: Verify solver rejects intent when liquidity is insufficient..."
 log_and_echo "=========================================================================="
-log_and_echo "   Solver started with 2,000,000 USDcon on connected SVM, spent 1,000,000 fulfilling intent 1."
-log_and_echo "   Remaining: 1,000,000. Second intent requests 1,000,000."
-log_and_echo "   Liquidity check: available >= requested + min_balance => 1,000,000 >= 1,000,000 + 1 => false."
+log_and_echo "   Solver started with 2,000,000 USDcon on connected SVM, spent 985,000 fulfilling intent 1."
+log_and_echo "   Remaining: 1,015,000. Second intent requests 1,015,000 desired."
+log_and_echo "   Liquidity check: available >= requested + min_balance => 1,015,000 >= 1,015,000 + 1 => false."
 log_and_echo "   Solver must reject: not enough to cover the request AND retain the min_balance threshold."
 
 HUB_CHAIN_ID=1
@@ -173,15 +173,15 @@ EXPIRY_TIME=$(date -d "+1 hour" +%s)
 SECOND_INTENT_ID="0x$(openssl rand -hex 32)"
 DRAFT_DATA=$(build_draft_data \
     "$USDHUB_METADATA_HUB" \
-    "1000000" \
+    "1030000" \
     "$HUB_CHAIN_ID" \
     "$SVM_TOKEN_HEX" \
-    "1000000" \
+    "1015000" \
     "$CONNECTED_CHAIN_ID" \
     "$EXPIRY_TIME" \
     "$SECOND_INTENT_ID" \
     "$REQUESTER_HUB_ADDR" \
-    "15000" \
+    "15150" \
     "{\"chain_addr\": \"$HUB_MODULE_ADDR\", \"flow_type\": \"outflow\", \"connected_chain_type\": \"svm\", \"requester_addr_connected_chain\": \"$REQUESTER_SVM_ADDR\"}")
 
 assert_solver_rejects_draft "$REQUESTER_HUB_ADDR" "$DRAFT_DATA" "$EXPIRY_TIME"

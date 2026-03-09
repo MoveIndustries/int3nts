@@ -144,16 +144,16 @@ echo ""
 echo ""
 echo " Final Balance Validation"
 echo "=========================================="
-# Inflow: Solver transfers to hub requester (0 on hub, 2000000 on MVM from escrow)
-#         Requester receives on hub (2000000 on hub, 0 on MVM locked in escrow)
-./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 1000000 3000000 3000000 1000000
+# Inflow: Solver sends 985,000 (desired) to requester on hub, receives 1,000,000 (offered) from escrow
+#         Fee = 15,000 embedded in exchange rate (solver keeps the spread)
+./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 1015000 2985000 3000000 1000000
 
 echo ""
 echo " Step 7: Verify solver rejects intent when liquidity is insufficient..."
 echo "=========================================================================="
-echo "   Solver started with 2,000,000 USDhub on hub, spent 1,000,000 fulfilling intent 1."
-echo "   Remaining: 1,000,000. Second intent requests 1,000,000."
-echo "   Liquidity check: available >= requested + min_balance => 1,000,000 >= 1,000,000 + 1 => false."
+echo "   Solver started with 2,000,000 USDhub on hub, spent 985,000 fulfilling intent 1."
+echo "   Remaining: 1,015,000. Second intent requests 1,015,000 desired."
+echo "   Liquidity check: available >= requested + min_balance => 1,015,000 >= 1,015,000 + 1 => false."
 echo "   Solver must reject: not enough to cover the request AND retain the min_balance threshold."
 
 # Resolve chain addresses for the second draft
@@ -170,15 +170,15 @@ EXPIRY_TIME=$(date -d "+1 hour" +%s)
 SECOND_INTENT_ID="0x$(openssl rand -hex 32)"
 DRAFT_DATA=$(build_draft_data \
     "$USD_MVMCON_ADDR" \
-    "1000000" \
+    "1030000" \
     "$CONNECTED_CHAIN_ID" \
     "$USDHUB_METADATA_HUB" \
-    "1000000" \
+    "1015000" \
     "$HUB_CHAIN_ID" \
     "$EXPIRY_TIME" \
     "$SECOND_INTENT_ID" \
     "$REQUESTER_HUB_ADDR" \
-    "15000" \
+    "15150" \
     "{\"chain_addr\": \"$HUB_MODULE_ADDR\", \"flow_type\": \"inflow\"}")
 
 assert_solver_rejects_draft "$REQUESTER_HUB_ADDR" "$DRAFT_DATA" "$EXPIRY_TIME"
