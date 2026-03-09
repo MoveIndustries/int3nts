@@ -254,9 +254,12 @@ impl SvmClient {
         for account in accounts {
             let pubkey = Pubkey::from_str(&account.pubkey)
                 .context("Invalid pubkey in getProgramAccounts response")?;
-            let escrow = parse_escrow_data(&account.account.data.0)
-                .with_context(|| format!("Failed to parse escrow account {}", account.pubkey))?;
-            escrows.push(EscrowWithPubkey { pubkey, escrow });
+            // getProgramAccounts returns all accounts owned by the program,
+            // including non-escrow accounts (metadata PDAs, etc.). Skip accounts
+            // that don't deserialize as escrows.
+            if let Ok(escrow) = parse_escrow_data(&account.account.data.0) {
+                escrows.push(EscrowWithPubkey { pubkey, escrow });
+            }
         }
 
         Ok(escrows)
