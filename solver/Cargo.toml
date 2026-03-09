@@ -18,6 +18,7 @@ ethereum-types = "0.14"
 
 # Shared chain client libraries
 chain-clients-common = { path = "../chain-clients/common" }
+chain-clients-mvm = { path = "../chain-clients/mvm" }
 
 # HTTP client
 reqwest = { version = "0.11", features = ["json", "blocking"] }

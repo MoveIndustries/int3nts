@@ -1,6 +1,6 @@
 # Solver Test Completeness
 
-> **⚠️ IMPORTANT: When adding a new framework, ensure maximal completeness by implementing all tests listed below.**
+> **IMPORTANT: When adding a new framework, ensure maximal completeness by implementing all tests listed below.**
 
 This document tracks test alignment status for the solver connected chain clients. For the complete overview and other frameworks, see the [Framework Extension Guide](../../docs/intent-frameworks/framework-extension-guide.md#test-alignment-reference).
 
@@ -20,7 +20,9 @@ SVM: `solver/tests/svm_tests.rs`
 | --- | ------ | ----- | ----- | ----- |
 | 1 | Module entrypoints only (no direct tests) | ✅ | ✅ | ✅ |
 
-## chain-client
+## chain-client (solver-specific)
+
+These tests cover solver-specific functionality: CLI fulfillment operations, command building, and Hardhat script mechanics. Query tests (balance, escrow state, address normalization) moved to [chain-clients](../../chain-clients/extension-checklist.md).
 
 MVM: `solver/tests/mvm/chain_client_tests.rs`
 EVM: `solver/tests/evm/chain_client_tests.rs`
@@ -65,3 +67,20 @@ SVM: `solver/tests/svm/chain_client_tests.rs`
 | 35 | normalize_evm_address_padded | N/A | ✅ | N/A |
 | 36 | normalize_evm_address_passthrough | N/A | ✅ | N/A |
 | 37 | normalize_evm_address_rejects_non_zero_high_bytes | N/A | ✅ | N/A |
+
+## hub-client (MVM-only, not tracked for VM symmetry)
+
+MVM: `solver/tests/mvm/hub_client_tests.rs`
+
+| # | Test |
+| --- | ------ |
+| 1 | hub_client_new |
+| 2 | intent_created_event_deserialization |
+| 3 | get_intent_events_success |
+| 4 | get_intent_events_empty |
+| 5 | is_solver_registered_true |
+| 6 | is_solver_registered_false |
+| 7 | is_solver_registered_address_normalization |
+| 8 | is_solver_registered_http_error |
+| 9 | is_solver_registered_invalid_json |
+| 10 | is_solver_registered_unexpected_format |

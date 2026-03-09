@@ -30,7 +30,7 @@ These tests are chain-agnostic (no MVM/EVM/SVM columns). They apply universally.
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 1 | client_new | ⚠️ | ⚠️ | ⚠️ |
+| 1 | client_new | ✅ | ⚠️ | ⚠️ |
 | 2 | client_new_rejects_invalid | N/A | N/A | ⚠️ |
 
 - MVM N/A #2: MvmClient accepts any URL string, validation happens at request time
@@ -40,17 +40,17 @@ These tests are chain-agnostic (no MVM/EVM/SVM columns). They apply universally.
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 3 | is_escrow_released_success | ⚠️ | ⚠️ | ⚠️ |
-| 4 | is_escrow_released_false | ⚠️ | ⚠️ | ⚠️ |
-| 5 | is_escrow_released_error | ⚠️ | ⚠️ | ⚠️ |
+| 3 | is_escrow_released_success | ✅ | ⚠️ | ⚠️ |
+| 4 | is_escrow_released_false | ✅ | ⚠️ | ⚠️ |
+| 5 | is_escrow_released_error | ✅ | ⚠️ | ⚠️ |
 
 ### balance-queries
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 6 | get_token_balance_success | ⚠️ | ⚠️ | ⚠️ |
-| 7 | get_token_balance_error | ⚠️ | ⚠️ | ⚠️ |
-| 8 | get_token_balance_zero | ⚠️ | ⚠️ | N/A |
+| 6 | get_token_balance_success | ✅ | ⚠️ | ⚠️ |
+| 7 | get_token_balance_error | ✅ | ⚠️ | ⚠️ |
+| 8 | get_token_balance_zero | ✅ | ⚠️ | N/A |
 | 9 | get_native_balance_success | N/A | ⚠️ | ⚠️ |
 | 10 | get_native_balance_error | N/A | ⚠️ | ⚠️ |
 | 11 | get_native_balance_exceeds_u64 | N/A | ⚠️ | N/A |
@@ -78,10 +78,10 @@ These tests are chain-agnostic (no MVM/EVM/SVM columns). They apply universally.
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| 18 | normalize_hex_to_address_full_length | ⚠️ | N/A | N/A |
-| 19 | normalize_hex_to_address_short_address | ⚠️ | N/A | N/A |
-| 20 | normalize_hex_to_address_odd_length | ⚠️ | N/A | N/A |
-| 21 | normalize_hex_to_address_no_prefix | ⚠️ | N/A | N/A |
+| 18 | normalize_hex_to_address_full_length | ✅ | N/A | N/A |
+| 19 | normalize_hex_to_address_short_address | ✅ | N/A | N/A |
+| 20 | normalize_hex_to_address_odd_length | ✅ | N/A | N/A |
+| 21 | normalize_hex_to_address_no_prefix | ✅ | N/A | N/A |
 | 22 | normalize_evm_address_padded | N/A | ⚠️ | N/A |
 | 23 | normalize_evm_address_passthrough | N/A | ⚠️ | N/A |
 | 24 | normalize_evm_address_rejects_non_zero_high_bytes | N/A | ⚠️ | N/A |

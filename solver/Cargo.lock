@@ -670,6 +670,17 @@ name = "chain-clients-common"
 version = "0.1.0"
 
 [[package]]
+name = "chain-clients-mvm"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5786,6 +5797,7 @@ dependencies = [
  "borsh 0.10.4",
  "bs58",
  "chain-clients-common",
+ "chain-clients-mvm",
  "clap",
  "ed25519-dalek 2.2.0",
  "ethereum-types",

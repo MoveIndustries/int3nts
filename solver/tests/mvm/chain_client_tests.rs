@@ -5,6 +5,7 @@
 //!
 //! Hub-specific tests are in hub_client_tests.rs (hub is always MVM).
 
+use chain_clients_mvm::normalize_hex_to_address;
 use serde_json::json;
 use solver::chains::ConnectedMvmClient;
 use wiremock::matchers::{body_partial_json, method, path};
@@ -273,7 +274,7 @@ async fn test_get_token_balance_zero() {
 /// Why: Normalization must be a no-op for well-formed addresses to avoid corruption.
 #[test]
 fn test_normalize_hex_to_address_full_length() {
-    let result = ConnectedMvmClient::normalize_hex_to_address(DUMMY_INTENT_ID);
+    let result = normalize_hex_to_address(DUMMY_INTENT_ID);
     assert_eq!(result, DUMMY_INTENT_ID);
 }
 
@@ -283,7 +284,7 @@ fn test_normalize_hex_to_address_full_length() {
 /// addresses and must be padded for the Aptos REST API.
 #[test]
 fn test_normalize_hex_to_address_short_address() {
-    let result = ConnectedMvmClient::normalize_hex_to_address("0x1");
+    let result = normalize_hex_to_address("0x1");
     assert_eq!(
         result,
         "0x0000000000000000000000000000000000000000000000000000000000000001"
@@ -299,7 +300,7 @@ fn test_normalize_hex_to_address_odd_length() {
     // Simulate Move stripping the leading zero from DUMMY_INTENT_ADDR_HUB ("0x00...0f")
     // "0x0f" → "0xf" (odd length, 1 hex char instead of 2)
     let stripped = "0xf";
-    let result = ConnectedMvmClient::normalize_hex_to_address(stripped);
+    let result = normalize_hex_to_address(stripped);
     assert_eq!(
         result,
         "0x000000000000000000000000000000000000000000000000000000000000000f"
@@ -312,7 +313,7 @@ fn test_normalize_hex_to_address_odd_length() {
 #[test]
 fn test_normalize_hex_to_address_no_prefix() {
     let bare_hex = "1";
-    let result = ConnectedMvmClient::normalize_hex_to_address(bare_hex);
+    let result = normalize_hex_to_address(bare_hex);
     assert_eq!(
         result,
         "0x0000000000000000000000000000000000000000000000000000000000000001"

@@ -11,6 +11,19 @@ use std::time::Duration;
 use crate::types::*;
 
 // ============================================================================
+// ADDRESS NORMALIZATION
+// ============================================================================
+
+/// Normalizes a hex string to a 64-character (32-byte) 0x-prefixed address.
+///
+/// Move addresses are 32 bytes but leading zeros may be stripped in event data,
+/// producing odd-length hex strings that the Aptos REST API rejects.
+pub fn normalize_hex_to_address(hex: &str) -> String {
+    let without_prefix = hex.strip_prefix("0x").unwrap_or(hex);
+    format!("0x{:0>64}", without_prefix)
+}
+
+// ============================================================================
 // MOVE VM CLIENT IMPLEMENTATION
 // ============================================================================
 
@@ -1053,5 +1066,134 @@ impl MvmClient {
             .unwrap_or_default();
 
         Ok(addresses)
+    }
+
+    // ========================================================================
+    // CONNECTED-CHAIN QUERY METHODS
+    // ========================================================================
+
+    /// Queries the fungible asset balance for an account.
+    ///
+    /// Calls `0x1::primary_fungible_store::balance` view function.
+    pub async fn get_token_balance(
+        &self,
+        account_addr: &str,
+        token_metadata: &str,
+    ) -> Result<u128> {
+        let account_normalized = normalize_hex_to_address(account_addr);
+        let metadata_normalized = normalize_hex_to_address(token_metadata);
+
+        let result = self
+            .call_view_function(
+                "0x1",
+                "primary_fungible_store",
+                "balance",
+                vec!["0x1::fungible_asset::Metadata".to_string()],
+                vec![
+                    serde_json::json!(account_normalized),
+                    serde_json::json!(metadata_normalized),
+                ],
+            )
+            .await
+            .context("Failed to query token balance")?;
+
+        let balance_str = result
+            .as_array()
+            .and_then(|a| a.first())
+            .and_then(|v| v.as_str())
+            .context("Unexpected response format from balance view function")?;
+
+        balance_str
+            .parse::<u128>()
+            .context("Failed to parse balance as u128")
+    }
+
+    /// Checks if an inflow escrow has been released (auto-released when FulfillmentProof received).
+    ///
+    /// Calls `{module_addr}::intent_inflow_escrow::is_released` view function.
+    pub async fn is_escrow_released(
+        &self,
+        intent_id: &str,
+        module_addr: &str,
+    ) -> Result<bool> {
+        let intent_id_hex = normalize_hex_to_address(intent_id);
+
+        let result = self
+            .call_view_function(
+                module_addr,
+                "intent_inflow_escrow",
+                "is_released",
+                vec![],
+                vec![serde_json::json!(intent_id_hex)],
+            )
+            .await
+            .context("Failed to query escrow release status")?;
+
+        result
+            .as_array()
+            .and_then(|a| a.first())
+            .and_then(|v| v.as_bool())
+            .context("Unexpected response format from is_released view function")
+    }
+
+    /// Checks if a solver is registered in the solver registry.
+    ///
+    /// Calls `{solver_registry_addr}::solver_registry::is_registered` view function.
+    pub async fn is_solver_registered(
+        &self,
+        solver_addr: &str,
+        solver_registry_addr: &str,
+    ) -> Result<bool> {
+        // Normalize address (ensure 0x prefix)
+        let solver_addr_normalized = if solver_addr.starts_with("0x") {
+            solver_addr.to_string()
+        } else {
+            format!("0x{}", solver_addr)
+        };
+
+        let result = self
+            .call_view_function(
+                solver_registry_addr,
+                "solver_registry",
+                "is_registered",
+                vec![],
+                vec![serde_json::json!(solver_addr_normalized)],
+            )
+            .await
+            .context("Failed to query solver registration")?;
+
+        result
+            .as_array()
+            .and_then(|a| a.first())
+            .and_then(|v| v.as_bool())
+            .context("Unexpected response format from is_registered view function")
+    }
+
+    /// Checks if outflow requirements have been delivered via GMP.
+    ///
+    /// Calls `{module_addr}::intent_outflow_validator_impl::has_requirements` view function.
+    pub async fn has_outflow_requirements(
+        &self,
+        intent_id: &str,
+        module_addr: &str,
+    ) -> Result<bool> {
+        let intent_id_hex = normalize_hex_to_address(intent_id);
+
+        let result = self
+            .call_view_function(
+                module_addr,
+                "intent_outflow_validator_impl",
+                "has_requirements",
+                vec![],
+                vec![serde_json::json!(intent_id_hex)],
+            )
+            .await
+            .context("Failed to query outflow requirements")?;
+
+        result
+            .as_array()
+            .and_then(|a| a.first())
+            .and_then(|v| v.as_bool())
+            .context("Unexpected response format from has_requirements view function")
     }
 }
