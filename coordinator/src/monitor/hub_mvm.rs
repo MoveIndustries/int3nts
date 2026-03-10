@@ -232,7 +232,10 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                 let connected_chain_id = if offered_chain_id != desired_chain_id {
                     Some(desired_chain_id) // For outflow, desired_chain_id is the connected chain
                 } else {
-                    None // Regular single-chain intent (shouldn't happen for outflow, but handle gracefully)
+                    anyhow::bail!(
+                        "Outflow intent {} has same offered_chain_id and desired_chain_id ({}). Outflow intents must be cross-chain.",
+                        data.intent_id, offered_chain_id
+                    );
                 };
 
                 // Convert Move event (OracleLimitOrderEvent) to coordinator's internal IntentEvent structure
@@ -365,7 +368,10 @@ pub async fn poll_hub_events(monitor: &EventMonitor) -> Result<Vec<IntentEvent>>
                 let connected_chain_id = if offered_chain_id != desired_chain_id {
                     Some(desired_chain_id) // For outflow, desired_chain_id is the connected chain
                 } else {
-                    None // Regular single-chain intent (shouldn't happen for outflow, but handle gracefully)
+                    anyhow::bail!(
+                        "Outflow intent {} has same offered_chain_id and desired_chain_id ({}). Outflow intents must be cross-chain.",
+                        data.intent_id, offered_chain_id
+                    );
                 };
 
                 // Convert Move event (OracleLimitOrderEvent) to coordinator's internal IntentEvent structure

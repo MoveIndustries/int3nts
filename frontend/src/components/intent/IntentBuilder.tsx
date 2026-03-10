@@ -788,9 +788,9 @@ export function IntentBuilder() {
         setError(null); // Clear any previous errors
       } catch (err) {
         console.error('Failed to fetch exchange rate:', err);
-        setDesiredAmount('not available yet');
+        setDesiredAmount('');
         setFeeInfo(null);
-        setError(null);
+        setError('Failed to fetch exchange rate. Please try again.');
       }
     };
 

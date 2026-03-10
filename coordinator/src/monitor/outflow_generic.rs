@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tracing::{error, info};
+use tracing::{error, info, trace};
 
 use super::generic::{EventMonitor, FulfillmentEvent, IntentEvent};
 use super::hub_mvm;
@@ -47,7 +47,7 @@ pub async fn monitor_hub_chain(monitor: &EventMonitor) -> Result<()> {
                         .unwrap()
                         .as_secs();
                     if event.expiry_time < current_time {
-                        // Don't log every expired intent on every poll - just skip silently
+                        trace!("Skipping expired intent {} (expired at {}, current {})", event.intent_id, event.expiry_time, current_time);
                         continue;
                     }
 
