@@ -836,8 +836,9 @@ impl HubChainClient {
         // Convert public key to hex
         let public_key_hex = hex::encode(public_key_bytes);
         
-        // Prepare MVM address (use 0x0 if None)
-        let mvm_addr_normalized = mvm_addr.unwrap_or("0x0");
+        // MVM address is required for solver registration
+        let mvm_addr_normalized = mvm_addr
+            .context("MVM address is required for solver registration")?;
 
         // Convert EVM address to hex (pad to 20 bytes if needed)
         let evm_addr_hex = if evm_addr.is_empty() {
@@ -845,7 +846,7 @@ impl HubChainClient {
         } else {
             hex::encode(evm_addr)
         };
-        
+
         // Build command arguments - store formatted strings to avoid temporary value issues
         // Movement CLI expects 'hex:' for vector<u8> types, not 'vector<u8>:'
         let function_id = format!("{}::solver_registry::register_solver", self.module_addr);
@@ -997,7 +998,8 @@ impl HubChainClient {
         tracing::debug!("get_solver_info response: {} elements", result.len());
         
         if result.len() >= 5 {
-            let is_registered = result[0].as_bool().unwrap_or(false);
+            let is_registered = result[0].as_bool()
+                .context("Failed to parse 'is_registered' field as boolean from solver info response")?;
             if !is_registered {
                 anyhow::bail!("Solver is not registered");
             }
@@ -1070,8 +1072,9 @@ impl HubChainClient {
         // Convert public key to hex
         let public_key_hex = hex::encode(public_key_bytes);
         
-        // Prepare MVM address (use 0x0 if None)
-        let mvm_addr_normalized = mvm_addr.unwrap_or("0x0");
+        // MVM address is required for solver update
+        let mvm_addr_normalized = mvm_addr
+            .context("MVM address is required for solver update")?;
 
         // Convert EVM address to hex
         let evm_addr_hex = if evm_addr.is_empty() {

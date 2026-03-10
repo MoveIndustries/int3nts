@@ -24,29 +24,31 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
 source "$SCRIPT_DIR/../util_mvm.sh"
 
-# Setup project root
+# Setup project root and logging
 setup_project_root
+setup_logging "run-tests-mvm-outflow"
 cd "$PROJECT_ROOT"
 
-echo " E2E Test with Connected Move VM Chain - OUTFLOW"
-echo "=================================================="
-echo ""
+log_and_echo " E2E Test with Connected Move VM Chain - OUTFLOW"
+log_and_echo "=================================================="
+log_and_echo " All output logged to: $LOG_FILE"
+log_and_echo ""
 
-echo " Step 0: Cleaning up any existing chains, accounts and processes..."
-echo "================================================================"
+log_and_echo " Step 0: Cleaning up any existing chains, accounts and processes..."
+log_and_echo "================================================================"
 ./testing-infra/ci-e2e/chain-connected-mvm/cleanup.sh
 
-echo ""
+log_and_echo ""
 if [ "$SKIP_BUILD" = "true" ]; then
-    echo " Step 1: Build if missing (--no-build)"
-    echo "========================================"
+    log_and_echo " Step 1: Build if missing (--no-build)"
+    log_and_echo "========================================"
     build_common_bins_if_missing
     build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin sign_intent" \
         "Solver: sign_intent" \
         "$PROJECT_ROOT/solver/target/debug/sign_intent"
 else
-    echo " Step 1: Build bins and pre-pull docker images"
-    echo "========================================"
+    log_and_echo " Step 1: Build bins and pre-pull docker images"
+    log_and_echo "========================================"
     # Delete existing binaries to ensure fresh build
     rm -f "$PROJECT_ROOT/target/debug/integrated-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
     rm -f "$PROJECT_ROOT/target/release/integrated-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
@@ -54,29 +56,29 @@ else
     pushd "$PROJECT_ROOT/coordinator" > /dev/null
     cargo build --bin coordinator 2>&1 | tail -5
     popd > /dev/null
-    echo "   ✅ Coordinator: coordinator"
+    log_and_echo "   ✅ Coordinator: coordinator"
 
     pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
     cargo build --bin integrated-gmp --bin generate_keys 2>&1 | tail -5
     popd > /dev/null
-    echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys"
+    log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys"
 
     pushd "$PROJECT_ROOT/solver" > /dev/null
     cargo build --bin solver --bin sign_intent 2>&1 | tail -5
     popd > /dev/null
-    echo "   ✅ Solver: solver, sign_intent"
+    log_and_echo "   ✅ Solver: solver, sign_intent"
 fi
 
-echo ""
+log_and_echo ""
 docker pull "$APTOS_DOCKER_IMAGE"
 
-echo " Step 2: Generating integrated-gmp keys..."
-echo "======================================="
+log_and_echo " Step 2: Generating integrated-gmp keys..."
+log_and_echo "======================================="
 generate_integrated_gmp_keys
-echo ""
+log_and_echo ""
 
-echo " Step 3: Setting up chains, deploying contracts, funding accounts"
-echo "===================================================================="
+log_and_echo " Step 3: Setting up chains, deploying contracts, funding accounts"
+log_and_echo "===================================================================="
 ./testing-infra/ci-e2e/chain-hub/setup-chain.sh
 ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
 ./testing-infra/ci-e2e/chain-connected-mvm/setup-chain.sh
@@ -87,33 +89,33 @@ echo "===================================================================="
 # Load chain info for balance assertions
 source "$PROJECT_ROOT/.tmp/chain-info.env"
 
-echo ""
-echo " Step 4: Configuring and starting coordinator and integrated-gmp (for negotiation routing)..."
-echo "=========================================================================="
+log_and_echo ""
+log_and_echo " Step 4: Configuring and starting coordinator and integrated-gmp (for negotiation routing)..."
+log_and_echo "=========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-coordinator.sh
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-integrated-gmp.sh
 
 # Assert solver has USDcon before starting (should have 1 USDcon from deploy)
 assert_usdxyz_balance "solver-chain2" "2" "$USD_MVMCON_MODULE_ADDR" "2000000" "pre-solver-start"
-echo "   [DEBUG] Balance assertion completed, continuing..."
+log_and_echo "   [DEBUG] Balance assertion completed, continuing..."
 
 # Start solver service for automatic signing and fulfillment
-echo ""
-echo " Step 4b: Starting solver service..."
-echo "======================================="
+log_and_echo ""
+log_and_echo " Step 4b: Starting solver service..."
+log_and_echo "======================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/start-solver.sh
 
 # Verify solver and integrated-gmp started successfully
 ./testing-infra/ci-e2e/verify-solver-running.sh
 ./testing-infra/ci-e2e/verify-integrated-gmp-running.sh
 
-echo ""
-echo " Step 5: Testing OUTFLOW intents (hub chain → connected chain)..."
-echo "===================================================================="
-echo "   Submitting outflow cross-chain intents via coordinator negotiation routing..."
-echo ""
-echo " Pre-Intent Balance Validation"
-echo "=========================================="
+log_and_echo ""
+log_and_echo " Step 5: Testing OUTFLOW intents (hub chain → connected chain)..."
+log_and_echo "===================================================================="
+log_and_echo "   Submitting outflow cross-chain intents via coordinator negotiation routing..."
+log_and_echo ""
+log_and_echo " Pre-Intent Balance Validation"
+log_and_echo "=========================================="
 # Everybody starts with 2 USDhub/USDcon on each chain
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 2000000 2000000 2000000 2000000
 
@@ -121,42 +123,42 @@ echo "=========================================="
 
 # Load intent ID for solver fulfillment wait
 if ! load_intent_info "INTENT_ID"; then
-    echo "❌ ERROR: Failed to load intent info"
+    log_and_echo "❌ ERROR: Failed to load intent info"
     exit 1
 fi
 
-echo ""
-echo " Step 5b: Waiting for solver to automatically fulfill..."
-echo "==========================================================="
-echo "   The solver service is running and will:"
-echo "   1. Detect the intent on hub chain"
-echo "   2. Transfer tokens to requester on connected MVM chain"
-echo "   3. Call integrated-gmp to validate and get approval signature"
-echo "   4. Fulfill the hub intent with approval"
-echo ""
+log_and_echo ""
+log_and_echo " Step 5b: Waiting for solver to automatically fulfill..."
+log_and_echo "==========================================================="
+log_and_echo "   The solver service is running and will:"
+log_and_echo "   1. Detect the intent on hub chain"
+log_and_echo "   2. Transfer tokens to requester on connected MVM chain"
+log_and_echo "   3. Call integrated-gmp to validate and get approval signature"
+log_and_echo "   4. Fulfill the hub intent with approval"
+log_and_echo ""
 
 if ! wait_for_solver_fulfillment "$INTENT_ID" "outflow" 40; then
-    echo "❌ ERROR: Solver did not fulfill the intent automatically"
+    log_and_echo "❌ ERROR: Solver did not fulfill the intent automatically"
     display_service_logs "Solver fulfillment timeout"
     exit 1
 fi
 
-echo "✅ Solver fulfilled the intent automatically!"
+log_and_echo "✅ Solver fulfilled the intent automatically!"
 
-echo ""
-echo " Final Balance View"
-echo "=========================================="
+log_and_echo ""
+log_and_echo " Final Balance View"
+log_and_echo "=========================================="
 # Outflow: Solver sends 985,000 (desired) to requester on MVM, receives 1,000,000 (offered) from hub
 #          Fee = 15,000 embedded in exchange rate (solver keeps the spread)
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 3000000 1000000 1015000 2985000
 
-echo ""
-echo " Step 6: Verify solver rejects intent when liquidity is insufficient..."
-echo "=========================================================================="
-echo "   Solver started with 2,000,000 USDcon on connected MVM, spent 985,000 fulfilling intent 1."
-echo "   Remaining: 1,015,000. Second intent requests 1,015,000 desired."
-echo "   Liquidity check: available >= requested + min_balance => 1,015,000 >= 1,015,000 + 1 => false."
-echo "   Solver must reject: not enough to cover the request AND retain the min_balance threshold."
+log_and_echo ""
+log_and_echo " Step 6: Verify solver rejects intent when liquidity is insufficient..."
+log_and_echo "=========================================================================="
+log_and_echo "   Solver started with 2,000,000 USDcon on connected MVM, spent 985,000 fulfilling intent 1."
+log_and_echo "   Remaining: 1,015,000. Second intent requests 1,015,000 desired."
+log_and_echo "   Liquidity check: available >= requested + min_balance => 1,015,000 >= 1,015,000 + 1 => false."
+log_and_echo "   Solver must reject: not enough to cover the request AND retain the min_balance threshold."
 
 # Resolve chain addresses for the second draft
 CONNECTED_CHAIN_ID=2
@@ -185,13 +187,13 @@ DRAFT_DATA=$(build_draft_data \
     "{\"chain_addr\": \"$HUB_MODULE_ADDR\", \"flow_type\": \"outflow\", \"requester_addr_connected_chain\": \"$REQUESTER_MVMCON_ADDR\"}")
 
 assert_solver_rejects_draft "$REQUESTER_HUB_ADDR" "$DRAFT_DATA" "$EXPIRY_TIME"
-echo "✅ Solver correctly rejected second intent due to insufficient liquidity!"
+log_and_echo "✅ Solver correctly rejected second intent due to insufficient liquidity!"
 
-echo ""
-echo "✅ E2E outflow test completed!"
-echo ""
+log_and_echo ""
+log_and_echo "✅ E2E outflow test completed!"
+log_and_echo ""
 
-echo " Step 7: Cleaning up chains, accounts and processes..."
-echo "========================================================"
+log_and_echo " Step 7: Cleaning up chains, accounts and processes..."
+log_and_echo "========================================================"
 ./testing-infra/ci-e2e/chain-connected-mvm/cleanup.sh
 

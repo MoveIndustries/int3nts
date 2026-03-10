@@ -76,8 +76,12 @@ export async function fetchMovementBalance(
       const faResult = await faResponse.json();
       console.log('Movement FA balance result:', faResult);
       raw = faResult[0] || '0';
+    } else if (faResponse.status >= 500) {
+      // 5xx = server error, propagate as failure
+      throw new Error(`Movement FA balance API error (${faResponse.status}) for ${token.symbol} at ${address}`);
     }
-    
+    // 4xx = resource not found (no FA store), raw stays '0'
+
     // If FA balance is 0 and token has a coinType, check CoinStore balance
     if (raw === '0' && token.coinType) {
       console.log('FA balance is 0, checking CoinStore:', token.coinType);
@@ -90,7 +94,7 @@ export async function fetchMovementBalance(
           arguments: [address],
         }),
       });
-      
+
       if (coinResponse.ok) {
         const coinResult = await coinResponse.json();
         console.log('Movement CoinStore balance result:', coinResult);
@@ -98,7 +102,11 @@ export async function fetchMovementBalance(
         if (parseInt(coinBalance) > parseInt(raw)) {
           raw = coinBalance;
         }
+      } else if (coinResponse.status >= 500) {
+        // 5xx = server error, propagate as failure
+        throw new Error(`Movement CoinStore balance API error (${coinResponse.status}) for ${token.symbol} at ${address}`);
       }
+      // 4xx = resource not found (no CoinStore), raw stays '0'
     }
     
     const formatted = fromSmallestUnits(parseInt(raw), token.decimals).toFixed(token.decimals);
