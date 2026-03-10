@@ -13,7 +13,9 @@
 
 ## Approach
 
-Incremental swapout: replace one step at a time across all 6 scripts, commit after each. `e2e-common.sh` already exists with all shared functions.
+> **CRITICAL: ONE function per commit. Replace ONE function's inline code across all 6 scripts, then STOP and commit. Do NOT proceed to the next function until the commit is done. Never batch multiple function replacements.**
+
+`e2e-common.sh` already exists with all shared functions.
 
 ## Known Differences
 

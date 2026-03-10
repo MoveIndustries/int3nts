@@ -1,38 +1,18 @@
 #!/bin/bash
 
-# E2E Integration Test Runner - INFLOW
-# 
-# This script runs the inflow E2E tests that require Docker chains.
-# It sets up chains, deploys contracts, starts coordinator and integrated-gmp for negotiation routing,
-# submits inflow intents via coordinator, then runs the tests.
+# E2E Integration Test Runner - INFLOW (MVM)
+#
+# Usage: ./run-tests-inflow.sh [--no-build]
+#   --no-build  Skip full rebuild; only build binaries that are missing
 
 # -e: exit on error; -o pipefail: fail pipeline if ANY command fails (not just the last).
 # Without pipefail, `grep ... | sed ...` silently succeeds even when grep finds no match.
 set -eo pipefail
 
-# Parse flags
-SKIP_BUILD=false
-for arg in "$@"; do
-    case "$arg" in
-        --no-build) SKIP_BUILD=true ;;
-    esac
-done
-export SKIP_BUILD
-
-# Source common utilities
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "$SCRIPT_DIR/../util.sh"
-source "$SCRIPT_DIR/../util_mvm.sh"
-
-# Setup project root and logging
-setup_project_root
-setup_logging "run-tests-mvm-inflow"
-cd "$PROJECT_ROOT"
-
-log_and_echo " E2E Test with Connected Move VM Chain - INFLOW"
-log_and_echo "================================================="
-log_and_echo " All output logged to: $LOG_FILE"
-log_and_echo ""
+source "$SCRIPT_DIR/../e2e-common.sh"
+# "$@" forwards this script's CLI args (e.g. --no-build) into e2e_init for flag parsing
+e2e_init "mvm" "inflow" "$@"
 
 log_and_echo " Step 0: Cleaning up any existing chains, accounts and processes..."
 log_and_echo "================================================================"

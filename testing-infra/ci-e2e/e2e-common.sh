@@ -34,6 +34,7 @@
 # Parse flags, source utilities, setup project root and logging.
 # CHAIN: mvm | evm | svm
 # FLOW:  inflow | outflow
+# "$@":  pass through the script's CLI args (e.g. --no-build) for flag parsing
 # ------------------------------------------------------------------------------
 e2e_init() {
     local chain="$1"; shift

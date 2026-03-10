@@ -836,9 +836,8 @@ impl HubChainClient {
         // Convert public key to hex
         let public_key_hex = hex::encode(public_key_bytes);
         
-        // MVM address is required for solver registration
-        let mvm_addr_normalized = mvm_addr
-            .context("MVM address is required for solver registration")?;
+        // Move's register_solver treats @0x0 as sentinel for "not set" (solver_registry.move)
+        let mvm_addr_normalized = mvm_addr.unwrap_or("0x0");
 
         // Convert EVM address to hex (pad to 20 bytes if needed)
         let evm_addr_hex = if evm_addr.is_empty() {
@@ -1072,9 +1071,8 @@ impl HubChainClient {
         // Convert public key to hex
         let public_key_hex = hex::encode(public_key_bytes);
         
-        // MVM address is required for solver update
-        let mvm_addr_normalized = mvm_addr
-            .context("MVM address is required for solver update")?;
+        // Move's update_solver treats @0x0 as sentinel for "not set" (solver_registry.move:151)
+        let mvm_addr_normalized = mvm_addr.unwrap_or("0x0");
 
         // Convert EVM address to hex
         let evm_addr_hex = if evm_addr.is_empty() {
