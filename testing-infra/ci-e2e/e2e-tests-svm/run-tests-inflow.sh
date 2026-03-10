@@ -74,19 +74,7 @@ generate_integrated_gmp_keys
 
 e2e_setup_chains
 
-log_and_echo ""
-log_and_echo " Step 4: Configuring and starting coordinator and integrated-gmp (for negotiation routing)..."
-log_and_echo "=========================================================================="
-./testing-infra/ci-e2e/e2e-tests-svm/start-coordinator.sh
-./testing-infra/ci-e2e/e2e-tests-svm/start-integrated-gmp.sh
-
-log_and_echo ""
-log_and_echo " Step 4b: Starting solver service..."
-log_and_echo "======================================="
-./testing-infra/ci-e2e/e2e-tests-svm/start-solver.sh
-
-./testing-infra/ci-e2e/verify-solver-running.sh
-./testing-infra/ci-e2e/verify-integrated-gmp-running.sh
+e2e_start_services
 
 log_and_echo ""
 log_and_echo " Step 5: Submitting cross-chain intents via coordinator negotiation routing..."

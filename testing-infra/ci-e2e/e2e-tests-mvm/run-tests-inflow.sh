@@ -54,21 +54,7 @@ generate_integrated_gmp_keys
 
 e2e_setup_chains
 
-log_and_echo ""
-log_and_echo " Step 4: Starting coordinator and integrated-gmp..."
-log_and_echo "=========================================================================="
-./testing-infra/ci-e2e/e2e-tests-mvm/start-coordinator.sh
-./testing-infra/ci-e2e/e2e-tests-mvm/start-integrated-gmp.sh
-
-# Start solver service for automatic signing and fulfillment
-log_and_echo ""
-log_and_echo " Step 4b: Starting solver service..."
-log_and_echo "======================================="
-./testing-infra/ci-e2e/e2e-tests-mvm/start-solver.sh
-
-# Verify solver and integrated-gmp started successfully
-./testing-infra/ci-e2e/verify-solver-running.sh
-./testing-infra/ci-e2e/verify-integrated-gmp-running.sh
+e2e_start_services
 
 log_and_echo ""
 log_and_echo " Step 5: Testing INFLOW intents (connected chain → hub chain)..."
