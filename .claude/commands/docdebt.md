@@ -1,5 +1,5 @@
 ---
-description: Find and fix documentation debt including markdown linting errors, missing docs, and outdated content
+description: Find and fix documentation debt including outdated content vs code, markdown linting errors, and missing docs
 ---
 
 # Documentation Debt Analysis and Fix
@@ -68,6 +68,8 @@ Ensure file ends with exactly one newline.
 
 ## Steps
 
+### Phase 1: Markdown Linting
+
 **CRITICAL: You MUST find and check ALL markdown files. Do not check "several" or "representative" files.**
 
 1. **Find ALL markdown files in the repo:**
@@ -126,9 +128,33 @@ Ensure file ends with exactly one newline.
 
    After fixing all files, re-run the grep searches to verify no violations remain.
 
+### Phase 2: Content Accuracy — Docs vs Code
+
+**CRITICAL: Check ALL documentation files for content that is outdated or inconsistent with the actual code.**
+
+1. **Find ALL markdown files in the repo** (excluding `node_modules/`, `build/`, `target/`).
+
+2. **For each doc file, verify content against the codebase:**
+
+   - **File/directory references**: Every path mentioned in docs must exist. Glob/grep to confirm.
+   - **Module/crate/package names**: Must match actual `Cargo.toml`, `package.json`, directory names.
+   - **Function/struct/type names**: Must exist in the code where the doc says they do.
+   - **CLI commands and flags**: Must match actual CLI definitions and scripts.
+   - **Configuration keys/env vars**: Must match what the code actually reads.
+   - **Architecture descriptions**: Must reflect current module structure, not a previous iteration.
+   - **API examples and code snippets**: Must be consistent with current function signatures and behavior.
+   - **Links**: Internal doc links must resolve to existing files/anchors.
+
+3. **Report all findings** before making changes. For each issue:
+
+   - Which doc file and line
+   - What it says vs what the code actually has
+   - Suggested fix
+
+4. **Fix all confirmed inaccuracies.** If you cannot determine the correct content from the code, flag it for the user rather than guessing.
+
 ## Important Notes
 
 - Skip `node_modules/`, `build/`, `target/`, and other generated directories
 - Don't change the semantic meaning of content
-- Only fix formatting issues
 - Report which files were fixed and what changes were made
