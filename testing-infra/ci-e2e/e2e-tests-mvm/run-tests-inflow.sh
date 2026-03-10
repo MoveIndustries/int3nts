@@ -14,9 +14,7 @@ source "$SCRIPT_DIR/../e2e-common.sh"
 # "$@" forwards this script's CLI args (e.g. --no-build) into e2e_init for flag parsing
 e2e_init "mvm" "inflow" "$@"
 
-log_and_echo " Step 0: Cleaning up any existing chains, accounts and processes..."
-log_and_echo "================================================================"
-./testing-infra/ci-e2e/chain-connected-mvm/cleanup.sh
+e2e_cleanup_pre
 
 log_and_echo ""
 if [ "$SKIP_BUILD" = "true" ]; then
@@ -52,19 +50,9 @@ fi
 log_and_echo ""
 docker pull "$APTOS_DOCKER_IMAGE"
 
-log_and_echo " Step 2: Generating integrated-gmp keys..."
-log_and_echo "======================================="
 generate_integrated_gmp_keys
-log_and_echo ""
 
-log_and_echo " Step 3: Setting up chains, deploying contracts, funding accounts"
-log_and_echo "===================================================================="
-./testing-infra/ci-e2e/chain-hub/setup-chain.sh
-./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
-./testing-infra/ci-e2e/chain-connected-mvm/setup-chain.sh
-./testing-infra/ci-e2e/chain-connected-mvm/setup-requester-solver.sh
-./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
-./testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh
+e2e_setup_chains
 
 log_and_echo ""
 log_and_echo " Step 4: Starting coordinator and integrated-gmp..."

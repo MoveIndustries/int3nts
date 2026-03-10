@@ -207,23 +207,10 @@ _e2e_build_full() {
 }
 
 # ------------------------------------------------------------------------------
-# e2e_generate_keys
-#
-# Generate integrated-gmp keys.
-# ------------------------------------------------------------------------------
-e2e_generate_keys() {
-    log_and_echo " Generating integrated-gmp keys..."
-    log_and_echo "======================================="
-    generate_integrated_gmp_keys
-    log_and_echo ""
-}
-
-# ------------------------------------------------------------------------------
 # e2e_setup_chains
 #
 # Setup chains, deploy contracts, fund accounts.
-# Uses chain-specific script paths. EVM/SVM use deploy-contract.sh (singular),
-# MVM uses deploy-contracts.sh (plural).
+# Uses chain-specific script paths.
 # ------------------------------------------------------------------------------
 e2e_setup_chains() {
     log_and_echo " Setting up chains and deploying contracts..."
@@ -234,13 +221,7 @@ e2e_setup_chains() {
     ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh
     ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh
     ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
-
-    # MVM uses deploy-contracts.sh (plural), EVM/SVM use deploy-contract.sh (singular)
-    if [ "$E2E_CHAIN" = "mvm" ]; then
-        ./testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh
-    else
-        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contract.sh
-    fi
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh
 }
 
 # ------------------------------------------------------------------------------

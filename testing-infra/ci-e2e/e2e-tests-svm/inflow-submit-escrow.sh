@@ -20,7 +20,7 @@ fi
 source "$PROJECT_ROOT/.tmp/chain-info.env" 2>/dev/null || true
 
 if [ -z "$USD_SVM_MINT_ADDR" ] || [ -z "$REQUESTER_SVM_TOKEN_ACCOUNT" ] || [ -z "$SOLVER_SVM_PUBKEY" ] || [ -z "$SVM_PROGRAM_ID" ]; then
-    log_and_echo "❌ ERROR: Missing SVM chain info. Run chain-connected-svm/setup-requester-solver.sh and deploy-contract.sh first."
+    log_and_echo "❌ ERROR: Missing SVM chain info. Run chain-connected-svm/setup-requester-solver.sh and deploy-contracts.sh first."
     exit 1
 fi
 

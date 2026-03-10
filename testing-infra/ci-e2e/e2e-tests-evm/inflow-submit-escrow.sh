@@ -34,7 +34,7 @@ SOLVER_EVM_ADDR=$(get_hardhat_account_address "2")
 
 if [ -z "$ESCROW_GMP_ADDR" ]; then
     log_and_echo "❌ ERROR: ESCROW_GMP_ADDR not found. Please ensure GMP contracts are deployed."
-    log_and_echo "   Run: ./testing-infra/ci-e2e/chain-connected-evm/deploy-contract.sh"
+    log_and_echo "   Run: ./testing-infra/ci-e2e/chain-connected-evm/deploy-contracts.sh"
     exit 1
 fi
 

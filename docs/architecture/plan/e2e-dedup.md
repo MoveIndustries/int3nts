@@ -13,7 +13,7 @@
 
 ## Approach
 
-> **CRITICAL: ONE function per commit. Replace ONE function's inline code across all 6 scripts, then STOP and commit. Do NOT proceed to the next function until the commit is done. Never batch multiple function replacements.**
+> **CRITICAL: ONE function per commit. Replace ONE function's inline code across all 6 scripts, then STOP and use `/commit` to commit. Do NOT proceed to the next function until the commit is done. Never batch multiple function replacements.**
 
 `e2e-common.sh` already exists with all shared functions.
 
@@ -23,7 +23,7 @@
 |------|-----|-----|-----|
 | Logging | `echo` (no `setup_logging`) | `log_and_echo` | `log_and_echo` |
 | Cleanup pre | chain cleanup only | chain cleanup only | chain cleanup + `stop-chain.sh` |
-| Deploy script | `deploy-contracts.sh` (plural) | `deploy-contract.sh` (singular) | `deploy-contract.sh` (singular) |
+| Deploy script | `deploy-contracts.sh` | `deploy-contracts.sh` | `deploy-contracts.sh` |
 | Build skip | common + `sign_intent` | common + `get_approver_eth_address` + `sign_intent` | common + SVM programs + `intent_escrow_cli` |
 | Build full | coordinator + igmp + solver/sign_intent | coordinator + igmp/get_approver_eth_address + solver/sign_intent | SVM programs + coordinator + igmp + solver + intent_escrow_cli |
 | Util sources | `util.sh`, `util_mvm.sh` | `util.sh`, `util_mvm.sh`, `util_evm.sh` | `util.sh`, `util_mvm.sh`, `util_svm.sh` |
