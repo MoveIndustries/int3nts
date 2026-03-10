@@ -68,6 +68,16 @@ Ensure file ends with exactly one newline.
 
 ## Steps
 
+### Phase 0: Ask the user what to run
+
+Before doing any work, ask the user which phases they want to run:
+
+- **Phase 1: Markdown Linting** — find and fix MD lint violations (missing language specifiers, blank line issues, trailing whitespace, etc.)
+- **Phase 2: Content Accuracy** — verify docs match the actual code (file paths, struct names, CLI flags, links, etc.)
+- **Both** — run Phase 1 then Phase 2
+
+Wait for the user's answer before proceeding. Only run the selected phase(s).
+
 ### Phase 1: Markdown Linting
 
 **CRITICAL: You MUST find and check ALL markdown files. Do not check "several" or "representative" files.**
