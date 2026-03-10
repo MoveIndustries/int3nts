@@ -69,13 +69,13 @@ This plan covers the **primary** unhappy paths — the main ways things go wrong
 
 ### 3. Integrated-GMP Relay Unavailability
 
-**Problem**: The **integrated-gmp relay** uses an in-memory queue with no persistence — messages are lost if the relay crashes. The **relay** has no health checks against destination chain RPC endpoints and no retry with backoff on failed deliveries. A single delivery failure is silent.
+**Problem**: The **integrated-gmp relay** has no health checks against destination chain RPC endpoints, no per-message retry tracking with backoff on failed deliveries, and transient failures cause head-of-line blocking (MVM/SVM `break` on failure blocks all subsequent messages). EVM delivery errors lack permanent/transient distinction.
 
 **Goal**: The **integrated-gmp relay** handles transient failures with retries and surfaces permanent failures explicitly.
 
 **Scope**:
 
-- **Integrated-GMP relay**: Add health check — verify destination chain RPC connectivity before attempting delivery. Log clearly when unreachable.
+- **Integrated-GMP relay**: Add per-chain backoff on poll failures — when a chain's RPC is unreachable, back off before retrying (no redundant pre-poll health checks).
 - **Integrated-GMP relay**: Add bounded exponential backoff on failed deliveries.
 - **Integrated-GMP relay**: After max retries, log explicit error with message details (nonce, src chain, dest chain).
 - Tx rejection at the **relay** level is handled here — a rejected delivery tx is a relay failure.
