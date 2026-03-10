@@ -12,6 +12,9 @@ use test_helpers::{
     DUMMY_REQUESTER_ADDR_EVM, DUMMY_TOKEN_ADDR_MVMCON, DUMMY_TOKEN_ADDR_HUB,
 };
 
+/// Past expiry time (already expired)
+const PAST_EXPIRY: u64 = 1;
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -366,5 +369,108 @@ async fn test_get_intents_ready_for_fulfillment_returns_only_created() {
     let intents = tracker.get_intents_ready_for_fulfillment(None).await;
     assert_eq!(intents.len(), 1);
     assert_eq!(intents[0].draft_id, "draft-2");
+}
+
+// ============================================================================
+// EXPIRY TESTS
+// ============================================================================
+
+/// What is tested: Created intents that have expired are transitioned to Expired state
+/// Why: Expired intents must not sit in memory forever — they need a terminal state
+#[tokio::test]
+async fn test_expired_created_intent_transitions_to_expired_state() {
+    let config = create_default_solver_config();
+    let tracker = IntentTracker::new(&config).unwrap();
+
+    let draft_data = create_default_draft_data_inflow();
+
+    // Add intent with past expiry
+    tracker
+        .add_signed_intent(
+            "draft-expired".to_string(),
+            draft_data,
+            DUMMY_REQUESTER_ADDR_EVM.to_string(),
+            PAST_EXPIRY,
+        )
+        .await
+        .unwrap();
+
+    // Manually set to Created (simulating on-chain creation)
+    tracker.set_intent_state("draft-expired", IntentState::Created).await.unwrap();
+
+    // Poll triggers cleanup_expired_intents
+    let _ = tracker.poll_for_created_intents().await;
+
+    // Intent should now be in Expired state
+    let tracked = tracker.get_intent("draft-expired").await.unwrap();
+    assert_eq!(tracked.state, IntentState::Expired);
+}
+
+/// What is tested: Expired Created intents are excluded from fulfillment
+/// Why: Solver must not attempt to fulfill expired intents
+#[tokio::test]
+async fn test_expired_created_intent_excluded_from_fulfillment() {
+    let config = create_default_solver_config();
+    let tracker = IntentTracker::new(&config).unwrap();
+
+    let draft_data = create_default_draft_data_inflow();
+
+    // Add one expired and one active intent
+    tracker
+        .add_signed_intent(
+            "draft-expired".to_string(),
+            draft_data.clone(),
+            DUMMY_REQUESTER_ADDR_EVM.to_string(),
+            PAST_EXPIRY,
+        )
+        .await
+        .unwrap();
+
+    tracker
+        .add_signed_intent(
+            "draft-active".to_string(),
+            draft_data,
+            DUMMY_REQUESTER_ADDR_EVM.to_string(),
+            DUMMY_EXPIRY,
+        )
+        .await
+        .unwrap();
+
+    // Set both to Created
+    tracker.set_intent_state("draft-expired", IntentState::Created).await.unwrap();
+    tracker.set_intent_state("draft-active", IntentState::Created).await.unwrap();
+
+    // Only active intent should be ready for fulfillment
+    let intents = tracker.get_intents_ready_for_fulfillment(None).await;
+    assert_eq!(intents.len(), 1);
+    assert_eq!(intents[0].draft_id, "draft-active");
+}
+
+/// What is tested: Expired Signed intents are removed from tracking entirely
+/// Why: Signed intents that expire never made it on-chain — no reason to keep them
+#[tokio::test]
+async fn test_expired_signed_intent_removed_from_tracking() {
+    let config = create_default_solver_config();
+    let tracker = IntentTracker::new(&config).unwrap();
+
+    let draft_data = create_default_draft_data_inflow();
+
+    // Add intent with past expiry (stays in Signed state)
+    tracker
+        .add_signed_intent(
+            "draft-expired".to_string(),
+            draft_data,
+            DUMMY_REQUESTER_ADDR_EVM.to_string(),
+            PAST_EXPIRY,
+        )
+        .await
+        .unwrap();
+
+    // Poll triggers cleanup
+    let _ = tracker.poll_for_created_intents().await;
+
+    // Intent should be gone entirely (removed, not transitioned)
+    let tracked = tracker.get_intent("draft-expired").await;
+    assert!(tracked.is_none());
 }
 

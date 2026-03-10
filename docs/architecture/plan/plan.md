@@ -92,9 +92,11 @@ This plan covers the **primary** unhappy paths — the main ways things go wrong
 
 ## Implementation Order
 
-1. **Intent expiry handling** — smallest scope, foundation for the rest
-2. **Solver failure recovery** — highest user impact (stuck funds if solver fails)
-3. **GMP unavailability** — relay is the critical path for cross-chain messaging
+After each task: summarize the change and stop for review before proceeding to the next task.
+
+1. **Intent expiry handling** — smallest scope, foundation for the rest → **stop**
+2. **Solver failure recovery** — highest user impact (stuck funds if solver fails) → **stop**
+3. **GMP unavailability** — relay is the critical path for cross-chain messaging → **stop**
 
 ## Dropped
 

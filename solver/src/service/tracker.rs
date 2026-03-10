@@ -30,6 +30,8 @@ pub enum IntentState {
     Created,
     /// Request-intent has been fulfilled
     Fulfilled,
+    /// Intent has expired (past expiry_time without being fulfilled)
+    Expired,
 }
 
 /// A tracked intent with its state and metadata
@@ -348,7 +350,9 @@ impl IntentTracker {
             // Clean up requester address if no other active intents
             let requester = intent.requester_addr.clone();
             let has_active = intents.values().any(|i| {
-                i.requester_addr == requester && i.state != IntentState::Fulfilled
+                i.requester_addr == requester
+                    && i.state != IntentState::Fulfilled
+                    && i.state != IntentState::Expired
             });
             if !has_active {
                 let mut addresses = self.requester_addresses.write().await;
@@ -403,8 +407,9 @@ impl IntentTracker {
 
     /// Cleans up expired intents and removes requester addresses if no active intents remain
     ///
-    /// Removes intents that have expired and haven't been created on-chain yet.
-    /// Also removes requester addresses if all their intents are expired or fulfilled.
+    /// - Signed intents that have expired: removed from tracking entirely
+    /// - Created intents that have expired: transitioned to Expired terminal state
+    /// - Requester addresses with no active intents: removed from tracking
     async fn cleanup_expired_intents(&self) {
         let current_time = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -414,13 +419,28 @@ impl IntentTracker {
         let mut intents = self.intents.write().await;
         let mut addresses_to_check = std::collections::HashSet::new();
 
-        // Remove expired intents that haven't been created on-chain (still in Signed state)
+        // Transition Created intents that have expired to Expired state
+        for (draft_id, intent) in intents.iter_mut() {
+            if intent.state == IntentState::Created && intent.expiry_time < current_time {
+                tracing::info!(
+                    "Intent expired: intent_id={}, draft_id={}, expiry_time={}",
+                    intent.intent_id, draft_id, intent.expiry_time
+                );
+                intent.state = IntentState::Expired;
+                addresses_to_check.insert(intent.requester_addr.clone());
+            }
+        }
+
+        // Remove expired Signed intents (never made it on-chain)
         intents.retain(|draft_id, intent| {
             let is_expired = intent.expiry_time < current_time;
             let is_signed_only = intent.state == IntentState::Signed;
 
             if is_expired && is_signed_only {
-                tracing::debug!("Removing expired intent {} (draft_id: {})", intent.intent_id, draft_id);
+                tracing::info!(
+                    "Removing expired draft: intent_id={}, draft_id={}, expiry_time={}",
+                    intent.intent_id, draft_id, intent.expiry_time
+                );
                 addresses_to_check.insert(intent.requester_addr.clone());
                 false // Remove from map
             } else {
@@ -432,16 +452,15 @@ impl IntentTracker {
         if !addresses_to_check.is_empty() {
             let mut requester_addresses = self.requester_addresses.write().await;
             for requester_addr in addresses_to_check {
-                // Check if this requester has any active (non-expired, non-fulfilled) intents
                 let has_active = intents.values().any(|i| {
                     i.requester_addr == requester_addr
-                        && i.expiry_time >= current_time
                         && i.state != IntentState::Fulfilled
+                        && i.state != IntentState::Expired
                 });
 
                 if !has_active {
                     requester_addresses.remove(&requester_addr);
-                    tracing::debug!("Removed requester {} from tracking (all intents expired or fulfilled)", requester_addr);
+                    tracing::info!("Removed requester {} from tracking (all intents expired or fulfilled)", requester_addr);
                 }
             }
         }

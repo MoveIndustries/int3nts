@@ -155,6 +155,7 @@ Ensure file ends with exactly one newline.
 
 ## Important Notes
 
+- **Docs describe the status quo, not what changed.** When fixing outdated docs, rewrite them to accurately describe the current state of the code. Do NOT write changelogs, migration notes, or "this was renamed from X to Y" — just write what it is now.
 - Skip `node_modules/`, `build/`, `target/`, and other generated directories
 - Don't change the semantic meaning of content
 - Report which files were fixed and what changes were made
