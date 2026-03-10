@@ -109,6 +109,8 @@ function useTokenBalances(params: {
   const { offeredToken, desiredToken, resolveAddress, intentStatus } = params;
   const [offeredBalance, setOfferedBalance] = useState<TokenBalance | null>(null);
   const [desiredBalance, setDesiredBalance] = useState<TokenBalance | null>(null);
+  const [offeredBalanceError, setOfferedBalanceError] = useState<string | null>(null);
+  const [desiredBalanceError, setDesiredBalanceError] = useState<string | null>(null);
   const [loadingOfferedBalance, setLoadingOfferedBalance] = useState(false);
   const [loadingDesiredBalance, setLoadingDesiredBalance] = useState(false);
 
@@ -123,34 +125,46 @@ function useTokenBalances(params: {
       return;
     }
     setLoadingOfferedBalance(true);
+    setOfferedBalanceError(null);
     console.log('Fetching offered balance:', { address, token: offeredToken.symbol, chain: offeredToken.chain });
     fetchTokenBalance(address, offeredToken)
       .then((balance) => {
         console.log('Offered balance result:', balance);
         setOfferedBalance(balance);
       })
-      .catch((err: unknown) => { console.error('Failed to fetch offered balance:', err); setOfferedBalance(null); })
+      .catch((err: unknown) => {
+        console.error('Failed to fetch offered balance:', err);
+        setOfferedBalance(null);
+        setOfferedBalanceError(err instanceof Error ? err.message : String(err));
+      })
       .finally(() => setLoadingOfferedBalance(false));
   }, [offeredToken, resolveAddress]);
 
   useEffect(() => {
     if (!desiredToken) {
       setDesiredBalance(null);
+      setDesiredBalanceError(null);
       return;
     }
     const address = resolveAddress(desiredToken.chain);
     if (!address) {
       setDesiredBalance(null);
+      setDesiredBalanceError(null);
       return;
     }
     setLoadingDesiredBalance(true);
+    setDesiredBalanceError(null);
     console.log('Fetching desired balance:', { address, token: desiredToken.symbol, chain: desiredToken.chain });
     fetchTokenBalance(address, desiredToken)
       .then((balance) => {
         console.log('Desired balance result:', balance);
         setDesiredBalance(balance);
       })
-      .catch((err: unknown) => { console.error('Failed to fetch desired balance:', err); setDesiredBalance(null); })
+      .catch((err: unknown) => {
+        console.error('Failed to fetch desired balance:', err);
+        setDesiredBalance(null);
+        setDesiredBalanceError(err instanceof Error ? err.message : String(err));
+      })
       .finally(() => setLoadingDesiredBalance(false));
   }, [desiredToken, resolveAddress]);
 
@@ -162,9 +176,14 @@ function useTokenBalances(params: {
       const offeredAddress = resolveAddress(offeredToken.chain);
       if (offeredAddress) {
         setLoadingOfferedBalance(true);
+        setOfferedBalanceError(null);
         fetchTokenBalance(offeredAddress, offeredToken)
           .then(setOfferedBalance)
-          .catch((err: unknown) => { console.error('Failed to fetch offered balance:', err); setOfferedBalance(null); })
+          .catch((err: unknown) => {
+            console.error('Failed to fetch offered balance:', err);
+            setOfferedBalance(null);
+            setOfferedBalanceError(err instanceof Error ? err.message : String(err));
+          })
           .finally(() => setLoadingOfferedBalance(false));
       }
     }
@@ -172,9 +191,14 @@ function useTokenBalances(params: {
       const desiredAddress = resolveAddress(desiredToken.chain);
       if (desiredAddress) {
         setLoadingDesiredBalance(true);
+        setDesiredBalanceError(null);
         fetchTokenBalance(desiredAddress, desiredToken)
           .then(setDesiredBalance)
-          .catch((err: unknown) => { console.error('Failed to fetch desired balance:', err); setDesiredBalance(null); })
+          .catch((err: unknown) => {
+            console.error('Failed to fetch desired balance:', err);
+            setDesiredBalance(null);
+            setDesiredBalanceError(err instanceof Error ? err.message : String(err));
+          })
           .finally(() => setLoadingDesiredBalance(false));
       }
     }
@@ -183,6 +207,8 @@ function useTokenBalances(params: {
   return {
     offeredBalance,
     desiredBalance,
+    offeredBalanceError,
+    desiredBalanceError,
     loadingOfferedBalance,
     loadingDesiredBalance,
   };
@@ -404,6 +430,8 @@ export function IntentBuilder() {
   const {
     offeredBalance,
     desiredBalance,
+    offeredBalanceError,
+    desiredBalanceError,
     loadingOfferedBalance,
     loadingDesiredBalance,
   } = useTokenBalances({
@@ -1586,13 +1614,15 @@ export function IntentBuilder() {
             <div className="mt-2 text-xs">
               {loadingOfferedBalance ? (
                 <span className="text-gray-500">Loading balance...</span>
+              ) : offeredBalanceError ? (
+                <span className="text-red-400" title={offeredBalanceError}>
+                  Failed to fetch balance
+                </span>
               ) : offeredBalance ? (
                 <span className="text-gray-400">
                   Balance: {offeredBalance.formatted} {offeredBalance.symbol}
                 </span>
-              ) : (
-                <span className="text-gray-500">Balance unavailable</span>
-              )}
+              ) : null}
             </div>
           )}
         </div>
@@ -1701,12 +1731,16 @@ export function IntentBuilder() {
               <div className="mt-2 text-xs">
                 {loadingDesiredBalance ? (
                   <span className="text-gray-500">Loading balance...</span>
+                ) : desiredBalanceError ? (
+                  <span className="text-red-400" title={desiredBalanceError}>
+                    Failed to fetch balance
+                  </span>
                 ) : desiredBalance ? (
                   <span className="text-gray-400">
                     Balance: {desiredBalance.formatted} {desiredBalance.symbol}
                   </span>
                 ) : (
-                  <span className="text-gray-500">Balance unavailable</span>
+                  null
                 )}
               </div>
             )}

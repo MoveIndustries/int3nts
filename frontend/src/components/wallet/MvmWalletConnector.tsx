@@ -34,8 +34,8 @@ export function MvmWalletConnector() {
                   return true;
                 }
               }
-            } catch {
-              // getAccount not supported or failed
+            } catch (err) {
+              console.warn('Nightly getAccount() probe failed:', err);
             }
             
             // Check if wallet has an 'account' property (some wallets expose this)
