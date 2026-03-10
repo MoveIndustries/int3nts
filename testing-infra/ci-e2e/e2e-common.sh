@@ -40,8 +40,8 @@ e2e_init() {
     local chain="$1"; shift
     local flow="$1"; shift
 
-    E2E_CHAIN="$chain"
-    E2E_FLOW="$flow"
+    export E2E_CHAIN="$chain"
+    export E2E_FLOW="$flow"
 
     # Parse flags from remaining args
     SKIP_BUILD=false
