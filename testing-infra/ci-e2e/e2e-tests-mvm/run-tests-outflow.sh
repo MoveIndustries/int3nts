@@ -16,39 +16,7 @@ e2e_init "mvm" "outflow" "$@"
 
 e2e_cleanup_pre
 
-log_and_echo ""
-if [ "$SKIP_BUILD" = "true" ]; then
-    log_and_echo " Step 1: Build if missing (--no-build)"
-    log_and_echo "========================================"
-    build_common_bins_if_missing
-    build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin sign_intent" \
-        "Solver: sign_intent" \
-        "$PROJECT_ROOT/solver/target/debug/sign_intent"
-else
-    log_and_echo " Step 1: Build bins and pre-pull docker images"
-    log_and_echo "========================================"
-    # Delete existing binaries to ensure fresh build
-    rm -f "$PROJECT_ROOT/target/debug/integrated-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
-    rm -f "$PROJECT_ROOT/target/release/integrated-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
-
-    pushd "$PROJECT_ROOT/coordinator" > /dev/null
-    cargo build --bin coordinator 2>&1 | tail -5
-    popd > /dev/null
-    log_and_echo "   ✅ Coordinator: coordinator"
-
-    pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
-    cargo build --bin integrated-gmp --bin generate_keys 2>&1 | tail -5
-    popd > /dev/null
-    log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys"
-
-    pushd "$PROJECT_ROOT/solver" > /dev/null
-    cargo build --bin solver --bin sign_intent 2>&1 | tail -5
-    popd > /dev/null
-    log_and_echo "   ✅ Solver: solver, sign_intent"
-fi
-
-log_and_echo ""
-docker pull "$APTOS_DOCKER_IMAGE"
+e2e_build
 
 generate_integrated_gmp_keys
 
@@ -157,11 +125,5 @@ DRAFT_DATA=$(build_draft_data \
 assert_solver_rejects_draft "$REQUESTER_HUB_ADDR" "$DRAFT_DATA" "$EXPIRY_TIME"
 log_and_echo "✅ Solver correctly rejected second intent due to insufficient liquidity!"
 
-log_and_echo ""
-log_and_echo "✅ E2E outflow test completed!"
-log_and_echo ""
-
-log_and_echo " Step 7: Cleaning up chains, accounts and processes..."
-log_and_echo "========================================================"
-./testing-infra/ci-e2e/chain-connected-mvm/cleanup.sh
+e2e_cleanup_post
 

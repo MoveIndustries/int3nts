@@ -103,11 +103,11 @@ e2e_cleanup_pre() {
 e2e_build() {
     log_and_echo ""
     if [ "$SKIP_BUILD" = "true" ]; then
-        log_and_echo " Building missing binaries (--no-build)..."
+        log_and_echo " Build if missing (--no-build)"
         log_and_echo "========================================"
         _e2e_build_skip
     else
-        log_and_echo " Building binaries and pre-pulling docker images..."
+        log_and_echo " Build bins and pre-pull docker images"
         log_and_echo "========================================"
         _e2e_build_full
     fi
@@ -132,10 +132,8 @@ _e2e_build_skip() {
         fi
     fi
 
-    # Common binaries
     build_common_bins_if_missing
 
-    # Chain-specific binaries
     case "$E2E_CHAIN" in
         mvm)
             build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin sign_intent" \
@@ -172,38 +170,51 @@ _e2e_build_full() {
         log_and_echo "   ✅ SVM: on-chain programs (intent_inflow_escrow, intent_gmp, intent_outflow_validator)"
     fi
 
-    # Coordinator
     pushd "$PROJECT_ROOT/coordinator" > /dev/null
     cargo build --bin coordinator 2>&1 | tail -5
     popd > /dev/null
     log_and_echo "   ✅ Coordinator: coordinator"
 
-    # Integrated-GMP (chain-specific bins)
-    local igmp_bins="--bin integrated-gmp --bin generate_keys"
-    if [ "$E2E_CHAIN" = "evm" ]; then
-        igmp_bins="$igmp_bins --bin get_approver_eth_address"
-    fi
-    pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
-    cargo build $igmp_bins 2>&1 | tail -5
-    popd > /dev/null
-    log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys$([ "$E2E_CHAIN" = "evm" ] && echo ", get_approver_eth_address")"
-
-    # Solver (chain-specific bins)
-    pushd "$PROJECT_ROOT/solver" > /dev/null
     case "$E2E_CHAIN" in
-        mvm|evm) cargo build --bin solver --bin sign_intent 2>&1 | tail -5 ;;
-        svm)     cargo build --bin solver 2>&1 | tail -5 ;;
-    esac
-    popd > /dev/null
-    log_and_echo "   ✅ Solver: solver$([ "$E2E_CHAIN" != "svm" ] && echo ", sign_intent")"
+        mvm)
+            pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
+            cargo build --bin integrated-gmp --bin generate_keys 2>&1 | tail -5
+            popd > /dev/null
+            log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys"
 
-    # SVM-specific CLI tool
-    if [ "$E2E_CHAIN" = "svm" ]; then
-        pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
-        cargo build -p intent_escrow_cli 2>&1 | tail -5
-        popd > /dev/null
-        log_and_echo "   ✅ SVM: intent_escrow_cli"
-    fi
+            pushd "$PROJECT_ROOT/solver" > /dev/null
+            cargo build --bin solver --bin sign_intent 2>&1 | tail -5
+            popd > /dev/null
+            log_and_echo "   ✅ Solver: solver, sign_intent"
+            ;;
+        evm)
+            pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
+            cargo build --bin integrated-gmp --bin generate_keys --bin get_approver_eth_address 2>&1 | tail -5
+            popd > /dev/null
+            log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys, get_approver_eth_address"
+
+            pushd "$PROJECT_ROOT/solver" > /dev/null
+            cargo build --bin solver --bin sign_intent 2>&1 | tail -5
+            popd > /dev/null
+            log_and_echo "   ✅ Solver: solver, sign_intent"
+            ;;
+        svm)
+            pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
+            cargo build --bin integrated-gmp --bin generate_keys 2>&1 | tail -5
+            popd > /dev/null
+            log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys"
+
+            pushd "$PROJECT_ROOT/solver" > /dev/null
+            cargo build --bin solver 2>&1 | tail -5
+            popd > /dev/null
+            log_and_echo "   ✅ Solver: solver"
+
+            pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
+            cargo build -p intent_escrow_cli 2>&1 | tail -5
+            popd > /dev/null
+            log_and_echo "   ✅ SVM: intent_escrow_cli"
+            ;;
+    esac
 }
 
 # ------------------------------------------------------------------------------
