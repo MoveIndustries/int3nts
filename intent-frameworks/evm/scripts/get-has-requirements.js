@@ -25,6 +25,6 @@ async function main() {
   console.log(`hasRequirements: ${hasReq}`);
 }
 
-runMain(main);
+runMain(main, module);
 
 module.exports = { main };

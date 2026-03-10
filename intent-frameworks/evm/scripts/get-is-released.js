@@ -25,6 +25,6 @@ async function main() {
   console.log(`isReleased: ${isReleased}`);
 }
 
-runMain(main);
+runMain(main, module);
 
 module.exports = { main };

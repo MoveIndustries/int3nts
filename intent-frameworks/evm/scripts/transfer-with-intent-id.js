@@ -90,6 +90,6 @@ async function main() {
 }
 
 // Export main function for testing
-runMain(main);
+runMain(main, module);
 
 module.exports = { main };

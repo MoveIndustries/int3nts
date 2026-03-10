@@ -69,6 +69,6 @@ async function main() {
   console.log(`Block number: ${receipt.blockNumber}`);
 }
 
-runMain(main);
+runMain(main, module);
 
 module.exports = { main };

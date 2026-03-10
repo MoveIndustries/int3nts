@@ -80,8 +80,11 @@ async function getSolverSigner() {
 /// Standard main() runner with error handling and process.exit.
 ///
 /// Wraps a main function with the standard pattern used across all scripts.
-function runMain(mainFn) {
-  if (require.main === module) {
+/// The caller must pass its own `module` so the entry-point check works correctly.
+///
+/// Usage: `runMain(main, module);`
+function runMain(mainFn, callerModule) {
+  if (require.main === callerModule) {
     mainFn()
       .then(() => process.exit(0))
       .catch((error) => {
