@@ -35,35 +35,11 @@ log_and_echo "=========================================="
 
 ./testing-infra/ci-e2e/e2e-tests-svm/outflow-submit-hub-intent.sh
 
-if ! load_intent_info "INTENT_ID"; then
-    log_and_echo "❌ ERROR: Failed to load intent info"
-    exit 1
-fi
-
-log_and_echo ""
-log_and_echo " Step 5b: Waiting for solver to automatically fulfill..."
-log_and_echo "==========================================================="
-
-if ! wait_for_solver_fulfillment "$INTENT_ID" "outflow" 40; then
-    log_and_echo "❌ ERROR: Solver did not fulfill the intent automatically"
-    display_service_logs "Solver fulfillment timeout"
-    exit 1
-fi
-
-log_and_echo "✅ Solver fulfilled the intent automatically!"
-log_and_echo ""
+e2e_wait_for_fulfillment "outflow" 40
 
 log_and_echo " Final Balance Validation"
 log_and_echo "=========================================="
 ./testing-infra/ci-e2e/e2e-tests-svm/balance-check.sh 3000000 1000000 1015000 2985000
-
-log_and_echo ""
-log_and_echo " Step 6: Verify solver rejects intent when liquidity is insufficient..."
-log_and_echo "=========================================================================="
-log_and_echo "   Solver started with 2,000,000 USDcon on connected SVM, spent 985,000 fulfilling intent 1."
-log_and_echo "   Remaining: 1,015,000. Second intent requests 1,015,000 desired."
-log_and_echo "   Liquidity check: available >= requested + min_balance => 1,015,000 >= 1,015,000 + 1 => false."
-log_and_echo "   Solver must reject: not enough to cover the request AND retain the min_balance threshold."
 
 HUB_CHAIN_ID=1
 CONNECTED_CHAIN_ID=901

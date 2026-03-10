@@ -1431,6 +1431,24 @@ assert_solver_rejects_draft() {
         exit 1
     fi
 
+    # Describe what we're testing (token/chain varies by flow direction)
+    local chain_upper
+    chain_upper=$(echo "$E2E_CHAIN" | tr '[:lower:]' '[:upper:]')
+    local token_desc
+    if [ "$E2E_FLOW" = "inflow" ]; then
+        token_desc="USDhub on hub"
+    else
+        token_desc="USDcon on connected ${chain_upper}"
+    fi
+
+    log_and_echo ""
+    log_and_echo " Verify solver rejects intent when liquidity is insufficient..."
+    log_and_echo "=========================================================================="
+    log_and_echo "   Solver started with 2,000,000 ${token_desc}, spent 985,000 fulfilling intent 1."
+    log_and_echo "   Remaining: 1,015,000. Second intent requests 1,015,000 desired."
+    log_and_echo "   Liquidity check: available >= requested + min_balance => 1,015,000 >= 1,015,000 + 1 => false."
+    log_and_echo "   Solver must reject: not enough to cover the request AND retain the min_balance threshold."
+
     local solver_log_file="${LOG_DIR:-$PROJECT_ROOT/.tmp/e2e-tests}/solver.log"
 
     # Record current solver log line count so we only check NEW lines

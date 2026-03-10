@@ -12,7 +12,7 @@
 #   e2e_init "evm" "inflow" "$@"
 #   e2e_cleanup_pre
 #   e2e_build
-#   e2e_generate_keys
+#   generate_integrated_gmp_keys
 #   e2e_setup_chains
 #   e2e_start_services
 #   ... chain-specific test logic ...
@@ -286,23 +286,6 @@ e2e_wait_for_fulfillment() {
 
     log_and_echo "✅ Solver fulfilled the intent automatically!"
     log_and_echo ""
-}
-
-# ------------------------------------------------------------------------------
-# e2e_liquidity_rejection_start
-#
-# Print the common liquidity rejection test preamble.
-# ------------------------------------------------------------------------------
-e2e_liquidity_rejection_start() {
-    local chain_label="$1"
-    local asset_label="$2"
-    log_and_echo ""
-    log_and_echo " Verify solver rejects intent when liquidity is insufficient..."
-    log_and_echo "=========================================================================="
-    log_and_echo "   Solver started with 2,000,000 ${asset_label}, spent 985,000 fulfilling intent 1."
-    log_and_echo "   Remaining: 1,015,000. Second intent requests 1,015,000 desired."
-    log_and_echo "   Liquidity check: available >= requested + min_balance => 1,015,000 >= 1,015,000 + 1 => false."
-    log_and_echo "   Solver must reject: not enough to cover the request AND retain the min_balance threshold."
 }
 
 # ------------------------------------------------------------------------------

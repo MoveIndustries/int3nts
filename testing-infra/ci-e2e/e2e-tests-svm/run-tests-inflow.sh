@@ -35,23 +35,7 @@ log_and_echo "=========================================="
 
 ./testing-infra/ci-e2e/e2e-tests-svm/inflow-submit-escrow.sh
 
-if ! load_intent_info "INTENT_ID"; then
-    log_and_echo "❌ ERROR: Failed to load intent info"
-    exit 1
-fi
-
-log_and_echo ""
-log_and_echo " Step 5b: Waiting for solver to automatically fulfill..."
-log_and_echo "==========================================================="
-
-if ! wait_for_solver_fulfillment "$INTENT_ID" "inflow" 20; then
-    log_and_echo "❌ ERROR: Solver did not fulfill the intent automatically"
-    display_service_logs "Solver fulfillment timeout"
-    exit 1
-fi
-
-log_and_echo "✅ Solver fulfilled the intent automatically!"
-log_and_echo ""
+e2e_wait_for_fulfillment "inflow" 20
 
 ./testing-infra/ci-e2e/e2e-tests-svm/wait-for-escrow-release.sh
 
@@ -61,14 +45,6 @@ log_and_echo "=========================================="
 # Inflow: Solver sends 985,000 (desired) to requester on hub, receives 1,000,000 (offered) from escrow
 #         Fee = 15,000 embedded in exchange rate (solver keeps the spread)
 ./testing-infra/ci-e2e/e2e-tests-svm/balance-check.sh 1015000 2985000 3000000 1000000
-
-log_and_echo ""
-log_and_echo " Step 6: Verify solver rejects intent when liquidity is insufficient..."
-log_and_echo "=========================================================================="
-log_and_echo "   Solver started with 2,000,000 USDhub on hub, spent 985,000 fulfilling intent 1."
-log_and_echo "   Remaining: 1,015,000. Second intent requests 1,015,000 desired."
-log_and_echo "   Liquidity check: available >= requested + min_balance => 1,015,000 >= 1,015,000 + 1 => false."
-log_and_echo "   Solver must reject: not enough to cover the request AND retain the min_balance threshold."
 
 HUB_CHAIN_ID=1
 CONNECTED_CHAIN_ID=901

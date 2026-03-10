@@ -37,30 +37,7 @@ log_and_echo "=========================================="
 
 ./testing-infra/ci-e2e/e2e-tests-mvm/inflow-submit-escrow.sh
 
-log_and_echo ""
-log_and_echo " Step 6: Waiting for solver to automatically fulfill..."
-log_and_echo "=========================================================="
-
-# Load intent ID for solver fulfillment wait
-if ! load_intent_info "INTENT_ID"; then
-    log_and_echo "❌ ERROR: Failed to load intent info"
-    exit 1
-fi
-
-log_and_echo "   The solver service is running and will:"
-log_and_echo "   1. Detect the escrow on connected MVM chain"
-log_and_echo "   2. Fulfill the intent on hub chain"
-log_and_echo "   3. Integrated-GMP will detect fulfillment and generate approval"
-log_and_echo ""
-
-if ! wait_for_solver_fulfillment "$INTENT_ID" "inflow" 20; then
-    log_and_echo "❌ ERROR: Solver did not fulfill the intent automatically"
-    display_service_logs "Solver fulfillment timeout"
-    exit 1
-fi
-
-log_and_echo "✅ Solver fulfilled the intent automatically!"
-log_and_echo ""
+e2e_wait_for_fulfillment "inflow" 20
 
 # Wait for escrow auto-release (verifies FulfillmentProof triggered release)
 ./testing-infra/ci-e2e/e2e-tests-mvm/wait-for-escrow-release.sh
@@ -71,14 +48,6 @@ log_and_echo "=========================================="
 # Inflow: Solver sends 985,000 (desired) to requester on hub, receives 1,000,000 (offered) from escrow
 #         Fee = 15,000 embedded in exchange rate (solver keeps the spread)
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 1015000 2985000 3000000 1000000
-
-log_and_echo ""
-log_and_echo " Step 7: Verify solver rejects intent when liquidity is insufficient..."
-log_and_echo "=========================================================================="
-log_and_echo "   Solver started with 2,000,000 USDhub on hub, spent 985,000 fulfilling intent 1."
-log_and_echo "   Remaining: 1,015,000. Second intent requests 1,015,000 desired."
-log_and_echo "   Liquidity check: available >= requested + min_balance => 1,015,000 >= 1,015,000 + 1 => false."
-log_and_echo "   Solver must reject: not enough to cover the request AND retain the min_balance threshold."
 
 # Resolve chain addresses for the second draft
 CONNECTED_CHAIN_ID=2
