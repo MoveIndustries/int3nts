@@ -46,7 +46,7 @@ This plan covers the **primary** unhappy paths — the main ways things go wrong
 
 ### 2. Solver Failure Recovery
 
-**Problem**: The **solver** outflow service sets `outflow_attempted = true` after the first fulfillment attempt. If that tx fails (rejected, timed out, insufficient gas), the **solver** never retries — the intent is stuck with no terminal state and no error surfaced.
+**Problem**: The **solver** outflow service retries on failure (only marks `outflow_attempted` after success), but has no retry count cap, no exponential backoff, and no terminal `Failed` state. A permanently failing intent retries indefinitely with no backoff.
 
 **Goal**: Failed **solver** fulfillment transactions are retried, and permanently failed intents reach a terminal state.
 

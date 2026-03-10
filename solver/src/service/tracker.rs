@@ -21,6 +21,12 @@ use crate::acceptance::DraftintentData;
 use crate::chains::HubChainClient;
 use crate::config::{ChainConfig, SolverConfig};
 
+/// Maximum number of outflow fulfillment attempts before transitioning to Failed
+pub const MAX_OUTFLOW_RETRIES: u32 = 3;
+
+/// Initial backoff duration in seconds after first failure (doubles each retry)
+const INITIAL_BACKOFF_SECS: u64 = 5;
+
 /// State of a tracked intent
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntentState {
@@ -32,6 +38,8 @@ pub enum IntentState {
     Fulfilled,
     /// Intent has expired (past expiry_time without being fulfilled)
     Expired,
+    /// Intent has permanently failed after max retries exhausted
+    Failed,
 }
 
 /// A tracked intent with its state and metadata
@@ -53,8 +61,12 @@ pub struct TrackedIntent {
     pub intent_addr: Option<String>,
     /// Requester address on the connected chain (for outflow intents)
     pub requester_addr_connected_chain: Option<String>,
-    /// Whether an outflow transfer has already been attempted
+    /// Whether an outflow transfer has been successfully executed
     pub outflow_attempted: bool,
+    /// Number of failed outflow fulfillment attempts
+    pub outflow_attempt_count: u32,
+    /// Earliest time the next outflow retry is allowed (Unix timestamp, 0 = no backoff)
+    pub next_retry_after: u64,
 }
 
 /// Intent tracker that monitors signed intents and their on-chain creation
@@ -135,6 +147,8 @@ impl IntentTracker {
             intent_addr: None,
             requester_addr_connected_chain: None,
             outflow_attempted: false,
+            outflow_attempt_count: 0,
+            next_retry_after: 0,
         };
 
         // Track requester address for event querying
@@ -353,13 +367,14 @@ impl IntentTracker {
                 i.requester_addr == requester
                     && i.state != IntentState::Fulfilled
                     && i.state != IntentState::Expired
+                    && i.state != IntentState::Failed
             });
             if !has_active {
                 let mut addresses = self.requester_addresses.write().await;
                 addresses.remove(&requester);
                 tracing::debug!("Removed requester {} from tracking (no active intents)", requester);
             }
-            
+
             Ok(())
         } else {
             anyhow::bail!("Intent not found: {}", draft_id)
@@ -377,6 +392,54 @@ impl IntentTracker {
             if intent.intent_id == intent_id {
                 intent.outflow_attempted = true;
                 return Ok(());
+            }
+        }
+        anyhow::bail!("Intent not found: {}", intent_id)
+    }
+
+    /// Records an outflow fulfillment failure, incrementing retry count and setting backoff.
+    ///
+    /// If max retries are exhausted, transitions intent to `Failed` terminal state.
+    ///
+    /// # Arguments
+    ///
+    /// * `intent_id` - On-chain intent ID
+    /// * `error` - Error description from the failed attempt
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(IntentState)` - The intent's state after recording the failure
+    /// * `Err(anyhow::Error)` - Intent not found
+    pub async fn record_outflow_failure(&self, intent_id: &str, error: &str) -> Result<IntentState> {
+        let mut intents = self.intents.write().await;
+        for (_draft_id, intent) in intents.iter_mut() {
+            if intent.intent_id == intent_id {
+                intent.outflow_attempt_count += 1;
+
+                if intent.outflow_attempt_count >= MAX_OUTFLOW_RETRIES {
+                    tracing::error!(
+                        "Intent {} permanently failed after {} attempts. Last error: {}",
+                        intent_id, intent.outflow_attempt_count, error
+                    );
+                    intent.state = IntentState::Failed;
+                    return Ok(IntentState::Failed);
+                }
+
+                // Exponential backoff: INITIAL_BACKOFF_SECS * 2^(attempt-1)
+                let backoff_secs = INITIAL_BACKOFF_SECS * 2u64.pow(intent.outflow_attempt_count - 1);
+                let current_time = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                intent.next_retry_after = current_time + backoff_secs;
+
+                tracing::warn!(
+                    "Outflow attempt {}/{} failed for intent {}. Next retry after {}s. Error: {}",
+                    intent.outflow_attempt_count, MAX_OUTFLOW_RETRIES,
+                    intent_id, backoff_secs, error
+                );
+
+                return Ok(intent.state.clone());
             }
         }
         anyhow::bail!("Intent not found: {}", intent_id)
@@ -456,6 +519,7 @@ impl IntentTracker {
                     i.requester_addr == requester_addr
                         && i.state != IntentState::Fulfilled
                         && i.state != IntentState::Expired
+                        && i.state != IntentState::Failed
                 });
 
                 if !has_active {
