@@ -55,18 +55,13 @@ async function main() {
     const signers = await hre.ethers.getSigners();
     solver = signers[2];
   } else if (process.env.SOLVER_EVM_PRIVATE_KEY) {
-    // Testnet: Create wallet from private key using raw ethers
+    // External network (E2E tests, testnet): create wallet from private key
     const { ethers } = require("ethers");
     const rpcUrl = hre.network.config.url || "http://127.0.0.1:8545";
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     solver = new ethers.Wallet(process.env.SOLVER_EVM_PRIVATE_KEY, provider);
   } else {
-    // External network (E2E tests): use raw ethers with node-managed accounts
-    const { ethers } = require("ethers");
-    const rpcUrl = hre.network.config.url || "http://127.0.0.1:8545";
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const accounts = await provider.send("eth_accounts", []);
-    solver = await provider.getSigner(accounts[2]);
+    throw new Error("SOLVER_EVM_PRIVATE_KEY is required for non-local networks");
   }
 
   console.log(`Solver address: ${solver.address}`);
@@ -91,11 +86,16 @@ async function main() {
     throw new Error("Amount required is 0 - requirements may not exist");
   }
 
-  // Approve outflow validator to spend solver's tokens
+  // Approve outflow validator to spend solver's tokens (skip if already approved)
   const IERC20 = await hre.ethers.getContractAt("IERC20", evmTokenAddr, solver);
-  const approveTx = await IERC20.approve(outflowValidatorAddr, amount);
-  await approveTx.wait();
-  console.log(`Approval tx: ${approveTx.hash}`);
+  const currentAllowance = await IERC20.allowance(solver.address, outflowValidatorAddr);
+  if (currentAllowance < amount) {
+    const approveTx = await IERC20.approve(outflowValidatorAddr, amount);
+    await approveTx.wait();
+    console.log(`Approval tx: ${approveTx.hash}`);
+  } else {
+    console.log(`Allowance already sufficient: ${currentAllowance} >= ${amount}`);
+  }
 
   // Call fulfillIntent(intentId, token)
   // Set gasLimit to skip estimateGas — avoids stale-state race after approval
