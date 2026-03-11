@@ -39,7 +39,8 @@ packages/sdk/
 └── tests/
     ├── extension-checklist.md    # Test completeness tracking (per-chain symmetry)
     ├── coordinator.test.ts
-    ├── config.test.ts
+    ├── chains.test.ts
+    ├── tokens.test.ts
     ├── utils.test.ts
     ├── balances.test.ts
     ├── intent.test.ts
@@ -68,9 +69,9 @@ frontend/
 ├── src/
 │   ├── config/
 │   │   ├── chains.ts                         # SLIM DOWN — keep only CHAIN_CONFIGS constant with process.env reads; ChainConfig interface + helpers move to SDK
-│   │   ├── chains.test.ts                    # MOVE TO SDK → tests/config.test.ts
+│   │   ├── chains.test.ts                    # MOVE TO SDK → tests/chains.test.ts
 │   │   ├── tokens.ts                         # SLIM DOWN — keep only SUPPORTED_TOKENS array; TokenConfig interface + toSmallestUnits/fromSmallestUnits move to SDK
-│   │   └── tokens.test.ts                    # MOVE TO SDK → tests/config.test.ts
+│   │   └── tokens.test.ts                    # MOVE TO SDK → tests/tokens.test.ts
 │   ├── lib/
 │   │   ├── types.ts                          # MOVE TO SDK → src/types.ts (verbatim)
 │   │   ├── coordinator.ts                    # MOVE TO SDK → src/coordinator.ts (remove process.env default; require URL in constructor)
@@ -188,6 +189,7 @@ Each step below is a separate commit. Use `/commit` after completing each step.
 - Move corresponding tests
 - Delete original frontend files
 - Update `src/index.ts` exports
+- Update root `README.md`, `run-all-unit-tests.sh`, and `.claude/rules.md` with SDK test command
 - Verify SDK builds and tests pass
 
 ### Commit 3: `feat(sdk): move CoordinatorClient from frontend`
@@ -238,10 +240,9 @@ Each step below is a separate commit. Use `/commit` after completing each step.
 - Delete all moved files that remain
 - Verify frontend builds and all frontend tests pass
 
-### Commit 8: `docs(sdk): finalize extension-checklist and update README`
+### Commit 8: `docs(sdk): finalize extension-checklist`
 
 - Complete `tests/extension-checklist.md` with all test categories and per-chain status
-- Update root `README.md` testing section with SDK test command
 - Verify all tests pass (SDK + frontend)
 
 ## Testing

@@ -4,58 +4,42 @@
 
 This document tracks test alignment status for the TypeScript requester SDK. For the Rust chain-clients equivalent, see `chain-clients/extension-checklist.md`.
 
+All tests listed here are VM-specific; generic tests (config helpers, utils, coordinator) are intentionally excluded because they are not relevant when integrating a new VM.
+
 **Legend:** ✅ = Implemented | N/A = Not applicable | ⚠️ = Not yet implemented
-
-## config
-
-| # | Test | Status |
-| --- | ------ | ------ |
-| | *(tests added in Commit 2)* | |
-
-## utils
-
-| # | Test | Status |
-| --- | ------ | ------ |
-| | *(tests added in Commit 2)* | |
-
-## coordinator
-
-| # | Test | Status |
-| --- | ------ | ------ |
-| | *(tests added in Commit 3)* | |
 
 ## chains/evm
 
-| # | Test | Status |
-| --- | ------ | ------ |
-| | *(tests added in Commit 4)* | |
+| # | Test | MVM | EVM | SVM |
+| --- | ------ | ----- | ----- | ----- |
+| | *(tests added in Commit 4)* | | | |
 
 ## chains/svm
 
-| # | Test | Status |
-| --- | ------ | ------ |
-| | *(tests added in Commit 4)* | |
+| # | Test | MVM | EVM | SVM |
+| --- | ------ | ----- | ----- | ----- |
+| | *(tests added in Commit 4)* | | | |
 
 ## chains/svm-transactions
 
-| # | Test | Status |
-| --- | ------ | ------ |
-| | *(tests added in Commit 4)* | |
+| # | Test | MVM | EVM | SVM |
+| --- | ------ | ----- | ----- | ----- |
+| | *(tests added in Commit 4)* | | | |
 
 ## chains/mvm
 
-| # | Test | Status |
-| --- | ------ | ------ |
-| | *(tests added in Commit 4)* | |
+| # | Test | MVM | EVM | SVM |
+| --- | ------ | ----- | ----- | ----- |
+| | *(tests added in Commit 4)* | | | |
 
 ## balances
 
-| # | Test | Status |
-| --- | ------ | ------ |
-| | *(tests added in Commit 5)* | |
+| # | Test | MVM | EVM | SVM |
+| --- | ------ | ----- | ----- | ----- |
+| | *(tests added in Commit 5)* | | | |
 
 ## intent
 
-| # | Test | Status |
-| --- | ------ | ------ |
-| | *(tests added in Commit 6)* | |
+| # | Test | MVM | EVM | SVM |
+| --- | ------ | ----- | ----- | ----- |
+| | *(tests added in Commit 6)* | | | |

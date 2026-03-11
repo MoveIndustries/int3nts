@@ -12,7 +12,7 @@ git commit -m "<type of change>: <description>
 - <more detailed points if needed (optional)>
 - <more detailed points if needed (optional)>
 
-Tests pass: Coordinator <number>, Integrated-GMP <number>, Solver <number>, MVM <amount>, EVM <amount>, SVM <number>, Frontend <number>
+Tests pass: Chain-Clients <number>, Coordinator <number>, Integrated-GMP <number>, Solver <number>, MVM <amount>, EVM <amount>, SVM <number>, SDK <number>, Frontend <number>
 Tests delta: <component> +<new> -<removed>, <component> +<new> -<removed>, ..."
 ```
 
@@ -20,7 +20,7 @@ Tests delta: <component> +<new> -<removed>, <component> +<new> -<removed>, ..."
 
 - Count new test functions added in this commit (search for new `#[test]`, `#[tokio::test]`, `fun test_`, `it(`, `test(`, etc.)
 - Count test functions removed in this commit
-- Include the component/VM name: Coordinator, Integrated-GMP, Solver, MVM, EVM, SVM, Frontend
+- Include the component/VM name: Chain-Clients, Coordinator, Integrated-GMP, Solver, MVM, EVM, SVM, SDK, Frontend
 - Format per component: `<component> +<new>` (add `-<removed>` only if tests were removed)
 - Examples:
   - `MVM +3` (3 new MVM tests)
@@ -57,9 +57,9 @@ EOF
 - **Run tests before committing** ONLY if changes affect existing test code (e.g., adding new tests, modifying code that has tests)
 - **Do NOT run tests for:** project setup, documentation-only changes, configuration files, or other non-code changes
 - **If sandbox prevents test execution**, ask user for help or skip tests (don't include "Tests pass:" line)
-- **Only include test results** in commit message if tests were run AND there is a test delta (tests added or removed). Format: `Tests pass: Coordinator <number>, Integrated-GMP <number>, Solver <number>, MVM <amount>, EVM <amount>, SVM <number>, Frontend <number>` followed by `Tests delta: <component> +<new> -<removed>, ...`
+- **Only include test results** in commit message if tests were run AND there is a test delta (tests added or removed). Format: `Tests pass: Chain-Clients <number>, Coordinator <number>, Integrated-GMP <number>, Solver <number>, MVM <amount>, EVM <amount>, SVM <number>, SDK <number>, Frontend <number>` followed by `Tests delta: <component> +<new> -<removed>, ...`
 - **If there is no test delta**, omit the "Tests pass:" and "Tests delta:" lines entirely, even if tests were run to verify
-- **Display test summary table** after running tests using the commands in the next subsection, showing passed/total for each category (Coordinator, Integrated-GMP, Solver, MVM, EVM, SVM, Frontend)
+- **Display test summary table** after running tests using the commands in the next subsection, showing passed/total for each category (Chain-Clients, Coordinator, Integrated-GMP, Solver, MVM, EVM, SVM, SDK, Frontend)
 - Follow conventional commit format (e.g., `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`)
 - Keep commit messages brief and professional
 - Do NOT mention subtask or task IDs in commit messages
@@ -87,10 +87,16 @@ cd intent-frameworks/evm && npm test
 # SVM (Solana) - ALWAYS use this, never cargo test directly
 cd intent-frameworks/svm && ./scripts/test.sh
 
+# Chain clients
+./chain-clients/scripts/test.sh
+
 # Rust services
 cd coordinator && cargo test --quiet
 cd integrated-gmp && cargo test --quiet
 cd solver && cargo test --quiet
+
+# SDK
+cd packages/sdk && npm install && npm test
 
 # Frontend
 cd frontend && npm test
@@ -159,6 +165,8 @@ When adding tests for shared modules (e.g., `gmp_common`/`gmp-common`):
 - **Keep test counts in sync**: MVM and SVM should have matching test numbers for shared functionality
 - **CRITICAL - Update extension-checklist.md**: When adding, modifying, or removing tests, ALWAYS update the corresponding extension-checklist.md files. Checklists exist at:
   - `solver/tests/extension-checklist.md` - Solver client tests
+  - `chain-clients/extension-checklist.md` - Chain client tests
+  - `packages/sdk/tests/extension-checklist.md` - SDK tests
   - `docs/intent-frameworks/framework-extension-guide.md` - Full reference
   - When removing a function, also remove its tests AND update checklists to remove/mark as N/A
 

@@ -110,6 +110,22 @@ if [ $SVM_EXIT -ne 0 ] && [ "$SVM_PASSED" = "0" ] && [ "$SVM_FAILED" = "0" ]; th
     OVERALL_EXIT=1
 fi
 
+echo "Running SDK tests..."
+SDK_EXIT=0
+SDK_TEST_OUTPUT=$(nix develop ./nix -c bash -c "cd packages/sdk && npm install && npm test" 2>&1) || SDK_EXIT=$?
+if [ $SDK_EXIT -ne 0 ]; then
+    echo "SDK tests failed (exit code $SDK_EXIT):"
+    echo "$SDK_TEST_OUTPUT"
+fi
+SDK_PASSED=$(echo "$SDK_TEST_OUTPUT" | grep -oE "Tests[[:space:]]+[0-9]+ passed" | grep -oE "[0-9]+")
+SDK_FAILED=$(echo "$SDK_TEST_OUTPUT" | grep -oE "Tests[[:space:]]+[0-9]+ failed" | grep -oE "[0-9]+" || echo "0")
+SDK_PASSED=${SDK_PASSED:-0}
+SDK_FAILED=${SDK_FAILED:-0}
+if [ $SDK_EXIT -ne 0 ] && [ "$SDK_PASSED" = "0" ] && [ "$SDK_FAILED" = "0" ]; then
+    SDK_FAILED="ERR"
+    OVERALL_EXIT=1
+fi
+
 echo "Running Frontend tests..."
 FRONTEND_EXIT=0
 FRONTEND_TEST_OUTPUT=$(nix develop ./nix -c bash -c "cd frontend && npm install --legacy-peer-deps && npm test" 2>&1) || FRONTEND_EXIT=$?
@@ -137,6 +153,7 @@ printf "| %-14s | %6s | %6s |\n" "Solver" "$SOLVER_PASSED" "$SOLVER_FAILED"
 printf "| %-14s | %6s | %6s |\n" "MVM" "$MOVE_PASSED" "$MOVE_FAILED"
 printf "| %-14s | %6s | %6s |\n" "EVM" "$EVM_PASSED" "$EVM_FAILED"
 printf "| %-14s | %6s | %6s |\n" "SVM" "$SVM_PASSED" "$SVM_FAILED"
+printf "| %-14s | %6s | %6s |\n" "SDK" "$SDK_PASSED" "$SDK_FAILED"
 printf "| %-14s | %6s | %6s |\n" "Frontend" "$FRONTEND_PASSED" "$FRONTEND_FAILED"
 echo ""
 

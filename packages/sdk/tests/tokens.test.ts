@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { fromSmallestUnits, getTokensByChain, toSmallestUnits } from './tokens';
+import { getTokensByChain, toSmallestUnits, fromSmallestUnits } from '../src/config.js';
+import { TEST_TOKENS } from './test-fixtures.js';
 
 describe('getTokensByChain', () => {
   /**
@@ -7,7 +8,7 @@ describe('getTokensByChain', () => {
    * Why: UI needs chain-specific token options to render correctly.
    */
   it('should return SVM tokens for svm-devnet', () => {
-    const tokens = getTokensByChain('svm-devnet');
+    const tokens = getTokensByChain(TEST_TOKENS, 'svm-devnet');
     const symbols = tokens.map((token) => token.symbol);
     expect(symbols).toContain('SOL');
     expect(symbols).toContain('USDC');
