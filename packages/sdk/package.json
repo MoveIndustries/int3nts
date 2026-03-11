@@ -1,0 +1,34 @@
+{
+  "name": "@int3nts/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for the int3nts cross-chain intent protocol (requester flow)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "viem": "^2.0.0",
+    "@solana/web3.js": "^1.98.0",
+    "@solana/spl-token": "^0.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^3.2.0",
+    "viem": "^2.0.0",
+    "@solana/web3.js": "^1.98.0",
+    "@solana/spl-token": "^0.4.0"
+  },
+  "files": [
+    "dist"
+  ]
+}
