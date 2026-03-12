@@ -9,25 +9,16 @@ import type {
   DraftIntentStatus,
   DraftIntentSignature,
   EventsResponse,
-} from './types';
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-const COORDINATOR_URL = process.env.NEXT_PUBLIC_COORDINATOR_URL as string;
-if (!COORDINATOR_URL) {
-  throw new Error('NEXT_PUBLIC_COORDINATOR_URL environment variable is not set');
-}
+} from './types.js';
 
 // ============================================================================
 // Client Implementation
 // ============================================================================
 
-class CoordinatorClient {
+export class CoordinatorClient {
   private coordinatorUrl: string;
 
-  constructor(coordinatorUrl: string = COORDINATOR_URL) {
+  constructor(coordinatorUrl: string) {
     this.coordinatorUrl = coordinatorUrl;
   }
 
@@ -204,7 +195,4 @@ class CoordinatorClient {
       error: 'Polling timeout',
     };
   }
-
 }
-
-export const coordinatorClient = new CoordinatorClient();

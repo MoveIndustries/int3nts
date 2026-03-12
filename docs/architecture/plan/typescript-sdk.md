@@ -174,14 +174,14 @@ When published to npm later, this becomes a normal version reference (`"@int3nts
 
 Each step below is a separate commit. Use `/commit` after completing each step.
 
-### Commit 1: `feat(sdk): scaffold packages/sdk with build tooling`
+### ✅ Commit 1: `feat(sdk): scaffold packages/sdk with build tooling`
 
 - Create `packages/sdk/` with `.gitignore`, `package.json`, `tsconfig.json`, `tsconfig.build.json`, `vitest.config.ts`
 - Create `src/index.ts` (empty barrel export)
 - Create `tests/extension-checklist.md` (initial skeleton)
 - Verify `tsc` compiles cleanly
 
-### Commit 2: `feat(sdk): move types, config, and utils from frontend`
+### ✅ Commit 2: `feat(sdk): move types, config, and utils from frontend`
 
 - Move `types.ts` → `src/types.ts`
 - Extract `ChainConfig`, `TokenConfig` interfaces and pure helpers → `src/config.ts`
@@ -192,12 +192,11 @@ Each step below is a separate commit. Use `/commit` after completing each step.
 - Update root `README.md`, `run-all-unit-tests.sh`, and `.claude/rules.md` with SDK test command
 - Verify SDK builds and tests pass
 
-### Commit 3: `feat(sdk): move CoordinatorClient from frontend`
+### ✅ Commit 3: `feat(sdk): move CoordinatorClient from frontend`
 
 - Move `coordinator.ts` → `src/coordinator.ts`
 - Remove `process.env` default; require URL in constructor
-- Move corresponding tests
-- Delete original frontend file
+- Add `tests/coordinator.test.ts` (no frontend test existed — new tests for constructor, endpoints, error handling, polling)
 - Update `src/index.ts` exports
 - Verify SDK builds and tests pass
 

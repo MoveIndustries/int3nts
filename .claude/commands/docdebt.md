@@ -1,5 +1,5 @@
 ---
-description: Find and fix documentation debt including outdated content vs code, markdown linting errors, and missing docs
+description: Find and fix documentation debt including outdated content vs code, markdown linting errors, missing docs, and code comment style alignment
 ---
 
 # Documentation Debt Analysis and Fix
@@ -74,7 +74,8 @@ Before doing any work, ask the user which phases they want to run:
 
 - **Phase 1: Markdown Linting** — find and fix MD lint violations (missing language specifiers, blank line issues, trailing whitespace, etc.)
 - **Phase 2: Content Accuracy** — verify docs match the actual code (file paths, struct names, CLI flags, links, etc.)
-- **Both** — run Phase 1 then Phase 2
+- **Phase 3: Code Comment Style** — align test and source function comments across all languages to match project conventions
+- **All** — run all phases in order
 
 Wait for the user's answer before proceeding. Only run the selected phase(s).
 
@@ -162,6 +163,24 @@ Wait for the user's answer before proceeding. Only run the selected phase(s).
    - Suggested fix
 
 4. **Fix all confirmed inaccuracies.** If you cannot determine the correct content from the code, flag it for the user rather than guessing.
+
+### Phase 3: Code Comment Style Alignment
+
+**CRITICAL: Ensure all code comments follow the project's comment conventions consistently.**
+
+This phase covers two scopes: **test function documentation** and **source function documentation**.
+
+#### 3a. Test function comments
+
+Read and apply the full standard from `docs/architecture/codestyle-testing.md` (sections 10 and 11). Find all test files (Rust `*_test.rs`/`tests/*.rs`, TypeScript `*.test.ts`/`*.test.js`, Move `*_tests.move`) and verify each test function matches the documented format.
+
+#### 3b. Source function comments
+
+Read and apply the conventions from `docs/codestandards.md`. Find all source files (excluding `node_modules/`, `build/`, `target/`, test files) and check for missing docs on exported/public functions, inconsistent comment style within files, and stale comments that no longer match signatures.
+
+#### Reporting
+
+**Report all findings** before making changes. Group by file and violation type.
 
 ## Important Notes
 
