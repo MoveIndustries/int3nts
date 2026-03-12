@@ -1195,6 +1195,8 @@ mod integration {
         let _d2: DeliveredMessage = read_account(&mut context, delivered_pda2).await;
     }
 
+    /// #24: test_deliver_intent_requirements_stores_in_both_handlers — N/A for SVM (MVM-specific dual handler routing)
+
     // ========================================================================
     // ADMIN TESTS
     // ========================================================================
@@ -1251,6 +1253,8 @@ mod integration {
         let result = send_tx(&mut context, &non_admin, &[remove_relay_ix], &[]).await;
         assert!(result.is_err(), "Non-admin should not be able to remove relay");
     }
+
+    /// #27: test_deliver_intent_requirements_fails_without_outflow_init — N/A for SVM (MVM-specific module initialization check)
 
     // ========================================================================
     // FULFILLMENT PROOF ROUTING TESTS
@@ -1401,4 +1405,26 @@ mod integration {
         let result = send_tx(&mut context, &relay, &[deliver_ix], &[]).await;
         assert!(result.is_err(), "Should fail with insufficient accounts for FulfillmentProof");
     }
+
+    /// #30: test_initialize_creates_config — N/A for SVM (EVM-specific contract initialization)
+    /// #31: test_initialize_sets_nonce — N/A for SVM (EVM-specific contract initialization)
+    /// #32: test_initialize_rejects_zero_admin — N/A for SVM (EVM-specific zero address check)
+    /// #33: test_add_relay — N/A for SVM (EVM-specific relay management)
+    /// #34: test_remove_relay — N/A for SVM (EVM-specific relay management)
+    /// #35: test_reject_duplicate_relay — N/A for SVM (EVM-specific relay management)
+    /// #36: test_reject_removing_non_existent_relay — N/A for SVM (EVM-specific relay management)
+    /// #37: test_set_remote_gmp_endpoint_addr — N/A for SVM (EVM-specific remote config)
+    /// #38: test_add_remote_gmp_endpoint_addr — N/A for SVM (EVM-specific remote config)
+    /// #39: test_has_remote_gmp_endpoint — N/A for SVM (EVM-specific view function)
+    /// #40: test_no_remote_gmp_endpoint — N/A for SVM (EVM-specific view function)
+    /// #41: test_deliver_fulfillment_proof_routes — N/A for SVM (EVM-specific handler routing)
+    /// #42: test_reject_unknown_message_type — N/A for SVM (EVM-specific message type validation)
+    /// #43: test_emit_message_delivered — N/A for SVM (EVM-specific event emission)
+    /// #44: test_is_message_delivered — N/A for SVM (EVM-specific view function)
+    /// #45: test_emit_message_sent — N/A for SVM (EVM-specific event emission)
+    /// #46: test_only_handlers_can_send — N/A for SVM (EVM-specific handler authorization)
+    /// #47: test_set_escrow_handler — N/A for SVM (EVM-specific handler configuration)
+    /// #48: test_set_outflow_handler — N/A for SVM (EVM-specific handler configuration)
+    /// #49: test_route_to_both_handlers — N/A for SVM (EVM-specific dual handler routing)
+    /// #50: test_fulfillment_proof_requires_escrow_handler — N/A for SVM (EVM-specific handler requirement)
 }

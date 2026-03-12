@@ -73,6 +73,21 @@ module mvmt_intent::intent_gmp_tests {
     // INTEGRATION TESTS
     // ============================================================================
 
+    // #1: test_send_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #2: test_deliver_message_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #3: test_initialize_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #4: test_add_relay_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #5: test_set_remote_gmp_endpoint_addr_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #6: test_set_routing_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #7: test_routing_config_serialization — N/A for MVM (SVM-specific serialization)
+    // #8: test_config_account_serialization — N/A for MVM (SVM-specific serialization)
+    // #9: test_relay_account_serialization — N/A for MVM (SVM-specific serialization)
+    // #10: test_remote_gmp_endpoint_account_serialization — N/A for MVM (SVM-specific serialization)
+    // #11: test_outbound_nonce_account — N/A for MVM (SVM-specific serialization)
+    // #12: test_delivered_message_serialization — N/A for MVM (SVM-specific serialization)
+    // #13: test_error_conversion — N/A for MVM (SVM-specific serialization)
+    // #14: test_error_codes_unique — N/A for MVM (SVM-specific serialization)
+
     // 15. Test: Send updates nonce state
     // Verifies that gmp_sender::gmp_send increments the outbound nonce correctly for each message.
     // Why: Nonce tracking prevents message reordering and provides unique message IDs.
@@ -449,4 +464,28 @@ module mvmt_intent::intent_gmp_tests {
             payload,
         );
     }
+
+    // #28: test_fulfillment_proof_routes_to_intent_escrow — N/A for MVM (SVM-specific CPI routing)
+    // #29: test_fulfillment_proof_fails_with_insufficient_accounts — N/A for MVM (SVM-specific account validation)
+    // #30: test_initialize_creates_config — N/A for MVM (EVM-specific contract initialization)
+    // #31: test_initialize_sets_nonce — N/A for MVM (EVM-specific contract initialization)
+    // #32: test_initialize_rejects_zero_admin — N/A for MVM (EVM-specific zero address check)
+    // #33: test_add_relay — N/A for MVM (EVM-specific relay management)
+    // #34: test_remove_relay — N/A for MVM (EVM-specific relay management)
+    // #35: test_reject_duplicate_relay — N/A for MVM (EVM-specific relay management)
+    // #36: test_reject_removing_non_existent_relay — N/A for MVM (EVM-specific relay management)
+    // #37: test_set_remote_gmp_endpoint_addr — N/A for MVM (EVM-specific remote config)
+    // #38: test_add_remote_gmp_endpoint_addr — N/A for MVM (EVM-specific remote config)
+    // #39: test_has_remote_gmp_endpoint — N/A for MVM (EVM-specific view function)
+    // #40: test_no_remote_gmp_endpoint — N/A for MVM (EVM-specific view function)
+    // #41: test_deliver_fulfillment_proof_routes — N/A for MVM (EVM-specific handler routing)
+    // #42: test_reject_unknown_message_type — N/A for MVM (EVM-specific message type validation)
+    // #43: test_emit_message_delivered — N/A for MVM (EVM-specific event emission)
+    // #44: test_is_message_delivered — N/A for MVM (EVM-specific view function)
+    // #45: test_emit_message_sent — N/A for MVM (EVM-specific event emission)
+    // #46: test_only_handlers_can_send — N/A for MVM (EVM-specific handler authorization)
+    // #47: test_set_escrow_handler — N/A for MVM (EVM-specific handler configuration)
+    // #48: test_set_outflow_handler — N/A for MVM (EVM-specific handler configuration)
+    // #49: test_route_to_both_handlers — N/A for MVM (EVM-specific dual handler routing)
+    // #50: test_fulfillment_proof_requires_escrow_handler — N/A for MVM (EVM-specific handler requirement)
 }

@@ -462,6 +462,14 @@ describe("IntentInflowEscrow", function () {
     });
   });
 
+  // #16: test_release_escrow_succeeds_after_fulfillment — N/A for EVM (auto-releases tokens in receiveFulfillmentProof, no separate release step)
+  // #17: test_release_escrow_rejects_without_fulfillment — N/A for EVM (no separate release instruction - release is automatic)
+  // #18: test_release_escrow_rejects_unauthorized_solver — N/A for EVM (no separate release instruction - release is automatic)
+  // #19: test_release_escrow_rejects_double_release — N/A for EVM (no separate release instruction - GMP deduplication prevents double fulfillment)
+  // #20: test_generic_gmp_receive_routes_requirements — N/A for EVM (SVM-specific pattern; EVM uses typed handler functions)
+  // #21: test_generic_gmp_receive_routes_fulfillment_proof — N/A for EVM (SVM-specific pattern; EVM uses typed handler functions)
+  // #22: test_generic_gmp_receive_rejects_unknown_message_type — N/A for EVM (SVM-specific pattern; EVM uses typed handler functions)
+
   // ============================================================================
   // EVM-Specific Tests
   // ============================================================================

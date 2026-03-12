@@ -1,8 +1,17 @@
-/**
- * Escrow creation utilities for EVM chains
- */
+// ============================================================================
+// EVM Escrow Utilities
+// ============================================================================
 
 import { parseUnits, type Address, getAddress } from 'viem';
+
+// ============================================================================
+// Signer Interface
+// ============================================================================
+
+export interface EvmSigner {
+  address: string;
+  sendTransaction(tx: { to: string; data: string; value?: bigint }): Promise<string>;
+}
 
 // ============================================================================
 // ABIs
@@ -62,15 +71,10 @@ export function intentIdToEvmBytes32(intentId: string): `0x${string}` {
   return `0x${hex.padStart(64, '0')}` as `0x${string}`;
 }
 
-import { getEscrowContractAddress as getEscrowFromChains, getMvmEscrowModuleAddress, getOutflowValidatorAddress, getRpcUrl } from '@/config/chains';
-
 /**
- * Get escrow contract address from chain configuration
- * @param chainId - Chain identifier (e.g., 'base-sepolia', 'ethereum-sepolia')
+ * Normalize an escrow contract address to checksummed EVM format.
  */
-export function getEscrowContractAddress(chainId: string): Address {
-  const address = getEscrowFromChains(chainId);
-  // Normalize to checksum format (viem requires this)
+export function checksumEscrowAddress(address: string): Address {
   return getAddress(address);
 }
 
@@ -80,16 +84,15 @@ export function getEscrowContractAddress(chainId: string): Address {
  * Calls the public `hasRequirements(bytes32)` mapping on IntentInflowEscrow
  * via eth_call.  Returns true once the GMP relay has delivered requirements.
  *
- * @param chainKey - Chain config key (e.g. 'base-sepolia')
+ * @param rpcUrl - JSON-RPC endpoint for the EVM chain
+ * @param escrowAddr - Escrow contract address
  * @param intentId - 32-byte hex intent ID (with 0x prefix)
  */
 export async function checkHasRequirements(
-  chainKey: string,
+  rpcUrl: string,
+  escrowAddr: string,
   intentId: string,
 ): Promise<boolean> {
-  const rpcUrl = getRpcUrl(chainKey);
-  const escrowAddr = getEscrowFromChains(chainKey);
-
   // keccak256("hasRequirements(bytes32)") first 4 bytes = 0xd70af694
   const selector = 'd70af694';
   const intentHex = intentId.startsWith('0x') ? intentId.slice(2) : intentId;
@@ -118,60 +121,20 @@ export async function checkHasRequirements(
 }
 
 /**
- * Check if IntentRequirements have been delivered via GMP for an intent on MVM.
- *
- * Calls the `has_requirements(vector<u8>)` view function on the MVM connected
- * chain's `intent_inflow_escrow` module. Returns true once the GMP relay has
- * delivered requirements.
- *
- * @param chainKey - Chain config key (e.g. 'movement-connected')
- * @param intentId - 32-byte hex intent ID (with 0x prefix)
- */
-export async function checkHasRequirementsMvm(
-  chainKey: string,
-  intentId: string,
-): Promise<boolean> {
-  const rpcUrl = getRpcUrl(chainKey);
-  const moduleAddr = getMvmEscrowModuleAddress(chainKey);
-
-  const intentHex = intentId.startsWith('0x') ? intentId.slice(2) : intentId;
-  const intentPadded = intentHex.padStart(64, '0');
-
-  const response = await fetch(`${rpcUrl}/view`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      function: `${moduleAddr}::intent_inflow_escrow::has_requirements`,
-      type_arguments: [],
-      arguments: [`0x${intentPadded}`],
-    }),
-  });
-
-  const json = await response.json();
-  if (json.error_code || json.message) {
-    throw new Error(`MVM has_requirements view call failed: ${json.message || JSON.stringify(json)}`);
-  }
-
-  // Response is a bare array like [true] or [false]
-  return Array.isArray(json) && json[0] === true;
-}
-
-/**
  * Check if an outflow intent has been fulfilled on the connected EVM chain.
  *
  * Calls `isFulfilled(bytes32)` on IntentOutflowValidator.
  * Returns true once the solver has fulfilled the intent (sent tokens to recipient).
  *
- * @param chainKey - Chain config key (e.g. 'base-sepolia')
+ * @param rpcUrl - JSON-RPC endpoint for the EVM chain
+ * @param outflowAddr - Outflow validator contract address
  * @param intentId - 32-byte hex intent ID (with 0x prefix)
  */
 export async function checkIsFulfilled(
-  chainKey: string,
+  rpcUrl: string,
+  outflowAddr: string,
   intentId: string,
 ): Promise<boolean> {
-  const rpcUrl = getRpcUrl(chainKey);
-  const outflowAddr = getOutflowValidatorAddress(chainKey);
-
   // keccak256("isFulfilled(bytes32)") first 4 bytes = 0xed75e1cc
   const selector = 'ed75e1cc';
   const intentHex = intentId.startsWith('0x') ? intentId.slice(2) : intentId;
@@ -198,4 +161,3 @@ export async function checkIsFulfilled(
   const result: string = json.result || '0x';
   return result.endsWith('1');
 }
-

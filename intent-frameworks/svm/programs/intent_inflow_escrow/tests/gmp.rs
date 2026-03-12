@@ -1527,3 +1527,13 @@ async fn test_generic_gmp_receive_rejects_unknown_message_type() {
     let result = context.banks_client.process_transaction(tx).await;
     assert!(result.is_err(), "Should reject message type 0x02 (EscrowConfirmation)");
 }
+
+// ============================================================================
+// EVM-SPECIFIC TESTS (N/A for SVM)
+// ============================================================================
+//
+/// #23: test_reject_direct_call — N/A for SVM (EVM-only access control pattern)
+/// #24: test_create_escrow_rejects_requester_mismatch — N/A for SVM (EVM-only validation via msg.sender)
+/// #25: test_create_escrow_rejects_expired_intent — N/A for SVM (EVM-only block.timestamp check)
+/// #26: test_tokens_transferred_to_escrow — N/A for SVM (EVM-only ERC-20 transferFrom verification)
+/// #27: test_emit_events_on_release — N/A for SVM (EVM-only event emission test)

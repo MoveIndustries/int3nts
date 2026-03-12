@@ -12,6 +12,9 @@ const {
   DEFAULT_EXPIRY_OFFSET
 } = require("./helpers/setup");
 
+// GMP fulfillment proofs are honored regardless of local expiry (hub is source
+// of truth). Local expiry only affects the cancel operation.
+
 describe("IntentInflowEscrow - Expiry Handling", function () {
   let escrow;
   let gmpEndpoint;

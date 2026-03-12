@@ -38,6 +38,21 @@ describe("IntentGmp", function () {
     await gmpEndpoint.setRemoteGmpEndpointAddr(MOVEMENT_CHAIN_ID, REGISTERED_REMOTE);
   });
 
+  // #1: test_send_instruction_serialization — N/A for EVM (SVM-specific serialization)
+  // #2: test_deliver_message_instruction_serialization — N/A for EVM (SVM-specific serialization)
+  // #3: test_initialize_instruction_serialization — N/A for EVM (SVM-specific serialization)
+  // #4: test_add_relay_instruction_serialization — N/A for EVM (SVM-specific serialization)
+  // #5: test_set_remote_gmp_endpoint_addr_instruction_serialization — N/A for EVM (SVM-specific serialization)
+  // #6: test_set_routing_instruction_serialization — N/A for EVM (SVM-specific serialization)
+  // #7: test_routing_config_serialization — N/A for EVM (SVM-specific serialization)
+  // #8: test_config_account_serialization — N/A for EVM (SVM-specific serialization)
+  // #9: test_relay_account_serialization — N/A for EVM (SVM-specific serialization)
+  // #10: test_remote_gmp_endpoint_account_serialization — N/A for EVM (SVM-specific serialization)
+  // #11: test_outbound_nonce_account — N/A for EVM (SVM-specific serialization)
+  // #12: test_delivered_message_serialization — N/A for EVM (SVM-specific serialization)
+  // #13: test_error_conversion — N/A for EVM (SVM-specific serialization)
+  // #14: test_error_codes_unique — N/A for EVM (SVM-specific serialization)
+
   // ============================================================================
   // Shared Cross-VM Tests (15-26)
   // ============================================================================
@@ -193,6 +208,8 @@ describe("IntentGmp", function () {
     });
   });
 
+  // #24: test_deliver_intent_requirements_stores_in_both_handlers — N/A for EVM (MVM-specific dual handler routing)
+
   describe("Relay Authorization", function () {
     /// 25. Test: test_add_authorized_relay_rejects_non_admin: Reject Non-Admin Add Relay
     /// Verifies only admin can add relays.
@@ -213,6 +230,10 @@ describe("IntentGmp", function () {
       ).to.be.revertedWithCustomError(gmpEndpoint, "OwnableUnauthorizedAccount");
     });
   });
+
+  // #27: test_deliver_intent_requirements_fails_without_outflow_init — N/A for EVM (MVM-specific module initialization check)
+  // #28: test_fulfillment_proof_routes_to_intent_escrow — N/A for EVM (SVM-specific CPI routing)
+  // #29: test_fulfillment_proof_fails_with_insufficient_accounts — N/A for EVM (SVM-specific account validation)
 
   // ============================================================================
   // EVM-Specific Tests (30-50)

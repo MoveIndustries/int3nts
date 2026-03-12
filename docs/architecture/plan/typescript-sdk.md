@@ -174,6 +174,10 @@ When published to npm later, this becomes a normal version reference (`"@int3nts
 
 Each step below is a separate commit. Use `/commit` after completing each step.
 
+**"Move" means `git mv` then edit in place.** Never copy a file and delete the original — always use `git mv` first so git tracks the rename history, then make modifications to the moved file.
+
+**Update `tests/extension-checklist.md` in every commit that adds or moves tests.** The checklist must reflect the actual tests after each commit — not deferred to Commit 8.
+
 ### ✅ Commit 1: `feat(sdk): scaffold packages/sdk with build tooling`
 
 - Create `packages/sdk/` with `.gitignore`, `package.json`, `tsconfig.json`, `tsconfig.build.json`, `vitest.config.ts`
@@ -200,7 +204,7 @@ Each step below is a separate commit. Use `/commit` after completing each step.
 - Update `src/index.ts` exports
 - Verify SDK builds and tests pass
 
-### Commit 4: `feat(sdk): move chain modules (evm, svm, mvm) from frontend`
+### ✅ Commit 4: `feat(sdk): move chain modules (evm, svm, mvm) from frontend`
 
 - Move `escrow.ts` → `src/chains/evm.ts`; parameterize config
 - Move `svm-escrow.ts` → `src/chains/svm.ts`; parameterize config

@@ -1179,4 +1179,14 @@ module mvmt_intent::intent_inflow_escrow_tests {
         assert!(vector::length(gmp_common::escrow_confirmation_escrow_id(&confirmation)) == 32, 3);
     }
 
+    // ============================================================================
+    // EVM-SPECIFIC TESTS (N/A for MVM)
+    // ============================================================================
+    //
+    // #23: test_reject_direct_call — N/A for MVM (EVM-only access control pattern)
+    // #24: test_create_escrow_rejects_requester_mismatch — N/A for MVM (EVM-only validation via msg.sender)
+    // #25: test_create_escrow_rejects_expired_intent — N/A for MVM (EVM-only block.timestamp check)
+    // #26: test_tokens_transferred_to_escrow — N/A for MVM (EVM-only ERC-20 transferFrom verification)
+    // #27: test_emit_events_on_release — N/A for MVM (EVM-only event emission test)
+
 }

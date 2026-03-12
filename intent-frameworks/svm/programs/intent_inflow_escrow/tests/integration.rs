@@ -451,3 +451,9 @@ async fn test_complete_full_cancellation_workflow() {
     let vault_balance = get_token_balance(&mut context, vault_pda).await;
     assert_eq!(vault_balance, 0);
 }
+
+// #5: test_require_requirements_before_escrow — N/A for SVM (requirements enforced via PDA account
+//     existence check in CreateEscrow instruction - transaction fails if requirements PDA doesn't exist)
+//
+// #6: test_handle_multiple_participants — N/A for SVM (Solana accounts are per-signer; each participant
+//     creates independent escrows with separate PDAs - no shared-state contention to test)
