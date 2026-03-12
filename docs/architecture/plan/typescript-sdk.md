@@ -216,7 +216,7 @@ Each step below is a separate commit. Use `/commit` after completing each step.
 - Update `src/index.ts` exports
 - Verify SDK builds and tests pass
 
-### Commit 5: `feat(sdk): move balances module from frontend`
+### ✅ Commit 5: `feat(sdk): move balances module from frontend`
 
 - Move `balances.ts` → `src/balances.ts`; accept RPC URL params
 - Move corresponding tests (if any)
