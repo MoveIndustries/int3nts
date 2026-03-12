@@ -62,24 +62,15 @@ fn test_client_new() {
 // #13: test_is_escrow_released_success — moved to chain-clients/evm/tests/evm_client_tests.rs (#3)
 // #14: test_is_escrow_released_false — moved to chain-clients/evm/tests/evm_client_tests.rs (#4)
 // #15: test_is_escrow_released_error — moved to chain-clients/evm/tests/evm_client_tests.rs (#5)
-// #16: test_get_token_balance_success — moved to chain-clients/evm/tests/evm_client_tests.rs (#6)
-// #17: test_get_token_balance_error — moved to chain-clients/evm/tests/evm_client_tests.rs (#7)
-// #18: test_get_token_balance_zero — moved to chain-clients/evm/tests/evm_client_tests.rs (#8)
-// #19: test_get_native_balance_success — moved to chain-clients/evm/tests/evm_client_tests.rs (#9)
-// #20: test_get_native_balance_error — moved to chain-clients/evm/tests/evm_client_tests.rs (#10)
-// #21: test_normalize_hex_to_address_full_length — N/A for EVM (MVM-specific)
-// #22: test_normalize_hex_to_address_short_address — N/A for EVM (MVM-specific)
-// #23: test_normalize_hex_to_address_odd_length — N/A for EVM (MVM-specific)
-// #24: test_normalize_hex_to_address_no_prefix — N/A for EVM (MVM-specific)
-// #25: test_has_outflow_requirements_success — N/A for EVM (MVM-specific GMP view function)
-// #26: test_has_outflow_requirements_false — N/A for EVM (MVM-specific GMP view function)
-// #27: test_has_outflow_requirements_error — N/A for EVM (MVM-specific GMP view function)
+// #16: test_has_outflow_requirements_success — N/A for EVM (MVM-specific GMP view function)
+// #17: test_has_outflow_requirements_false — N/A for EVM (MVM-specific GMP view function)
+// #18: test_has_outflow_requirements_error — N/A for EVM (MVM-specific GMP view function)
 
 // ============================================================================
 // IS ESCROW RELEASED HELPERS (EVM-specific, Hardhat script mechanics)
 // ============================================================================
 
-/// 28. Test: is_escrow_released intent ID formatting
+/// 19. Test: is_escrow_released intent ID formatting
 /// Verifies that intent_id is correctly formatted for Hardhat script.
 /// Why: EVM expects 0x-prefixed hex strings. Missing prefix would cause the
 /// Hardhat script to fail with a parse error.
@@ -104,7 +95,7 @@ fn test_is_escrow_released_id_formatting() {
     assert_eq!(formatted, "0x1234567890abcdef");
 }
 
-/// 29. Test: is_escrow_released output parsing
+/// 20. Test: is_escrow_released output parsing
 /// Verifies that "isReleased: true/false" is correctly parsed from Hardhat output.
 /// Why: The solver needs to know when escrow is auto-released to complete the flow.
 /// Wrong parsing would cause the solver to wait forever or miss releases.
@@ -121,7 +112,7 @@ fn test_is_escrow_released_output_parsing() {
     assert!(!output_false.contains("isReleased: true"));
 }
 
-/// 30. Test: is_escrow_released command building
+/// 21. Test: is_escrow_released command building
 /// Verifies that the Hardhat command is built correctly with all required arguments.
 /// Why: The is_escrow_released function invokes a Hardhat script with environment variables.
 /// Wrong command formatting would cause the script to fail or use wrong parameters.
@@ -148,7 +139,7 @@ fn test_is_escrow_released_command_building() {
     assert!(command.contains("--network localhost"));
 }
 
-/// 31. Test: is_escrow_released missing directory error
+/// 22. Test: is_escrow_released missing directory error
 /// Verifies that proper error is returned when intent-frameworks/evm directory is missing.
 /// Why: A clear error message helps operators diagnose deployment issues.
 /// Silent failures would make debugging much harder.
@@ -165,9 +156,27 @@ fn test_is_escrow_released_error_handling() {
     assert!(evm_framework_dir.to_string_lossy().contains("intent-frameworks/evm"));
 }
 
-// #32: test_get_native_balance_exceeds_u64 — moved to chain-clients/evm/tests/evm_client_tests.rs (#11)
-// #33: test_get_token_balance_with_padded_address — moved to chain-clients/evm/tests/evm_client_tests.rs (#12)
-// #34: test_get_native_balance_with_padded_address — moved to chain-clients/evm/tests/evm_client_tests.rs (#13)
+// ============================================================================
+// BALANCE QUERIES
+// ============================================================================
+
+// #23: test_get_token_balance_success — moved to chain-clients/evm/tests/evm_client_tests.rs (#6)
+// #24: test_get_token_balance_error — moved to chain-clients/evm/tests/evm_client_tests.rs (#7)
+// #25: test_get_token_balance_zero — moved to chain-clients/evm/tests/evm_client_tests.rs (#8)
+// #26: test_get_native_balance_success — moved to chain-clients/evm/tests/evm_client_tests.rs (#9)
+// #27: test_get_native_balance_error — moved to chain-clients/evm/tests/evm_client_tests.rs (#10)
+
+// ============================================================================
+// EVM ADDRESS NORMALIZATION (EVM-specific)
+// ============================================================================
+
+// #28: test_get_native_balance_exceeds_u64 — moved to chain-clients/evm/tests/evm_client_tests.rs (#11)
+// #29: test_get_token_balance_with_padded_address — moved to chain-clients/evm/tests/evm_client_tests.rs (#12)
+// #30: test_get_native_balance_with_padded_address — moved to chain-clients/evm/tests/evm_client_tests.rs (#13)
+// #31: test_normalize_hex_to_address_full_length — N/A for EVM (MVM-specific)
+// #32: test_normalize_hex_to_address_short_address — N/A for EVM (MVM-specific)
+// #33: test_normalize_hex_to_address_odd_length — N/A for EVM (MVM-specific)
+// #34: test_normalize_hex_to_address_no_prefix — N/A for EVM (MVM-specific)
 // #35: test_normalize_evm_address_padded — moved to chain-clients/evm/tests/evm_client_tests.rs (#22)
 // #36: test_normalize_evm_address_passthrough — moved to chain-clients/evm/tests/evm_client_tests.rs (#23)
 // #37: test_normalize_evm_address_rejects_non_zero_high_bytes — moved to chain-clients/evm/tests/evm_client_tests.rs (#24)

@@ -13,9 +13,9 @@ For the Rust chain-clients equivalent, see [`chain-clients/extension-checklist.m
 | 2 | Intent ID conversion without prefix | N/A | [x] | N/A |
 | 3 | Short intent IDs zero-padded | N/A | [x] | N/A |
 | | **Escrow Address (EVM)** | | | |
-| 5 | Escrow address checksum normalization | N/A | [x] | N/A |
+| 4 | Escrow address checksum normalization | N/A | [x] | N/A |
 | | **Address Helpers (SVM)** | | | |
-| 4 | Intent ID padding to 32 bytes | N/A | N/A | [x] |
+| 5 | Intent ID padding to 32 bytes | N/A | N/A | [x] |
 | 6 | Public key hex round-trip | N/A | N/A | [x] |
 | | **PDA Helpers (SVM)** | | | |
 | 7 | PDA determinism (state/escrow/vault) | N/A | N/A | [x] |

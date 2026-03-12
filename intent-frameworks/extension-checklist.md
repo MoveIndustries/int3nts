@@ -261,20 +261,20 @@ SVM: `intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_te
 | | **Initialization** | | | |
 | 1 | test_initialize_creates_config | [x] | [x] | [x] |
 | 2 | test_initialize_rejects_double_init | [x] | N/A | [x] |
-| 14 | test_initialize_rejects_zero_endpoint | N/A | [x] | N/A |
+| 3 | test_initialize_rejects_zero_endpoint | N/A | [x] | N/A |
 | | **LZ Receive** | | | |
-| 3 | test_receive_stores_requirements | [x] | [x] | [x] |
-| 4 | test_receive_idempotent | [x] | [x] | [x] |
-| 5 | test_receive_rejects_unauthorized_source | [x] | [x] | [x] |
-| 6 | test_receive_rejects_invalid_payload | [x] | N/A | [x] |
+| 4 | test_receive_stores_requirements | [x] | [x] | [x] |
+| 5 | test_receive_idempotent | [x] | [x] | [x] |
+| 6 | test_receive_rejects_unauthorized_source | [x] | [x] | [x] |
+| 7 | test_receive_rejects_invalid_payload | [x] | N/A | [x] |
 | | **Fulfill Intent** | | | |
-| 7 | test_fulfill_intent_rejects_already_fulfilled | [x] | [x] | [x] |
-| 8 | test_fulfill_intent_rejects_expired | [x] | [x] | [x] |
-| 9 | test_fulfill_intent_rejects_unauthorized_solver | [x] | [x] | [x] |
-| 10 | test_fulfill_intent_rejects_token_mismatch | [x] | [x] | [x] |
-| 11 | test_fulfill_intent_rejects_requirements_not_found | [x] | [x] | [x] |
-| 12 | test_fulfill_intent_rejects_recipient_mismatch | [x] | N/A | [x] |
-| 13 | test_fulfill_intent_succeeds | [x] | [x] | [x] |
+| 8 | test_fulfill_intent_rejects_already_fulfilled | [x] | [x] | [x] |
+| 9 | test_fulfill_intent_rejects_expired | [x] | [x] | [x] |
+| 10 | test_fulfill_intent_rejects_unauthorized_solver | [x] | [x] | [x] |
+| 11 | test_fulfill_intent_rejects_token_mismatch | [x] | [x] | [x] |
+| 12 | test_fulfill_intent_rejects_requirements_not_found | [x] | [x] | [x] |
+| 13 | test_fulfill_intent_rejects_recipient_mismatch | [x] | N/A | [x] |
+| 14 | test_fulfill_intent_succeeds | [x] | [x] | [x] |
 | 15 | test_allow_any_solver_zero_address | N/A | [x] | N/A |
 | 16 | test_send_fulfillment_proof_to_hub | N/A | [x] | N/A |
 | 17 | test_tokens_transferred_to_requester | N/A | [x] | N/A |
@@ -318,47 +318,47 @@ SVM: `intent-frameworks/svm/programs/intent-gmp/tests/endpoint_tests.rs`
 | 14 | test_error_codes_unique | N/A | N/A | [x] |
 | | **Message Sending** | | | |
 | 15 | test_send_updates_nonce_state | [x] | [x] | [x] |
-| 45 | test_emit_message_sent | N/A | [x] | N/A |
-| 46 | test_only_handlers_can_send | N/A | [x] | N/A |
+| 16 | test_emit_message_sent | N/A | [x] | N/A |
+| 17 | test_only_handlers_can_send | N/A | [x] | N/A |
 | | **Message Delivery** | | | |
-| 16 | test_deliver_message_calls_receiver | [ ] | [x] | [x] |
-| 17 | test_deliver_message_rejects_replay (EVM/SVM revert, MVM idempotent) | [x] | [x] | [x] |
-| 18 | test_deliver_message_rejects_unauthorized_relay | [x] | [x] | [x] |
-| 19 | test_deliver_message_authorized_relay | [x] | [x] | [x] |
-| 20 | test_deliver_message_rejects_unknown_remote_gmp_endpoint | [x] | [x] | [x] |
-| 21 | test_deliver_message_rejects_no_remote_gmp_endpoint | [x] | [x] | [x] |
-| 23 | test_deliver_message_different_msg_type_succeeds (dedupe per intent_id+msg_type) | [x] | [x] | [x] |
-| 43 | test_emit_message_delivered | N/A | [x] | N/A |
-| 44 | test_is_message_delivered | N/A | [x] | N/A |
+| 18 | test_deliver_message_calls_receiver | [ ] | [x] | [x] |
+| 19 | test_deliver_message_rejects_replay (EVM/SVM revert, MVM idempotent) | [x] | [x] | [x] |
+| 20 | test_deliver_message_rejects_unauthorized_relay | [x] | [x] | [x] |
+| 21 | test_deliver_message_authorized_relay | [x] | [x] | [x] |
+| 22 | test_deliver_message_rejects_unknown_remote_gmp_endpoint | [x] | [x] | [x] |
+| 23 | test_deliver_message_rejects_no_remote_gmp_endpoint | [x] | [x] | [x] |
+| 24 | test_deliver_message_different_msg_type_succeeds (dedupe per intent_id+msg_type) | [x] | [x] | [x] |
+| 25 | test_emit_message_delivered | N/A | [x] | N/A |
+| 26 | test_is_message_delivered | N/A | [x] | N/A |
 | | **Remote GMP Endpoint Configuration** | | | |
-| 22 | test_set_remote_gmp_endpoint_addr_unauthorized | [x] | [x] | [x] |
-| 37 | test_set_remote_gmp_endpoint_addr | N/A | [x] | N/A |
-| 38 | test_add_remote_gmp_endpoint_addr | N/A | [x] | N/A |
-| 39 | test_has_remote_gmp_endpoint | N/A | [x] | N/A |
-| 40 | test_no_remote_gmp_endpoint | N/A | [x] | N/A |
+| 27 | test_set_remote_gmp_endpoint_addr_unauthorized | [x] | [x] | [x] |
+| 28 | test_set_remote_gmp_endpoint_addr | N/A | [x] | N/A |
+| 29 | test_add_remote_gmp_endpoint_addr | N/A | [x] | N/A |
+| 30 | test_has_remote_gmp_endpoint | N/A | [x] | N/A |
+| 31 | test_no_remote_gmp_endpoint | N/A | [x] | N/A |
 | | **Relay Authorization** | | | |
-| 25 | test_add_relay_rejects_non_admin | [x] | [x] | [x] |
-| 26 | test_remove_relay_rejects_non_admin | [x] | [x] | [x] |
-| 33 | test_add_relay | N/A | [x] | N/A |
-| 34 | test_remove_relay | N/A | [x] | N/A |
-| 35 | test_reject_duplicate_relay | N/A | [x] | N/A |
-| 36 | test_reject_removing_non_existent_relay | N/A | [x] | N/A |
+| 32 | test_add_relay_rejects_non_admin | [x] | [x] | [x] |
+| 33 | test_remove_relay_rejects_non_admin | [x] | [x] | [x] |
+| 34 | test_add_relay | N/A | [x] | N/A |
+| 35 | test_remove_relay | N/A | [x] | N/A |
+| 36 | test_reject_duplicate_relay | N/A | [x] | N/A |
+| 37 | test_reject_removing_non_existent_relay | N/A | [x] | N/A |
 | | **Message Routing** | | | |
-| 24 | test_deliver_intent_requirements_stores_in_both_handlers | [x] | N/A | N/A |
-| 27 | test_deliver_intent_requirements_fails_without_outflow_init | [x] | N/A | N/A |
-| 28 | test_fulfillment_proof_routes_to_intent_escrow | N/A | N/A | [x] |
-| 29 | test_fulfillment_proof_fails_with_insufficient_accounts | N/A | N/A | [x] |
-| 41 | test_deliver_fulfillment_proof_routes | N/A | [x] | N/A |
-| 42 | test_reject_unknown_message_type | N/A | [x] | N/A |
-| 50 | test_fulfillment_proof_requires_escrow_handler | N/A | [x] | N/A |
+| 38 | test_deliver_intent_requirements_stores_in_both_handlers | [x] | N/A | N/A |
+| 39 | test_deliver_intent_requirements_fails_without_outflow_init | [x] | N/A | N/A |
+| 40 | test_fulfillment_proof_routes_to_intent_escrow | N/A | N/A | [x] |
+| 41 | test_fulfillment_proof_fails_with_insufficient_accounts | N/A | N/A | [x] |
+| 42 | test_deliver_fulfillment_proof_routes | N/A | [x] | N/A |
+| 43 | test_reject_unknown_message_type | N/A | [x] | N/A |
+| 44 | test_fulfillment_proof_requires_escrow_handler | N/A | [x] | N/A |
 | | **Initialization (EVM-specific)** | | | |
-| 30 | test_initialize_creates_config | N/A | [x] | N/A |
-| 31 | test_initialize_sets_nonce | N/A | [x] | N/A |
-| 32 | test_initialize_rejects_zero_admin | N/A | [x] | N/A |
+| 45 | test_initialize_creates_config | N/A | [x] | N/A |
+| 46 | test_initialize_sets_nonce | N/A | [x] | N/A |
+| 47 | test_initialize_rejects_zero_admin | N/A | [x] | N/A |
 | | **Handler Configuration (EVM-specific)** | | | |
-| 47 | test_set_escrow_handler | N/A | [x] | N/A |
-| 48 | test_set_outflow_handler | N/A | [x] | N/A |
-| 49 | test_route_to_both_handlers | N/A | [x] | N/A |
+| 48 | test_set_escrow_handler | N/A | [x] | N/A |
+| 49 | test_set_outflow_handler | N/A | [x] | N/A |
+| 50 | test_route_to_both_handlers | N/A | [x] | N/A |
 
 ---
 
@@ -390,21 +390,21 @@ SVM: `intent-frameworks/svm/programs/intent_inflow_escrow/tests/gmp.rs`
 | 10 | test_create_escrow_rejects_amount_mismatch | [x] | [x] | [x] |
 | 11 | test_create_escrow_rejects_token_mismatch | [x] | [x] | [x] |
 | 12 | test_create_escrow_sends_escrow_confirmation | [x] | [x] | [x] |
-| 14 | test_create_escrow_rejects_no_requirements | [x] | [x] | N/A |
-| 15 | test_create_escrow_rejects_double_create | [x] | [x] | N/A |
-| 23 | test_reject_direct_call | N/A | [x] | N/A |
-| 24 | test_create_escrow_rejects_requester_mismatch | N/A | [x] | N/A |
-| 25 | test_create_escrow_rejects_expired_intent | N/A | [x] | N/A |
-| 26 | test_tokens_transferred_to_escrow | N/A | [x] | N/A |
+| 13 | test_create_escrow_rejects_no_requirements | [x] | [x] | N/A |
+| 14 | test_create_escrow_rejects_double_create | [x] | [x] | N/A |
+| 15 | test_reject_direct_call | N/A | [x] | N/A |
+| 16 | test_create_escrow_rejects_requester_mismatch | N/A | [x] | N/A |
+| 17 | test_create_escrow_rejects_expired_intent | N/A | [x] | N/A |
+| 18 | test_tokens_transferred_to_escrow | N/A | [x] | N/A |
 | | **Full Workflow** | | | |
-| 13 | test_full_inflow_gmp_workflow | [x] | [x] | [x] |
+| 19 | test_full_inflow_gmp_workflow | [x] | [x] | [x] |
 | | **Release Escrow (MVM-specific)** | | | |
-| 16 | test_release_escrow_succeeds_after_fulfillment | [x] | N/A | N/A |
-| 17 | test_release_escrow_rejects_without_fulfillment | N/A | N/A | N/A |
-| 18 | test_release_escrow_rejects_unauthorized_solver | N/A | N/A | N/A |
-| 19 | test_release_escrow_rejects_double_release | [x] | N/A | N/A |
-| 27 | test_emit_events_on_release | N/A | [x] | N/A |
+| 20 | test_release_escrow_succeeds_after_fulfillment | [x] | N/A | N/A |
+| 21 | test_release_escrow_rejects_without_fulfillment | N/A | N/A | N/A |
+| 22 | test_release_escrow_rejects_unauthorized_solver | N/A | N/A | N/A |
+| 23 | test_release_escrow_rejects_double_release | [x] | N/A | N/A |
+| 24 | test_emit_events_on_release | N/A | [x] | N/A |
 | | **Generic GMP Receive Routing (SVM-specific)** | | | |
-| 20 | test_generic_gmp_receive_routes_requirements | N/A | N/A | [x] |
-| 21 | test_generic_gmp_receive_routes_fulfillment_proof | N/A | N/A | [x] |
-| 22 | test_generic_gmp_receive_rejects_unknown_message_type | N/A | N/A | [x] |
+| 25 | test_generic_gmp_receive_routes_requirements | N/A | N/A | [x] |
+| 26 | test_generic_gmp_receive_routes_fulfillment_proof | N/A | N/A | [x] |
+| 27 | test_generic_gmp_receive_rejects_unknown_message_type | N/A | N/A | [x] |

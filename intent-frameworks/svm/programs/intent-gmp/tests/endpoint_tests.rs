@@ -800,7 +800,10 @@ mod integration {
         assert_eq!(nonce_account.nonce, 2, "Nonce should be 2 after second send (got {})", nonce_account.nonce);
     }
 
-    /// 16. Test: DeliverMessage calls receiver's handler via CPI
+    // #16: test_emit_message_sent — N/A for SVM (EVM-specific event emission)
+    // #17: test_only_handlers_can_send — N/A for SVM (EVM-specific handler authorization)
+
+    /// 18. Test: DeliverMessage calls receiver's handler via CPI
     /// Verifies that DeliverMessage successfully CPIs to destination program.
     /// Why: CPI is the core mechanism for message delivery. Must succeed for cross-chain messaging to work.
     #[tokio::test]
@@ -882,7 +885,7 @@ mod integration {
         assert_eq!(delivered2.discriminator, DeliveredMessage::DISCRIMINATOR);
     }
 
-    /// 17. Test: DeliverMessage rejects replay (duplicate intent_id + msg_type)
+    /// 19. Test: DeliverMessage rejects replay (duplicate intent_id + msg_type)
     /// Verifies that replay protection works correctly using (intent_id, msg_type) deduplication.
     /// Why: Replay attacks would allow double-processing of messages, potentially causing fund loss.
     #[tokio::test]
@@ -937,7 +940,7 @@ mod integration {
         assert!(result.is_err(), "Replay should be rejected (same intent_id + msg_type)");
     }
 
-    /// 18. Test: Unauthorized relay rejected
+    /// 20. Test: Unauthorized relay rejected
     /// Verifies that only authorized relays can deliver messages.
     /// Why: Relay authorization prevents malicious actors from injecting fake messages.
     #[tokio::test]
@@ -974,7 +977,7 @@ mod integration {
         assert!(result.is_err(), "Unauthorized relay should be rejected");
     }
 
-    /// 19. Test: Authorized relay succeeds
+    /// 21. Test: Authorized relay succeeds
     /// Verifies that explicitly authorized relays can deliver messages.
     /// Why: The relay authorization system must correctly grant access to approved relays.
     #[tokio::test]
@@ -1021,7 +1024,7 @@ mod integration {
         assert_eq!(delivered.discriminator, DeliveredMessage::DISCRIMINATOR, "Message should have been delivered");
     }
 
-    /// 20. Test: Unknown remote GMP endpoint address rejected
+    /// 22. Test: Unknown remote GMP endpoint address rejected
     /// Verifies that messages from unknown remote GMP endpoint addresses are rejected.
     /// Why: Remote GMP endpoint verification prevents spoofed cross-chain messages.
     #[tokio::test]
@@ -1060,7 +1063,7 @@ mod integration {
         assert!(result.is_err(), "Unknown remote GMP endpoint should be rejected");
     }
 
-    /// 21. Test: No remote GMP endpoint configured
+    /// 23. Test: No remote GMP endpoint configured
     /// Verifies that messages fail when no remote GMP endpoint is configured for the source chain.
     /// Why: Missing configuration must be caught early to prevent security holes.
     #[tokio::test]
@@ -1097,33 +1100,7 @@ mod integration {
         assert!(result.is_err(), "Message from chain with no remote GMP endpoint should be rejected");
     }
 
-    /// 22. Test: Non-admin cannot set remote GMP endpoint
-    /// Verifies that only the admin can configure remote GMP endpoint addresses.
-    /// Why: Admin-only access prevents unauthorized trust configuration changes.
-    #[tokio::test]
-    async fn test_set_remote_gmp_endpoint_addr_unauthorized() {
-        let pt = program_test();
-        let mut context = pt.start_with_context().await;
-        let admin = context.payer.insecure_clone();
-        let non_admin = Keypair::new();
-        let program_id = gmp_program_id();
-
-        // Fund non-admin
-        let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &non_admin.pubkey(), 1_000_000_000);
-        send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
-
-        // Initialize endpoint
-        let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
-        send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
-
-        // Non-admin tries to set remote GMP endpoint - should fail
-        let addr = [0x77; 32];
-        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, non_admin.pubkey(), non_admin.pubkey(), CHAIN_ID_MVM, addr);
-        let result = send_tx(&mut context, &non_admin, &[set_remote_gmp_endpoint_ix], &[]).await;
-        assert!(result.is_err(), "Non-admin should not be able to set remote GMP endpoint");
-    }
-
-    /// 23. Test: Same intent_id with different msg_type succeeds (not a duplicate)
+    /// 24. Test: Same intent_id with different msg_type succeeds (not a duplicate)
     /// Verifies that dedup is per (intent_id, msg_type) pair, not just intent_id.
     /// Why: The same intent legitimately receives different message types (e.g., IntentRequirements
     /// then FulfillmentProof). These must not be treated as duplicates.
@@ -1195,13 +1172,45 @@ mod integration {
         let _d2: DeliveredMessage = read_account(&mut context, delivered_pda2).await;
     }
 
-    /// #24: test_deliver_intent_requirements_stores_in_both_handlers — N/A for SVM (MVM-specific dual handler routing)
+    // #25: test_emit_message_delivered — N/A for SVM (EVM-specific event emission)
+    // #26: test_is_message_delivered — N/A for SVM (EVM-specific view function)
+
+    /// 27. Test: Non-admin cannot set remote GMP endpoint
+    /// Verifies that only the admin can configure remote GMP endpoint addresses.
+    /// Why: Admin-only access prevents unauthorized trust configuration changes.
+    #[tokio::test]
+    async fn test_set_remote_gmp_endpoint_addr_unauthorized() {
+        let pt = program_test();
+        let mut context = pt.start_with_context().await;
+        let admin = context.payer.insecure_clone();
+        let non_admin = Keypair::new();
+        let program_id = gmp_program_id();
+
+        // Fund non-admin
+        let fund_ix = solana_sdk::system_instruction::transfer(&admin.pubkey(), &non_admin.pubkey(), 1_000_000_000);
+        send_tx(&mut context, &admin, &[fund_ix], &[]).await.unwrap();
+
+        // Initialize endpoint
+        let init_ix = create_initialize_ix(program_id, admin.pubkey(), admin.pubkey(), CHAIN_ID_SVM);
+        send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
+
+        // Non-admin tries to set remote GMP endpoint - should fail
+        let addr = [0x77; 32];
+        let set_remote_gmp_endpoint_ix = create_set_remote_gmp_endpoint_addr_ix(program_id, non_admin.pubkey(), non_admin.pubkey(), CHAIN_ID_MVM, addr);
+        let result = send_tx(&mut context, &non_admin, &[set_remote_gmp_endpoint_ix], &[]).await;
+        assert!(result.is_err(), "Non-admin should not be able to set remote GMP endpoint");
+    }
+
+    // #28: test_set_remote_gmp_endpoint_addr — N/A for SVM (EVM-specific remote config)
+    // #29: test_add_remote_gmp_endpoint_addr — N/A for SVM (EVM-specific remote config)
+    // #30: test_has_remote_gmp_endpoint — N/A for SVM (EVM-specific view function)
+    // #31: test_no_remote_gmp_endpoint — N/A for SVM (EVM-specific view function)
 
     // ========================================================================
     // ADMIN TESTS
     // ========================================================================
 
-    /// 25. Test: Non-admin cannot add relay
+    /// 32. Test: Non-admin cannot add relay
     /// Verifies that only the admin can add authorized relays.
     /// Why: Relay management is security-critical; must be admin-only.
     #[tokio::test]
@@ -1227,7 +1236,7 @@ mod integration {
         assert!(result.is_err(), "Non-admin should not be able to add relay");
     }
 
-    /// 26. Test: Non-admin cannot remove relay
+    /// 33. Test: Non-admin cannot remove relay
     /// Verifies that only the admin can remove authorized relays.
     /// Why: Relay management is security-critical; must be admin-only.
     #[tokio::test]
@@ -1254,13 +1263,18 @@ mod integration {
         assert!(result.is_err(), "Non-admin should not be able to remove relay");
     }
 
-    /// #27: test_deliver_intent_requirements_fails_without_outflow_init — N/A for SVM (MVM-specific module initialization check)
+    // #34: test_add_relay — N/A for SVM (EVM-specific relay management)
+    // #35: test_remove_relay — N/A for SVM (EVM-specific relay management)
+    // #36: test_reject_duplicate_relay — N/A for SVM (EVM-specific relay management)
+    // #37: test_reject_removing_non_existent_relay — N/A for SVM (EVM-specific relay management)
+    // #38: test_deliver_intent_requirements_stores_in_both_handlers — N/A for SVM (MVM-specific dual handler routing)
+    // #39: test_deliver_intent_requirements_fails_without_outflow_init — N/A for SVM (MVM-specific module initialization check)
 
     // ========================================================================
     // FULFILLMENT PROOF ROUTING TESTS
     // ========================================================================
 
-    /// 28. Test: FulfillmentProof (0x03) routes to intent_escrow when routing is configured
+    /// 40. Test: FulfillmentProof (0x03) routes to intent_escrow when routing is configured
     /// Verifies that message type 0x03 is routed to destination_program_2 (intent_escrow).
     /// Why: FulfillmentProof releases escrow funds on the connected chain. It must route to
     /// intent_escrow, not outflow_validator. This test validates the MESSAGE_TYPE_FULFILLMENT_PROOF
@@ -1342,7 +1356,7 @@ mod integration {
         assert_eq!(delivered.discriminator, DeliveredMessage::DISCRIMINATOR, "Message should have been delivered");
     }
 
-    /// 29. Test: FulfillmentProof fails with insufficient accounts
+    /// 41. Test: FulfillmentProof fails with insufficient accounts
     /// Verifies that FulfillmentProof routing fails when fewer than 7 remaining accounts provided.
     /// Why: GmpReceiveFulfillmentProof requires 7 accounts for token transfer. The GMP endpoint
     /// must validate account count before attempting CPI.
@@ -1406,25 +1420,13 @@ mod integration {
         assert!(result.is_err(), "Should fail with insufficient accounts for FulfillmentProof");
     }
 
-    /// #30: test_initialize_creates_config — N/A for SVM (EVM-specific contract initialization)
-    /// #31: test_initialize_sets_nonce — N/A for SVM (EVM-specific contract initialization)
-    /// #32: test_initialize_rejects_zero_admin — N/A for SVM (EVM-specific zero address check)
-    /// #33: test_add_relay — N/A for SVM (EVM-specific relay management)
-    /// #34: test_remove_relay — N/A for SVM (EVM-specific relay management)
-    /// #35: test_reject_duplicate_relay — N/A for SVM (EVM-specific relay management)
-    /// #36: test_reject_removing_non_existent_relay — N/A for SVM (EVM-specific relay management)
-    /// #37: test_set_remote_gmp_endpoint_addr — N/A for SVM (EVM-specific remote config)
-    /// #38: test_add_remote_gmp_endpoint_addr — N/A for SVM (EVM-specific remote config)
-    /// #39: test_has_remote_gmp_endpoint — N/A for SVM (EVM-specific view function)
-    /// #40: test_no_remote_gmp_endpoint — N/A for SVM (EVM-specific view function)
-    /// #41: test_deliver_fulfillment_proof_routes — N/A for SVM (EVM-specific handler routing)
-    /// #42: test_reject_unknown_message_type — N/A for SVM (EVM-specific message type validation)
-    /// #43: test_emit_message_delivered — N/A for SVM (EVM-specific event emission)
-    /// #44: test_is_message_delivered — N/A for SVM (EVM-specific view function)
-    /// #45: test_emit_message_sent — N/A for SVM (EVM-specific event emission)
-    /// #46: test_only_handlers_can_send — N/A for SVM (EVM-specific handler authorization)
-    /// #47: test_set_escrow_handler — N/A for SVM (EVM-specific handler configuration)
-    /// #48: test_set_outflow_handler — N/A for SVM (EVM-specific handler configuration)
-    /// #49: test_route_to_both_handlers — N/A for SVM (EVM-specific dual handler routing)
-    /// #50: test_fulfillment_proof_requires_escrow_handler — N/A for SVM (EVM-specific handler requirement)
+    // #42: test_deliver_fulfillment_proof_routes — N/A for SVM (EVM-specific handler routing)
+    // #43: test_reject_unknown_message_type — N/A for SVM (EVM-specific message type validation)
+    // #44: test_fulfillment_proof_requires_escrow_handler — N/A for SVM (EVM-specific handler requirement)
+    // #45: test_initialize_creates_config — N/A for SVM (EVM-specific contract initialization)
+    // #46: test_initialize_sets_nonce — N/A for SVM (EVM-specific contract initialization)
+    // #47: test_initialize_rejects_zero_admin — N/A for SVM (EVM-specific zero address check)
+    // #48: test_set_escrow_handler — N/A for SVM (EVM-specific handler configuration)
+    // #49: test_set_outflow_handler — N/A for SVM (EVM-specific handler configuration)
+    // #50: test_route_to_both_handlers — N/A for SVM (EVM-specific dual handler routing)
 }

@@ -729,105 +729,7 @@ module mvmt_intent::intent_inflow_escrow_tests {
         assert!(intent_inflow_escrow::has_escrow(intent_id), 3);
     }
 
-    // 13. Test: Full inflow GMP workflow (with auto-release)
-    // Verifies complete flow: requirements → escrow → fulfillment proof (auto-release).
-    // Why: Integration test for the entire inflow GMP flow.
-    // Note: With auto-release, step 4 (manual release_escrow) is no longer needed.
-    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
-    fun test_full_inflow_gmp_workflow(
-        aptos_framework: &signer,
-        admin: &signer,
-        token_creator: &signer,
-        requester: &signer,
-    ) {
-        // Setup FA token
-        let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
-            aptos_framework,
-            token_creator,
-            100,
-        );
-        timestamp::update_global_time_for_test_secs(1000);
-
-        // Transfer tokens to requester
-        primary_fungible_store::transfer(token_creator, token_metadata, REQUESTER_ADDR, 100);
-
-        // Create solver account
-        account::create_account_for_test(SOLVER_ADDR);
-
-        // Initialize modules
-        init_modules(admin);
-
-        let intent_id = create_test_intent_id();
-        let token_addr = address_to_bytes32(object::object_address(&token_metadata));
-        let amount = 50u64;
-        let expiry = 2000u64;
-
-        // Record initial balances
-        let initial_requester_balance = primary_fungible_store::balance(REQUESTER_ADDR, token_metadata);
-        let initial_solver_balance = primary_fungible_store::balance(SOLVER_ADDR, token_metadata);
-
-        // ========================================
-        // Step 1: Hub sends requirements via GMP
-        // ========================================
-        store_requirements(
-            copy intent_id,
-            address_to_bytes32(REQUESTER_ADDR),
-            amount,
-            token_addr,
-            create_zero_bytes32(), // Any solver allowed
-            expiry,
-        );
-
-        // Verify: Requirements stored
-        assert!(intent_inflow_escrow::has_requirements(copy intent_id), 1);
-        assert!(!intent_inflow_escrow::has_escrow(copy intent_id), 2);
-
-        // ========================================
-        // Step 2: User creates escrow (locks tokens)
-        // ========================================
-        intent_inflow_escrow::create_escrow_with_validation(
-            requester,
-            copy intent_id,
-            token_metadata,
-            amount,
-        );
-
-        // Verify: Escrow created, tokens locked
-        assert!(intent_inflow_escrow::has_escrow(copy intent_id), 3);
-        let requester_balance = primary_fungible_store::balance(REQUESTER_ADDR, token_metadata);
-        assert!(requester_balance == initial_requester_balance - amount, 4);
-
-        // Verify: Not fulfilled yet
-        assert!(!intent_inflow_escrow::is_fulfilled(copy intent_id), 5);
-
-        // ========================================
-        // Step 3: Solver fulfills on hub, hub sends proof via GMP
-        // (Auto-release happens here - tokens transferred to solver)
-        // ========================================
-        let payload = create_test_fulfillment_proof_payload(
-            copy intent_id,
-            address_to_bytes32(SOLVER_ADDR),
-            amount,
-            1500u64,
-        );
-        let remote_gmp_endpoint_addr = create_test_hub_addr();
-
-        intent_inflow_escrow::receive_fulfillment_proof(
-            HUB_CHAIN_ID,
-            remote_gmp_endpoint_addr,
-            payload,
-        );
-
-        // Verify: Marked as fulfilled AND released (auto-release)
-        assert!(intent_inflow_escrow::is_fulfilled(copy intent_id), 6);
-        assert!(intent_inflow_escrow::is_released(intent_id), 7);
-
-        // Verify: Solver received tokens (auto-released, no manual release_escrow needed)
-        let solver_balance = primary_fungible_store::balance(SOLVER_ADDR, token_metadata);
-        assert!(solver_balance == initial_solver_balance + amount, 8);
-    }
-
-    // 14. Test: Create escrow rejects no requirements (MVM-specific)
+    // 13. Test: Create escrow rejects no requirements (MVM-specific)
     // Verifies that creating an escrow without receiving requirements first is rejected.
     // Why: Requirements must exist before escrow creation to ensure the hub has coordinated this intent and validation is possible.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
@@ -864,7 +766,7 @@ module mvmt_intent::intent_inflow_escrow_tests {
         );
     }
 
-    // 15. Test: Create escrow rejects double creation (MVM-specific)
+    // 14. Test: Create escrow rejects double creation (MVM-specific)
     // Verifies that creating an escrow twice for the same intent_id is rejected.
     // Why: One intent should have exactly one escrow. Double creation could lead to double-spending or fund locking issues.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
@@ -922,10 +824,105 @@ module mvmt_intent::intent_inflow_escrow_tests {
     }
 
     // ============================================================================
+    // FULL WORKFLOW TEST
+    // ============================================================================
+
+    // 19. Test: Full inflow GMP workflow (with auto-release)
+    // Verifies complete flow: requirements → escrow → fulfillment proof (auto-release).
+    // Why: Integration test for the entire inflow GMP flow.
+    // Note: With auto-release, step 4 (manual release_escrow) is no longer needed.
+    #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
+    fun test_full_inflow_gmp_workflow(
+        aptos_framework: &signer,
+        admin: &signer,
+        token_creator: &signer,
+        requester: &signer,
+    ) {
+        // Setup FA token
+        let (token_metadata, _mint_ref) = test_utils::register_and_mint_tokens(
+            aptos_framework,
+            token_creator,
+            100,
+        );
+        timestamp::update_global_time_for_test_secs(1000);
+
+        // Transfer tokens to requester
+        primary_fungible_store::transfer(token_creator, token_metadata, REQUESTER_ADDR, 100);
+
+        // Create solver account
+        account::create_account_for_test(SOLVER_ADDR);
+
+        // Initialize modules
+        init_modules(admin);
+
+        let intent_id = create_test_intent_id();
+        let token_addr = address_to_bytes32(object::object_address(&token_metadata));
+        let amount = 50u64;
+        let expiry = 2000u64;
+
+        // Record initial balances
+        let initial_requester_balance = primary_fungible_store::balance(REQUESTER_ADDR, token_metadata);
+        let initial_solver_balance = primary_fungible_store::balance(SOLVER_ADDR, token_metadata);
+
+        // Step 1: Hub sends requirements via GMP
+        store_requirements(
+            copy intent_id,
+            address_to_bytes32(REQUESTER_ADDR),
+            amount,
+            token_addr,
+            create_zero_bytes32(), // Any solver allowed
+            expiry,
+        );
+
+        // Verify: Requirements stored
+        assert!(intent_inflow_escrow::has_requirements(copy intent_id), 1);
+        assert!(!intent_inflow_escrow::has_escrow(copy intent_id), 2);
+
+        // Step 2: User creates escrow (locks tokens)
+        intent_inflow_escrow::create_escrow_with_validation(
+            requester,
+            copy intent_id,
+            token_metadata,
+            amount,
+        );
+
+        // Verify: Escrow created, tokens locked
+        assert!(intent_inflow_escrow::has_escrow(copy intent_id), 3);
+        let requester_balance = primary_fungible_store::balance(REQUESTER_ADDR, token_metadata);
+        assert!(requester_balance == initial_requester_balance - amount, 4);
+
+        // Verify: Not fulfilled yet
+        assert!(!intent_inflow_escrow::is_fulfilled(copy intent_id), 5);
+
+        // Step 3: Solver fulfills on hub, hub sends proof via GMP (auto-release)
+        let payload = create_test_fulfillment_proof_payload(
+            copy intent_id,
+            address_to_bytes32(SOLVER_ADDR),
+            amount,
+            1500u64,
+        );
+        let remote_gmp_endpoint_addr = create_test_hub_addr();
+
+        intent_inflow_escrow::receive_fulfillment_proof(
+            HUB_CHAIN_ID,
+            remote_gmp_endpoint_addr,
+            payload,
+        );
+
+        // Verify: Marked as fulfilled AND released (auto-release)
+        assert!(intent_inflow_escrow::is_fulfilled(copy intent_id), 6);
+        assert!(intent_inflow_escrow::is_released(intent_id), 7);
+
+        // Verify: Solver received tokens (auto-released, no manual release_escrow needed)
+        let solver_balance = primary_fungible_store::balance(SOLVER_ADDR, token_metadata);
+        assert!(solver_balance == initial_solver_balance + amount, 8);
+    }
+
+    // ============================================================================
     // AUTO-RELEASE ESCROW TESTS (single-step release on FulfillmentProof)
     // ============================================================================
 
-    // 16. Test: Auto-release on fulfillment proof receipt
+    // 20. Test: Auto-release on fulfillment proof receipt
     // Verifies that receive_fulfillment_proof automatically transfers escrowed tokens to the solver.
     // Why: This is the final step in the inflow intent lifecycle. Auto-release eliminates the need for a separate release call.
     // Note: MVM now auto-releases like SVM (see test 6). No manual release_escrow call needed.
@@ -1006,17 +1003,17 @@ module mvmt_intent::intent_inflow_escrow_tests {
         assert!(intent_inflow_escrow::is_fulfilled(intent_id), 3);
     }
 
-    // 17. test_release_escrow_rejects_without_fulfillment - N/A
-    //     Why: MVM now auto-releases tokens on fulfillment proof receipt (see test 16).
+    // 21. test_release_escrow_rejects_without_fulfillment - N/A
+    //     Why: MVM now auto-releases tokens on fulfillment proof receipt (see test 20).
     //     There is no separate release_escrow call, so there is no way to call release
     //     without fulfillment. The fulfillment proof IS the release trigger.
 
-    // 18. test_release_escrow_rejects_unauthorized_solver - N/A
-    //     Why: MVM now auto-releases tokens on fulfillment proof receipt (see test 16).
+    // 22. test_release_escrow_rejects_unauthorized_solver - N/A
+    //     Why: MVM now auto-releases tokens on fulfillment proof receipt (see test 20).
     //     Solver validation happens at proof receipt time - the solver address comes from
     //     the hub's signed GMP message, which is inherently authorized.
 
-    // 19. Test: Duplicate fulfillment proof is rejected (double release prevention)
+    // 23. Test: Duplicate fulfillment proof is rejected (double release prevention)
     // Verifies that receiving the same FulfillmentProof twice fails.
     // Why: Prevents replay attacks where a duplicate GMP message could cause double-release.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent, token_creator = @0xABC, requester = @0x789)]
@@ -1092,31 +1089,19 @@ module mvmt_intent::intent_inflow_escrow_tests {
     }
 
     // ============================================================================
-    // SVM-SPECIFIC TESTS (N/A for MVM)
+    // EVM-SPECIFIC TESTS (N/A for MVM)
     // ============================================================================
     //
-    // 20. test_generic_gmp_receive_routes_requirements - N/A
-    //     Why: SVM tests generic GmpReceive instruction (variant index 1) routing based
-    //     on message type. MVM receives messages through direct function calls to
-    //     receive_intent_requirements/receive_fulfillment_proof, not via a generic
-    //     GmpReceive dispatcher. Routing is handled by the integrated GMP endpoint calling
-    //     the appropriate module function directly.
-    //
-    // 21. test_generic_gmp_receive_routes_fulfillment_proof - N/A
-    //     Why: Same as test 20. MVM's integrated GMP endpoint routes messages directly to
-    //     the appropriate handler functions rather than through a generic dispatcher
-    //     instruction that peeks at message type and routes accordingly.
-    //
-    // 22. test_generic_gmp_receive_rejects_unknown_message_type - N/A
-    //     Why: Same as tests 20-21. MVM doesn't have a generic GmpReceive instruction
-    //     that needs to reject unknown message types - each message type is handled
-    //     by its own entry function in the destination module.
+    // #15: test_reject_direct_call — N/A for MVM (EVM-only access control pattern)
+    // #16: test_create_escrow_rejects_requester_mismatch — N/A for MVM (EVM-only validation via msg.sender)
+    // #17: test_create_escrow_rejects_expired_intent — N/A for MVM (EVM-only block.timestamp check)
+    // #18: test_tokens_transferred_to_escrow — N/A for MVM (EVM-only ERC-20 transferFrom verification)
 
     // ============================================================================
     // ESCROW CONFIRMATION WIRE FORMAT TESTS
     // ============================================================================
 
-    // 18. Test: EscrowConfirmation payload produced by create_escrow_with_validation
+    // MVM-extra. Test: EscrowConfirmation payload produced by create_escrow_with_validation
     // decodes without error on the hub side.
     // Verifies the full encode → outbox → decode round-trip for EscrowConfirmation.
     // Why: The escrow_id and all other fields must be exactly 32 bytes so the
@@ -1179,14 +1164,27 @@ module mvmt_intent::intent_inflow_escrow_tests {
         assert!(vector::length(gmp_common::escrow_confirmation_escrow_id(&confirmation)) == 32, 3);
     }
 
+    // #24: test_emit_events_on_release — N/A for MVM (EVM-only event emission test)
+
     // ============================================================================
-    // EVM-SPECIFIC TESTS (N/A for MVM)
+    // SVM-SPECIFIC TESTS (N/A for MVM)
     // ============================================================================
     //
-    // #23: test_reject_direct_call — N/A for MVM (EVM-only access control pattern)
-    // #24: test_create_escrow_rejects_requester_mismatch — N/A for MVM (EVM-only validation via msg.sender)
-    // #25: test_create_escrow_rejects_expired_intent — N/A for MVM (EVM-only block.timestamp check)
-    // #26: test_tokens_transferred_to_escrow — N/A for MVM (EVM-only ERC-20 transferFrom verification)
-    // #27: test_emit_events_on_release — N/A for MVM (EVM-only event emission test)
+    // #25: test_generic_gmp_receive_routes_requirements — N/A for MVM
+    //     Why: SVM tests generic GmpReceive instruction (variant index 1) routing based
+    //     on message type. MVM receives messages through direct function calls to
+    //     receive_intent_requirements/receive_fulfillment_proof, not via a generic
+    //     GmpReceive dispatcher. Routing is handled by the integrated GMP endpoint calling
+    //     the appropriate module function directly.
+    //
+    // #26: test_generic_gmp_receive_routes_fulfillment_proof — N/A for MVM
+    //     Why: Same as test 25. MVM's integrated GMP endpoint routes messages directly to
+    //     the appropriate handler functions rather than through a generic dispatcher
+    //     instruction that peeks at message type and routes accordingly.
+    //
+    // #27: test_generic_gmp_receive_rejects_unknown_message_type — N/A for MVM
+    //     Why: Same as tests 25-26. MVM doesn't have a generic GmpReceive instruction
+    //     that needs to reject unknown message types - each message type is handled
+    //     by its own entry function in the destination module.
 
 }

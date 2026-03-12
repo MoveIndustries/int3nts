@@ -67,6 +67,21 @@ describe("IntentOutflowValidator", function () {
 
     /// 2. Test: Initialize Rejects Double Init
     /// (N/A for Solidity - constructor runs once)
+
+    /// 3. Test: test_initialize_rejects_zero_endpoint: Initialize Rejects Zero Endpoint
+    /// Verifies deployment fails with zero endpoint address.
+    /// Why: GMP endpoint is required.
+    it("should reject zero GMP endpoint", async function () {
+      const IntentOutflowValidator = await ethers.getContractFactory("IntentOutflowValidator");
+      await expect(
+        IntentOutflowValidator.deploy(
+          admin.address,
+          ethers.ZeroAddress,
+          HUB_CHAIN_ID,
+          HUB_GMP_ENDPOINT_ADDR
+        )
+      ).to.be.revertedWithCustomError(outflowValidator, "E_INVALID_ADDRESS");
+    });
   });
 
   // ============================================================================
@@ -74,7 +89,7 @@ describe("IntentOutflowValidator", function () {
   // ============================================================================
 
   describe("Receive Intent Requirements", function () {
-    /// 3. Test: test_receive_stores_requirements: Receive Stores Requirements
+    /// 4. Test: test_receive_stores_requirements: Receive Stores Requirements
     /// Verifies requirements are stored correctly.
     /// Why: Requirements are needed for fulfillment validation.
     it("should store received requirements", async function () {
@@ -100,7 +115,7 @@ describe("IntentOutflowValidator", function () {
       expect(req.amountRequired).to.equal(AMOUNT);
     });
 
-    /// 4. Test: test_receive_idempotent: Receive Idempotent
+    /// 5. Test: test_receive_idempotent: Receive Idempotent
     /// Verifies duplicate delivery is blocked by GMP deduplication.
     /// Why: (intent_id, msg_type) dedup prevents double-processing at the GMP layer.
     it("should reject duplicate delivery at GMP level", async function () {
@@ -127,7 +142,7 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(gmpEndpoint, "E_ALREADY_DELIVERED");
     });
 
-    /// 5. Test: test_receive_rejects_unauthorized_source: Receive Rejects Unauthorized Source
+    /// 6. Test: test_receive_rejects_unauthorized_source: Receive Rejects Unauthorized Source
     /// Verifies requirements from unauthorized source are rejected.
     /// Why: Only the registered hub GMP endpoint should send requirements.
     it("should reject requirements from unauthorized source", async function () {
@@ -141,7 +156,7 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_INVALID_SOURCE_ADDRESS");
     });
 
-    /// 6. Test: Receive Rejects Invalid Payload
+    /// 7. Test: Receive Rejects Invalid Payload
     /// (Covered by GmpTypes decode validation)
   });
 
@@ -176,7 +191,7 @@ describe("IntentOutflowValidator", function () {
       await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
     });
 
-    /// 7. Test: test_fulfill_intent_rejects_already_fulfilled: Fulfill Rejects Already Fulfilled
+    /// 8. Test: test_fulfill_intent_rejects_already_fulfilled: Fulfill Rejects Already Fulfilled
     /// Verifies double fulfillment is rejected.
     /// Why: Prevents double payment.
     it("should reject already fulfilled intent", async function () {
@@ -187,7 +202,7 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_ALREADY_FULFILLED");
     });
 
-    /// 8. Test: test_fulfill_intent_rejects_expired: Fulfill Rejects Expired
+    /// 9. Test: test_fulfill_intent_rejects_expired: Fulfill Rejects Expired
     /// Verifies expired intents cannot be fulfilled.
     /// Why: Expired intents should not be fulfilled.
     it("should reject expired intent", async function () {
@@ -210,7 +225,7 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_INTENT_EXPIRED");
     });
 
-    /// 9. Test: test_fulfill_intent_rejects_unauthorized_solver: Fulfill Rejects Unauthorized Solver
+    /// 10. Test: test_fulfill_intent_rejects_unauthorized_solver: Fulfill Rejects Unauthorized Solver
     /// Verifies only authorized solver can fulfill.
     /// Why: Security - only designated solver should fulfill.
     it("should reject unauthorized solver", async function () {
@@ -222,7 +237,7 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_UNAUTHORIZED_SOLVER");
     });
 
-    /// 10. Test: test_fulfill_intent_rejects_token_mismatch: Fulfill Rejects Token Mismatch
+    /// 11. Test: test_fulfill_intent_rejects_token_mismatch: Fulfill Rejects Token Mismatch
     /// Verifies fulfillment fails if token doesn't match.
     /// Why: Token must match requirements.
     it("should reject token mismatch", async function () {
@@ -236,7 +251,7 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_TOKEN_MISMATCH");
     });
 
-    /// 11. Test: test_fulfill_intent_rejects_requirements_not_found: Fulfill Rejects Requirements Not Found
+    /// 12. Test: test_fulfill_intent_rejects_requirements_not_found: Fulfill Rejects Requirements Not Found
     /// Verifies fulfillment fails if no requirements exist.
     /// Why: Requirements must be received first.
     it("should reject fulfillment without requirements", async function () {
@@ -247,10 +262,10 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_REQUIREMENTS_NOT_FOUND");
     });
 
-    /// 12. Test: Fulfill Rejects Recipient Mismatch
+    /// 13. Test: Fulfill Rejects Recipient Mismatch
     /// (N/A - recipient comes from requirements, not input)
 
-    /// 13. Test: test_fulfill_intent_succeeds: Fulfill Intent Succeeds
+    /// 14. Test: test_fulfill_intent_succeeds: Fulfill Intent Succeeds
     /// Verifies solver can fulfill intent successfully.
     /// Why: Core functionality - solver transfers tokens to requester.
     it("should fulfill intent successfully", async function () {
@@ -260,21 +275,6 @@ describe("IntentOutflowValidator", function () {
 
       expect(await outflowValidator.isFulfilled(INTENT_ID)).to.equal(true);
       expect(await token.balanceOf(requester.address)).to.equal(AMOUNT);
-    });
-
-    /// 14. Test: test_initialize_rejects_zero_endpoint: Initialize Rejects Zero Endpoint
-    /// Verifies deployment fails with zero endpoint address.
-    /// Why: GMP endpoint is required.
-    it("should reject zero GMP endpoint", async function () {
-      const IntentOutflowValidator = await ethers.getContractFactory("IntentOutflowValidator");
-      await expect(
-        IntentOutflowValidator.deploy(
-          admin.address,
-          ethers.ZeroAddress,
-          HUB_CHAIN_ID,
-          HUB_GMP_ENDPOINT_ADDR
-        )
-      ).to.be.revertedWithCustomError(outflowValidator, "E_INVALID_ADDRESS");
     });
 
     /// 15. Test: test_allow_any_solver_zero_address: Allow Any Solver When Zero Address

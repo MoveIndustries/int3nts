@@ -1069,7 +1069,7 @@ async fn test_create_escrow_sends_escrow_confirmation() {
 // FULL WORKFLOW TEST
 // ============================================================================
 
-/// 13. Test: Full inflow GMP workflow
+/// 19. Test: Full inflow GMP workflow
 /// Verifies complete flow: requirements → escrow → fulfillment proof → release.
 /// Why: Integration test for the entire inflow GMP flow.
 #[tokio::test]
@@ -1237,32 +1237,32 @@ async fn test_full_inflow_gmp_workflow() {
 // MVM-SPECIFIC TESTS (N/A for SVM)
 // ============================================================================
 //
-// 14. test_create_escrow_rejects_no_requirements - N/A
+// 13. test_create_escrow_rejects_no_requirements - N/A
 //     Why: MVM tests explicit rejection when requirements don't exist, but SVM
 //     handles this via account existence checks in CreateEscrow instruction - the
 //     transaction fails if requirements PDA doesn't exist (covered by test 9).
 //
-// 15. test_create_escrow_rejects_double_create - N/A
+// 14. test_create_escrow_rejects_double_create - N/A
 //     Why: MVM tests explicit rejection of duplicate escrow creation, but SVM
 //     prevents this via PDA account initialization semantics - the init constraint
 //     fails if the escrow account already exists (covered by test 9).
 //
-// 16. test_release_escrow_succeeds_after_fulfillment - N/A
+// 20. test_release_escrow_succeeds_after_fulfillment - N/A
 //     Why: MVM uses two-step fulfillment: (1) receive proof marks fulfilled,
 //     (2) manual release transfers tokens. SVM auto-releases tokens in test 6
 //     when fulfillment proof is received - no separate release step exists.
 //
-// 17. test_release_escrow_rejects_without_fulfillment - N/A
+// 21. test_release_escrow_rejects_without_fulfillment - N/A
 //     Why: MVM tests that manual release requires fulfillment first. SVM doesn't
 //     have a separate release instruction - release happens automatically in
 //     test_receive_fulfillment_proof_releases_escrow (test 6).
 //
-// 18. test_release_escrow_rejects_unauthorized_solver - N/A
+// 22. test_release_escrow_rejects_unauthorized_solver - N/A
 //     Why: MVM tests solver authorization during manual release. SVM validates
 //     solver during GmpReceiveFulfillmentProof and auto-releases to the correct
 //     solver immediately (covered in test 6).
 //
-// 19. test_release_escrow_rejects_double_release - N/A
+// 23. test_release_escrow_rejects_double_release - N/A
 //     Why: MVM tests that manual release can't happen twice. SVM auto-releases
 //     once in test 6, and the escrow is marked claimed. Double fulfillment is
 //     rejected in test 8 (test_receive_fulfillment_proof_rejects_already_fulfilled).
@@ -1275,7 +1275,7 @@ async fn test_full_inflow_gmp_workflow() {
 // routes based on message type. This is used by the GMP endpoint's CPI which
 // always uses variant index 1 for destination programs.
 
-/// 20. Test: Generic GmpReceive routes IntentRequirements correctly
+/// 25. Test: Generic GmpReceive routes IntentRequirements correctly
 /// Verifies that message type 0x01 routes to requirements handler.
 /// Why: GMP endpoint uses generic GmpReceive for all CPIs - must route correctly.
 #[tokio::test]
@@ -1339,7 +1339,7 @@ async fn test_generic_gmp_receive_routes_requirements() {
     assert!(!requirements.fulfilled);
 }
 
-/// 21. Test: Generic GmpReceive routes FulfillmentProof correctly
+/// 26. Test: Generic GmpReceive routes FulfillmentProof correctly
 /// Verifies that message type 0x03 routes to fulfillment proof handler.
 /// Why: GMP endpoint uses generic GmpReceive for all CPIs - must route correctly.
 #[tokio::test]
@@ -1458,7 +1458,7 @@ async fn test_generic_gmp_receive_routes_fulfillment_proof() {
     assert!(escrow.is_claimed);
 }
 
-/// 22. Test: Generic GmpReceive rejects unknown message types
+/// 27. Test: Generic GmpReceive rejects unknown message types
 /// Verifies that invalid message types (not 0x01 or 0x03) are rejected.
 /// Why: Unknown message types should fail explicitly, not silently.
 #[tokio::test]
@@ -1532,8 +1532,14 @@ async fn test_generic_gmp_receive_rejects_unknown_message_type() {
 // EVM-SPECIFIC TESTS (N/A for SVM)
 // ============================================================================
 //
-/// #23: test_reject_direct_call — N/A for SVM (EVM-only access control pattern)
-/// #24: test_create_escrow_rejects_requester_mismatch — N/A for SVM (EVM-only validation via msg.sender)
-/// #25: test_create_escrow_rejects_expired_intent — N/A for SVM (EVM-only block.timestamp check)
-/// #26: test_tokens_transferred_to_escrow — N/A for SVM (EVM-only ERC-20 transferFrom verification)
-/// #27: test_emit_events_on_release — N/A for SVM (EVM-only event emission test)
+// #13: test_create_escrow_rejects_no_requirements — N/A for SVM (MVM/EVM-only requirements check)
+// #14: test_create_escrow_rejects_double_create — N/A for SVM (MVM/EVM-only double create check)
+// #15: test_reject_direct_call — N/A for SVM (EVM-only access control pattern)
+// #16: test_create_escrow_rejects_requester_mismatch — N/A for SVM (EVM-only validation via msg.sender)
+// #17: test_create_escrow_rejects_expired_intent — N/A for SVM (EVM-only block.timestamp check)
+// #18: test_tokens_transferred_to_escrow — N/A for SVM (EVM-only ERC-20 transferFrom verification)
+// #20: test_release_escrow_succeeds_after_fulfillment — N/A for SVM (MVM-only manual release)
+// #21: test_release_escrow_rejects_without_fulfillment — N/A for SVM (MVM-only)
+// #22: test_release_escrow_rejects_unauthorized_solver — N/A for SVM (MVM-only)
+// #23: test_release_escrow_rejects_double_release — N/A for SVM (MVM-only)
+// #24: test_emit_events_on_release — N/A for SVM (EVM-only event emission test)

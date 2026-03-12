@@ -47,7 +47,7 @@ const VAULT_PDA = DUMMY_VAULT_PDA;
 // ============================================================================
 
 describe('svmHex helpers', () => {
-  /// 4. Test: Intent ID Padding
+  /// 5. Test: Intent ID Padding
   /// Verifies that svmHexToBytes pads intent IDs to 32 bytes.
   /// Why: PDA derivation requires 32-byte intent IDs.
   it('should pad intent IDs to 32 bytes', () => {
@@ -56,7 +56,7 @@ describe('svmHex helpers', () => {
     expect(bytes[31]).toBe(0x01);
   });
 
-  // #5: Escrow address checksum normalization — N/A for SVM (SVM uses base58 public keys, not checksummed hex)
+  // #4: Escrow address checksum normalization — N/A for SVM (SVM uses base58 public keys, not checksummed hex)
 
   /// 6. Test: Pubkey Hex Round-Trip
   /// Verifies that svmPubkeyToHex and svmHexToPubkey are lossless inverses.

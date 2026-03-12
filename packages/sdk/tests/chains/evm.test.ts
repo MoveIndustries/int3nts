@@ -37,14 +37,14 @@ describe('intentIdToEvmBytes32', () => {
   });
 });
 
-// #4: Intent ID padding to 32 bytes — N/A for EVM (SVM uses byte-level padding, EVM uses intentIdToEvmBytes32)
+// #5: Intent ID padding to 32 bytes — N/A for EVM (SVM uses byte-level padding, EVM uses intentIdToEvmBytes32)
 
 // ============================================================================
 // ESCROW ADDRESS TESTS
 // ============================================================================
 
 describe('checksumEscrowAddress', () => {
-  /// 5. Test: Escrow Address Normalization
+  /// 4. Test: Escrow Address Normalization
   /// Verifies that checksumEscrowAddress returns a checksummed EVM address.
   /// Why: viem requires checksummed addresses for contract writes.
   it('should return a checksummed EVM address', () => {
