@@ -243,7 +243,7 @@ Each step below is a separate commit. Use `/commit` after completing each step.
 - Delete all moved files that remain
 - Verify frontend builds and all frontend tests pass
 
-### Commit 8: `docs(sdk): finalize extension-checklist`
+### ✅ Commit 8: `docs(sdk): finalize extension-checklist`
 
 - Complete `tests/extension-checklist.md` with all test categories and per-chain status
 - Verify all tests pass (SDK + frontend)

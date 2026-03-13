@@ -49,12 +49,6 @@ For the Rust chain-clients equivalent, see [`chain-clients/extension-checklist.m
 | 7 | String address normalization | N/A | N/A | [x] |
 | 8 | Byte array address conversion | N/A | N/A | [x] |
 
-## tests/balances.test.ts
-
-| # | Test | MVM | EVM | SVM |
-| --- | ------ | ----- | ----- | ----- |
-| | *(tests added in Commit 5)* | | | |
-
 ## tests/chains/intent-{evm,svm,mvm}.test.ts
 
 | # | Test | MVM | EVM | SVM |
