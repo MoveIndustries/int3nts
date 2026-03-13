@@ -9,6 +9,7 @@ A framework for creating cross-chain intents with the following components
 - [coordinator](docs/coordinator/README.md)
 - [integrated-gmp](docs/integrated-gmp/README.md)
 - [frontend](docs/frontend/README.md)
+- [SDK](docs/sdk/README.md)
 - [solver tools](docs/solver/README.md)
 - [testing infrastructure](docs/testing-infra/README.md)
 

@@ -15,19 +15,6 @@ The coordinator monitors the hub chain only:
 - **Event Cache**: Stores discovered events for API querying
 - **Negotiation Router**: Coordinates draft intent submission and solver matching (FCFS)
 
-## Project Structure
-
-```text
-coordinator/
-├── config/          # Configuration files (no private keys)
-├── src/
-│   ├── monitor/     # Event monitoring (hub chain)
-│   ├── storage/     # Event caching and retrieval
-│   ├── api/         # REST API server (read-only + negotiation)
-│   └── config/      # Configuration loading
-└── Cargo.toml
-```
-
 ## Quick Start
 
 See the [coordinator crate README](../../coordinator/README.md) for quick start commands.

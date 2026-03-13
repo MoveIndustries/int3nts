@@ -22,17 +22,16 @@ The frontend is built with:
 - **SVM Wallet**: Phantom via `@solana/wallet-adapter-react`
 - **Styling**: Tailwind CSS with dark theme
 - **State Management**: React hooks (`useState`, `useEffect`, `useRef`)
+- **Protocol Logic**: [`@int3nts/sdk`](../sdk/README.md) — all protocol types, coordinator client, chain interactions, and balance fetching
 
 ### Key Components
 
 - `frontend/app/layout.tsx` - Root layout with wallet providers (Nightly + wagmi + Phantom)
 - `frontend/app/page.tsx` - Main intent creation page
-- `frontend/src/components/intent/IntentBuilder.tsx` - Intent creation form and status tracking
+- `frontend/src/components/intent/IntentBuilder.tsx` - Intent creation form and status tracking (imports from `@int3nts/sdk`)
 - `frontend/src/components/wallet/` - Wallet connection UI components
-- `frontend/src/lib/coordinator.ts` - Coordinator API client with polling
-- `frontend/src/lib/types.ts` - Protocol types (DraftIntent, IntentStatus, etc.)
-- `frontend/src/config/chains.ts` - Chain configurations and contract addresses
-- `frontend/src/config/tokens.ts` - Supported token definitions
+- `frontend/src/config/chains.ts` - Chain configurations with `process.env` reads (types/helpers in SDK)
+- `frontend/src/config/tokens.ts` - Supported token definitions (types/helpers in SDK)
 
 ## User Flows
 
