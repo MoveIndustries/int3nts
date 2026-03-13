@@ -224,7 +224,7 @@ Each step below is a separate commit. Use `/commit` after completing each step.
 - Update `src/index.ts` exports
 - Verify SDK builds and tests pass
 
-### Commit 6: `feat(sdk): add IntentFlow orchestration class`
+### ✅ Commit 6: `feat(sdk): add IntentFlow orchestration class`
 
 - Extract from `IntentBuilder.tsx`: fee calculation, draft creation, argument building, polling loops
 - Create `src/intent.ts` with `IntentFlow` class

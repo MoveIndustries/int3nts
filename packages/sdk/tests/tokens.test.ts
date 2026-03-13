@@ -7,11 +7,11 @@ describe('getTokensByChain', () => {
    * Test: SVM token list
    * Why: UI needs chain-specific token options to render correctly.
    */
-  it('should return SVM tokens for svm-devnet', () => {
-    const tokens = getTokensByChain(TEST_TOKENS, 'svm-devnet');
+  it('should return SVM tokens for svm-connected', () => {
+    const tokens = getTokensByChain(TEST_TOKENS, 'svm-connected');
     const symbols = tokens.map((token) => token.symbol);
-    expect(symbols).toContain('SOL');
-    expect(symbols).toContain('USDC');
+    expect(symbols).toContain('TK1');
+    expect(symbols).toContain('TK2');
   });
 });
 

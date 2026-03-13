@@ -6,35 +6,37 @@
 import { ChainConfig, TokenConfig } from '../src/config.js';
 
 export const TEST_CHAINS: Record<string, ChainConfig> = {
-  'movement': {
-    id: 'movement',
-    chainId: 250,
-    rpcUrl: 'https://testnet.movementnetwork.xyz/v1',
-    name: 'Movement Bardock Testnet',
+  'mvm-hub': {
+    id: 'mvm-hub',
+    chainId: 100,
+    rpcUrl: 'https://rpc.mvm-hub.test',
+    name: 'MVM Hub (Test)',
     chainType: 'mvm',
     isHub: true,
     intentContractAddress: '0x' + 'aa'.repeat(32),
   },
-  'svm-devnet': {
-    id: 'svm-devnet',
-    chainId: 901,
-    rpcUrl: 'https://api.devnet.solana.com',
-    name: 'Solana Devnet',
+  'svm-connected': {
+    id: 'svm-connected',
+    chainId: 200,
+    rpcUrl: 'https://rpc.svm-connected.test',
+    name: 'SVM Connected (Test)',
     chainType: 'svm',
     svmProgramId: '11111111111111111111111111111111',
+    svmOutflowProgramId: '22222222222222222222222222222222',
   },
-  'base-sepolia': {
-    id: 'base-sepolia',
-    chainId: 84532,
-    rpcUrl: 'https://base-sepolia-rpc.example.com',
-    name: 'Base Sepolia',
+  'evm-connected': {
+    id: 'evm-connected',
+    chainId: 300,
+    rpcUrl: 'https://rpc.evm-connected.test',
+    name: 'EVM Connected (Test)',
     chainType: 'evm',
     escrowContractAddress: '0x' + 'bb'.repeat(20),
+    outflowValidatorAddress: '0x' + 'cc'.repeat(20),
   },
 };
 
 export const TEST_TOKENS: TokenConfig[] = [
-  { symbol: 'SOL', name: 'SOL (Devnet)', metadata: 'SOL', decimals: 9, chain: 'svm-devnet' },
-  { symbol: 'USDC', name: 'USDC (Devnet)', metadata: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', decimals: 6, chain: 'svm-devnet' },
-  { symbol: 'USDC', name: 'USDC (Base)', metadata: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', decimals: 6, chain: 'base-sepolia' },
+  { symbol: 'TK1', name: 'Token 1 (SVM)', metadata: '0x' + 'dd'.repeat(32), decimals: 9, chain: 'svm-connected' },
+  { symbol: 'TK2', name: 'Token 2 (SVM)', metadata: '0x' + 'ee'.repeat(32), decimals: 6, chain: 'svm-connected' },
+  { symbol: 'TK3', name: 'Token 3 (EVM)', metadata: '0x' + 'ff'.repeat(20), decimals: 6, chain: 'evm-connected' },
 ];

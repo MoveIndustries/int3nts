@@ -55,8 +55,11 @@ For the Rust chain-clients equivalent, see [`chain-clients/extension-checklist.m
 | --- | ------ | ----- | ----- | ----- |
 | | *(tests added in Commit 5)* | | | |
 
-## tests/intent.test.ts
+## tests/chains/intent-{evm,svm,mvm}.test.ts
 
 | # | Test | MVM | EVM | SVM |
 | --- | ------ | ----- | ----- | ----- |
-| | *(tests added in Commit 6)* | | | |
+| | **buildIntentArguments** | | | |
+| 1 | Builds inflow arguments | [ ] | [x] | [ ] |
+| 2 | Builds outflow arguments | [ ] | [x] | [ ] |
+| 3 | Throws when solver lacks chain address | [ ] | [x] | [ ] |
