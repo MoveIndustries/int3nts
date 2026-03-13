@@ -4,17 +4,32 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi';
 import { useWallet as useMvmWallet } from '@aptos-labs/wallet-adapter-react';
 import { useWallet as useSvmWallet } from '@solana/wallet-adapter-react';
-import { coordinatorClient } from '@/lib/coordinator';
-import type { DraftIntentRequest, DraftIntentSignature } from '@/lib/types';
-import { generateIntentId } from '@/lib/types';
-import { SUPPORTED_TOKENS, type TokenConfig, toSmallestUnits, fromSmallestUnits } from '@/config/tokens';
-import { CHAIN_CONFIGS, getChainType, getHubChainConfig, getSvmGmpEndpointId, isHubChain } from '@/config/chains';
-import { fetchTokenBalance, type TokenBalance } from '@/lib/balances';
-import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
-import { PublicKey } from '@solana/web3.js';
-import { INTENT_MODULE_ADDR, hexToBytes, padEvmAddressToMove } from '@/lib/move-transactions';
-import { INTENT_ESCROW_ABI, ERC20_ABI, intentIdToEvmBytes32, getEscrowContractAddress, checkHasRequirements, checkHasRequirementsMvm, checkIsFulfilled } from '@/lib/escrow';
 import {
+  CoordinatorClient,
+  type DraftIntentRequest,
+  type DraftIntentSignature,
+  type TokenConfig,
+  type TokenBalance,
+  type SvmSigner,
+  generateIntentId,
+  toSmallestUnits,
+  fromSmallestUnits,
+  getChainType,
+  isHubChain,
+  getHubChainConfig,
+  getEscrowContractAddress,
+  getSvmGmpEndpointId,
+  getIntentContractAddress,
+  getRpcUrl,
+  fetchTokenBalance,
+  hexToBytes,
+  padEvmAddressToMove,
+  INTENT_ESCROW_ABI,
+  ERC20_ABI,
+  intentIdToEvmBytes32,
+  checkHasRequirements,
+  checkHasRequirementsMvm,
+  checkIsFulfilled,
   buildCreateEscrowInstruction,
   getSvmTokenAccount,
   svmHexToPubkey,
@@ -22,8 +37,18 @@ import {
   readGmpOutboundNonce,
   checkHasRequirementsSvm,
   checkIsFulfilledSvm,
-} from '@/lib/svm-escrow';
-import { fetchSolverSvmAddress, getSvmConnection, sendSvmTransaction } from '@/lib/svm-transactions';
+  fetchSolverSvmAddress,
+  getSvmConnection,
+  sendSvmTransaction,
+} from '@int3nts/sdk';
+import { CHAIN_CONFIGS } from '@/config/chains';
+import { SUPPORTED_TOKENS } from '@/config/tokens';
+import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
+import { PublicKey } from '@solana/web3.js';
+
+const coordinatorClient = new CoordinatorClient(
+  process.env.NEXT_PUBLIC_COORDINATOR_URL || 'http://localhost:8080'
+);
 
 // ============================================================================
 // Types
@@ -127,7 +152,7 @@ function useTokenBalances(params: {
     setLoadingOfferedBalance(true);
     setOfferedBalanceError(null);
     console.log('Fetching offered balance:', { address, token: offeredToken.symbol, chain: offeredToken.chain });
-    fetchTokenBalance(address, offeredToken)
+    fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, offeredToken.chain), address, offeredToken)
       .then((balance) => {
         console.log('Offered balance result:', balance);
         setOfferedBalance(balance);
@@ -155,7 +180,7 @@ function useTokenBalances(params: {
     setLoadingDesiredBalance(true);
     setDesiredBalanceError(null);
     console.log('Fetching desired balance:', { address, token: desiredToken.symbol, chain: desiredToken.chain });
-    fetchTokenBalance(address, desiredToken)
+    fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, desiredToken.chain), address, desiredToken)
       .then((balance) => {
         console.log('Desired balance result:', balance);
         setDesiredBalance(balance);
@@ -177,7 +202,7 @@ function useTokenBalances(params: {
       if (offeredAddress) {
         setLoadingOfferedBalance(true);
         setOfferedBalanceError(null);
-        fetchTokenBalance(offeredAddress, offeredToken)
+        fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, offeredToken.chain), offeredAddress, offeredToken)
           .then(setOfferedBalance)
           .catch((err: unknown) => {
             console.error('Failed to fetch offered balance:', err);
@@ -192,7 +217,7 @@ function useTokenBalances(params: {
       if (desiredAddress) {
         setLoadingDesiredBalance(true);
         setDesiredBalanceError(null);
-        fetchTokenBalance(desiredAddress, desiredToken)
+        fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, desiredToken.chain), desiredAddress, desiredToken)
           .then(setDesiredBalance)
           .catch((err: unknown) => {
             console.error('Failed to fetch desired balance:', err);
@@ -240,23 +265,23 @@ export function IntentBuilder() {
   // If offered token is on Movement (hub), it's outflow; otherwise it's inflow
   const flowType: FlowType | null = useMemo(() => {
     if (!offeredToken) return null;
-    return isHubChain(offeredToken.chain) ? 'outflow' : 'inflow';
+    return isHubChain(CHAIN_CONFIGS, offeredToken.chain) ? 'outflow' : 'inflow';
   }, [offeredToken]);
-  const hubChainId = getHubChainConfig().chainId;
+  const hubChainId = getHubChainConfig(CHAIN_CONFIGS).chainId;
   const hubChainIdString = hubChainId.toString();
 
   const isHubChainId = (chainIdValue?: string | null) => chainIdValue === hubChainIdString;
-  const isSvmChain = (chain: TokenConfig['chain']) => getChainType(chain) === 'svm';
-  const isEvmChain = (chain: TokenConfig['chain']) => getChainType(chain) === 'evm';
+  const isSvmChain = (chain: TokenConfig['chain']) => getChainType(CHAIN_CONFIGS, chain) === 'svm';
+  const isEvmChain = (chain: TokenConfig['chain']) => getChainType(CHAIN_CONFIGS, chain) === 'evm';
 
   const getConnectedChain = (offered: TokenConfig, desired: TokenConfig) =>
-    isHubChain(offered.chain) ? desired.chain : offered.chain;
+    isHubChain(CHAIN_CONFIGS, offered.chain) ? desired.chain : offered.chain;
 
   const getAddressForChain = useCallback((chain: TokenConfig['chain']) => {
-    if (isHubChain(chain)) {
+    if (isHubChain(CHAIN_CONFIGS, chain)) {
       return mvmAddress;
     }
-    if (getChainType(chain) === 'svm') {
+    if (getChainType(CHAIN_CONFIGS, chain) === 'svm') {
       return svmAddress;
     }
     return evmAddress || '';
@@ -393,7 +418,7 @@ export function IntentBuilder() {
       if (!chainConfig || String(chainConfig.chainId) !== savedDraftData.offeredChainId) {
         return false;
       }
-      if (getChainType(t.chain) === 'svm') {
+      if (getChainType(CHAIN_CONFIGS, t.chain) === 'svm') {
         // Deviation from EVM flow: SVM mint addresses are base58 strings,
         // so we compare directly instead of hex-padding.
         return t.metadata.toLowerCase() === savedDraftData.offeredMetadata.toLowerCase();
@@ -420,12 +445,12 @@ export function IntentBuilder() {
   const connectedChainKey =
     offeredToken && desiredToken ? getConnectedChain(offeredToken, desiredToken) : null;
   const requiresEvmWallet = connectedChainKey ? isEvmChain(connectedChainKey) : false;
-  const requiresSvmWallet = connectedChainKey ? getChainType(connectedChainKey) === 'svm' : false;
+  const requiresSvmWallet = connectedChainKey ? getChainType(CHAIN_CONFIGS, connectedChainKey) === 'svm' : false;
   const connectedWalletReady =
     (!requiresEvmWallet || !!evmAddress) && (!requiresSvmWallet || !!svmAddress);
 
   const escrowChainKey = savedDraftData ? getChainKeyFromId(savedDraftData.offeredChainId) : null;
-  const escrowRequiresSvm = escrowChainKey ? getChainType(escrowChainKey) === 'svm' : false;
+  const escrowRequiresSvm = escrowChainKey ? getChainType(CHAIN_CONFIGS, escrowChainKey) === 'svm' : false;
   const escrowWalletReady = escrowRequiresSvm ? !!svmAddress : !!evmAddress;
   const {
     offeredBalance,
@@ -454,17 +479,18 @@ export function IntentBuilder() {
       return;
     }
 
-    // Select the chain-specific requirements check function
-    const chainType = getChainType(chainKey);
-    let checkFn: ((ck: string, id: string) => Promise<boolean>) | null = null;
+    // Build a chain-specific requirements check closure
+    const chainType = getChainType(CHAIN_CONFIGS, chainKey);
+    const chainCfg = CHAIN_CONFIGS[chainKey];
+    let checkRequirements: ((id: string) => Promise<boolean>) | null = null;
     if (chainType === 'evm') {
-      checkFn = checkHasRequirements;
+      checkRequirements = (id) => checkHasRequirements(chainCfg.rpcUrl, chainCfg.escrowContractAddress!, id);
     } else if (chainType === 'svm') {
-      checkFn = checkHasRequirementsSvm;
+      checkRequirements = (id) => checkHasRequirementsSvm(chainCfg.rpcUrl, new PublicKey(chainCfg.svmProgramId!), id);
     } else if (chainType === 'mvm') {
-      checkFn = checkHasRequirementsMvm;
+      checkRequirements = (id) => checkHasRequirementsMvm(chainCfg.rpcUrl, chainCfg.mvmEscrowModuleAddress!, id);
     }
-    if (!checkFn) {
+    if (!checkRequirements) {
       setRequirementsDelivered(true);
       return;
     }
@@ -472,14 +498,13 @@ export function IntentBuilder() {
     let cancelled = false;
     setPollingRequirements(true);
     setRequirementsDelivered(false);
-    const checkRequirements = checkFn;
 
     const poll = async () => {
       let attempts = 0;
       const maxAttempts = 60; // 60 * 3s = 3 minutes
       while (!cancelled && attempts < maxAttempts) {
         try {
-          const delivered = await checkRequirements(chainKey, savedDraftData.intentId);
+          const delivered = await checkRequirements(savedDraftData.intentId);
           if (delivered) {
             if (!cancelled) {
               console.log(`GMP requirements delivered to ${chainType} chain`);
@@ -867,13 +892,14 @@ export function IntentBuilder() {
 
             const desiredChainKey = savedDraftData ? getChainKeyFromId(savedDraftData.desiredChainId) : null;
             if (desiredChainKey) {
-              const chainType = getChainType(desiredChainKey);
+              const chainType = getChainType(CHAIN_CONFIGS, desiredChainKey);
+              const desiredCfg = CHAIN_CONFIGS[desiredChainKey];
               let fulfilled = false;
 
               if (chainType === 'svm') {
-                fulfilled = await checkIsFulfilledSvm(desiredChainKey, currentIntentId);
+                fulfilled = await checkIsFulfilledSvm(desiredCfg.rpcUrl, new PublicKey(desiredCfg.svmOutflowProgramId!), currentIntentId);
               } else if (chainType === 'evm') {
-                fulfilled = await checkIsFulfilled(desiredChainKey, currentIntentId);
+                fulfilled = await checkIsFulfilled(desiredCfg.rpcUrl, desiredCfg.outflowValidatorAddress!, currentIntentId);
               }
 
               if (fulfilled) {
@@ -903,7 +929,7 @@ export function IntentBuilder() {
               return;
             }
 
-            const hubRpcUrl = getHubChainConfig().rpcUrl;
+            const hubRpcUrl = getHubChainConfig(CHAIN_CONFIGS).rpcUrl;
             const solverAccount = solverAddr.startsWith('0x') ? solverAddr : `0x${solverAddr}`;
             const transactionsUrl = `${hubRpcUrl}/accounts/${solverAccount}/transactions?limit=10`;
 
@@ -995,6 +1021,11 @@ export function IntentBuilder() {
       return;
     }
 
+    if (!offeredToken || !desiredToken) {
+      setError('Please select both offered and desired tokens');
+      return;
+    }
+
     const connectedChain = getConnectedChain(offeredToken, desiredToken);
     if (isEvmChain(connectedChain) && !evmAddress) {
       setError('Please connect your EVM wallet (MetaMask)');
@@ -1002,11 +1033,6 @@ export function IntentBuilder() {
     }
     if (isSvmChain(connectedChain) && !svmAddress) {
       setError('Please connect your SVM wallet (Phantom)');
-      return;
-    }
-
-    if (!offeredToken || !desiredToken) {
-      setError('Please select both offered and desired tokens');
       return;
     }
     
@@ -1141,14 +1167,14 @@ export function IntentBuilder() {
       const offeredChainKey = getChainKeyFromId(savedDraftData.offeredChainId);
       const desiredChainKey = getChainKeyFromId(savedDraftData.desiredChainId);
       const connectedChainKey =
-        offeredChainKey && isHubChain(offeredChainKey) ? desiredChainKey : offeredChainKey;
+        offeredChainKey && isHubChain(CHAIN_CONFIGS, offeredChainKey) ? desiredChainKey : offeredChainKey;
       if (!connectedChainKey) {
         throw new Error('Unsupported connected chain for this draft');
       }
 
       if (flowType === 'inflow') {
         // Inflow: offered on connected chain, desired on hub (Move)
-        if (connectedChainKey && getChainType(connectedChainKey) === 'svm') {
+        if (connectedChainKey && getChainType(CHAIN_CONFIGS, connectedChainKey) === 'svm') {
           if (!svmPublicKey) {
             throw new Error('SVM wallet (Phantom) must be connected for inflow intents');
           }
@@ -1163,7 +1189,7 @@ export function IntentBuilder() {
           // Coordinator returns SVM address as 0x-prefixed hex already
           const solverAddrConnectedChainHex = signature.solver_svm_addr;
 
-          functionName = `${INTENT_MODULE_ADDR}::fa_intent_inflow::create_inflow_intent_entry`;
+          functionName = `${getIntentContractAddress(CHAIN_CONFIGS)}::fa_intent_inflow::create_inflow_intent_entry`;
           functionArguments = [
             offeredMetadataHex,
             savedDraftData.offeredAmount,
@@ -1190,7 +1216,7 @@ export function IntentBuilder() {
           }
           const paddedSolverAddrConnectedChain = padEvmAddressToMove(signature.solver_evm_addr);
 
-          functionName = `${INTENT_MODULE_ADDR}::fa_intent_inflow::create_inflow_intent_entry`;
+          functionName = `${getIntentContractAddress(CHAIN_CONFIGS)}::fa_intent_inflow::create_inflow_intent_entry`;
           functionArguments = [
             paddedOfferedMetadata,
             savedDraftData.offeredAmount,
@@ -1209,7 +1235,7 @@ export function IntentBuilder() {
         }
       } else {
         // Outflow: offered on hub (Move), desired on connected chain
-        if (connectedChainKey && getChainType(connectedChainKey) === 'svm') {
+        if (connectedChainKey && getChainType(CHAIN_CONFIGS, connectedChainKey) === 'svm') {
           if (!svmPublicKey) {
             throw new Error('SVM wallet (Phantom) must be connected for outflow intents');
           }
@@ -1224,7 +1250,7 @@ export function IntentBuilder() {
           // Coordinator returns SVM address as 0x-prefixed hex already
           const solverAddrConnectedChainHex = signature.solver_svm_addr;
 
-          functionName = `${INTENT_MODULE_ADDR}::fa_intent_outflow::create_outflow_intent_entry`;
+          functionName = `${getIntentContractAddress(CHAIN_CONFIGS)}::fa_intent_outflow::create_outflow_intent_entry`;
           functionArguments = [
             savedDraftData.offeredMetadata, // Move token - already 32 bytes
             savedDraftData.offeredAmount,
@@ -1255,7 +1281,7 @@ export function IntentBuilder() {
           }
           const paddedSolverAddrConnectedChain = padEvmAddressToMove(signature.solver_evm_addr);
 
-          functionName = `${INTENT_MODULE_ADDR}::fa_intent_outflow::create_outflow_intent_entry`;
+          functionName = `${getIntentContractAddress(CHAIN_CONFIGS)}::fa_intent_outflow::create_outflow_intent_entry`;
           functionArguments = [
             savedDraftData.offeredMetadata, // Move token - already 32 bytes
             savedDraftData.offeredAmount,
@@ -1282,7 +1308,7 @@ export function IntentBuilder() {
 
       // Configure Aptos client for Movement testnet
       const config = new AptosConfig({ 
-        fullnode: getHubChainConfig().rpcUrl,
+        fullnode: getHubChainConfig(CHAIN_CONFIGS).rpcUrl,
       });
       const aptos = new Aptos(config);
 
@@ -1391,7 +1417,7 @@ export function IntentBuilder() {
     try {
       setError(null);
 
-      if (getChainType(effectiveOfferedToken.chain) === 'svm') {
+      if (getChainType(CHAIN_CONFIGS, effectiveOfferedToken.chain) === 'svm') {
         if (!svmPublicKey) {
           setError('SVM wallet (Phantom) must be connected for escrow creation');
           return;
@@ -1402,7 +1428,8 @@ export function IntentBuilder() {
         // Deviation from EVM flow: SVM uses a single on-chain instruction for escrow creation
         // because the escrow program transfers SPL tokens directly (no ERC20 approval step).
         console.log('SVM Escrow: Fetching solver SVM address for hub addr:', signature.solver_hub_addr);
-        const solverSvmHex = await fetchSolverSvmAddress(signature.solver_hub_addr);
+        const hubCfg = getHubChainConfig(CHAIN_CONFIGS);
+        const solverSvmHex = await fetchSolverSvmAddress(hubCfg.rpcUrl, hubCfg.intentContractAddress!, signature.solver_hub_addr);
         console.log('SVM Escrow: Solver SVM hex:', solverSvmHex);
         if (!solverSvmHex) {
           throw new Error('Solver has no SVM address registered. The solver must register with an SVM address to fulfill SVM inflow intents.');
@@ -1415,9 +1442,10 @@ export function IntentBuilder() {
         const amount = BigInt(savedDraftData.offeredAmount);
 
         // Read GMP nonce for EscrowConfirmation message PDA
-        const connection = getSvmConnection();
-        const gmpEndpointId = new PublicKey(getSvmGmpEndpointId('svm-devnet'));
-        const hubChainId = getHubChainConfig().chainId;
+        const svmChainCfg = CHAIN_CONFIGS[effectiveOfferedToken.chain];
+        const connection = getSvmConnection(svmChainCfg.rpcUrl);
+        const gmpEndpointId = new PublicKey(getSvmGmpEndpointId(CHAIN_CONFIGS, effectiveOfferedToken.chain));
+        const hubChainId = getHubChainConfig(CHAIN_CONFIGS).chainId;
         console.log('SVM Escrow: Reading GMP nonce for hub chain', hubChainId);
         const currentNonce = await readGmpOutboundNonce(connection, gmpEndpointId, hubChainId);
         console.log('SVM Escrow: Current GMP outbound nonce:', currentNonce.toString());
@@ -1429,6 +1457,7 @@ export function IntentBuilder() {
           requesterToken,
           tokenMint,
           reservedSolver,
+          programId: new PublicKey(svmChainCfg.svmProgramId!),
           gmpParams: {
             gmpEndpointProgramId: gmpEndpointId,
             hubChainId,
@@ -1436,7 +1465,7 @@ export function IntentBuilder() {
           },
         });
         const signatureHash = await sendSvmTransaction({
-          wallet: svmWallet,
+          signer: svmWallet as unknown as SvmSigner,
           connection,
           instructions: [createIx],
         });
@@ -1471,12 +1500,9 @@ export function IntentBuilder() {
 
       setApprovingToken(true);
 
-      const escrowAddress = getEscrowContractAddress(effectiveOfferedToken.chain);
+      const escrowAddress = getEscrowContractAddress(CHAIN_CONFIGS, effectiveOfferedToken.chain) as `0x${string}`;
       console.log('Creating escrow with:', { escrowAddress, tokenAddress: effectiveOfferedToken.metadata, intentId: savedDraftData.intentId, chainId });
       const tokenAddress = effectiveOfferedToken.metadata as `0x${string}`;
-      // Use amount from savedDraftData since offeredAmount state might be stale
-      const amount = BigInt(savedDraftData.offeredAmount);
-      const intentIdEvm = intentIdToEvmBytes32(savedDraftData.intentId);
 
       // First approve token (approve a large amount to avoid repeated approvals)
       const approveAmount = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'); // max uint256
@@ -1510,7 +1536,7 @@ export function IntentBuilder() {
       console.error('handleCreateEscrowAfterApproval: missing data');
       return;
     }
-    if (getChainType(offeredToken.chain) === 'svm') {
+    if (getChainType(CHAIN_CONFIGS, offeredToken.chain) === 'svm') {
       // SVM escrows are created directly without an approval step.
       return;
     }
@@ -1518,7 +1544,7 @@ export function IntentBuilder() {
     try {
       setCreatingEscrow(true);
 
-      const escrowAddress = getEscrowContractAddress(offeredToken.chain);
+      const escrowAddress = getEscrowContractAddress(CHAIN_CONFIGS, offeredToken.chain) as `0x${string}`;
       const tokenAddress = offeredToken.metadata as `0x${string}`;
       const amount = BigInt(toSmallestUnits(parseFloat(offeredAmount), offeredToken.decimals));
       const intentIdEvm = intentIdToEvmBytes32(savedDraftData.intentId);

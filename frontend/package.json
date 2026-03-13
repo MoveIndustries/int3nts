@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@int3nts/sdk": "file:../packages/sdk",
     "@aptos-labs/ts-sdk": "^1.0.0",
     "@aptos-labs/wallet-adapter-react": "^1.0.0",
     "@solana/spl-token": "^0.4.14",

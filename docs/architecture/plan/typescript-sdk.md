@@ -232,7 +232,7 @@ Each step below is a separate commit. Use `/commit` after completing each step.
 - Update `src/index.ts` exports
 - Verify SDK builds and tests pass
 
-### Commit 7: `refactor(frontend): consume @int3nts/sdk instead of local lib`
+### ✅ Commit 7: `refactor(frontend): consume @int3nts/sdk instead of local lib`
 
 - Add `"@int3nts/sdk": "file:../packages/sdk"` to frontend `package.json`
 - Replace all `@/lib/*` and `@/config/*` imports with `@int3nts/sdk`
