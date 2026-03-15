@@ -1,20 +1,27 @@
-/**
- * Solana transaction helpers for SVM escrow flows.
- */
+// ============================================================================
+// Solana Transaction Helpers
+// ============================================================================
 
-import { Connection, Ed25519Program, Transaction, TransactionInstruction } from '@solana/web3.js';
-import type { WalletContextState } from '@solana/wallet-adapter-react';
-import { getIntentContractAddress, getRpcUrl } from '@/config/chains';
+import { Connection, Ed25519Program, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js';
+
+// ============================================================================
+// Signer Interface
+// ============================================================================
+
+export interface SvmSigner {
+  publicKey: PublicKey;
+  sendTransaction(tx: Transaction, connection: Connection): Promise<string>;
+}
 
 // ============================================================================
 // Connections
 // ============================================================================
 
 /**
- * Build a Solana connection for the configured SVM RPC.
+ * Build a Solana connection for a given RPC URL.
  */
-export function getSvmConnection(): Connection {
-  return new Connection(getRpcUrl('svm-devnet'), 'confirmed');
+export function getSvmConnection(rpcUrl: string): Connection {
+  return new Connection(rpcUrl, 'confirmed');
 }
 
 // ============================================================================
@@ -22,49 +29,27 @@ export function getSvmConnection(): Connection {
 // ============================================================================
 
 /**
- * Send a transaction using the connected Phantom wallet.
+ * Send a transaction using a generic SVM signer.
  */
 export async function sendSvmTransaction(params: {
-  wallet: WalletContextState;
+  signer: SvmSigner;
   connection: Connection;
   instructions: TransactionInstruction[];
 }): Promise<string> {
-  const { wallet, connection, instructions } = params;
-  if (!wallet.publicKey) {
-    throw new Error('SVM wallet not connected');
-  }
+  const { signer, connection, instructions } = params;
 
   const transaction = new Transaction().add(...instructions);
-  transaction.feePayer = wallet.publicKey;
+  transaction.feePayer = signer.publicKey;
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
   transaction.recentBlockhash = blockhash;
 
-  // Debug: Log transaction details
-  console.log('SVM Transaction debug:', {
-    feePayer: wallet.publicKey.toBase58(),
-    numInstructions: instructions.length,
-    programId: instructions[0]?.programId?.toBase58(),
-    numAccounts: instructions[0]?.keys?.length,
-    accounts: instructions[0]?.keys?.map((k, i) => `${i}: ${k.pubkey.toBase58()} (signer=${k.isSigner}, writable=${k.isWritable})`),
-    dataLength: instructions[0]?.data?.length,
-    dataHex: instructions[0]?.data ? Buffer.from(instructions[0].data).toString('hex').slice(0, 100) + '...' : null,
-  });
-
-  // Try to simulate first to get better error messages
-  try {
-    const simResult = await connection.simulateTransaction(transaction);
-    if (simResult.value.err) {
-      console.error('SVM Transaction simulation failed:', simResult.value.err);
-      console.error('Simulation logs:', simResult.value.logs);
-      throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}. Logs: ${simResult.value.logs?.join('\n')}`);
-    }
-    console.log('SVM Transaction simulation succeeded. Logs:', simResult.value.logs);
-  } catch (simError) {
-    console.error('SVM Transaction simulation error:', simError);
-    throw simError;
+  // Simulate first to get better error messages
+  const simResult = await connection.simulateTransaction(transaction);
+  if (simResult.value.err) {
+    throw new Error(`Transaction simulation failed: ${JSON.stringify(simResult.value.err)}. Logs: ${simResult.value.logs?.join('\n')}`);
   }
 
-  const signature = await wallet.sendTransaction(transaction, connection);
+  const signature = await signer.sendTransaction(transaction, connection);
   await connection.confirmTransaction(
     { signature, blockhash, lastValidBlockHeight },
     'confirmed'
@@ -110,11 +95,16 @@ export function decodeBase64(base64: string): Uint8Array {
 
 /**
  * Fetch the solver's registered SVM address from the hub chain registry.
+ *
+ * @param rpcUrl - Movement hub chain RPC URL
+ * @param moduleAddr - Intent module address on hub chain
+ * @param solverAddr - Solver's hub chain address
  */
-export async function fetchSolverSvmAddress(solverAddr: string): Promise<string | null> {
-  const rpcUrl = getRpcUrl('movement');
-  const moduleAddr = getIntentContractAddress();
-
+export async function fetchSolverSvmAddress(
+  rpcUrl: string,
+  moduleAddr: string,
+  solverAddr: string,
+): Promise<string | null> {
   const response = await fetch(`${rpcUrl}/view`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

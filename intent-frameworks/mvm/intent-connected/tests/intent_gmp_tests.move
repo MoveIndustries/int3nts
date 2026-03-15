@@ -73,6 +73,21 @@ module mvmt_intent::intent_gmp_tests {
     // INTEGRATION TESTS
     // ============================================================================
 
+    // #1: test_send_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #2: test_deliver_message_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #3: test_initialize_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #4: test_add_relay_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #5: test_set_remote_gmp_endpoint_addr_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #6: test_set_routing_instruction_serialization — N/A for MVM (SVM-specific serialization)
+    // #7: test_routing_config_serialization — N/A for MVM (SVM-specific serialization)
+    // #8: test_config_account_serialization — N/A for MVM (SVM-specific serialization)
+    // #9: test_relay_account_serialization — N/A for MVM (SVM-specific serialization)
+    // #10: test_remote_gmp_endpoint_account_serialization — N/A for MVM (SVM-specific serialization)
+    // #11: test_outbound_nonce_account — N/A for MVM (SVM-specific serialization)
+    // #12: test_delivered_message_serialization — N/A for MVM (SVM-specific serialization)
+    // #13: test_error_conversion — N/A for MVM (SVM-specific serialization)
+    // #14: test_error_codes_unique — N/A for MVM (SVM-specific serialization)
+
     // 15. Test: Send updates nonce state
     // Verifies that gmp_sender::gmp_send increments the outbound nonce correctly for each message.
     // Why: Nonce tracking prevents message reordering and provides unique message IDs.
@@ -115,13 +130,16 @@ module mvmt_intent::intent_gmp_tests {
         assert!(after_second == 3, 5);
     }
 
-    // 16. Test: test_deliver_message_calls_receiver
+    // #16: test_emit_message_sent — N/A for MVM (EVM-specific event emission)
+    // #17: test_only_handlers_can_send — N/A for MVM (EVM-specific handler authorization)
+
+    // 18. Test: test_deliver_message_calls_receiver
     // Verifies that deliver_message correctly calls the receiver module's gmp_receive function.
     // Why: The endpoint must route messages to the registered handler. Without this, GMP messages arrive but are never processed.
     // TODO: Implement - requires setting up a mock receiver module and verifying CPI
-    // Placeholder: MVM delivery currently tested indirectly via test 24 (stores_in_both_handlers).
+    // Placeholder: MVM delivery currently tested indirectly via test 38 (stores_in_both_handlers).
 
-    // 17. Test: DeliverMessage is idempotent on replay (same intent_id + msg_type)
+    // 19. Test: DeliverMessage is idempotent on replay (same intent_id + msg_type)
     // Verifies that deliver_message silently returns on duplicate (intent_id, msg_type).
     // Why: Idempotent delivery means relay retries are safe and don't cause errors.
     #[test]
@@ -163,7 +181,7 @@ module mvmt_intent::intent_gmp_tests {
         assert!(intent_gmp::is_message_delivered(intent_id, 0x01), 2);
     }
 
-    // 18. Test: DeliverMessage rejects unauthorized relay
+    // 20. Test: DeliverMessage rejects unauthorized relay
     // Verifies that deliver_message aborts when called by an address not in authorized_relays.
     // Why: Only authorized relays should be able to deliver cross-chain messages.
     #[test]
@@ -195,7 +213,7 @@ module mvmt_intent::intent_gmp_tests {
         );
     }
 
-    // 19. Test: DeliverMessage with authorized relay
+    // 21. Test: DeliverMessage with authorized relay
     // Verifies that an added relay can successfully deliver messages.
     // Why: Only authorized relays should be able to deliver messages; new relays must be added.
     #[test]
@@ -229,7 +247,7 @@ module mvmt_intent::intent_gmp_tests {
         );
     }
 
-    // 20. Test: DeliverMessage rejects unknown remote GMP endpoint
+    // 22. Test: DeliverMessage rejects unknown remote GMP endpoint
     // Verifies that deliver_message aborts when the source address is not a known remote GMP endpoint for the chain.
     // Why: Messages from unknown sources could be malicious; only known remote GMP endpoints are accepted.
     #[test]
@@ -260,7 +278,7 @@ module mvmt_intent::intent_gmp_tests {
         );
     }
 
-    // 21. Test: DeliverMessage rejects no remote GMP endpoint configured
+    // 23. Test: DeliverMessage rejects no remote GMP endpoint configured
     // Verifies that deliver_message aborts when no remote GMP endpoint is set for the source chain.
     // Why: If no remote GMP endpoint exists, all messages from that chain should be rejected.
     #[test]
@@ -283,28 +301,7 @@ module mvmt_intent::intent_gmp_tests {
         );
     }
 
-    // 22. Test: SetRemoteGmpEndpointAddr rejects non-admin
-    // Verifies that only the admin can configure remote GMP endpoint addresses.
-    // Why: Remote GMP endpoint configuration is security-critical; must be admin-only.
-    #[test]
-    #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
-    fun test_set_remote_gmp_endpoint_addr_unauthorized() {
-        let _admin = setup_test();
-
-        // Create non-admin account
-        let non_admin = account::create_account_for_test(@0x999);
-
-        let addr = create_test_remote_gmp_endpoint();
-
-        // Try to set remote GMP endpoint as non-admin - should fail
-        intent_gmp::set_remote_gmp_endpoint_addr(
-            &non_admin,
-            HUB_CHAIN_ID,
-            addr,
-        );
-    }
-
-    // 23. Test: DeliverMessage allows same intent_id with different msg_type
+    // 24. Test: DeliverMessage allows same intent_id with different msg_type
     // Verifies that (intent_id, msg_type) dedup does NOT block a different msg_type for the same intent_id.
     // Why: A single intent goes through multiple GMP phases (0x01 requirements, 0x03 fulfillment proof).
     // Approach: Deliver 0x01 first, then attempt 0x03 for the same intent_id.
@@ -354,7 +351,71 @@ module mvmt_intent::intent_gmp_tests {
         );
     }
 
-    // 24. Test: DeliverMessage routes IntentRequirements to both handlers
+    // #25: test_emit_message_delivered — N/A for MVM (EVM-specific event emission)
+    // #26: test_is_message_delivered — N/A for MVM (EVM-specific view function)
+
+    // 27. Test: SetRemoteGmpEndpointAddr rejects non-admin
+    // Verifies that only the admin can configure remote GMP endpoint addresses.
+    // Why: Remote GMP endpoint configuration is security-critical; must be admin-only.
+    #[test]
+    #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
+    fun test_set_remote_gmp_endpoint_addr_unauthorized() {
+        let _admin = setup_test();
+
+        // Create non-admin account
+        let non_admin = account::create_account_for_test(@0x999);
+
+        let addr = create_test_remote_gmp_endpoint();
+
+        // Try to set remote GMP endpoint as non-admin - should fail
+        intent_gmp::set_remote_gmp_endpoint_addr(
+            &non_admin,
+            HUB_CHAIN_ID,
+            addr,
+        );
+    }
+
+    // #28: test_set_remote_gmp_endpoint_addr — N/A for MVM (EVM-specific remote config)
+    // #29: test_add_remote_gmp_endpoint_addr — N/A for MVM (EVM-specific remote config)
+    // #30: test_has_remote_gmp_endpoint — N/A for MVM (EVM-specific view function)
+    // #31: test_no_remote_gmp_endpoint — N/A for MVM (EVM-specific view function)
+
+    // 32. Test: AddRelay rejects non-admin
+    // Verifies that only the admin can add relays.
+    // Why: Relay management is security-critical; must be admin-only.
+    #[test]
+    #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
+    fun test_add_relay_rejects_non_admin() {
+        let _admin = setup_test();
+
+        // Create non-admin account
+        let non_admin = account::create_account_for_test(@0x999);
+
+        // Try to add relay as non-admin - should fail
+        intent_gmp::add_relay(&non_admin, @0x789);
+    }
+
+    // 33. Test: RemoveRelay rejects non-admin
+    // Verifies that only the admin can remove relays.
+    // Why: Relay management is security-critical; must be admin-only.
+    #[test]
+    #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
+    fun test_remove_relay_rejects_non_admin() {
+        let _admin = setup_test();
+
+        // Create non-admin account
+        let non_admin = account::create_account_for_test(@0x999);
+
+        // Try to remove relay as non-admin - should fail
+        intent_gmp::remove_relay(&non_admin, ADMIN_ADDR);
+    }
+
+    // #34: test_add_relay — N/A for MVM (EVM-specific relay management)
+    // #35: test_remove_relay — N/A for MVM (EVM-specific relay management)
+    // #36: test_reject_duplicate_relay — N/A for MVM (EVM-specific relay management)
+    // #37: test_reject_removing_non_existent_relay — N/A for MVM (EVM-specific relay management)
+
+    // 38. Test: DeliverMessage routes IntentRequirements to both handlers
     // Verifies that IntentRequirements (0x01) are routed to both intent_outflow_validator_impl and intent_inflow_escrow.
     // Why: Connected chain must process requirements in both handlers for complete flow support.
     #[test]
@@ -386,37 +447,7 @@ module mvmt_intent::intent_gmp_tests {
         assert!(intent_inflow_escrow::has_requirements(intent_id), 2);
     }
 
-    // 25. Test: AddRelay rejects non-admin
-    // Verifies that only the admin can add relays.
-    // Why: Relay management is security-critical; must be admin-only.
-    #[test]
-    #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
-    fun test_add_relay_rejects_non_admin() {
-        let _admin = setup_test();
-
-        // Create non-admin account
-        let non_admin = account::create_account_for_test(@0x999);
-
-        // Try to add relay as non-admin - should fail
-        intent_gmp::add_relay(&non_admin, @0x789);
-    }
-
-    // 26. Test: RemoveRelay rejects non-admin
-    // Verifies that only the admin can remove relays.
-    // Why: Relay management is security-critical; must be admin-only.
-    #[test]
-    #[expected_failure(abort_code = 6, location = mvmt_intent::intent_gmp)]
-    fun test_remove_relay_rejects_non_admin() {
-        let _admin = setup_test();
-
-        // Create non-admin account
-        let non_admin = account::create_account_for_test(@0x999);
-
-        // Try to remove relay as non-admin - should fail
-        intent_gmp::remove_relay(&non_admin, ADMIN_ADDR);
-    }
-
-    // 27. Test: DeliverMessage fails if outflow_validator not initialized
+    // 39. Test: DeliverMessage fails if outflow_validator not initialized
     // Verifies that IntentRequirements delivery fails if intent_outflow_validator_impl is not initialized.
     // Why: No fallbacks - all handlers must be ready to receive messages.
     #[test]
@@ -449,4 +480,16 @@ module mvmt_intent::intent_gmp_tests {
             payload,
         );
     }
+
+    // #40: test_fulfillment_proof_routes_to_intent_escrow — N/A for MVM (SVM-specific CPI routing)
+    // #41: test_fulfillment_proof_fails_with_insufficient_accounts — N/A for MVM (SVM-specific account validation)
+    // #42: test_deliver_fulfillment_proof_routes — N/A for MVM (EVM-specific handler routing)
+    // #43: test_reject_unknown_message_type — N/A for MVM (EVM-specific message type validation)
+    // #44: test_fulfillment_proof_requires_escrow_handler — N/A for MVM (EVM-specific handler requirement)
+    // #45: test_initialize_creates_config — N/A for MVM (EVM-specific contract initialization)
+    // #46: test_initialize_sets_nonce — N/A for MVM (EVM-specific contract initialization)
+    // #47: test_initialize_rejects_zero_admin — N/A for MVM (EVM-specific zero address check)
+    // #48: test_set_escrow_handler — N/A for MVM (EVM-specific handler configuration)
+    // #49: test_set_outflow_handler — N/A for MVM (EVM-specific handler configuration)
+    // #50: test_route_to_both_handlers — N/A for MVM (EVM-specific dual handler routing)
 }

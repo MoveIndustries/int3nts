@@ -9,6 +9,7 @@ A framework for creating cross-chain intents with the following components
 - [coordinator](docs/coordinator/README.md)
 - [integrated-gmp](docs/integrated-gmp/README.md)
 - [frontend](docs/frontend/README.md)
+- [SDK](docs/sdk/README.md)
 - [solver tools](docs/solver/README.md)
 - [testing infrastructure](docs/testing-infra/README.md)
 
@@ -43,6 +44,8 @@ nix develop ./nix -c bash -c "./chain-clients/scripts/test.sh"
 RUST_LOG=off nix develop ./nix -c bash -c "cd coordinator && cargo test --quiet"
 RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --quiet"
 RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet"
+# SDK
+nix develop ./nix -c bash -c "cd packages/sdk && npm install && npm test"
 # Frontend
 nix develop ./nix -c bash -c "cd frontend && npm install --legacy-peer-deps && npm test"
 ```

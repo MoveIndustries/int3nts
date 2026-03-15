@@ -42,6 +42,11 @@ jobs:
     with:
       script: "cd integrated-gmp && cargo test"
 
+  sdk:
+    uses: ./.github/workflows/unit-tests-reusable.yml
+    with:
+      script: "cd packages/sdk && npm install && npm test"
+
   frontend:
     uses: ./.github/workflows/unit-tests-reusable.yml
     with:

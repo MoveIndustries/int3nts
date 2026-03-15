@@ -193,7 +193,13 @@ async fn test_handle_maximum_u64_value_in_create_escrow() {
 /// NOTE: N/A for SVM - Signature validation handled by Ed25519Program, not the escrow program
 // EVM: intent-frameworks/evm/test/error-conditions.test.js - "Should revert with invalid signature length"
 
-/// 8. Test: Non-Existent Escrow Cancellation Rejection
+/// 8. test_reject_requirements_not_found — N/A for SVM (GMP validation errors tested in gmp.rs)
+/// 9. test_reject_amount_mismatch — N/A for SVM (GMP validation errors tested in gmp.rs)
+/// 10. test_reject_token_mismatch — N/A for SVM (GMP validation errors tested in gmp.rs)
+/// 11. test_reject_requester_mismatch — N/A for SVM (GMP validation errors tested in gmp.rs)
+/// 12. test_reject_expired_intent — N/A for SVM (GMP validation errors tested in gmp.rs)
+
+/// 13. Test: Non-Existent Escrow Cancellation Rejection
 /// Verifies that cancel reverts with EscrowDoesNotExist for non-existent escrows.
 /// Why: Prevents cancellation of non-existent escrows and ensures proper error handling.
 #[tokio::test]
@@ -235,7 +241,7 @@ async fn test_revert_cancel_on_non_existent_escrow() {
     assert!(result.is_err(), "Should have thrown EscrowDoesNotExist error");
 }
 
-/// 9. Test: Zero Solver Address Rejection
+/// 14. Test: Zero Solver Address Rejection
 /// Verifies that escrows cannot be created with zero/default solver address.
 /// Why: A valid solver must be specified for claims.
 #[tokio::test]
@@ -276,7 +282,7 @@ async fn test_reject_zero_solver_address() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// 10. Test: Duplicate Intent ID Rejection
+/// 15. Test: Duplicate Intent ID Rejection
 /// Verifies that escrows with duplicate intent IDs are rejected.
 /// Why: Each intent ID must map to exactly one escrow.
 #[tokio::test]
@@ -341,7 +347,7 @@ async fn test_reject_duplicate_intent_id() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// 11. Test: Insufficient Token Balance Rejection
+/// 16. Test: Insufficient Token Balance Rejection
 /// Verifies that escrow creation fails if requester has insufficient tokens.
 /// Why: Cannot deposit more tokens than available.
 #[tokio::test]

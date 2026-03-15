@@ -1,28 +1,12 @@
 /**
- * Tests for Move transaction utilities
- * 
+ * Tests for hex/bytes utilities
+ *
  * These tests verify the correctness of data transformations required
- * for submitting transactions to the Movement blockchain via wallet adapters.
+ * for cross-chain intent operations.
  */
 
 import { describe, it, expect } from 'vitest';
-import { 
-  INTENT_MODULE_ADDR, 
-  hexToBytes, 
-  padEvmAddressToMove, 
-  stripHexPrefix 
-} from './move-transactions';
-
-describe('INTENT_MODULE_ADDR', () => {
-  /**
-   * Test: Module address format validation
-   * Why: Move addresses must be exactly 32 bytes (64 hex chars) with 0x prefix.
-   *      Invalid addresses cause transaction failures on-chain.
-   */
-  it('should be a valid Move address', () => {
-    expect(INTENT_MODULE_ADDR).toMatch(/^0x[a-fA-F0-9]{64}$/);
-  });
-});
+import { hexToBytes, padEvmAddressToMove, stripHexPrefix } from '../src/utils.js';
 
 describe('hexToBytes', () => {
   /**
@@ -82,7 +66,7 @@ describe('padEvmAddressToMove', () => {
    */
   it('should pad 20-byte EVM address to 32 bytes', () => {
     const padded = padEvmAddressToMove('0x1234567890abcdef1234567890abcdef12345678');
-    
+
     // 0x prefix (2 chars) + 64 hex chars = 66 total
     expect(padded).toHaveLength(66);
     // 24 zeros (12 bytes) + 40 hex chars (20 bytes) = 64 hex chars (32 bytes)

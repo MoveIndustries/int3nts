@@ -245,10 +245,27 @@ async fn test_is_escrow_released_error() {
 }
 
 // ============================================================================
+// HAS OUTFLOW REQUIREMENTS (MVM-specific)
+// ============================================================================
+
+// #16: test_has_outflow_requirements_success - N/A for SVM (MVM-specific GMP view function)
+// #17: test_has_outflow_requirements_false - N/A for SVM (MVM-specific GMP view function)
+// #18: test_has_outflow_requirements_error - N/A for SVM (MVM-specific GMP view function)
+
+// ============================================================================
+// IS ESCROW RELEASED HELPERS (EVM-specific)
+// ============================================================================
+
+// #19: test_is_escrow_released_id_formatting - N/A for SVM (EVM-specific Hardhat script mechanics)
+// #20: test_is_escrow_released_output_parsing - N/A for SVM (EVM-specific Hardhat script mechanics)
+// #21: test_is_escrow_released_command_building - N/A for SVM (EVM-specific Hardhat script mechanics)
+// #22: test_is_escrow_released_error_handling - N/A for SVM (EVM-specific Hardhat script mechanics)
+
+// ============================================================================
 // BALANCE QUERIES
 // ============================================================================
 
-/// 16. Test: get_token_balance returns correct SPL token balance
+/// 23. Test: get_token_balance returns correct SPL token balance
 /// Verifies that get_token_balance() derives the ATA and parses the balance response.
 /// Why: Liquidity monitoring depends on accurate token balance reads from SVM chains.
 #[tokio::test(flavor = "multi_thread")]
@@ -295,7 +312,7 @@ async fn test_get_token_balance_success() {
     assert_eq!(balance, 1_000_000);
 }
 
-/// 17. Test: get_token_balance propagates RPC errors
+/// 24. Test: get_token_balance propagates RPC errors
 /// Verifies that get_token_balance() returns Err on RPC error.
 /// Why: RPC errors must propagate so the liquidity monitor can log and retry.
 #[tokio::test(flavor = "multi_thread")]
@@ -335,9 +352,9 @@ async fn test_get_token_balance_error() {
     assert!(result.is_err(), "Expected RPC error to propagate");
 }
 
-// #18: test_get_token_balance_zero - N/A for SVM (token account either exists with balance or doesn't exist)
+// #25: test_get_token_balance_zero - N/A for SVM (token account either exists with balance or doesn't exist)
 
-/// 19. Test: get_native_balance returns correct SOL balance
+/// 26. Test: get_native_balance returns correct SOL balance
 /// Verifies that get_native_balance() calls getBalance and returns lamports.
 /// Why: Gas token monitoring uses native SOL balance, not SPL token balance.
 #[tokio::test(flavor = "multi_thread")]
@@ -376,7 +393,7 @@ async fn test_get_native_balance_success() {
     assert_eq!(balance, 100_000_000);
 }
 
-/// 20. Test: get_native_balance propagates RPC errors
+/// 27. Test: get_native_balance propagates RPC errors
 /// Verifies that get_native_balance() returns Err on RPC failure.
 /// Why: RPC errors must propagate so the liquidity monitor can log and retry.
 #[tokio::test(flavor = "multi_thread")]
@@ -415,38 +432,22 @@ async fn test_get_native_balance_error() {
 }
 
 // ============================================================================
-// HEX ADDRESS NORMALIZATION (MVM-specific)
-// ============================================================================
-
-// #21: test_normalize_hex_to_address_full_length - N/A for SVM (MVM-specific Move address normalization)
-// #22: test_normalize_hex_to_address_short_address - N/A for SVM (MVM-specific Move address normalization)
-// #23: test_normalize_hex_to_address_odd_length - N/A for SVM (MVM-specific Move address normalization)
-// #24: test_normalize_hex_to_address_no_prefix - N/A for SVM (MVM-specific Move address normalization)
-
-// ============================================================================
-// HAS OUTFLOW REQUIREMENTS (MVM-specific)
-// ============================================================================
-
-// #25: test_has_outflow_requirements_success - N/A for SVM (MVM-specific GMP view function)
-// #26: test_has_outflow_requirements_false - N/A for SVM (MVM-specific GMP view function)
-// #27: test_has_outflow_requirements_error - N/A for SVM (MVM-specific GMP view function)
-
-// ============================================================================
-// IS ESCROW RELEASED HELPERS (EVM-specific)
-// ============================================================================
-
-// #28: test_is_escrow_released_id_formatting - N/A for SVM (EVM-specific Hardhat script mechanics)
-// #29: test_is_escrow_released_output_parsing - N/A for SVM (EVM-specific Hardhat script mechanics)
-// #30: test_is_escrow_released_command_building - N/A for SVM (EVM-specific Hardhat script mechanics)
-// #31: test_is_escrow_released_error_handling - N/A for SVM (EVM-specific Hardhat script mechanics)
-
-// ============================================================================
 // EVM ADDRESS NORMALIZATION (EVM-specific)
 // ============================================================================
 
-// #32: test_get_native_balance_exceeds_u64 - N/A for SVM (EVM-specific u64 overflow from large ETH balances)
-// #33: test_get_token_balance_with_padded_address - N/A for SVM (EVM-specific 32-byte address padding)
-// #34: test_get_native_balance_with_padded_address - N/A for SVM (EVM-specific 32-byte address padding)
+// #28: test_get_native_balance_exceeds_u64 - N/A for SVM (EVM-specific u64 overflow from large ETH balances)
+// #29: test_get_token_balance_with_padded_address - N/A for SVM (EVM-specific 32-byte address padding)
+// #30: test_get_native_balance_with_padded_address - N/A for SVM (EVM-specific 32-byte address padding)
+
+// ============================================================================
+// HEX ADDRESS NORMALIZATION (MVM-specific)
+// ============================================================================
+
+// #31: test_normalize_hex_to_address_full_length - N/A for SVM (MVM-specific Move address normalization)
+// #32: test_normalize_hex_to_address_short_address - N/A for SVM (MVM-specific Move address normalization)
+// #33: test_normalize_hex_to_address_odd_length - N/A for SVM (MVM-specific Move address normalization)
+// #34: test_normalize_hex_to_address_no_prefix - N/A for SVM (MVM-specific Move address normalization)
+
 // #35: test_normalize_evm_address_padded - N/A for SVM (EVM-specific address normalization)
 // #36: test_normalize_evm_address_passthrough - N/A for SVM (EVM-specific address normalization)
 // #37: test_normalize_evm_address_rejects_non_zero_high_bytes - N/A for SVM (EVM-specific address normalization)

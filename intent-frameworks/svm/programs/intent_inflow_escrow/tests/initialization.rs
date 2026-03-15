@@ -199,3 +199,5 @@ async fn test_revert_if_amount_is_zero() {
     let result = context.banks_client.process_transaction(tx).await;
     assert!(result.is_err(), "Should have thrown an error");
 }
+
+// #5: test_revert_if_amount_is_zero_gmp_variant — not yet implemented for SVM

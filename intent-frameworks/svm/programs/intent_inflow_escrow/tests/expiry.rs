@@ -19,6 +19,8 @@ use bincode::deserialize;
 // ============================================================================
 // EXPIRY HANDLING TESTS
 // ============================================================================
+// SVM honors GMP fulfillment proofs regardless of local expiry (hub is source
+// of truth). Local expiry only affects the cancel operation.
 
 /// 1. Test: Expired Escrow Cancellation by Admin
 /// Verifies that admin can cancel escrows after expiry and funds return to requester.

@@ -116,29 +116,10 @@ fn test_fulfillment_command_building() {
 // #15: test_is_escrow_released_error — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#5)
 
 // ============================================================================
-// BALANCE QUERIES
-// ============================================================================
-
-// #16: test_get_token_balance_success — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#6)
-// #17: test_get_token_balance_error — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#7)
-// #18: test_get_token_balance_zero — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#8)
-// #19: test_get_native_balance_success — N/A for MVM (native MOVE is queried as FA token via get_token_balance with 0xa metadata)
-// #20: test_get_native_balance_error — N/A for MVM
-
-// ============================================================================
-// HEX ADDRESS NORMALIZATION
-// ============================================================================
-
-// #21: test_normalize_hex_to_address_full_length — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#18)
-// #22: test_normalize_hex_to_address_short_address — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#19)
-// #23: test_normalize_hex_to_address_odd_length — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#20)
-// #24: test_normalize_hex_to_address_no_prefix — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#21)
-
-// ============================================================================
 // HAS OUTFLOW REQUIREMENTS (MVM-specific, GMP view function)
 // ============================================================================
 
-/// 25. Test: has_outflow_requirements returns true when requirements delivered
+/// 16. Test: has_outflow_requirements returns true when requirements delivered
 /// Verifies that has_outflow_requirements() calls the intent_outflow_validator_impl::has_requirements
 /// view function and parses the boolean response.
 /// Why: The solver polls this before calling fulfill_intent. A parse error would block fulfillment.
@@ -161,7 +142,7 @@ async fn test_has_outflow_requirements_success() {
     assert!(result);
 }
 
-/// 26. Test: has_outflow_requirements returns false when not yet delivered
+/// 17. Test: has_outflow_requirements returns false when not yet delivered
 /// Verifies that has_outflow_requirements() correctly parses a false response.
 /// Why: The solver polls this function repeatedly; false must not be misinterpreted.
 #[tokio::test]
@@ -183,7 +164,7 @@ async fn test_has_outflow_requirements_false() {
     assert!(!result);
 }
 
-/// 27. Test: has_outflow_requirements propagates HTTP errors
+/// 18. Test: has_outflow_requirements propagates HTTP errors
 /// Verifies that has_outflow_requirements() returns Err on HTTP failure.
 /// Why: Errors must propagate (not be swallowed as warnings) so the caller can fail fast.
 #[tokio::test]
@@ -207,18 +188,38 @@ async fn test_has_outflow_requirements_error() {
     assert!(result.is_err());
 }
 
-// #28: test_is_escrow_released_id_formatting - N/A for MVM (EVM-specific Hardhat script mechanics)
-// #29: test_is_escrow_released_output_parsing - N/A for MVM (EVM-specific Hardhat script mechanics)
-// #30: test_is_escrow_released_command_building - N/A for MVM (EVM-specific Hardhat script mechanics)
-// #31: test_is_escrow_released_error_handling - N/A for MVM (EVM-specific Hardhat script mechanics)
+// #19: test_is_escrow_released_id_formatting - N/A for MVM (EVM-specific Hardhat script mechanics)
+// #20: test_is_escrow_released_output_parsing - N/A for MVM (EVM-specific Hardhat script mechanics)
+// #21: test_is_escrow_released_command_building - N/A for MVM (EVM-specific Hardhat script mechanics)
+// #22: test_is_escrow_released_error_handling - N/A for MVM (EVM-specific Hardhat script mechanics)
+
+// ============================================================================
+// BALANCE QUERIES
+// ============================================================================
+
+// #23: test_get_token_balance_success — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#6)
+// #24: test_get_token_balance_error — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#7)
+// #25: test_get_token_balance_zero — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#8)
+// #26: test_get_native_balance_success — N/A for MVM (native MOVE is queried as FA token via get_token_balance with 0xa metadata)
+// #27: test_get_native_balance_error — N/A for MVM
 
 // ============================================================================
 // EVM ADDRESS NORMALIZATION (EVM-specific)
 // ============================================================================
 
-// #32: test_get_native_balance_exceeds_u64 - N/A for MVM (EVM-specific u64 overflow from large ETH balances)
-// #33: test_get_token_balance_with_padded_address - N/A for MVM (EVM-specific 32-byte address padding)
-// #34: test_get_native_balance_with_padded_address - N/A for MVM (EVM-specific 32-byte address padding)
+// #28: test_get_native_balance_exceeds_u64 - N/A for MVM (EVM-specific u64 overflow from large ETH balances)
+// #29: test_get_token_balance_with_padded_address - N/A for MVM (EVM-specific 32-byte address padding)
+// #30: test_get_native_balance_with_padded_address - N/A for MVM (EVM-specific 32-byte address padding)
+
+// ============================================================================
+// HEX ADDRESS NORMALIZATION
+// ============================================================================
+
+// #31: test_normalize_hex_to_address_full_length — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#18)
+// #32: test_normalize_hex_to_address_short_address — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#19)
+// #33: test_normalize_hex_to_address_odd_length — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#20)
+// #34: test_normalize_hex_to_address_no_prefix — moved to chain-clients/mvm/tests/mvm_client_tests.rs (#21)
+
 // #35: test_normalize_evm_address_padded - N/A for MVM (EVM-specific address normalization)
 // #36: test_normalize_evm_address_passthrough - N/A for MVM (EVM-specific address normalization)
 // #37: test_normalize_evm_address_rejects_non_zero_high_bytes - N/A for MVM (EVM-specific address normalization)
