@@ -1,49 +1,30 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi';
 import { useWallet as useMvmWallet } from '@aptos-labs/wallet-adapter-react';
 import { useWallet as useSvmWallet } from '@solana/wallet-adapter-react';
 import {
   CoordinatorClient,
-  type DraftIntentRequest,
-  type DraftIntentSignature,
   type TokenConfig,
-  type TokenBalance,
-  type SvmSigner,
-  generateIntentId,
-  toSmallestUnits,
+  type FeeInfo,
+  type FlowType,
   fromSmallestUnits,
   getChainType,
   isHubChain,
   getHubChainConfig,
-  getEscrowContractAddress,
-  getSvmGmpEndpointId,
-  getIntentContractAddress,
-  getRpcUrl,
-  fetchTokenBalance,
-  hexToBytes,
-  padEvmAddressToMove,
-  INTENT_ESCROW_ABI,
-  ERC20_ABI,
-  intentIdToEvmBytes32,
   checkHasRequirements,
   checkHasRequirementsMvm,
-  checkIsFulfilled,
-  buildCreateEscrowInstruction,
-  getSvmTokenAccount,
-  svmHexToPubkey,
-  svmPubkeyToHex,
-  readGmpOutboundNonce,
   checkHasRequirementsSvm,
-  checkIsFulfilledSvm,
-  fetchSolverSvmAddress,
-  getSvmConnection,
-  sendSvmTransaction,
+  calculateFee,
+  getChainKeyFromId,
 } from '@int3nts/sdk';
 import { CHAIN_CONFIGS } from '@/config/chains';
+import { useNightlyAddress } from './useNightlyAddress';
+import { useTokenBalances } from './useTokenBalances';
+import { useIntentDraft } from './useIntentDraft';
+import { useIntentHandlers, getOfferedTokenFromDraft } from './useIntentHandlers';
 import { SUPPORTED_TOKENS } from '@/config/tokens';
-import { Aptos, AptosConfig } from '@aptos-labs/ts-sdk';
 import { PublicKey } from '@solana/web3.js';
 
 const coordinatorClient = new CoordinatorClient(
@@ -51,197 +32,11 @@ const coordinatorClient = new CoordinatorClient(
 );
 
 // ============================================================================
-// Types
+// Frontend-Only Constants
 // ============================================================================
 
-type FlowType = 'inflow' | 'outflow';
-
-// ============================================================================
-// Timing Constants
-// ============================================================================
-
-/** Actual on-chain intent expiry (seconds). */
-const INTENT_EXPIRY_SECS = 180;
-/** Frontend countdown display (seconds). Shorter than actual expiry to give signing buffer. */
-const FRONTEND_TIMER_SECS = 120;
-/** Interval between signature poll requests (ms). */
-const POLL_SIGNATURE_INTERVAL_MS = 2000;
-/** Interval between fulfillment poll requests (ms). */
-const POLL_FULFILLMENT_INTERVAL_MS = 5000;
 /** Delay before starting requirement checks (ms). */
 const POLL_REQUIREMENTS_INTERVAL_MS = 3000;
-/** Delay before first fulfillment poll to let solver pick up intent (ms). */
-const POLL_FULFILLMENT_INITIAL_DELAY_MS = 3000;
-/** Timer display update interval (ms). */
-const TIMER_UPDATE_INTERVAL_MS = 1000;
-/** Max signature poll attempts (attempts × POLL_SIGNATURE_INTERVAL_MS = total timeout). */
-const MAX_SIGNATURE_POLL_ATTEMPTS = 120;
-// ============================================================================
-// Fee Constants
-// ============================================================================
-
-/** Basis points denominator (10000 bps = 100%). */
-const BPS_DENOMINATOR = BigInt(10000);
-/** Rounding offset for ceiling division in bps fee calculation. */
-const BPS_ROUNDING_OFFSET = BigInt(9999);
-
-// ============================================================================
-// Hooks
-// ============================================================================
-
-/**
- * Track Nightly wallet connection from local storage and custom events.
- */
-function useNightlyAddress(): string | null {
-  const [directNightlyAddress, setDirectNightlyAddress] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedAddress = localStorage.getItem('nightly_connected_address');
-      setDirectNightlyAddress(savedAddress);
-
-      const handleStorageChange = () => {
-        const address = localStorage.getItem('nightly_connected_address');
-        setDirectNightlyAddress(address);
-      };
-
-      const handleNightlyChange = (e: Event) => {
-        const customEvent = e as CustomEvent<{ address: string | null }>;
-        setDirectNightlyAddress(customEvent.detail.address);
-      };
-
-      window.addEventListener('storage', handleStorageChange);
-      window.addEventListener('nightly_wallet_changed', handleNightlyChange);
-      return () => {
-        window.removeEventListener('storage', handleStorageChange);
-        window.removeEventListener('nightly_wallet_changed', handleNightlyChange);
-      };
-    }
-  }, []);
-
-  return directNightlyAddress;
-}
-
-/**
- * Fetch balances for offered/desired tokens with refresh on fulfillment.
- */
-function useTokenBalances(params: {
-  offeredToken: TokenConfig | null;
-  desiredToken: TokenConfig | null;
-  resolveAddress: (chain: TokenConfig['chain']) => string;
-  intentStatus: 'pending' | 'created' | 'fulfilled';
-}) {
-  const { offeredToken, desiredToken, resolveAddress, intentStatus } = params;
-  const [offeredBalance, setOfferedBalance] = useState<TokenBalance | null>(null);
-  const [desiredBalance, setDesiredBalance] = useState<TokenBalance | null>(null);
-  const [offeredBalanceError, setOfferedBalanceError] = useState<string | null>(null);
-  const [desiredBalanceError, setDesiredBalanceError] = useState<string | null>(null);
-  const [loadingOfferedBalance, setLoadingOfferedBalance] = useState(false);
-  const [loadingDesiredBalance, setLoadingDesiredBalance] = useState(false);
-
-  useEffect(() => {
-    if (!offeredToken) {
-      setOfferedBalance(null);
-      return;
-    }
-    const address = resolveAddress(offeredToken.chain);
-    if (!address) {
-      setOfferedBalance(null);
-      return;
-    }
-    setLoadingOfferedBalance(true);
-    setOfferedBalanceError(null);
-    console.log('Fetching offered balance:', { address, token: offeredToken.symbol, chain: offeredToken.chain });
-    fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, offeredToken.chain), address, offeredToken)
-      .then((balance) => {
-        console.log('Offered balance result:', balance);
-        setOfferedBalance(balance);
-      })
-      .catch((err: unknown) => {
-        console.error('Failed to fetch offered balance:', err);
-        setOfferedBalance(null);
-        setOfferedBalanceError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => setLoadingOfferedBalance(false));
-  }, [offeredToken, resolveAddress]);
-
-  useEffect(() => {
-    if (!desiredToken) {
-      setDesiredBalance(null);
-      setDesiredBalanceError(null);
-      return;
-    }
-    const address = resolveAddress(desiredToken.chain);
-    if (!address) {
-      setDesiredBalance(null);
-      setDesiredBalanceError(null);
-      return;
-    }
-    setLoadingDesiredBalance(true);
-    setDesiredBalanceError(null);
-    console.log('Fetching desired balance:', { address, token: desiredToken.symbol, chain: desiredToken.chain });
-    fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, desiredToken.chain), address, desiredToken)
-      .then((balance) => {
-        console.log('Desired balance result:', balance);
-        setDesiredBalance(balance);
-      })
-      .catch((err: unknown) => {
-        console.error('Failed to fetch desired balance:', err);
-        setDesiredBalance(null);
-        setDesiredBalanceError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => setLoadingDesiredBalance(false));
-  }, [desiredToken, resolveAddress]);
-
-  useEffect(() => {
-    if (intentStatus !== 'fulfilled') {
-      return;
-    }
-    if (offeredToken) {
-      const offeredAddress = resolveAddress(offeredToken.chain);
-      if (offeredAddress) {
-        setLoadingOfferedBalance(true);
-        setOfferedBalanceError(null);
-        fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, offeredToken.chain), offeredAddress, offeredToken)
-          .then(setOfferedBalance)
-          .catch((err: unknown) => {
-            console.error('Failed to fetch offered balance:', err);
-            setOfferedBalance(null);
-            setOfferedBalanceError(err instanceof Error ? err.message : String(err));
-          })
-          .finally(() => setLoadingOfferedBalance(false));
-      }
-    }
-    if (desiredToken) {
-      const desiredAddress = resolveAddress(desiredToken.chain);
-      if (desiredAddress) {
-        setLoadingDesiredBalance(true);
-        setDesiredBalanceError(null);
-        fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, desiredToken.chain), desiredAddress, desiredToken)
-          .then(setDesiredBalance)
-          .catch((err: unknown) => {
-            console.error('Failed to fetch desired balance:', err);
-            setDesiredBalance(null);
-            setDesiredBalanceError(err instanceof Error ? err.message : String(err));
-          })
-          .finally(() => setLoadingDesiredBalance(false));
-      }
-    }
-  }, [intentStatus, offeredToken, desiredToken, resolveAddress]);
-
-  return {
-    offeredBalance,
-    desiredBalance,
-    offeredBalanceError,
-    desiredBalanceError,
-    loadingOfferedBalance,
-    loadingDesiredBalance,
-  };
-}
-
-// ============================================================================
-// Intent Builder Component
-// ============================================================================
 
 /**
  * Intent creation flow across hub and connected chains.
@@ -287,42 +82,40 @@ export function IntentBuilder() {
     return evmAddress || '';
   }, [mvmAddress, svmAddress, evmAddress]);
 
-  const getChainKeyFromId = (chainIdValue: string): TokenConfig['chain'] | null => {
-    const entry = Object.entries(CHAIN_CONFIGS).find(
-      ([, config]) => String(config.chainId) === chainIdValue
-    );
-    return entry ? (entry[0] as TokenConfig['chain']) : null;
-  };
   // Desired amount is auto-calculated based on solver's exchange rate
   const [desiredAmount, setDesiredAmount] = useState('');
   // Fee parameters from solver's exchange rate response
-  const [feeInfo, setFeeInfo] = useState<{ minFee: number; feeBps: number; totalFee: bigint } | null>(null);
+  const [feeInfo, setFeeInfo] = useState<FeeInfo | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [draftId, setDraftId] = useState<string | null>(null);
-  const [draftCreatedAt, setDraftCreatedAt] = useState<number | null>(null);
-  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
-  const [mounted, setMounted] = useState(false);
-  
-  // Signature polling state
-  const [signature, setSignature] = useState<DraftIntentSignature | null>(null);
-  const [pollingSignature, setPollingSignature] = useState(false);
-  
+
   // Transaction submission state
   const [submittingTransaction, setSubmittingTransaction] = useState(false);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
-  
-  // Fulfillment tracking state
-  const [intentStatus, setIntentStatus] = useState<'pending' | 'created' | 'fulfilled'>('pending');
-  const intentStatusRef = useRef<'pending' | 'created' | 'fulfilled'>('pending');
-  
-  // Keep ref in sync with state
-  useEffect(() => {
-    intentStatusRef.current = intentStatus;
-  }, [intentStatus]);
-  const [pollingFulfillment, setPollingFulfillment] = useState(false);
-  const pollingFulfillmentRef = useRef(false);
-  const currentIntentIdRef = useRef<string | null>(null);
+
+  const {
+    draftId,
+    setDraftId,
+    setDraftCreatedAt,
+    savedDraftData,
+    setSavedDraftData,
+    signature,
+    setSignature,
+    pollingSignature,
+    setPollingSignature,
+    pollingActiveRef,
+    intentStatus,
+    pollingFulfillment,
+    timeRemaining,
+    mounted,
+    error,
+    setError,
+    clearDraft: clearDraftState,
+  } = useIntentDraft({
+    coordinator: coordinatorClient,
+    flowType,
+    transactionHash,
+    mvmAddress,
+  });
   
   // Escrow creation state (for inflow intents)
   const [escrowHash, setEscrowHash] = useState<string | null>(null);
@@ -336,7 +129,43 @@ export function IntentBuilder() {
   // Wagmi hooks for escrow creation
   const { writeContract: writeApprove, data: approveHash, error: approveError, isPending: isApprovePending, reset: resetApprove } = useWriteContract();
   const { writeContract: writeCreateEscrow, data: createEscrowHash, error: escrowError, isPending: isEscrowPending, reset: resetEscrow } = useWriteContract();
-  
+
+  const { handleSubmit, handleCreateIntent, handleCreateEscrow, handleCreateEscrowAfterApproval } = useIntentHandlers({
+    coordinator: coordinatorClient,
+    flowType,
+    requesterAddr,
+    offeredToken,
+    desiredToken,
+    offeredAmount,
+    desiredAmount,
+    feeInfo,
+    evmAddress,
+    svmAddress,
+    svmPublicKey,
+    svmWallet,
+    mvmAccount,
+    directNightlyAddress,
+    chainId,
+    switchChain,
+    savedDraftData,
+    signature,
+    setDraftId,
+    setDraftCreatedAt,
+    setSavedDraftData,
+    setSignature,
+    setPollingSignature,
+    pollingActiveRef,
+    setError,
+    setLoading,
+    setTransactionHash,
+    setSubmittingTransaction,
+    setEscrowHash,
+    setApprovingToken,
+    setCreatingEscrow,
+    writeApprove,
+    writeCreateEscrow,
+  });
+
   // Wait for approve transaction
   const { data: approveReceipt, isLoading: isApproving, error: approveReceiptError } = useWaitForTransactionReceipt({
     hash: approveHash,
@@ -403,45 +232,6 @@ export function IntentBuilder() {
     }
   }, [escrowReceipt, isCreatingEscrow]);
 
-  // Helper to get chain name from chain ID
-  const getChainNameFromId = (chainId: string): string => {
-    const chainEntry = Object.entries(CHAIN_CONFIGS).find(([, config]) => String(config.chainId) === chainId);
-    return chainEntry ? chainEntry[1].name : `Chain ${chainId}`;
-  };
-
-  // Helper to find token from savedDraftData (for escrow creation when offeredToken is null)
-  const getOfferedTokenFromDraft = (): TokenConfig | null => {
-    if (!savedDraftData) return null;
-    // Find token by matching chain ID and metadata
-    return SUPPORTED_TOKENS.find(t => {
-      const chainConfig = CHAIN_CONFIGS[t.chain];
-      if (!chainConfig || String(chainConfig.chainId) !== savedDraftData.offeredChainId) {
-        return false;
-      }
-      if (getChainType(CHAIN_CONFIGS, t.chain) === 'svm') {
-        // Deviation from EVM flow: SVM mint addresses are base58 strings,
-        // so we compare directly instead of hex-padding.
-        return t.metadata.toLowerCase() === savedDraftData.offeredMetadata.toLowerCase();
-      }
-      return t.metadata
-        .toLowerCase()
-        .includes(savedDraftData.offeredMetadata.replace(/^0x0*/, '').toLowerCase());
-    }) || null;
-  };
-
-  // Store draft data for transaction building
-  const [savedDraftData, setSavedDraftData] = useState<{
-    intentId: string;
-    offeredMetadata: string;
-    offeredAmount: string;
-    offeredChainId: string;
-    desiredMetadata: string;
-    desiredAmount: string;
-    desiredChainId: string;
-    expiryTime: number;
-    feeInOfferedToken: string;
-  } | null>(null);
-
   const connectedChainKey =
     offeredToken && desiredToken ? getConnectedChain(offeredToken, desiredToken) : null;
   const requiresEvmWallet = connectedChainKey ? isEvmChain(connectedChainKey) : false;
@@ -449,7 +239,7 @@ export function IntentBuilder() {
   const connectedWalletReady =
     (!requiresEvmWallet || !!evmAddress) && (!requiresSvmWallet || !!svmAddress);
 
-  const escrowChainKey = savedDraftData ? getChainKeyFromId(savedDraftData.offeredChainId) : null;
+  const escrowChainKey = savedDraftData ? getChainKeyFromId(CHAIN_CONFIGS, savedDraftData.offeredChainId) : null;
   const escrowRequiresSvm = escrowChainKey ? getChainType(CHAIN_CONFIGS, escrowChainKey) === 'svm' : false;
   const escrowWalletReady = escrowRequiresSvm ? !!svmAddress : !!evmAddress;
   const {
@@ -528,125 +318,24 @@ export function IntentBuilder() {
     return () => { cancelled = true; };
   }, [transactionHash, savedDraftData, escrowHash]);
 
-  // Restore draft ID from localStorage after mount (to avoid hydration mismatch)
-  useEffect(() => {
-    setMounted(true);
-    if (typeof window !== 'undefined') {
-      const savedDraftId = localStorage.getItem('last_draft_id');
-      const savedCreatedAt = localStorage.getItem('last_draft_created_at');
-      if (savedDraftId && savedCreatedAt) {
-        setDraftId(savedDraftId);
-        setDraftCreatedAt(parseInt(savedCreatedAt, 10));
-      } else {
-        // Clear any stale state if draft data is missing from localStorage
-        // This happens on page refresh when localStorage was cleared or expired
-        setDraftId(null);
-        setDraftCreatedAt(null);
-        setSignature(null);
-        setSavedDraftData(null);
-        setTransactionHash(null);
-        setError(null); // Clear any stale errors
-      }
-    }
-  }, []);
-
-  // Clear entire draft if savedDraftData is missing (stale state after page refresh)
-  // savedDraftData is not persisted, so if we have draftId but no savedDraftData, we can't use the draft
-  useEffect(() => {
-    if (draftId && !savedDraftData && mounted) {
-      console.log('Clearing stale draft - savedDraftData missing after page refresh');
-      // Clear everything - we can't use this draft without savedDraftData
-      setDraftId(null);
-      setDraftCreatedAt(null);
-      setSignature(null);
-      setTransactionHash(null);
-      setError(null); // Clear any stale errors
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('last_draft_id');
-        localStorage.removeItem('last_draft_created_at');
-      }
-    }
-  }, [draftId, savedDraftData, mounted]);
-
-  // Store the fixed expiry time (Unix timestamp in seconds) - never recalculate it
-  const [fixedExpiryTime, setFixedExpiryTime] = useState<number | null>(null);
-
-  // Set fixed expiry time based on when draft was created
-  // Frontend shows 120 seconds, but actual intent expiry is 180 seconds
-  // This gives 60 seconds buffer after frontend timer expires
-  useEffect(() => {
-    if (draftCreatedAt) {
-      setFixedExpiryTime(Math.floor(draftCreatedAt / 1000) + FRONTEND_TIMER_SECS);
-    } else {
-      setFixedExpiryTime(null);
-    }
-  }, [draftCreatedAt]);
-
-  // Update countdown timer - uses fixed expiry time, never recalculates
-  useEffect(() => {
-    if (!fixedExpiryTime) {
-      setTimeRemaining(null);
-      return;
-    }
-
-    const updateTimer = () => {
-      const now = Math.floor(Date.now() / 1000); // Current time in seconds
-      const remaining = Math.max(0, fixedExpiryTime - now);
-      setTimeRemaining(remaining * 1000); // Convert to milliseconds for display
-
-      if (remaining === 0 && intentStatusRef.current !== 'fulfilled') {
-        // Draft expired (but don't clear if intent was fulfilled)
-        setDraftId(null);
-        setDraftCreatedAt(null);
-        setSavedDraftData(null);
-        setFixedExpiryTime(null);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('last_draft_id');
-          localStorage.removeItem('last_draft_created_at');
-        }
-      }
-    };
-
-    // Update immediately
-    updateTimer();
-
-    // Update every second
-    const interval = setInterval(updateTimer, TIMER_UPDATE_INTERVAL_MS);
-
-    return () => clearInterval(interval);
-  }, [fixedExpiryTime]); // Only depend on fixedExpiryTime, not draftCreatedAt or savedDraftData
-
-  // Clear draft when manually cleared
   const clearDraft = () => {
-    setDraftId(null);
-    setDraftCreatedAt(null);
-    setSignature(null);
-    setSavedDraftData(null);
-    setTransactionHash(null);
-    setFixedExpiryTime(null);
-    setIntentStatus('pending');
-    setPollingFulfillment(false);
-    pollingFulfillmentRef.current = false;
-    setError(null); // Clear any stale errors
-    // Reset escrow state
-    setEscrowHash(null);
-    setApprovingToken(false);
-    setCreatingEscrow(false);
-    setRequirementsDelivered(false);
-    setPollingRequirements(false);
-    resetApprove();
-    resetEscrow();
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('last_draft_id');
-      localStorage.removeItem('last_draft_created_at');
-    }
+    clearDraftState(() => {
+      setTransactionHash(null);
+      setEscrowHash(null);
+      setApprovingToken(false);
+      setCreatingEscrow(false);
+      setRequirementsDelivered(false);
+      setPollingRequirements(false);
+      resetApprove();
+      resetEscrow();
+    });
   };
 
   // Debug: Log escrow button state for inflow intents
   useEffect(() => {
     if (transactionHash && !escrowHash && savedDraftData) {
       const isInflowByChain = !isHubChainId(savedDraftData.offeredChainId);
-      const derivedToken = getOfferedTokenFromDraft();
+      const derivedToken = getOfferedTokenFromDraft(savedDraftData);
       console.log('🔍 Escrow button state check:', {
         isInflowByChain,
         transactionHash: !!transactionHash,
@@ -664,88 +353,6 @@ export function IntentBuilder() {
     }
   }, [transactionHash, escrowHash, savedDraftData, offeredToken, signature]);
 
-
-  // Track if polling is active to prevent multiple polling loops
-  const pollingActiveRef = useRef(false);
-
-  // Poll for solver signature when draft exists
-  useEffect(() => {
-    if (!draftId || pollingActiveRef.current || signature) return; // Don't poll if already polling or have signature
-
-    const pollSignature = async () => {
-      pollingActiveRef.current = true;
-      setPollingSignature(true);
-      const maxAttempts = MAX_SIGNATURE_POLL_ATTEMPTS;
-      let attempts = 0;
-
-      const poll = async () => {
-        try {
-          const response = await coordinatorClient.pollDraftSignature(draftId!);
-          console.log('Poll response:', { success: response.success, hasData: !!response.data, error: response.error });
-          
-          // Check if we got a signature (success: true with data)
-          if (response.success && response.data) {
-            console.log('Signature received:', response.data);
-            setSignature(response.data);
-            setPollingSignature(false);
-            pollingActiveRef.current = false;
-            return;
-          }
-          
-          // If error is "Draft not yet signed", continue polling
-          // If error is "Draft not found", clear stale localStorage and stop
-          if (response.error) {
-            if (response.error.includes('not found')) {
-              console.log('Draft not found - clearing stale localStorage');
-              localStorage.removeItem('last_draft_id');
-              localStorage.removeItem('last_draft_created_at');
-              setDraftId(null);
-              setDraftCreatedAt(null);
-              setSavedDraftData(null);
-              setPollingSignature(false);
-              pollingActiveRef.current = false;
-              return;
-            }
-            if (!response.error.includes('not yet signed')) {
-              console.warn('Polling error:', response.error);
-            }
-          }
-          
-          attempts++;
-          
-          // Continue polling if we haven't exceeded max attempts and draft hasn't expired
-          const shouldContinue = attempts < maxAttempts && 
-            (fixedExpiryTime === null || Math.floor(Date.now() / 1000) < fixedExpiryTime);
-          
-          if (shouldContinue) {
-            setTimeout(poll, POLL_SIGNATURE_INTERVAL_MS);
-          } else {
-            console.log('Stopping signature polling:', { attempts, maxAttempts, fixedExpiryTime });
-            setPollingSignature(false);
-            pollingActiveRef.current = false;
-          }
-        } catch (error) {
-          console.error('Error polling signature:', error);
-          attempts++;
-          if (attempts < maxAttempts) {
-            setTimeout(poll, POLL_SIGNATURE_INTERVAL_MS);
-          } else {
-            setPollingSignature(false);
-            pollingActiveRef.current = false;
-          }
-        }
-      };
-
-      poll();
-    };
-
-    pollSignature();
-    
-    // Cleanup: reset polling flag if draftId changes
-    return () => {
-      pollingActiveRef.current = false;
-    };
-  }, [draftId]); // Only depend on draftId - don't restart when fixedExpiryTime changes
 
   // Filter tokens dynamically based on selections
   // If offeredToken is selected, desiredTokens should exclude tokens from the same chain
@@ -810,35 +417,18 @@ export function IntentBuilder() {
           return;
         }
 
-        const { exchange_rate, base_fee_in_move, move_rate, fee_bps } = response.data;
-
-        // Convert base_fee_in_move from MOVE to offered token: ceil(base_fee_in_move * move_rate)
-        const minFeeOffered = base_fee_in_move > 0 && move_rate > 0
-          ? BigInt(Math.ceil(base_fee_in_move * move_rate))
-          : BigInt(0);
-
-        // Calculate bps fee in smallest units of the offered token
         const offeredAmountNum = parseFloat(offeredAmount);
-        const offeredSmallest = BigInt(toSmallestUnits(offeredAmountNum, offeredToken.decimals).toString());
-        const bpsFee = fee_bps > 0
-          ? (offeredSmallest * BigInt(fee_bps) + BPS_ROUNDING_OFFSET) / BPS_DENOMINATOR
-          : BigInt(0);
-        const totalFee = minFeeOffered + bpsFee;
-        setFeeInfo({ minFee: Number(minFeeOffered), feeBps: fee_bps, totalFee });
+        const result = calculateFee(offeredAmountNum, offeredToken, desiredToken, response.data);
+        setFeeInfo(result.feeInfo);
 
-        // Calculate desired amount: deduct fee from offered amount, then apply exchange rate
-        // The fee is in smallest units, so convert to human-readable for the calculation
-        const feeInHuman = Number(totalFee) / Math.pow(10, offeredToken.decimals);
-        const offeredAfterFee = offeredAmountNum - feeInHuman;
-        if (offeredAfterFee <= 0) {
+        if (result.desiredAmount === '0') {
           setDesiredAmount('0');
+          const feeInHuman = Number(result.feeInfo.totalFee) / Math.pow(10, offeredToken.decimals);
           setError(`Amount too small: fee (${feeInHuman.toFixed(offeredToken.decimals)} ${offeredToken.symbol}) exceeds offered amount.`);
           return;
         }
-        const decimalAdjustment = Math.pow(10, offeredToken.decimals - desiredToken.decimals);
-        const desiredAmountNum = (offeredAfterFee * decimalAdjustment) / exchange_rate;
-        setDesiredAmount(desiredAmountNum.toFixed(desiredToken.decimals));
-        setError(null); // Clear any previous errors
+        setDesiredAmount(result.desiredAmount);
+        setError(null);
       } catch (err) {
         console.error('Failed to fetch exchange rate:', err);
         setDesiredAmount('');
@@ -850,718 +440,6 @@ export function IntentBuilder() {
     fetchExchangeRate();
   }, [offeredToken, desiredToken, offeredAmount]);
 
-  // Keep intent ID ref in sync for use in polling closure
-  useEffect(() => {
-    currentIntentIdRef.current = savedDraftData?.intentId || null;
-  }, [savedDraftData?.intentId]);
-
-  // Poll for fulfillment
-  // - Outflow: Check connected chain directly for solver fulfillment (isFulfilled on outflow validator)
-  // - Inflow: Check hub chain fulfillment events (solver fulfilled intent on hub chain)
-  useEffect(() => {
-    if (!transactionHash || !savedDraftData || pollingFulfillmentRef.current) return;
-    
-    const pollFulfillment = async () => {
-      pollingFulfillmentRef.current = true;
-      setPollingFulfillment(true);
-      setIntentStatus('created');
-      
-      const maxAttempts = 240; // 240 attempts * 5 seconds = 20 minutes max
-      let attempts = 0;
-      const poll = async () => {
-        try {
-          // Use ref to get latest intentId (may have been updated with on-chain ID)
-          const currentIntentId = currentIntentIdRef.current;
-          if (!currentIntentId) {
-            console.log('No intent ID yet, waiting...');
-            attempts++;
-            if (attempts < maxAttempts) {
-              setTimeout(poll, POLL_FULFILLMENT_INTERVAL_MS);
-            } else {
-              setPollingFulfillment(false);
-              pollingFulfillmentRef.current = false;
-            }
-            return;
-          }
-          
-          if (flowType === 'outflow') {
-            // Outflow: Check connected chain directly for solver fulfillment.
-            // The user's funds arrive when the solver fulfills on the connected chain,
-            // no need to wait for the GMP round-trip back to hub.
-            console.log('Checking connected chain fulfillment for outflow intent:', currentIntentId);
-
-            const desiredChainKey = savedDraftData ? getChainKeyFromId(savedDraftData.desiredChainId) : null;
-            if (desiredChainKey) {
-              const chainType = getChainType(CHAIN_CONFIGS, desiredChainKey);
-              const desiredCfg = CHAIN_CONFIGS[desiredChainKey];
-              let fulfilled = false;
-
-              if (chainType === 'svm') {
-                fulfilled = await checkIsFulfilledSvm(desiredCfg.rpcUrl, new PublicKey(desiredCfg.svmOutflowProgramId!), currentIntentId);
-              } else if (chainType === 'evm') {
-                fulfilled = await checkIsFulfilled(desiredCfg.rpcUrl, desiredCfg.outflowValidatorAddress!, currentIntentId);
-              }
-
-              if (fulfilled) {
-                console.log('Outflow intent fulfilled on connected chain!');
-                setIntentStatus('fulfilled');
-                setPollingFulfillment(false);
-                pollingFulfillmentRef.current = false;
-                return;
-              }
-            }
-          } else {
-            // Inflow: Check hub chain for fulfillment by querying the solver's
-            // recent transactions for a LimitOrderFulfillmentEvent matching our intent.
-            // The solver (not the requester) sends the fulfillment tx on the hub chain.
-            console.log('Checking hub chain fulfillment for inflow intent:', currentIntentId);
-
-            const solverAddr = signature?.solver_hub_addr;
-            if (!solverAddr) {
-              console.log('No solver address yet, waiting...');
-              attempts++;
-              if (attempts < maxAttempts) {
-                setTimeout(poll, POLL_FULFILLMENT_INTERVAL_MS);
-              } else {
-                setPollingFulfillment(false);
-                pollingFulfillmentRef.current = false;
-              }
-              return;
-            }
-
-            const hubRpcUrl = getHubChainConfig(CHAIN_CONFIGS).rpcUrl;
-            const solverAccount = solverAddr.startsWith('0x') ? solverAddr : `0x${solverAddr}`;
-            const transactionsUrl = `${hubRpcUrl}/accounts/${solverAccount}/transactions?limit=10`;
-
-            try {
-              const txResponse = await fetch(transactionsUrl);
-              const transactions = await txResponse.json();
-
-              const normalizeId = (id: string) => {
-                const stripped = id?.replace(/^0x/i, '').toLowerCase() || '';
-                return stripped.replace(/^0+/, '') || '0';
-              };
-
-              let foundFulfillment = false;
-              if (Array.isArray(transactions)) {
-                for (const tx of transactions) {
-                  if (tx.events && Array.isArray(tx.events)) {
-                    for (const event of tx.events) {
-                      if (event.type?.includes('LimitOrderFulfillmentEvent')) {
-                        const eventIntentId = event.data?.intent_id || event.data?.intent_addr;
-                        if (eventIntentId && normalizeId(eventIntentId) === normalizeId(currentIntentId)) {
-                          console.log('Found fulfillment event in solver transactions!');
-                          foundFulfillment = true;
-                          break;
-                        }
-                      }
-                    }
-                  }
-                  if (foundFulfillment) break;
-                }
-              }
-
-              if (foundFulfillment) {
-                console.log('Hub intent fulfilled!');
-                setIntentStatus('fulfilled');
-                setPollingFulfillment(false);
-                pollingFulfillmentRef.current = false;
-                return;
-              }
-            } catch (hubError) {
-              console.error('Error querying solver transactions:', hubError);
-            }
-          }
-          
-          attempts++;
-          if (attempts < maxAttempts) {
-            setTimeout(poll, POLL_FULFILLMENT_INTERVAL_MS); // Poll every 5 seconds
-          } else {
-            setPollingFulfillment(false);
-            pollingFulfillmentRef.current = false;
-          }
-        } catch (error) {
-          console.error('Error polling fulfillment:', error);
-          attempts++;
-          if (attempts < maxAttempts) {
-            setTimeout(poll, POLL_FULFILLMENT_INTERVAL_MS);
-          } else {
-            setPollingFulfillment(false);
-            pollingFulfillmentRef.current = false;
-          }
-        }
-      };
-      
-      // Start polling after a short delay to let the solver pick up the intent
-      setTimeout(poll, POLL_FULFILLMENT_INITIAL_DELAY_MS);
-    };
-    
-    pollFulfillment();
-    
-    // Don't reset pollingFulfillmentRef in cleanup - it causes re-runs when dependencies change
-    // The ref is only reset explicitly in clearDraft or when polling completes
-  }, [transactionHash, savedDraftData, flowType, mvmAddress]); // Removed desiredBalance - it's captured at start
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    
-    // Clear all previous draft state
-    setDraftId(null);
-    setDraftCreatedAt(null);
-    setSavedDraftData(null);
-    setSignature(null);
-    setPollingSignature(false);
-    pollingActiveRef.current = false;
-    setTransactionHash(null);
-
-    // Validation
-    if (!requesterAddr) {
-      setError('Please connect your MVM wallet (Nightly)');
-      return;
-    }
-
-    if (!offeredToken || !desiredToken) {
-      setError('Please select both offered and desired tokens');
-      return;
-    }
-
-    const connectedChain = getConnectedChain(offeredToken, desiredToken);
-    if (isEvmChain(connectedChain) && !evmAddress) {
-      setError('Please connect your EVM wallet (MetaMask)');
-      return;
-    }
-    if (isSvmChain(connectedChain) && !svmAddress) {
-      setError('Please connect your SVM wallet (Phantom)');
-      return;
-    }
-    
-    // Determine flow type from selected tokens
-    if (!flowType) {
-      setError('Invalid token selection');
-      return;
-    }
-    if (!desiredAmount || desiredAmount === 'not available yet' || parseFloat(desiredAmount) <= 0) {
-      setError('Exchange rate not available. Cannot create draft intent.');
-      return;
-    }
-
-    const offeredAmountNum = parseFloat(offeredAmount);
-    // Skip parsing if not available yet (already checked above)
-    if (desiredAmount === 'not available yet') {
-      setError('Exchange rate not available. Cannot create draft intent.');
-      return;
-    }
-    const desiredAmountNum = parseFloat(desiredAmount);
-    if (isNaN(offeredAmountNum) || offeredAmountNum <= 0) {
-      setError('Offered amount must be a positive number');
-      return;
-    }
-    if (isNaN(desiredAmountNum) || desiredAmountNum <= 0) {
-      setError('Desired amount must be a positive number');
-      return;
-    }
-
-    // Convert main values to smallest units using token decimals
-    const offeredAmountSmallest = toSmallestUnits(offeredAmountNum, offeredToken.decimals);
-    const desiredAmountSmallest = toSmallestUnits(desiredAmountNum, desiredToken.decimals);
-
-    // Actual expiry is 180 seconds, but frontend timer shows 120 seconds
-    // This gives 60 seconds buffer after frontend timer expires for user to sign
-    const expiryTime = Math.floor(Date.now() / 1000) + INTENT_EXPIRY_SECS;
-
-    // Get chain IDs from config
-    const offeredChainId = CHAIN_CONFIGS[offeredToken.chain].chainId;
-    const desiredChainId = CHAIN_CONFIGS[desiredToken.chain].chainId;
-
-    // Generate random intent ID (32-byte hex)
-    const intentId = generateIntentId();
-
-    setLoading(true);
-    try {
-      const feeInOfferedToken = feeInfo ? feeInfo.totalFee.toString() : '0';
-
-      const request: DraftIntentRequest = {
-        requester_addr: requesterAddr,
-        draft_data: {
-          intent_id: intentId,
-          offered_metadata: offeredToken.metadata,
-          offered_amount: offeredAmountSmallest.toString(),
-          offered_chain_id: offeredChainId.toString(),
-          desired_metadata: desiredToken.metadata,
-          desired_amount: desiredAmountSmallest.toString(),
-          desired_chain_id: desiredChainId.toString(),
-          expiry_time: expiryTime,
-          issuer: requesterAddr,
-          fee_in_offered_token: feeInOfferedToken,
-          flow_type: flowType,
-        },
-        expiry_time: expiryTime,
-      };
-
-      const response = await coordinatorClient.createDraftIntent(request);
-
-      if (response.success && response.data) {
-        const draftId = response.data.draft_id;
-        setDraftId(draftId);
-        setError(null);
-        
-        const createdAt = Date.now();
-        setDraftCreatedAt(createdAt);
-        
-        // Save draft data for transaction building
-        setSavedDraftData({
-          intentId,
-          offeredMetadata: offeredToken.metadata,
-          offeredAmount: offeredAmountSmallest.toString(),
-          offeredChainId: offeredChainId.toString(),
-          desiredMetadata: desiredToken.metadata,
-          desiredAmount: desiredAmountSmallest.toString(),
-          desiredChainId: desiredChainId.toString(),
-          expiryTime,
-          feeInOfferedToken,
-        });
-        
-        // Save to localStorage
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('last_draft_id', draftId);
-          localStorage.setItem('last_draft_created_at', createdAt.toString());
-        }
-      } else {
-        setError(response.error || 'Failed to create draft intent');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateIntent = async () => {
-    if (!savedDraftData || !signature || !requesterAddr) {
-      setError('Missing required data to create intent');
-      return;
-    }
-
-    // Verify we're using the intent ID from the draft
-    if (!savedDraftData.intentId) {
-      setError('Intent ID not found in saved draft data');
-      return;
-    }
-
-    console.log('Creating intent on-chain with intent ID from draft:', savedDraftData.intentId);
-
-    setSubmittingTransaction(true);
-    setError(null);
-
-    try {
-      // Build transaction arguments as plain values
-      let functionName: string;
-      let functionArguments: any[];
-
-      // Convert signature to array of numbers for vector<u8> serialization
-      const signatureBytes = hexToBytes(signature.signature);
-      const signatureArray = Array.from(signatureBytes);
-      console.log('Signature array length:', signatureArray.length);
-
-      const offeredChainKey = getChainKeyFromId(savedDraftData.offeredChainId);
-      const desiredChainKey = getChainKeyFromId(savedDraftData.desiredChainId);
-      const connectedChainKey =
-        offeredChainKey && isHubChain(CHAIN_CONFIGS, offeredChainKey) ? desiredChainKey : offeredChainKey;
-      if (!connectedChainKey) {
-        throw new Error('Unsupported connected chain for this draft');
-      }
-
-      if (flowType === 'inflow') {
-        // Inflow: offered on connected chain, desired on hub (Move)
-        if (connectedChainKey && getChainType(CHAIN_CONFIGS, connectedChainKey) === 'svm') {
-          if (!svmPublicKey) {
-            throw new Error('SVM wallet (Phantom) must be connected for inflow intents');
-          }
-          // Deviation from EVM flow: SVM addresses are base58 pubkeys,
-          // so we convert to 32-byte hex for Move address fields.
-          const requesterAddrHex = svmPubkeyToHex(svmPublicKey);
-          const offeredMetadataHex = svmPubkeyToHex(savedDraftData.offeredMetadata);
-
-          if (!signature.solver_svm_addr) {
-            throw new Error('Solver has no SVM address registered. The solver must register with an SVM address to fulfill SVM inflow intents.');
-          }
-          // Coordinator returns SVM address as 0x-prefixed hex already
-          const solverAddrConnectedChainHex = signature.solver_svm_addr;
-
-          functionName = `${getIntentContractAddress(CHAIN_CONFIGS)}::fa_intent_inflow::create_inflow_intent_entry`;
-          functionArguments = [
-            offeredMetadataHex,
-            savedDraftData.offeredAmount,
-            savedDraftData.offeredChainId,
-            savedDraftData.desiredMetadata, // Move token - already 32 bytes
-            savedDraftData.desiredAmount,
-            savedDraftData.desiredChainId,
-            savedDraftData.expiryTime.toString(),
-            savedDraftData.intentId,
-            signature.solver_hub_addr,
-            solverAddrConnectedChainHex,
-            signatureArray,
-            requesterAddrHex,
-            savedDraftData.feeInOfferedToken,
-          ];
-        } else {
-          const evmAddressForInflow = evmAddress || '0x' + '0'.repeat(40);
-          const paddedRequesterAddr = padEvmAddressToMove(evmAddressForInflow);
-          // Pad offered metadata (EVM token address) to 32 bytes
-          const paddedOfferedMetadata = padEvmAddressToMove(savedDraftData.offeredMetadata);
-
-          if (!signature.solver_evm_addr) {
-            throw new Error('Solver has no EVM address registered. The solver must register with an EVM address to fulfill EVM inflow intents.');
-          }
-          const paddedSolverAddrConnectedChain = padEvmAddressToMove(signature.solver_evm_addr);
-
-          functionName = `${getIntentContractAddress(CHAIN_CONFIGS)}::fa_intent_inflow::create_inflow_intent_entry`;
-          functionArguments = [
-            paddedOfferedMetadata,
-            savedDraftData.offeredAmount,
-            savedDraftData.offeredChainId,
-            savedDraftData.desiredMetadata, // Move token - already 32 bytes
-            savedDraftData.desiredAmount,
-            savedDraftData.desiredChainId,
-            savedDraftData.expiryTime.toString(),
-            savedDraftData.intentId,
-            signature.solver_hub_addr,
-            paddedSolverAddrConnectedChain,
-            signatureArray,
-            paddedRequesterAddr,
-            savedDraftData.feeInOfferedToken,
-          ];
-        }
-      } else {
-        // Outflow: offered on hub (Move), desired on connected chain
-        if (connectedChainKey && getChainType(CHAIN_CONFIGS, connectedChainKey) === 'svm') {
-          if (!svmPublicKey) {
-            throw new Error('SVM wallet (Phantom) must be connected for outflow intents');
-          }
-          // Deviation from EVM flow: SVM addresses are base58 pubkeys,
-          // so we convert to 32-byte hex for Move address fields.
-          const requesterAddrHex = svmPubkeyToHex(svmPublicKey);
-          const desiredMetadataHex = svmPubkeyToHex(savedDraftData.desiredMetadata);
-
-          if (!signature.solver_svm_addr) {
-            throw new Error('Solver has no SVM address registered. The solver must register with an SVM address to fulfill SVM outflow intents.');
-          }
-          // Coordinator returns SVM address as 0x-prefixed hex already
-          const solverAddrConnectedChainHex = signature.solver_svm_addr;
-
-          functionName = `${getIntentContractAddress(CHAIN_CONFIGS)}::fa_intent_outflow::create_outflow_intent_entry`;
-          functionArguments = [
-            savedDraftData.offeredMetadata, // Move token - already 32 bytes
-            savedDraftData.offeredAmount,
-            savedDraftData.offeredChainId,
-            desiredMetadataHex,
-            savedDraftData.desiredAmount,
-            savedDraftData.desiredChainId,
-            savedDraftData.expiryTime.toString(),
-            savedDraftData.intentId,
-            requesterAddrHex,
-            signature.solver_hub_addr,
-            solverAddrConnectedChainHex,
-            signatureArray,
-            savedDraftData.feeInOfferedToken,
-          ];
-        } else {
-          if (!evmAddress) {
-            throw new Error('EVM wallet (MetaMask) must be connected for outflow intents');
-          }
-
-          const paddedRequesterAddr = padEvmAddressToMove(evmAddress);
-          // Pad desired metadata (EVM token address) to 32 bytes
-          const paddedDesiredMetadata = padEvmAddressToMove(savedDraftData.desiredMetadata);
-          console.log('Padded desired metadata:', paddedDesiredMetadata);
-
-          if (!signature.solver_evm_addr) {
-            throw new Error('Solver has no EVM address registered. The solver must register with an EVM address to fulfill EVM outflow intents.');
-          }
-          const paddedSolverAddrConnectedChain = padEvmAddressToMove(signature.solver_evm_addr);
-
-          functionName = `${getIntentContractAddress(CHAIN_CONFIGS)}::fa_intent_outflow::create_outflow_intent_entry`;
-          functionArguments = [
-            savedDraftData.offeredMetadata, // Move token - already 32 bytes
-            savedDraftData.offeredAmount,
-            savedDraftData.offeredChainId,
-            paddedDesiredMetadata,
-            savedDraftData.desiredAmount,
-            savedDraftData.desiredChainId,
-            savedDraftData.expiryTime.toString(),
-            savedDraftData.intentId,
-            paddedRequesterAddr,
-            signature.solver_hub_addr,
-            paddedSolverAddrConnectedChain,
-            signatureArray,
-            savedDraftData.feeInOfferedToken,
-          ];
-        }
-      }
-
-      // Use build-sign-submit pattern to work around Nightly wallet bug
-      const senderAddress = mvmAccount?.address || directNightlyAddress;
-      if (!senderAddress) {
-        throw new Error('No MVM wallet connected');
-      }
-
-      // Configure Aptos client for Movement testnet
-      const config = new AptosConfig({ 
-        fullnode: getHubChainConfig(CHAIN_CONFIGS).rpcUrl,
-      });
-      const aptos = new Aptos(config);
-
-      // Build raw transaction using SDK
-      console.log('Building transaction with SDK...');
-      console.log('Function:', functionName);
-      console.log('Arguments:', functionArguments);
-      
-      const rawTxn = await aptos.transaction.build.simple({
-        sender: senderAddress as `0x${string}`,
-        data: {
-          function: functionName as `${string}::${string}::${string}`,
-          functionArguments: functionArguments,
-        },
-      });
-      console.log('Raw transaction built:', rawTxn);
-
-      // Sign with wallet
-      let signResponse: any;
-      if (mvmAccount?.address) {
-        // Connected via wallet adapter
-        const nightlyWallet = (window as any).nightly?.aptos;
-        if (nightlyWallet) {
-          signResponse = await nightlyWallet.signTransaction(rawTxn);
-        } else {
-          throw new Error('Nightly wallet not available for signing');
-        }
-      } else if (directNightlyAddress) {
-        // Connected directly to Nightly
-        const nightlyWallet = (window as any).nightly?.aptos;
-        if (!nightlyWallet) {
-          throw new Error('Nightly wallet not available');
-        }
-        signResponse = await nightlyWallet.signTransaction(rawTxn);
-      }
-
-      console.log('Sign response:', signResponse);
-
-      if (signResponse?.status === 'Rejected') {
-        throw new Error('User rejected transaction');
-      }
-
-      // Extract the authenticator and submit
-      const senderAuthenticator = signResponse?.args || signResponse;
-      console.log('Submitting signed transaction...');
-      
-      const pendingTxn = await aptos.transaction.submit.simple({
-        transaction: rawTxn,
-        senderAuthenticator: senderAuthenticator,
-      });
-
-      console.log('Transaction submitted:', pendingTxn);
-      if (pendingTxn && pendingTxn.hash) {
-        setTransactionHash(pendingTxn.hash);
-        
-        // Wait for transaction and extract on-chain intent ID from events
-        try {
-          const txnResult = await aptos.waitForTransaction({ transactionHash: pendingTxn.hash });
-          if ('events' in txnResult && Array.isArray(txnResult.events)) {
-            for (const event of txnResult.events) {
-              // Look for OracleLimitOrderEvent which contains the intent IDs
-              if (event.type?.includes('OracleLimitOrderEvent') || event.type?.includes('LimitOrderEvent')) {
-                // Use intent_id (the original ID from draft) - this is what the solver uses for validation
-                // intent_addr is the object address created on-chain (different)
-                const onChainIntentId = event.data?.intent_id || event.data?.intent_addr || event.data?.id;
-                if (onChainIntentId) {
-                  console.log('On-chain intent_id for approval tracking:', onChainIntentId);
-                  // Update savedDraftData with intent_id for approval tracking
-                  setSavedDraftData(prev => prev ? { ...prev, intentId: onChainIntentId } : null);
-                }
-                break;
-              }
-            }
-          }
-        } catch (waitErr) {
-          console.error('Failed to wait for transaction confirmation:', waitErr);
-        }
-      } else {
-        throw new Error('Transaction submitted but no hash returned');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create intent on-chain');
-    } finally {
-      setSubmittingTransaction(false);
-    }
-  };
-
-  // Handle escrow creation for inflow intents
-  const handleCreateEscrow = async () => {
-    // Use offeredToken if available, otherwise look it up from savedDraftData
-    const effectiveOfferedToken = offeredToken || getOfferedTokenFromDraft();
-    const isInflow = savedDraftData && !isHubChainId(savedDraftData.offeredChainId);
-    
-    console.log('handleCreateEscrow called', { savedDraftData, offeredToken, effectiveOfferedToken, isInflow, evmAddress, svmAddress, signature: !!signature, chainId });
-
-    if (!savedDraftData || !effectiveOfferedToken || !isInflow || !signature) {
-      const missing = [];
-      if (!savedDraftData) missing.push('savedDraftData');
-      if (!effectiveOfferedToken) missing.push('offeredToken (could not resolve from draft)');
-      if (!isInflow) missing.push(`not inflow (offeredChainId=${savedDraftData?.offeredChainId})`);
-      if (!signature) missing.push('signature');
-      setError(`Missing required data for escrow creation: ${missing.join(', ')}`);
-      return;
-    }
-
-    try {
-      setError(null);
-
-      if (getChainType(CHAIN_CONFIGS, effectiveOfferedToken.chain) === 'svm') {
-        if (!svmPublicKey) {
-          setError('SVM wallet (Phantom) must be connected for escrow creation');
-          return;
-        }
-
-        setCreatingEscrow(true);
-
-        // Deviation from EVM flow: SVM uses a single on-chain instruction for escrow creation
-        // because the escrow program transfers SPL tokens directly (no ERC20 approval step).
-        console.log('SVM Escrow: Fetching solver SVM address for hub addr:', signature.solver_hub_addr);
-        const hubCfg = getHubChainConfig(CHAIN_CONFIGS);
-        const solverSvmHex = await fetchSolverSvmAddress(hubCfg.rpcUrl, hubCfg.intentContractAddress!, signature.solver_hub_addr);
-        console.log('SVM Escrow: Solver SVM hex:', solverSvmHex);
-        if (!solverSvmHex) {
-          throw new Error('Solver has no SVM address registered. The solver must register with an SVM address to fulfill SVM inflow intents.');
-        }
-
-        const tokenMint = new PublicKey(effectiveOfferedToken.metadata);
-        const requesterToken = getSvmTokenAccount(tokenMint, svmPublicKey);
-        const reservedSolver = svmHexToPubkey(solverSvmHex);
-        console.log('SVM Escrow: Reserved solver pubkey:', reservedSolver.toBase58());
-        const amount = BigInt(savedDraftData.offeredAmount);
-
-        // Read GMP nonce for EscrowConfirmation message PDA
-        const svmChainCfg = CHAIN_CONFIGS[effectiveOfferedToken.chain];
-        const connection = getSvmConnection(svmChainCfg.rpcUrl);
-        const gmpEndpointId = new PublicKey(getSvmGmpEndpointId(CHAIN_CONFIGS, effectiveOfferedToken.chain));
-        const hubChainId = getHubChainConfig(CHAIN_CONFIGS).chainId;
-        console.log('SVM Escrow: Reading GMP nonce for hub chain', hubChainId);
-        const currentNonce = await readGmpOutboundNonce(connection, gmpEndpointId, hubChainId);
-        console.log('SVM Escrow: Current GMP outbound nonce:', currentNonce.toString());
-
-        const createIx = buildCreateEscrowInstruction({
-          intentId: savedDraftData.intentId,
-          amount,
-          requester: svmPublicKey,
-          requesterToken,
-          tokenMint,
-          reservedSolver,
-          programId: new PublicKey(svmChainCfg.svmProgramId!),
-          gmpParams: {
-            gmpEndpointProgramId: gmpEndpointId,
-            hubChainId,
-            currentNonce,
-          },
-        });
-        const signatureHash = await sendSvmTransaction({
-          signer: svmWallet as unknown as SvmSigner,
-          connection,
-          instructions: [createIx],
-        });
-        setEscrowHash(signatureHash);
-        setCreatingEscrow(false);
-        return;
-      }
-      
-      // Check if we're on the right chain
-      const chainConfig = CHAIN_CONFIGS[effectiveOfferedToken.chain];
-      if (!chainConfig) {
-        setError(`Unsupported chain: ${effectiveOfferedToken.chain}`);
-        return;
-      }
-      const requiredChainId = chainConfig.chainId;
-      if (chainId !== requiredChainId) {
-        console.log(`Switching chain from ${chainId} to ${requiredChainId}`);
-        try {
-          await switchChain({ chainId: requiredChainId });
-          console.log('Chain switched successfully');
-        } catch (switchError) {
-          console.error('Failed to switch chain:', switchError);
-          setError(`Please switch to ${chainConfig.name} in your wallet`);
-          return;
-        }
-      }
-      
-      if (!evmAddress) {
-        setError('EVM wallet (MetaMask) must be connected for escrow creation');
-        return;
-      }
-
-      setApprovingToken(true);
-
-      const escrowAddress = getEscrowContractAddress(CHAIN_CONFIGS, effectiveOfferedToken.chain) as `0x${string}`;
-      console.log('Creating escrow with:', { escrowAddress, tokenAddress: effectiveOfferedToken.metadata, intentId: savedDraftData.intentId, chainId });
-      const tokenAddress = effectiveOfferedToken.metadata as `0x${string}`;
-
-      // First approve token (approve a large amount to avoid repeated approvals)
-      const approveAmount = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'); // max uint256
-      
-      console.log('Calling writeApprove with:', {
-        address: tokenAddress,
-        functionName: 'approve',
-        args: [escrowAddress, approveAmount.toString()],
-      });
-      
-      writeApprove({
-        address: tokenAddress,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [escrowAddress, approveAmount],
-      });
-      
-      console.log('writeApprove called - waiting for wallet response');
-    } catch (err) {
-      console.error('handleCreateEscrow error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start escrow creation');
-      setApprovingToken(false);
-    }
-  };
-
-  // Create escrow after token is approved
-  const handleCreateEscrowAfterApproval = () => {
-    console.log('handleCreateEscrowAfterApproval called');
-    
-    if (!savedDraftData || !offeredToken || flowType !== 'inflow' || !evmAddress || !signature) {
-      console.error('handleCreateEscrowAfterApproval: missing data');
-      return;
-    }
-    if (getChainType(CHAIN_CONFIGS, offeredToken.chain) === 'svm') {
-      // SVM escrows are created directly without an approval step.
-      return;
-    }
-
-    try {
-      setCreatingEscrow(true);
-
-      const escrowAddress = getEscrowContractAddress(CHAIN_CONFIGS, offeredToken.chain) as `0x${string}`;
-      const tokenAddress = offeredToken.metadata as `0x${string}`;
-      const amount = BigInt(toSmallestUnits(parseFloat(offeredAmount), offeredToken.decimals));
-      const intentIdEvm = intentIdToEvmBytes32(savedDraftData.intentId);
-
-      console.log('Creating escrow:', { escrowAddress, tokenAddress, amount: amount.toString(), intentIdEvm });
-
-      writeCreateEscrow({
-        address: escrowAddress,
-        abi: INTENT_ESCROW_ABI,
-        functionName: 'createEscrowWithValidation',
-        args: [intentIdEvm, tokenAddress, amount],
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create escrow');
-      setCreatingEscrow(false);
-    }
-  };
 
   return (
     <div className="border border-gray-700 rounded p-6">
