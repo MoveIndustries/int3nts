@@ -14,7 +14,7 @@ use chain_clients_common::normalize_intent_id;
 use crate::service::liquidity::LiquidityMonitor;
 use crate::service::tracker::{IntentTracker, TrackedIntent};
 use anyhow::{Context, Result};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tracing::{error, info, warn};
 
@@ -34,6 +34,8 @@ pub struct InflowService {
     svm_client: Option<ConnectedSvmClient>,
     /// Liquidity monitor for releasing budget after fulfillment
     liquidity_monitor: Arc<LiquidityMonitor>,
+    /// Last poll summary (pending_count, escrow_count) — suppresses repeated identical logs
+    last_poll_summary: Mutex<Option<(usize, usize)>>,
 }
 
 /// Helper struct for matching escrow events to intents
@@ -85,6 +87,7 @@ impl InflowService {
             evm_client,
             svm_client,
             liquidity_monitor,
+            last_poll_summary: Mutex::new(None),
         })
     }
 
@@ -179,14 +182,13 @@ impl InflowService {
                         0
                     };
 
-                    info!(
-                        "Querying EVM chain for escrow events (from_block={}, current_block={})",
-                        from_block, current_block
-                    );
                     match client.get_escrow_events(Some(from_block), Some(current_block)).await {
                         Ok(events) => {
                             if !events.is_empty() {
-                                info!("Found {} EVM escrow events", events.len());
+                                info!(
+                                    "Found {} EVM escrow events (from_block={}, current_block={})",
+                                    events.len(), from_block, current_block
+                                );
                             }
                             evm_svm_escrow_events.extend(events.into_iter().map(|e| {
                                 EscrowMatch {
@@ -210,9 +212,6 @@ impl InflowService {
         if let Some(client) = &self.svm_client {
             match client.get_escrow_events().await {
                 Ok(events) => {
-                    if !events.is_empty() {
-                        info!("Found {} SVM escrow events", events.len());
-                    }
                     evm_svm_escrow_events.extend(events.into_iter().map(|e| EscrowMatch {
                         intent_id: e.intent_id,
                         escrow_id: e.escrow_id,
@@ -224,13 +223,24 @@ impl InflowService {
             }
         }
 
-        // Match EVM/SVM escrow events to pending intents by intent_id
-        if !evm_svm_escrow_events.is_empty() {
+        // Log poll summary only when counts change to avoid repetitive noise
+        let current_summary = (pending_intents.len(), evm_svm_escrow_events.len());
+        let changed = {
+            let mut last = self.last_poll_summary.lock().unwrap();
+            let changed = *last != Some(current_summary);
+            *last = Some(current_summary);
+            changed
+        };
+        if changed && !evm_svm_escrow_events.is_empty() {
             info!(
                 "Matching {} pending intents against {} EVM/SVM escrow events",
                 pending_intents.len(),
                 evm_svm_escrow_events.len()
             );
+        }
+
+        // Match EVM/SVM escrow events to pending intents by intent_id
+        if !evm_svm_escrow_events.is_empty() {
             for intent in &pending_intents {
                 let intent_id_normalized = normalize_intent_id(&intent.intent_id);
                 for escrow in evm_svm_escrow_events.iter() {

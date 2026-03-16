@@ -98,4 +98,3 @@ export interface EventsResponse {
   intent_events: IntentEvent[];
   fulfillment_events: any[];
 }
-

@@ -18,3 +18,4 @@ A framework for creating programmable intents. Supports single-chain intents (un
 - **[Solver Tools](solver/README.md)** - Automated solver service for intent fulfillment
 - **[Testing Infrastructure](testing-infra/README.md)** - Chain setup and testing infrastructure
 - **[Frontend](frontend/README.md)** - Next.js web interface for intent creation and tracking
+- **[SDK](sdk/README.md)** - TypeScript requester SDK for protocol integration

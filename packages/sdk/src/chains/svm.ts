@@ -11,7 +11,6 @@ import {
   TransactionInstruction,
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
-import { getSvmProgramId, getSvmOutflowProgramId, getRpcUrl } from '@/config/chains';
 import { Buffer } from 'buffer';
 
 // ============================================================================
@@ -28,7 +27,7 @@ const GMP_CONFIG_SEED = 'gmp_config';
 // Types
 // ============================================================================
 
-type EscrowAccount = {
+export type EscrowAccount = {
   requester: PublicKey;
   tokenMint: PublicKey;
   amount: bigint;
@@ -196,15 +195,15 @@ export function parseEscrowAccount(data: Buffer): EscrowAccount {
  * Derives the requirements PDA and checks if the account exists on-chain.
  * Returns true once the GMP relay has delivered requirements.
  *
- * @param chainKey - Chain config key (e.g. 'svm-devnet')
+ * @param rpcUrl - Solana RPC endpoint URL
+ * @param programId - Escrow program public key
  * @param intentId - 32-byte hex intent ID (with 0x prefix)
  */
 export async function checkHasRequirementsSvm(
-  chainKey: string,
+  rpcUrl: string,
+  programId: PublicKey,
   intentId: string,
 ): Promise<boolean> {
-  const programId = new PublicKey(getSvmProgramId(chainKey));
-  const rpcUrl = getRpcUrl(chainKey);
   const connection = new Connection(rpcUrl);
 
   const [requirementsPda] = getRequirementsPda(intentId, programId);
@@ -219,15 +218,15 @@ export async function checkHasRequirementsSvm(
  * Reads the outflow validator's requirements PDA and checks the `fulfilled` field.
  * Returns true once the solver has fulfilled the intent (sent tokens to recipient).
  *
- * @param chainKey - Chain config key (e.g. 'svm-devnet')
+ * @param rpcUrl - Solana RPC endpoint URL
+ * @param outflowProgramId - Outflow validator program public key
  * @param intentId - 32-byte hex intent ID (with 0x prefix)
  */
 export async function checkIsFulfilledSvm(
-  chainKey: string,
+  rpcUrl: string,
+  outflowProgramId: PublicKey,
   intentId: string,
 ): Promise<boolean> {
-  const outflowProgramId = new PublicKey(getSvmOutflowProgramId(chainKey));
-  const rpcUrl = getRpcUrl(chainKey);
   const connection = new Connection(rpcUrl);
 
   // Derive the requirements PDA for the outflow validator program
@@ -263,24 +262,13 @@ function encodeU64(value: bigint | number): Buffer {
   return buffer;
 }
 
-function encodeI64(value: bigint | number): Buffer {
-  const buffer = Buffer.alloc(8);
-  buffer.writeBigInt64LE(BigInt(value), 0);
-  return buffer;
-}
-
-function encodeCreateEscrowData(intentId: string, amount: bigint, expiryDuration?: number): Buffer {
+function encodeCreateEscrowData(intentId: string, amount: bigint): Buffer {
   const intentIdBytes = Buffer.from(svmHexToBytes(intentId));
-  const expiryTag = expiryDuration === undefined ? 0 : 1;
-  const expiryBytes =
-    expiryDuration === undefined ? Buffer.alloc(0) : encodeI64(expiryDuration);
 
   return Buffer.concat([
     Buffer.from([3]), // EscrowInstruction::CreateEscrow (index 3: Initialize=0, GmpReceive=1, SetGmpConfig=2, CreateEscrow=3)
     intentIdBytes,
     encodeU64(amount),
-    Buffer.from([expiryTag]),
-    expiryBytes,
   ]);
 }
 
@@ -313,11 +301,10 @@ export function buildCreateEscrowInstruction(params: {
   requesterToken: PublicKey;
   tokenMint: PublicKey;
   reservedSolver: PublicKey;
-  expiryDuration?: number;
-  programId?: PublicKey;
+  programId: PublicKey;
   gmpParams?: CreateEscrowGmpParams;
 }): TransactionInstruction {
-  const programId = params.programId ?? new PublicKey(getSvmProgramId('svm-devnet'));
+  const programId = params.programId;
   const [escrowPda] = getEscrowPda(params.intentId, programId);
   const [vaultPda] = getVaultPda(params.intentId, programId);
 
@@ -377,7 +364,7 @@ export function buildCreateEscrowInstruction(params: {
   return new TransactionInstruction({
     programId,
     keys,
-    data: encodeCreateEscrowData(params.intentId, params.amount, params.expiryDuration),
+    data: encodeCreateEscrowData(params.intentId, params.amount),
   });
 }
 
@@ -388,9 +375,9 @@ export function buildClaimInstruction(params: {
   intentId: string;
   signature: Uint8Array;
   solverToken: PublicKey;
-  programId?: PublicKey;
+  programId: PublicKey;
 }): TransactionInstruction {
-  const programId = params.programId ?? new PublicKey(getSvmProgramId('svm-devnet'));
+  const programId = params.programId;
   const [escrowPda] = getEscrowPda(params.intentId, programId);
   const [statePda] = getStatePda(programId);
   const [vaultPda] = getVaultPda(params.intentId, programId);
@@ -416,9 +403,9 @@ export function buildCancelInstruction(params: {
   intentId: string;
   requester: PublicKey;
   requesterToken: PublicKey;
-  programId?: PublicKey;
+  programId: PublicKey;
 }): TransactionInstruction {
-  const programId = params.programId ?? new PublicKey(getSvmProgramId('svm-devnet'));
+  const programId = params.programId;
   const [escrowPda] = getEscrowPda(params.intentId, programId);
   const [vaultPda] = getVaultPda(params.intentId, programId);
 

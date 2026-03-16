@@ -1,31 +1,11 @@
-// ============================================================================
-// Types
-// ============================================================================
-
-// Supported tokens configuration
-// Metadata addresses and decimals for testnet tokens
-
-export interface TokenConfig {
-  symbol: string;
-  name: string;
-  metadata: string; // Metadata address (FA metadata for Movement, contract address for EVM)
-  decimals: number;
-  chain: 'movement' | 'base-sepolia' | 'ethereum-sepolia' | 'svm-devnet';
-  coinType?: string; // Optional: Move coin type for tokens that may exist in CoinStore
-}
-
-// ============================================================================
-// Token Definitions
-// ============================================================================
+import type { TokenConfig } from '@int3nts/sdk';
 
 export const SUPPORTED_TOKENS: TokenConfig[] = [
   // Movement Bardock Testnet
   {
-    
     symbol: 'MOVE',
     name: 'MOVE (Movement)',
-    // Note: Native token metadata address - may need to be updated based on actual protocol requirements
-    metadata: '0x1', // Placeholder for native token - verify with protocol docs
+    metadata: '0x1',
     decimals: 8,
     chain: 'movement',
   },
@@ -60,8 +40,6 @@ export const SUPPORTED_TOKENS: TokenConfig[] = [
     chain: 'movement',
     coinType: '0xa6cc575a28e9c97d1cec569392fe6f698c593990e7029ef49fed6740a36a31b0::tokens::WETH',
   },
-  // WBTC skipped - no paired FA metadata yet
-  // coinType: 0xa6cc575a28e9c97d1cec569392fe6f698c593990e7029ef49fed6740a36a31b0::tokens::WBTC
   // Base Sepolia
   {
     symbol: 'USDC',
@@ -73,7 +51,7 @@ export const SUPPORTED_TOKENS: TokenConfig[] = [
   {
     symbol: 'ETH',
     name: 'ETH (Base Sepolia)',
-    metadata: '0x0000000000000000000000000000000000000000', // Native token placeholder
+    metadata: '0x0000000000000000000000000000000000000000',
     decimals: 18,
     chain: 'base-sepolia',
   },
@@ -88,7 +66,7 @@ export const SUPPORTED_TOKENS: TokenConfig[] = [
   {
     symbol: 'ETH',
     name: 'ETH (Ethereum Sepolia)',
-    metadata: '0x0000000000000000000000000000000000000000', // Native token placeholder
+    metadata: '0x0000000000000000000000000000000000000000',
     decimals: 18,
     chain: 'ethereum-sepolia',
   },
@@ -96,7 +74,7 @@ export const SUPPORTED_TOKENS: TokenConfig[] = [
   {
     symbol: 'SOL',
     name: 'SOL (Solana Devnet)',
-    metadata: 'SOL', // Native token placeholder for SVM
+    metadata: 'SOL',
     decimals: 9,
     chain: 'svm-devnet',
   },
@@ -108,31 +86,3 @@ export const SUPPORTED_TOKENS: TokenConfig[] = [
     chain: 'svm-devnet',
   },
 ];
-
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/**
- * Get supported tokens for a given chain.
- */
-export function getTokensByChain(
-  chain: 'movement' | 'base-sepolia' | 'ethereum-sepolia' | 'svm-devnet'
-): TokenConfig[] {
-  return SUPPORTED_TOKENS.filter(token => token.chain === chain);
-}
-
-/**
- * Convert a human-readable amount to smallest units.
- */
-export function toSmallestUnits(amount: number, decimals: number): number {
-  return Math.floor(amount * Math.pow(10, decimals));
-}
-
-/**
- * Convert smallest units to a human-readable amount.
- */
-export function fromSmallestUnits(amount: number, decimals: number): number {
-  return amount / Math.pow(10, decimals);
-}
-

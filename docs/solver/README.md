@@ -43,31 +43,6 @@ Components:
 - **Transaction Template Generator**: Produces MVM/EVM templates with embedded `intent_id`
 - **Key Management**: Reads solver private keys from Movement/Aptos configuration
 
-## Project Structure
-
-```text
-solver/
-├── src/
-│   ├── bin/              # Binaries (solver service, sign_intent, connected_chain_tx_template)
-│   ├── service/          # Service modules
-│   │   ├── signing.rs    # Signing service loop (polls coordinator, signs drafts)
-│   │   ├── tracker.rs    # Intent tracker (monitors signed intents)
-│   │   ├── inflow.rs     # Inflow fulfillment service (monitors escrows, fulfills intents)
-│   │   ├── outflow.rs    # Outflow fulfillment service (executes transfers, fulfills intents)
-│   │   └── liquidity.rs  # Liquidity monitor (polls balances, tracks in-flight budget, enforces thresholds)
-│   ├── chains/            # Chain clients
-│   │   ├── hub.rs        # Hub chain client (Movement)
-│   │   ├── connected_mvm_client.rs  # Connected MVM chain client
-│   │   ├── connected_evm_client.rs   # Connected EVM chain client
-│   │   └── connected_svm_client.rs   # Connected SVM chain client
-│   ├── acceptance.rs      # Token pair acceptance logic
-│   ├── config.rs          # Configuration management
-│   ├── crypto/            # Cryptographic operations (hashing, signing)
-│   └── coordinator_client.rs # HTTP client for coordinator API (drafts, negotiation)
-├── config/               # Configuration templates
-└── Cargo.toml
-```
-
 ## Solver Service
 
 The solver service runs continuously, polling the coordinator for pending drafts and automatically signing accepted intents.

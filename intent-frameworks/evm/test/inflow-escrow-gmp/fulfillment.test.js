@@ -10,6 +10,8 @@ const {
   DEFAULT_AMOUNT
 } = require("./helpers/setup");
 
+// EVM uses signature-based claim. SVM uses GMP-based claim via GmpReceiveFulfillmentProof instruction.
+
 describe("IntentInflowEscrow - Fulfillment", function () {
   let escrow;
   let gmpEndpoint;

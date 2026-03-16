@@ -4,9 +4,8 @@
 
 // Balance fetching utilities for Movement and EVM chains
 
-import type { TokenConfig } from '@/config/tokens';
-import { fromSmallestUnits } from '@/config/tokens';
-import { getRpcUrl } from '@/config/chains';
+import type { TokenConfig } from './config.js';
+import { fromSmallestUnits } from './config.js';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 
@@ -24,13 +23,13 @@ export interface TokenBalance {
  * Fetch Movement token balance (Fungible Asset)
  */
 export async function fetchMovementBalance(
+  rpcUrl: string,
   address: string,
   token: TokenConfig
 ): Promise<TokenBalance | null> {
   try {
     // For native MOVE token, use coin store
     if (token.symbol === 'MOVE' && token.metadata === '0x1') {
-      const rpcUrl = getRpcUrl('movement');
       const response = await fetch(`${rpcUrl}/accounts/${address}/resources`, {
         method: 'GET',
       });
@@ -55,7 +54,6 @@ export async function fetchMovementBalance(
     }
     
     // For fungible assets, use primary_fungible_store::balance
-    const rpcUrl = getRpcUrl('movement');
     console.log('Fetching Movement FA balance:', { rpcUrl, address, metadata: token.metadata });
     
     // First try FA balance using primary_fungible_store::balance
@@ -124,12 +122,11 @@ export async function fetchMovementBalance(
  * Fetch EVM token balance (ERC20)
  */
 export async function fetchEvmBalance(
+  rpcUrl: string,
   address: string,
   token: TokenConfig
 ): Promise<TokenBalance | null> {
   try {
-    // Get RPC URL for this chain
-    const rpcUrl = getRpcUrl(token.chain);
     console.log('Fetching EVM balance:', { chain: token.chain, rpcUrl, address, token: token.symbol });
     
     // For native ETH, use eth_getBalance
@@ -222,11 +219,11 @@ export async function fetchEvmBalance(
  * Fetch SVM token balance (SPL token or native SOL)
  */
 export async function fetchSvmBalance(
+  rpcUrl: string,
   address: string,
   token: TokenConfig
 ): Promise<TokenBalance | null> {
   try {
-    const rpcUrl = getRpcUrl('svm-devnet');
     const connection = new Connection(rpcUrl, 'confirmed');
     const owner = new PublicKey(address);
 
@@ -262,15 +259,16 @@ export async function fetchSvmBalance(
  * Fetch balance for any token based on chain type
  */
 export async function fetchTokenBalance(
+  rpcUrl: string,
   address: string,
   token: TokenConfig
 ): Promise<TokenBalance | null> {
   if (token.chain === 'movement') {
-    return fetchMovementBalance(address, token);
+    return fetchMovementBalance(rpcUrl, address, token);
   } else if (token.chain === 'svm-devnet') {
-    return fetchSvmBalance(address, token);
+    return fetchSvmBalance(rpcUrl, address, token);
   } else {
-    return fetchEvmBalance(address, token);
+    return fetchEvmBalance(rpcUrl, address, token);
   }
 }
 

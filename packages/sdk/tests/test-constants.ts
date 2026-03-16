@@ -1,5 +1,5 @@
 /**
- * Shared test constants for frontend unit tests
+ * Shared test constants for SDK unit tests
  *
  * This module provides constants used across multiple test files, following
  * the same pattern as the Rust test helpers (coordinator/tests/helpers.rs).
@@ -76,4 +76,3 @@ export const DUMMY_SIGNATURE_BYTES = new Uint8Array(64).fill(0x02);
 
 /// Dummy public key bytes (32 bytes, fill with 0x03)
 export const DUMMY_PUBKEY_BYTES = new Uint8Array(32).fill(0x03);
-
