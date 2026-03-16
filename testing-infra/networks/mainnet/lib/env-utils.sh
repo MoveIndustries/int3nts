@@ -40,7 +40,7 @@ require_var() {
     local desc="${3:-$name}"
 
     if [ -z "$value" ]; then
-        echo "ERROR: ${name} not set in .env.mainnet (${desc})"
+        echo "❌ ERROR: ${name} not set in .env.mainnet (${desc})"
         exit 1
     fi
 }
@@ -53,7 +53,7 @@ get_chain_id() {
     local config_file="${2:-$(dirname "${BASH_SOURCE[0]}")/../config/mainnet-assets.toml}"
 
     if [ ! -f "$config_file" ]; then
-        echo "ERROR: mainnet-assets.toml not found at $config_file" >&2
+        echo "❌ ERROR: mainnet-assets.toml not found at $config_file" >&2
         exit 1
     fi
 
@@ -61,7 +61,7 @@ get_chain_id() {
     chain_id=$(grep -A 5 "^\[${section}\]" "$config_file" | grep "^chain_id = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
 
     if [ -z "$chain_id" ]; then
-        echo "ERROR: chain_id not found for [${section}] in $config_file" >&2
+        echo "❌ ERROR: chain_id not found for [${section}] in $config_file" >&2
         exit 1
     fi
 

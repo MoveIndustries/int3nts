@@ -26,7 +26,7 @@ echo ""
 MAINNET_KEYS_FILE="$SCRIPT_DIR/../.env.mainnet"
 
 if [ ! -f "$MAINNET_KEYS_FILE" ]; then
-    echo "ERROR: .env.mainnet not found at $MAINNET_KEYS_FILE"
+    echo "❌ ERROR: .env.mainnet not found at $MAINNET_KEYS_FILE"
     echo "   Create it from env.mainnet.example in this directory"
     exit 1
 fi
@@ -38,24 +38,24 @@ fi
 
 # Check required variables
 if [ -z "$BASE_DEPLOYER_PRIVATE_KEY" ]; then
-    echo "ERROR: BASE_DEPLOYER_PRIVATE_KEY not set in .env.mainnet"
+    echo "❌ ERROR: BASE_DEPLOYER_PRIVATE_KEY not set in .env.mainnet"
     exit 1
 fi
 
 if [ -z "$INTEGRATED_GMP_EVM_PUBKEY_HASH" ]; then
-    echo "ERROR: INTEGRATED_GMP_EVM_PUBKEY_HASH not set in .env.mainnet"
+    echo "❌ ERROR: INTEGRATED_GMP_EVM_PUBKEY_HASH not set in .env.mainnet"
     echo "   Run: nix develop ./nix -c bash -c 'cd integrated-gmp && INTEGRATED_GMP_CONFIG_PATH=config/integrated-gmp_mainnet.toml cargo run --bin get_approver_eth_address'"
     exit 1
 fi
 
 # Load assets configuration
 if [ ! -f "$ASSETS_CONFIG" ]; then
-    echo "ERROR: mainnet-assets.toml not found at $ASSETS_CONFIG"
+    echo "❌ ERROR: mainnet-assets.toml not found at $ASSETS_CONFIG"
     exit 1
 fi
 
 if [ -z "$BASE_RPC_URL" ]; then
-    echo "ERROR: BASE_RPC_URL not set in .env.mainnet"
+    echo "❌ ERROR: BASE_RPC_URL not set in .env.mainnet"
     exit 1
 fi
 
@@ -68,7 +68,7 @@ echo ""
 
 # Check if Hardhat config exists
 if [ ! -f "$PROJECT_ROOT/intent-frameworks/evm/hardhat.config.js" ]; then
-    echo "ERROR: hardhat.config.js not found"
+    echo "❌ ERROR: hardhat.config.js not found"
     echo "   Make sure intent-frameworks/evm directory exists"
     exit 1
 fi
@@ -78,8 +78,9 @@ cd "$PROJECT_ROOT/intent-frameworks/evm"
 
 # Check for Movement hub module address
 if [ -z "$MOVEMENT_INTENT_MODULE_ADDR" ]; then
-    echo "ERROR: MOVEMENT_INTENT_MODULE_ADDR not set in .env.mainnet"
+    echo "❌ ERROR: MOVEMENT_INTENT_MODULE_ADDR not set in .env.mainnet"
     echo "   This should be set to the deployed MVM intent module address"
+    echo "   Example: MOVEMENT_INTENT_MODULE_ADDR=0x1b7c806f87339383d29b94fa481a2ea2ef50ac518f66cff419453c9a1154c8da"
     exit 1
 fi
 
@@ -99,7 +100,7 @@ echo ""
 if [ ! -d "node_modules" ]; then
     echo " Installing dependencies..."
     npm install
-    echo "   Dependencies installed"
+    echo "✅ Dependencies installed"
     echo ""
 fi
 
@@ -117,8 +118,9 @@ fi
 echo "   RPC OK"
 echo ""
 
-# Deploy contracts
+# Deploy contracts (run from within nix develop ./nix shell)
 echo " Deploying all 3 contracts..."
+echo "   (Run this script from within 'nix develop ./nix' shell)"
 echo ""
 set +e
 DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network baseMainnet 2>&1)
@@ -129,7 +131,7 @@ set -e
 echo "$DEPLOY_OUTPUT"
 
 if [ $DEPLOY_EXIT_CODE -ne 0 ]; then
-    echo "Deployment failed with exit code $DEPLOY_EXIT_CODE"
+    echo "❌ Deployment failed with exit code $DEPLOY_EXIT_CODE"
     exit 1
 fi
 
@@ -172,6 +174,11 @@ if [ -n "$GMP_ENDPOINT_ADDR" ] && [ -n "$ESCROW_ADDR" ]; then
     echo "   3. solver/config/solver_mainnet.toml"
     echo "      escrow_contract_addr = \"$ESCROW_ADDR\""
     echo "      (in the [[connected_chain]] EVM Base section)"
+    echo ""
+    echo "   4. frontend/.env.local"
+    echo "      NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS=$ESCROW_ADDR"
+    echo ""
+    echo "   5. Run ./testing-infra/networks/mainnet/check-mainnet-preparedness.sh to verify"
 
     # Save deployment log
     LOG_DIR="$SCRIPT_DIR/../logs"
@@ -192,7 +199,13 @@ if [ -n "$GMP_ENDPOINT_ADDR" ] && [ -n "$ESCROW_ADDR" ]; then
     echo ""
     echo " Deployment log saved to: $LOG_FILE"
 else
-    echo "   Could not extract contract addresses from output"
+    echo "️  Could not extract contract addresses from output"
     echo "   Please copy them manually from the deployment output above"
+    echo ""
+    echo " Update the following files:"
+    echo "   - coordinator/config/coordinator_mainnet.toml (escrow_contract_addr in [[connected_chain_evm]] Base section)"
+    echo "   - integrated-gmp/config/integrated-gmp_mainnet.toml (escrow_contract_addr + gmp_endpoint_addr in [[connected_chain_evm]] Base section)"
+    echo "   - solver/config/solver_mainnet.toml (escrow_contract_addr in [[connected_chain]] EVM Base section)"
+    echo "   - frontend/.env.local (NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS)"
 fi
 echo ""

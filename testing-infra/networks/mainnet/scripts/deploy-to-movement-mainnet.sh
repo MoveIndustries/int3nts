@@ -10,6 +10,11 @@
 # files after deployment.
 #
 # REQUIRES: Movement CLI
+# Install for mainnet:
+#   ARM64: curl -LO https://github.com/movementlabsxyz/homebrew-movement-cli/releases/download/bypass-homebrew/movement-move2-testnet-macos-arm64.tar.gz && mkdir -p temp_extract && tar -xzf movement-move2-testnet-macos-arm64.tar.gz -C temp_extract && chmod +x temp_extract/movement && sudo mv temp_extract/movement /usr/local/bin/movement && rm -rf temp_extract
+#   x86_64: curl -LO https://github.com/movementlabsxyz/homebrew-movement-cli/releases/download/bypass-homebrew/movement-move2-testnet-macos-x86_64.tar.gz && mkdir -p temp_extract && tar -xzf movement-move2-testnet-macos-x86_64.tar.gz -C temp_extract && chmod +x temp_extract/movement && sudo mv temp_extract/movement /usr/local/bin/movement && rm -rf temp_extract
+#
+# Reference: https://docs.movementnetwork.xyz/devs/movementcli
 
 set -e
 
@@ -27,19 +32,29 @@ echo ""
 
 # Check for movement CLI
 if ! command -v movement &> /dev/null; then
-    echo "ERROR: movement CLI not found"
+    echo "❌ ERROR: movement CLI not found"
+    echo ""
+    echo "   Movement mainnet requires the Movement CLI (not aptos CLI)."
+    echo "   Install the Movement CLI:"
+    echo ""
+    echo "   # For Mac ARM64 (M-series):"
+    echo "   curl -LO https://github.com/movementlabsxyz/homebrew-movement-cli/releases/download/bypass-homebrew/movement-move2-testnet-macos-arm64.tar.gz && mkdir -p temp_extract && tar -xzf movement-move2-testnet-macos-arm64.tar.gz -C temp_extract && chmod +x temp_extract/movement && sudo mv temp_extract/movement /usr/local/bin/movement && rm -rf temp_extract"
+    echo ""
+    echo "   # For Mac Intel (x86_64):"
+    echo "   curl -LO https://github.com/movementlabsxyz/homebrew-movement-cli/releases/download/bypass-homebrew/movement-move2-testnet-macos-x86_64.tar.gz && mkdir -p temp_extract && tar -xzf movement-move2-testnet-macos-x86_64.tar.gz -C temp_extract && chmod +x temp_extract/movement && sudo mv temp_extract/movement /usr/local/bin/movement && rm -rf temp_extract"
+    echo ""
     echo "   Reference: https://docs.movementnetwork.xyz/devs/movementcli"
     exit 1
 fi
 
-echo "Movement CLI found: $(movement --version)"
+echo "✅ Movement CLI found: $(movement --version)"
 echo ""
 
 # Load .env.mainnet for the funding account
 MAINNET_KEYS_FILE="$SCRIPT_DIR/../.env.mainnet"
 
 if [ ! -f "$MAINNET_KEYS_FILE" ]; then
-    echo "ERROR: .env.mainnet not found at $MAINNET_KEYS_FILE"
+    echo "❌ ERROR: .env.mainnet not found at $MAINNET_KEYS_FILE"
     echo "   Create it from env.mainnet.example in this directory"
     exit 1
 fi
@@ -50,12 +65,12 @@ fi
 
 # Check required variables for funding account
 if [ -z "$MOVEMENT_DEPLOYER_PRIVATE_KEY" ]; then
-    echo "ERROR: MOVEMENT_DEPLOYER_PRIVATE_KEY not set in .env.mainnet"
+    echo "❌ ERROR: MOVEMENT_DEPLOYER_PRIVATE_KEY not set in .env.mainnet"
     exit 1
 fi
 
 if [ -z "$MOVEMENT_DEPLOYER_ADDR" ]; then
-    echo "ERROR: MOVEMENT_DEPLOYER_ADDR not set in .env.mainnet"
+    echo "❌ ERROR: MOVEMENT_DEPLOYER_ADDR not set in .env.mainnet"
     exit 1
 fi
 
@@ -102,7 +117,7 @@ movement init --profile "$TEMP_PROFILE" \
 DEPLOY_ADDR=$(movement config show-profiles --profile "$TEMP_PROFILE" 2>/dev/null | jq -r ".Result.\"$TEMP_PROFILE\".account // empty" || echo "")
 
 if [ -z "$DEPLOY_ADDR" ]; then
-    echo "ERROR: Failed to extract address from generated key"
+    echo "❌ ERROR: Failed to extract address from generated key"
     rm -rf "$TEMP_DIR"
     exit 1
 fi
@@ -122,22 +137,44 @@ movement move run \
   --function-id "0x1::aptos_account::transfer" \
   --args "address:$DEPLOY_ADDR_FULL" "u64:$FUND_AMOUNT" \
   --assume-yes
-echo "   Transferred $FUND_AMOUNT octas (1 MOVE) from deployer"
+echo "   ✅ Transferred $FUND_AMOUNT octas (1 MOVE) from deployer"
 
 # Wait for transaction to propagate
 sleep 3
 
-# Verify balance
-echo "   Verifying balance..."
-BALANCE=$(curl -s "$MOVEMENT_RPC_URL/accounts/$DEPLOY_ADDR_FULL/resources" 2>/dev/null | jq -r '.[] | select(.type == "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>") | .data.coin.value // "0"' || echo "0")
-if [ -z "$BALANCE" ]; then BALANCE="0"; fi
-echo "   Module address balance: $BALANCE octas"
+# Verify balance with retry option
+while true; do
+    echo "   Verifying balance..."
+    BALANCE=$(curl -s "$MOVEMENT_RPC_URL/accounts/$DEPLOY_ADDR_FULL/resources" 2>/dev/null | jq -r '.[] | select(.type == "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>") | .data.coin.value // "0"' || echo "0")
+    if [ -z "$BALANCE" ]; then BALANCE="0"; fi
+    echo "   Module address balance: $BALANCE octas"
 
-if [ "$BALANCE" = "0" ]; then
-    echo "FATAL: Module address has 0 balance after transfer"
-    rm -rf "$TEMP_DIR"
-    exit 1
-fi
+    if [ "$BALANCE" != "0" ] && [ -n "$BALANCE" ]; then
+        echo "   ✅ Module address funded"
+        break
+    fi
+
+    echo ""
+    echo "️  Balance is still 0."
+    echo "   [r] Retry balance check"
+    echo "   [y] Continue anyway (deployment may fail)"
+    echo "   [n] Cancel deployment"
+    read -p "   Choice (r/y/n): " -n 1 -r
+    echo
+
+    if [[ $REPLY =~ ^[Rr]$ ]]; then
+        echo "   Waiting 3 seconds before retry..."
+        sleep 3
+        continue
+    elif [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "   Continuing with 0 balance..."
+        break
+    else
+        echo "   ❌ Deployment cancelled"
+        rm -rf "$TEMP_DIR"
+        exit 1
+    fi
+done
 echo ""
 
 echo " Configuration:"
@@ -159,7 +196,7 @@ movement move publish \
   --max-gas 500000 \
   --gas-unit-price 100
 
-echo "   intent-gmp deployed"
+echo "✅ intent-gmp deployed"
 echo ""
 
 # Wait for intent-gmp to be fully indexed before deploying intent-hub
@@ -169,6 +206,8 @@ sleep 10
 echo " Step 5: Deploying intent-hub package..."
 cd "$PROJECT_ROOT/intent-frameworks/mvm/intent-hub"
 
+# Try with minimal artifacts first to avoid chunked publish LINKER_ERROR
+# If this fails due to size, fall back to chunked publish
 movement move publish \
   --profile "$TEMP_PROFILE" \
   --named-addresses mvmt_intent="$DEPLOY_ADDR_FULL" \
@@ -178,7 +217,7 @@ movement move publish \
   --max-gas 500000 \
   --gas-unit-price 100
 
-echo "   intent-hub deployed"
+echo "✅ intent-hub deployed"
 echo ""
 
 # Verify deployment by calling a view function
@@ -188,9 +227,9 @@ movement move view \
   --profile "$TEMP_PROFILE" \
   --function-id "${DEPLOY_ADDR_FULL}::solver_registry::is_registered" \
   --args "address:$DEPLOY_ADDR_FULL" && {
-    echo "   View function works - module deployed correctly with #[view] attribute"
+    echo "   ✅ View function works - module deployed correctly with #[view] attribute"
   } || {
-    echo "   Warning: View function verification failed"
+    echo "   ️  Warning: View function verification failed"
     echo "   This may indicate the module wasn't deployed correctly"
   }
 
@@ -204,9 +243,9 @@ movement move run \
   --function-id "${DEPLOY_ADDR_FULL}::fa_intent::initialize" \
   --args u64:250 \
   --assume-yes 2>/dev/null && {
-    echo "   fa_intent chain info initialized"
+    echo "   ✅ fa_intent chain info initialized"
   } || {
-    echo "   fa_intent may already be initialized (this is OK)"
+    echo "   ️  fa_intent may already be initialized (this is OK)"
   }
 
 echo ""
@@ -217,9 +256,9 @@ movement move run \
   --profile "$TEMP_PROFILE" \
   --function-id "${DEPLOY_ADDR_FULL}::solver_registry::initialize" \
   --assume-yes 2>/dev/null && {
-    echo "   Solver registry initialized"
+    echo "   ✅ Solver registry initialized"
   } || {
-    echo "   Solver registry may already be initialized (this is OK)"
+    echo "   ️  Solver registry may already be initialized (this is OK)"
   }
 
 echo ""
@@ -230,9 +269,9 @@ movement move run \
   --profile "$TEMP_PROFILE" \
   --function-id "${DEPLOY_ADDR_FULL}::intent_registry::initialize" \
   --assume-yes 2>/dev/null && {
-    echo "   Intent registry initialized"
+    echo "   ✅ Intent registry initialized"
   } || {
-    echo "   Intent registry may already be initialized (this is OK)"
+    echo "   ️  Intent registry may already be initialized (this is OK)"
   }
 
 echo ""
@@ -243,9 +282,9 @@ movement move run \
   --profile "$TEMP_PROFILE" \
   --function-id "${DEPLOY_ADDR_FULL}::intent_gmp::initialize" \
   --assume-yes 2>/dev/null && {
-    echo "   intent_gmp initialized"
+    echo "   ✅ intent_gmp initialized"
   } || {
-    echo "   intent_gmp may already be initialized (this is OK)"
+    echo "   ️  intent_gmp may already be initialized (this is OK)"
   }
 
 echo ""
@@ -256,9 +295,9 @@ movement move run \
   --profile "$TEMP_PROFILE" \
   --function-id "${DEPLOY_ADDR_FULL}::intent_gmp_hub::initialize" \
   --assume-yes 2>/dev/null && {
-    echo "   intent_gmp_hub initialized"
+    echo "   ✅ intent_gmp_hub initialized"
   } || {
-    echo "   intent_gmp_hub may already be initialized (this is OK)"
+    echo "   ️  intent_gmp_hub may already be initialized (this is OK)"
   }
 
 echo ""
@@ -269,9 +308,9 @@ movement move run \
   --profile "$TEMP_PROFILE" \
   --function-id "${DEPLOY_ADDR_FULL}::gmp_intent_state::initialize" \
   --assume-yes 2>/dev/null && {
-    echo "   gmp_intent_state initialized"
+    echo "   ✅ gmp_intent_state initialized"
   } || {
-    echo "   gmp_intent_state may already be initialized (this is OK)"
+    echo "   ️  gmp_intent_state may already be initialized (this is OK)"
   }
 
 echo ""
@@ -282,9 +321,9 @@ movement move run \
   --profile "$TEMP_PROFILE" \
   --function-id "${DEPLOY_ADDR_FULL}::gmp_sender::initialize" \
   --assume-yes 2>/dev/null && {
-    echo "   gmp_sender initialized"
+    echo "   ✅ gmp_sender initialized"
   } || {
-    echo "   gmp_sender may already be initialized (this is OK)"
+    echo "   ️  gmp_sender may already be initialized (this is OK)"
   }
 
 echo ""
@@ -327,7 +366,7 @@ echo ""
 echo " NEW Module Address:     $DEPLOY_ADDR_FULL"
 echo " NEW Module Private Key: $DEPLOY_PRIVATE_KEY"
 echo ""
-echo " IMPORTANT: Update these files with the new module address and private key:"
+echo "️  IMPORTANT: Update these files with the new module address and private key:"
 echo ""
 echo "   1. coordinator/config/coordinator_mainnet.toml:"
 echo "      intent_module_addr = \"$DEPLOY_ADDR_FULL\""
@@ -340,6 +379,9 @@ echo ""
 echo "   3. solver/config/solver_mainnet.toml:"
 echo "      module_addr = \"$DEPLOY_ADDR_FULL\""
 echo "      (in the [hub_chain] section)"
+echo ""
+echo "   4. frontend/.env.local:"
+echo "      NEXT_PUBLIC_INTENT_CONTRACT_ADDRESS=$DEPLOY_ADDR_FULL"
 echo ""
 echo " Next steps:"
 echo "   1. Update the config files above with the new module address"
