@@ -195,6 +195,24 @@ log "     Signature: ${RETRIEVED_SIGNATURE:0:20}..."
 if [ -z "$RETRIEVED_SOLVER_EVM" ] || [ "$RETRIEVED_SOLVER_EVM" = "null" ]; then
     log_and_echo "❌ ERROR: Solver EVM address not in signature response"
     log_and_echo "   The solver must register with an EVM address for inflow intents"
+    log_and_echo ""
+    log_and_echo " Diagnostics: coordinator log (last 50 lines):"
+    log_and_echo "   ----------------------------------------"
+    if [ -f "$PROJECT_ROOT/.tmp/e2e-tests/coordinator.log" ]; then
+        tail -50 "$PROJECT_ROOT/.tmp/e2e-tests/coordinator.log" | while IFS= read -r line; do log_and_echo "   $line"; done
+    else
+        log_and_echo "   (coordinator log not found)"
+    fi
+    log_and_echo "   ----------------------------------------"
+    log_and_echo ""
+    log_and_echo " Diagnostics: solver log (last 50 lines):"
+    log_and_echo "   ----------------------------------------"
+    if [ -f "$PROJECT_ROOT/.tmp/e2e-tests/solver.log" ]; then
+        tail -50 "$PROJECT_ROOT/.tmp/e2e-tests/solver.log" | while IFS= read -r line; do log_and_echo "   $line"; done
+    else
+        log_and_echo "   (solver log not found)"
+    fi
+    log_and_echo "   ----------------------------------------"
     exit 1
 fi
 log "     Solver EVM address: $RETRIEVED_SOLVER_EVM"
