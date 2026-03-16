@@ -21,9 +21,7 @@ use anyhow::{Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use borsh::BorshSerialize;
 use ed25519_dalek::SigningKey;
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use sha3::{Digest, Keccak256};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
@@ -33,7 +31,6 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use std::collections::{HashMap, HashSet};
-use std::process::Command;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -42,8 +39,8 @@ use tracing::{debug, error, info, warn};
 
 use crate::config::Config;
 use crate::crypto::CryptoService;
-use chain_clients_evm::EvmLog;
-use chain_clients_mvm::MvmClient;
+use crate::evm_client::GmpEvmClient;
+use crate::mvm_client::GmpMvmClient;
 use crate::svm_client::GmpSvmClient;
 
 // Well-known Solana program IDs.
@@ -301,27 +298,48 @@ struct RelayState {
 pub struct NativeGmpRelay {
     config: NativeGmpRelayConfig,
     crypto_service: CryptoService,
-    mvm_client: MvmClient,
+    /// Hub MVM client
+    mvm_hub_client: GmpMvmClient,
     /// Connected MVM clients keyed by chain ID
-    mvm_connected_clients: HashMap<u32, MvmClient>,
+    mvm_connected_clients: HashMap<u32, GmpMvmClient>,
+    /// Connected EVM clients keyed by chain ID
+    evm_clients: HashMap<u32, GmpEvmClient>,
     /// Connected SVM clients keyed by chain ID
     svm_clients: HashMap<u32, GmpSvmClient>,
-    #[allow(dead_code)]
-    http_client: Client,
     state: Arc<RwLock<RelayState>>,
 }
 
 impl NativeGmpRelay {
     /// Create a new integrated GMP relay.
     pub fn new(config: NativeGmpRelayConfig, crypto_service: CryptoService) -> Result<Self> {
-        let mvm_client = MvmClient::new(&config.mvm_rpc_url)?;
+        let mvm_hub_client = GmpMvmClient::new(
+            &config.mvm_rpc_url,
+            &config.mvm_module_addr,
+            config.mvm_chain_id,
+        )
+        .context("Failed to create MVM hub client")?;
 
         // Initialize MVM connected clients
         let mut mvm_connected_clients = HashMap::new();
         for mvm_chain in &config.mvm_chains {
-            let client = MvmClient::new(&mvm_chain.rpc_url)
+            let client = GmpMvmClient::new(&mvm_chain.rpc_url, &mvm_chain.module_addr, mvm_chain.chain_id)
                 .with_context(|| format!("Failed to create MVM client for chain {}", mvm_chain.chain_id))?;
             mvm_connected_clients.insert(mvm_chain.chain_id, client);
+        }
+
+        // Initialize EVM clients
+        let mut evm_clients = HashMap::new();
+        for evm_chain in &config.evm_chains {
+            if let Some(ref gmp_endpoint) = evm_chain.gmp_endpoint_addr {
+                let client = GmpEvmClient::new(
+                    &evm_chain.rpc_url,
+                    gmp_endpoint,
+                    evm_chain.chain_id,
+                    &evm_chain.relay_address,
+                )
+                .with_context(|| format!("Failed to create EVM client for chain {}", evm_chain.chain_id))?;
+                evm_clients.insert(evm_chain.chain_id, client);
+            }
         }
 
         // Initialize SVM clients
@@ -334,19 +352,13 @@ impl NativeGmpRelay {
             }
         }
 
-        let http_client = Client::builder()
-            .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(15))
-            .build()
-            .context("Failed to create HTTP client")?;
-
         Ok(Self {
             config,
             crypto_service,
-            mvm_client,
+            mvm_hub_client,
             mvm_connected_clients,
+            evm_clients,
             svm_clients,
-            http_client,
             state: Arc::new(RwLock::new(RelayState::default())),
         })
     }
@@ -363,29 +375,34 @@ impl NativeGmpRelay {
         info!("Relay addresses: MVM={}, EVM={}, SVM={}", mvm_addr, evm_addr, svm_addr);
 
         // Check MVM hub
-        self.check_mvm_relay_auth(
-            &self.mvm_client,
-            &self.config.mvm_module_addr,
-            &mvm_addr,
-            "MVM hub",
-        )
-        .await?;
+        let authorized = self.mvm_hub_client.is_relay_authorized(&mvm_addr).await
+            .context("Failed to check relay authorization on MVM hub")?;
+        if !authorized {
+            anyhow::bail!("Relay {} is NOT authorized on MVM hub. Run add_relay first.", mvm_addr);
+        }
+        info!("MVM hub: relay {} authorized", mvm_addr);
 
         // Check all connected MVM chains
-        for mvm_chain in &self.config.mvm_chains {
-            if let Some(client) = self.mvm_connected_clients.get(&mvm_chain.chain_id) {
-                let label = format!("MVM connected (chain_id={})", mvm_chain.chain_id);
-                self.check_mvm_relay_auth(client, &mvm_chain.module_addr, &mvm_addr, &label)
-                    .await?;
+        for (chain_id, client) in &self.mvm_connected_clients {
+            let authorized = client.is_relay_authorized(&mvm_addr).await
+                .with_context(|| format!("Failed to check relay authorization on MVM chain {}", chain_id))?;
+            if !authorized {
+                anyhow::bail!("Relay {} is NOT authorized on MVM chain {}. Run add_relay first.", mvm_addr, chain_id);
             }
+            info!("MVM connected (chain_id={}): relay {} authorized", chain_id, mvm_addr);
         }
 
         // Check all connected EVM chains
-        for evm_chain in &self.config.evm_chains {
-            if let Some(ref gmp_endpoint) = evm_chain.gmp_endpoint_addr {
-                self.check_evm_relay_auth(&evm_chain.rpc_url, gmp_endpoint, &evm_addr)
-                    .await?;
+        for (chain_id, client) in &self.evm_clients {
+            let authorized = client.is_relay_authorized(&evm_addr).await
+                .with_context(|| format!("Failed to check relay authorization on EVM chain {}", chain_id))?;
+            if !authorized {
+                anyhow::bail!(
+                    "Relay {} is NOT authorized on EVM chain {} (contract {}). Run addRelay first.",
+                    evm_addr, chain_id, client.gmp_endpoint_addr()
+                );
             }
+            info!("EVM (chain_id={}): relay {} authorized", chain_id, evm_addr);
         }
 
         // Check all connected SVM chains
@@ -397,92 +414,6 @@ impl NativeGmpRelay {
         }
 
         info!("Relay authorization verified on all configured chains");
-        Ok(())
-    }
-
-    /// Check if relay is authorized on an MVM chain via is_relay_authorized view function.
-    async fn check_mvm_relay_auth(
-        &self,
-        client: &MvmClient,
-        module_addr: &str,
-        relay_addr: &str,
-        chain_name: &str,
-    ) -> Result<()> {
-        let result = client
-            .call_view_function(
-                module_addr,
-                "intent_gmp",
-                "is_relay_authorized",
-                vec![],
-                vec![serde_json::json!(relay_addr)],
-            )
-            .await
-            .with_context(|| format!("Failed to check relay authorization on {}", chain_name))?;
-
-        let authorized = result
-            .as_array()
-            .and_then(|arr| arr.first())
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        if !authorized {
-            anyhow::bail!(
-                "Relay {} is NOT authorized on {} (module {}). Run add_relay first.",
-                relay_addr, chain_name, module_addr
-            );
-        }
-
-        info!("{}: relay {} authorized", chain_name, relay_addr);
-        Ok(())
-    }
-
-    /// Check if relay is authorized on EVM via isRelayAuthorized(address) view function.
-    async fn check_evm_relay_auth(
-        &self,
-        rpc_url: &str,
-        gmp_endpoint: &str,
-        relay_addr: &str,
-    ) -> Result<()> {
-        // Function selector: keccak256("isRelayAuthorized(address)")[0..4]
-        let selector = &Keccak256::digest(b"isRelayAuthorized(address)")[..4];
-
-        // ABI-encode: selector + address padded to 32 bytes
-        let addr_clean = relay_addr.strip_prefix("0x").unwrap_or(relay_addr);
-        let mut calldata = Vec::with_capacity(36);
-        calldata.extend_from_slice(selector);
-        // Pad address (20 bytes) to 32 bytes, left-padded with zeros
-        calldata.extend_from_slice(&[0u8; 12]);
-        calldata.extend_from_slice(&hex::decode(addr_clean).context("Invalid EVM address hex")?);
-
-        let data_hex = format!("0x{}", hex::encode(&calldata));
-
-        let result: String = self
-            .evm_json_rpc(
-                rpc_url,
-                "eth_call",
-                vec![
-                    serde_json::json!({
-                        "to": gmp_endpoint,
-                        "data": data_hex,
-                    }),
-                    serde_json::json!("latest"),
-                ],
-            )
-            .await
-            .context("Failed to check relay authorization on EVM")?;
-
-        // Result is ABI-encoded bool: 32 bytes, last byte is 0 or 1
-        let clean = result.strip_prefix("0x").unwrap_or(&result);
-        let authorized = clean.ends_with('1');
-
-        if !authorized {
-            anyhow::bail!(
-                "Relay {} is NOT authorized on EVM (contract {}). Run addRelay first.",
-                relay_addr, gmp_endpoint
-            );
-        }
-
-        info!("EVM: relay {} authorized", relay_addr);
         Ok(())
     }
 
@@ -699,13 +630,7 @@ impl NativeGmpRelay {
         };
 
         let new_last = self
-            .poll_mvm_outbox(
-                &self.mvm_client,
-                &self.config.mvm_module_addr,
-                self.config.mvm_chain_id,
-                last_nonce,
-                "hub",
-            )
+            .poll_mvm_outbox(&self.mvm_hub_client, last_nonce, "hub")
             .await?;
 
         if new_last > last_nonce {
@@ -726,13 +651,7 @@ impl NativeGmpRelay {
 
         let chain_label = format!("connected({})", mvm_chain.chain_id);
         let new_last = self
-            .poll_mvm_outbox(
-                client,
-                &mvm_chain.module_addr,
-                mvm_chain.chain_id,
-                last_nonce,
-                &chain_label,
-            )
+            .poll_mvm_outbox(client, last_nonce, &chain_label)
             .await?;
 
         if new_last > last_nonce {
@@ -744,45 +663,17 @@ impl NativeGmpRelay {
 
     /// Shared outbox polling logic for any MVM chain.
     ///
-    /// Calls `gmp_sender::get_next_nonce()` to detect new messages, then
-    /// reads each new message via `gmp_sender::get_message(nonce)`.
-    ///
-    /// Returns the new last_nonce value (highest nonce successfully delivered).
+    /// Uses `GmpMvmClient` to read nonces and messages from the outbox.
+    /// Returns the new last_nonce value (highest nonce processed).
     async fn poll_mvm_outbox(
         &self,
-        client: &MvmClient,
-        module_addr: &str,
-        src_chain_id: u32,
+        client: &GmpMvmClient,
         last_nonce: u64,
         chain_name: &str,
     ) -> Result<u64> {
-        // Call get_next_nonce() view function
-        let next_nonce_result = client
-            .call_view_function(
-                module_addr,
-                "gmp_sender",
-                "get_next_nonce",
-                vec![],
-                vec![],
-            )
-            .await
-            .context("Failed to call get_next_nonce")?;
+        let src_chain_id = client.chain_id();
+        let next_nonce = client.get_next_nonce().await?;
 
-        // Parse: response is [\"<number>\"] or [<number>]
-        let next_nonce: u64 = next_nonce_result
-            .as_array()
-            .and_then(|arr| arr.first())
-            .and_then(|v| {
-                v.as_str()
-                    .and_then(|s| s.parse().ok())
-                    .or_else(|| v.as_u64())
-            })
-            .context(format!(
-                "Failed to parse get_next_nonce response for MVM {} outbox: {:?}",
-                chain_name, next_nonce_result
-            ))?;
-
-        // Determine start nonce: if we haven't polled yet, start from 1
         let start = if last_nonce == 0 { 1 } else { last_nonce + 1 };
 
         if start >= next_nonce {
@@ -790,7 +681,7 @@ impl NativeGmpRelay {
                 "MVM {} outbox: next_nonce={}, last_nonce={} (idle)",
                 chain_name, next_nonce, last_nonce
             );
-            return Ok(last_nonce); // No new messages
+            return Ok(last_nonce);
         }
 
         info!(
@@ -801,21 +692,9 @@ impl NativeGmpRelay {
         let mut new_last = last_nonce;
 
         for nonce in start..next_nonce {
-            // Call get_message(nonce) view function
-            let msg_result = client
-                .call_view_function(
-                    module_addr,
-                    "gmp_sender",
-                    "get_message",
-                    vec![],
-                    vec![serde_json::json!(nonce.to_string())],
-                )
-                .await;
-
-            let msg_value = match msg_result {
-                Ok(v) => v,
+            let message = match client.get_message(nonce).await {
+                Ok(msg) => msg,
                 Err(e) => {
-                    // Message may have been cleaned up (expired). Skip it.
                     warn!(
                         "MVM {} outbox: failed to read nonce {}: {}. Skipping (may be expired).",
                         chain_name, nonce, e
@@ -825,46 +704,11 @@ impl NativeGmpRelay {
                 }
             };
 
-            // Parse view function result: [dst_chain_id, dst_addr_hex, payload_hex, sender]
-            let arr = msg_value.as_array().context("get_message result is not an array")?;
-            if arr.len() < 4 {
-                warn!("MVM {} outbox: get_message({}) returned {} elements, expected 4", chain_name, nonce, arr.len());
-                new_last = nonce;
-                continue;
-            }
-
-            let dst_chain_id: u32 = arr[0]
-                .as_str()
-                .and_then(|s| s.parse().ok())
-                .or_else(|| arr[0].as_u64().map(|n| n as u32))
-                .context("Failed to parse dst_chain_id")?;
-
-            let dst_addr_hex = parse_view_bytes(&arr[1])?;
-            let payload_hex = parse_view_bytes(&arr[2])?;
-
-            let _sender_addr = arr[3]
-                .as_str()
-                .unwrap_or("0x0")
-                .to_string();
-
-            let message = GmpMessage {
-                src_chain_id,
-                // Use the module address (where GMP contracts are deployed) as remote_gmp_endpoint_addr,
-                // not the individual sender. The destination chain's intent_gmp
-                // validates the source chain's module address as the remote GMP endpoint, not individual senders.
-                remote_gmp_endpoint_addr: normalize_address(module_addr),
-                dst_chain_id,
-                dst_addr: format!("0x{}", dst_addr_hex),
-                payload: format!("0x{}", payload_hex),
-                nonce,
-            };
-
             info!(
                 "MVM {} outbox: nonce={}, src={}, dst_chain={}",
                 chain_name, nonce, message.remote_gmp_endpoint_addr, message.dst_chain_id
             );
 
-            // Check if this message should be attempted (not in backoff / not exhausted)
             if !self.should_attempt_delivery(src_chain_id, nonce).await {
                 new_last = nonce;
                 continue;
@@ -872,7 +716,6 @@ impl NativeGmpRelay {
 
             if let Err(e) = self.deliver_message(&message).await {
                 let err_str = format!("{:#}", e);
-                // Permanent errors: skip and advance past the message
                 if err_str.contains("E_UNKNOWN_REMOTE_GMP_ENDPOINT")
                     || err_str.contains("E_ALREADY_DELIVERED")
                     || err_str.contains("AlreadyDelivered")
@@ -886,14 +729,11 @@ impl NativeGmpRelay {
                     new_last = nonce;
                     continue;
                 }
-                // Transient failure: record attempt with backoff
                 let exhausted = self.record_delivery_failure(&message, &err_str).await;
                 if exhausted {
-                    // Max retries exhausted — skip this message permanently
                     new_last = nonce;
                     continue;
                 }
-                // Still has retries left — skip for now, continue to next message
                 new_last = nonce;
                 continue;
             }
@@ -1032,38 +872,6 @@ impl NativeGmpRelay {
         Ok(())
     }
 
-    /// Parse MVM MessageSent event into GmpMessage.
-    #[allow(dead_code)]
-    fn parse_mvm_message_sent(
-        &self,
-        event: &MvmMessageSentEvent,
-        src_chain_id: u32,
-    ) -> Result<GmpMessage> {
-        // Parse destination chain ID
-        let dst_chain_id: u32 = event.dst_chain_id.parse().context("Invalid dst_chain_id")?;
-
-        // Parse destination address (array of hex bytes -> hex string)
-        let dst_addr = bytes_array_to_hex(&event.dst_addr)?;
-
-        // Parse payload (array of hex bytes -> hex string)
-        let payload = bytes_array_to_hex(&event.payload)?;
-
-        // Parse nonce
-        let nonce: u64 = event.nonce.parse().context("Invalid nonce")?;
-
-        // Source address is the sender (remote GMP endpoint address)
-        let remote_gmp_endpoint_addr = normalize_address(&event.sender);
-
-        Ok(GmpMessage {
-            src_chain_id,
-            remote_gmp_endpoint_addr,
-            dst_chain_id,
-            dst_addr,
-            payload,
-            nonce,
-        })
-    }
-
     /// Deliver a GMP message to the destination chain.
     async fn deliver_message(&self, message: &GmpMessage) -> Result<()> {
         let dst = message.dst_chain_id;
@@ -1102,140 +910,23 @@ impl NativeGmpRelay {
     ///
     /// Uses the CLI-based transaction submission pattern (same as solver).
     async fn deliver_to_mvm_hub(&self, message: &GmpMessage) -> Result<()> {
-        self.deliver_to_mvm_chain(
-            message,
-            &self.config.mvm_rpc_url,
-            &self.config.mvm_module_addr,
-            "hub",
-        )
-        .await
+        info!("Delivering message to MVM hub: dst_chain={}, nonce={}", message.dst_chain_id, message.nonce);
+        self.mvm_hub_client.deliver_message(message, &self.config.operator_private_key).await
     }
 
     /// Deliver message to a connected MVM chain via intent_gmp::deliver_message_entry.
     async fn deliver_to_mvm_connected(&self, message: &GmpMessage, mvm_chain: &MvmRelayChainConfig) -> Result<()> {
-        let chain_label = format!("connected({})", mvm_chain.chain_id);
-        self.deliver_to_mvm_chain(message, &mvm_chain.rpc_url, &mvm_chain.module_addr, &chain_label)
-            .await
-    }
-
-    /// Deliver message to an MVM chain (hub or connected).
-    async fn deliver_to_mvm_chain(
-        &self,
-        message: &GmpMessage,
-        rpc_url: &str,
-        module_addr: &str,
-        chain_name: &str,
-    ) -> Result<()> {
-        info!(
-            "Delivering message to MVM {}: dst_chain={}, nonce={}",
-            chain_name, message.dst_chain_id, message.nonce
-        );
-
-        // Parse addresses and payload to hex format (strip 0x if present)
-        let remote_gmp_endpoint_addr_hex = message.remote_gmp_endpoint_addr.strip_prefix("0x").unwrap_or(&message.remote_gmp_endpoint_addr);
-        let payload_hex = message.payload.strip_prefix("0x").unwrap_or(&message.payload);
-
-        // Convert base64 private key to hex for CLI
-        let private_key_bytes = STANDARD
-            .decode(&self.config.operator_private_key)
-            .context("Failed to decode base64 private key")?;
-        let private_key_hex = hex::encode(&private_key_bytes);
-
-        // Build function ID
-        let function_id = format!(
-            "{}::intent_gmp::deliver_message_entry",
-            module_addr
-        );
-
-        // Build CLI arguments
-        // Function signature: deliver_message_entry(relay: &signer, src_chain_id: u32, remote_gmp_endpoint_addr: vector<u8>, payload: vector<u8>)
-        let src_chain_id_arg = format!("u32:{}", message.src_chain_id);
-        let remote_gmp_endpoint_addr_arg = format!("hex:{}", remote_gmp_endpoint_addr_hex);
-        let payload_arg = format!("hex:{}", payload_hex);
-
-        // Normalize RPC URL (strip trailing /v1 if present for CLI)
-        let rpc_url_normalized = rpc_url.trim_end_matches('/').trim_end_matches("/v1");
-
-        debug!(
-            "MVM {} deliver_message CLI call: function_id={}, src_chain_id={}, nonce={}",
-            chain_name, function_id, message.src_chain_id, message.nonce
-        );
-
-        // Execute CLI command (using aptos CLI for MVM)
-        let output = Command::new("aptos")
-            .args([
-                "move",
-                "run",
-                "--private-key",
-                &private_key_hex,
-                "--url",
-                rpc_url_normalized,
-                "--assume-yes",
-                "--function-id",
-                &function_id,
-                "--args",
-                &src_chain_id_arg,
-                &remote_gmp_endpoint_addr_arg,
-                &payload_arg,
-            ])
-            .output()
-            .context("Failed to execute aptos move run")?;
-
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-
-        if !output.status.success() {
-            // Log at debug; the caller decides severity (permanent vs transient).
-            debug!(
-                "MVM {} deliver_message failed: stderr={}, stdout={}",
-                chain_name, stderr, stdout
-            );
-            anyhow::bail!(
-                "aptos move run failed for deliver_message_entry on {}: stderr={}, stdout={}",
-                chain_name,
-                stderr,
-                stdout
-            );
-        }
-
-        // Extract transaction hash from output for logging
-        let output_str = stdout.as_ref();
-        let tx_hash = extract_transaction_hash(output_str);
-
-        // Verify VM execution succeeded (CLI exit code 0 doesn't guarantee VM success)
-        let vm_success = check_vm_status_success(output_str)?;
-        if !vm_success {
-            error!(
-                "MVM {} deliver_message VM execution failed: nonce={}, tx_hash={:?}, stdout={}",
-                chain_name, message.nonce, tx_hash, stdout
-            );
-            anyhow::bail!(
-                "deliver_message_entry VM execution failed on {}: tx_hash={:?}, stdout={}",
-                chain_name,
-                tx_hash,
-                stdout
-            );
-        }
-
-        info!(
-            "MVM {} deliver_message submitted successfully: nonce={}, tx_hash={:?}",
-            chain_name, message.nonce, tx_hash
-        );
-
-        Ok(())
+        let client = self.mvm_connected_clients.get(&mvm_chain.chain_id)
+            .ok_or_else(|| anyhow::anyhow!("No MVM client for chain {}", mvm_chain.chain_id))?;
+        info!("Delivering message to MVM connected({}): dst_chain={}, nonce={}",
+            mvm_chain.chain_id, message.dst_chain_id, message.nonce);
+        client.deliver_message(message, &self.config.operator_private_key).await
     }
 
     /// Deliver message to EVM chain via IntentGmp.deliverMessage().
-    ///
-    /// ABI-encodes the call and sends via eth_sendRawTransaction (locally signed).
     async fn deliver_to_evm(&self, message: &GmpMessage, evm_chain: &EvmRelayChainConfig) -> Result<()> {
-        let evm_rpc_url = &evm_chain.rpc_url;
-        let gmp_endpoint = evm_chain
-            .gmp_endpoint_addr
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("EVM GMP endpoint address not configured for chain {}", evm_chain.chain_id))?;
-        let relay_addr = &evm_chain.relay_address;
-        let chain_id = evm_chain.chain_id;
+        let client = self.evm_clients.get(&evm_chain.chain_id)
+            .ok_or_else(|| anyhow::anyhow!("No EVM client for chain {}", evm_chain.chain_id))?;
 
         info!(
             "Delivering message to EVM: dst_chain={}, nonce={}",
@@ -1248,10 +939,7 @@ impl NativeGmpRelay {
         if payload_bytes.len() >= 33 {
             let msg_type = payload_bytes[0];
             let intent_id = &payload_bytes[1..33];
-            if self
-                .evm_is_message_delivered(evm_rpc_url, gmp_endpoint, intent_id, msg_type)
-                .await?
-            {
+            if client.is_message_delivered(intent_id, msg_type).await? {
                 info!(
                     "EVM: message already delivered (nonce={}, msg_type=0x{:02x}), skipping",
                     message.nonce, msg_type
@@ -1260,22 +948,17 @@ impl NativeGmpRelay {
             }
         }
 
-        // ABI-encode deliverMessage(uint32,bytes32,bytes)
-        let calldata = evm_encode_deliver_message(
-            message.src_chain_id,
-            &message.remote_gmp_endpoint_addr,
-            &message.payload,
-        )?;
-
-        // Send locally-signed transaction via eth_sendRawTransaction
-        info!("EVM: sending raw transaction to {}", evm_rpc_url);
-        let tx_hash = self
-            .evm_send_raw_transaction(evm_rpc_url, relay_addr, gmp_endpoint, &calldata, chain_id)
+        let tx_hash = client
+            .deliver_message(
+                message.src_chain_id,
+                &message.remote_gmp_endpoint_addr,
+                &message.payload,
+                &self.crypto_service,
+            )
             .await?;
 
-        // Wait for receipt and verify success
         info!("EVM: waiting for receipt for tx_hash={}", tx_hash);
-        self.evm_wait_for_receipt(evm_rpc_url, &tx_hash).await?;
+        client.wait_for_receipt(&tx_hash).await?;
 
         info!(
             "EVM deliver_message submitted successfully: nonce={}, tx_hash={}",
@@ -1287,21 +970,16 @@ impl NativeGmpRelay {
 
     /// Poll an EVM chain for MessageSent events from IntentGmp contract.
     async fn poll_evm_events(&self, evm_chain: &EvmRelayChainConfig) -> Result<()> {
-        let evm_rpc_url = &evm_chain.rpc_url;
-        let gmp_endpoint = evm_chain
-            .gmp_endpoint_addr
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("EVM GMP endpoint address not configured for chain {}", evm_chain.chain_id))?;
         let evm_chain_id = evm_chain.chain_id;
+        let client = self.evm_clients.get(&evm_chain_id)
+            .ok_or_else(|| anyhow::anyhow!("No EVM client for chain {}", evm_chain_id))?;
 
-        // Get current block number
-        let current_block = self.evm_get_block_number(evm_rpc_url).await?;
+        let current_block = client.get_block_number().await?;
 
-        // Determine start block (max 10 block range for Alchemy free tier)
+        // Max 10 block range for Alchemy free tier
         let max_range: u64 = 10;
         let last_block = { *self.state.read().await.evm_last_blocks.get(&evm_chain_id).unwrap_or(&0) };
         let from_block = if last_block == 0 {
-            // First poll: start from recent blocks
             current_block.saturating_sub(max_range)
         } else {
             last_block + 1
@@ -1311,444 +989,64 @@ impl NativeGmpRelay {
             return Ok(());
         }
 
-        // Cap range to max_range blocks per query
         let to_block = from_block.saturating_add(max_range - 1).min(current_block);
 
-        // Compute MessageSent event topic
-        // MessageSent(uint32 indexed dstChainId, bytes32 dstAddr, bytes payload, uint64 nonce)
-        let event_signature = evm_event_topic("MessageSent(uint32,bytes32,bytes,uint64)");
+        let messages = client.poll_message_sent_events(from_block, to_block).await?;
 
-        // Query eth_getLogs
-        let filter = serde_json::json!({
-            "address": gmp_endpoint,
-            "topics": [event_signature],
-            "fromBlock": format!("0x{:x}", from_block),
-            "toBlock": format!("0x{:x}", to_block),
-        });
+        for message in &messages {
+            info!(
+                "Found EVM MessageSent: dst_chain={}, nonce={}",
+                message.dst_chain_id, message.nonce
+            );
 
-        let logs: Vec<EvmLog> = self.evm_json_rpc(evm_rpc_url, "eth_getLogs", vec![filter]).await?;
-
-        for log in &logs {
-            if let Some(message) = self.parse_evm_message_sent(log, evm_chain_id, gmp_endpoint) {
-                info!(
-                    "Found EVM MessageSent: dst_chain={}, nonce={}",
-                    message.dst_chain_id, message.nonce
-                );
-
-                // Check if already processed by nonce
-                {
-                    let state = self.state.read().await;
-                    if let Some(processed) = state.processed_nonces.get(&evm_chain_id) {
-                        if processed.contains(&message.nonce) {
-                            continue;
-                        }
-                    }
-                }
-
-                // Check if this message should be attempted (not in backoff / not exhausted)
-                if !self.should_attempt_delivery(evm_chain_id, message.nonce).await {
-                    continue;
-                }
-
-                if let Err(e) = self.deliver_message(&message).await {
-                    let err_str = format!("{:#}", e);
-                    // Permanent errors: skip and mark as processed
-                    if err_str.contains("E_UNKNOWN_REMOTE_GMP_ENDPOINT")
-                        || err_str.contains("E_ALREADY_DELIVERED")
-                        || err_str.contains("AlreadyDelivered")
-                        || err_str.contains("Already delivered")
-                        || err_str.contains("E_INTENT_NOT_FOUND")
-                    {
-                        warn!(
-                            "Permanent delivery failure for EVM nonce={}, skipping: {}",
-                            message.nonce, err_str
-                        );
-                        // Mark as processed so we don't retry
-                        let mut state = self.state.write().await;
-                        state.processed_nonces.entry(evm_chain_id).or_default().insert(message.nonce);
+            {
+                let state = self.state.read().await;
+                if let Some(processed) = state.processed_nonces.get(&evm_chain_id) {
+                    if processed.contains(&message.nonce) {
                         continue;
                     }
-                    // Transient failure: record attempt with backoff
-                    self.record_delivery_failure(&message, &err_str).await;
+                }
+            }
+
+            if !self.should_attempt_delivery(evm_chain_id, message.nonce).await {
+                continue;
+            }
+
+            if let Err(e) = self.deliver_message(message).await {
+                let err_str = format!("{:#}", e);
+                if err_str.contains("E_UNKNOWN_REMOTE_GMP_ENDPOINT")
+                    || err_str.contains("E_ALREADY_DELIVERED")
+                    || err_str.contains("AlreadyDelivered")
+                    || err_str.contains("Already delivered")
+                    || err_str.contains("E_INTENT_NOT_FOUND")
+                {
+                    warn!(
+                        "Permanent delivery failure for EVM nonce={}, skipping: {}",
+                        message.nonce, err_str
+                    );
+                    let mut state = self.state.write().await;
+                    state.processed_nonces.entry(evm_chain_id).or_default().insert(message.nonce);
                     continue;
                 }
+                self.record_delivery_failure(message, &err_str).await;
+                continue;
+            }
 
-                // Mark nonce as processed
-                {
-                    let mut state = self.state.write().await;
-                    state
-                        .processed_nonces
-                        .entry(evm_chain_id)
-                        .or_default()
-                        .insert(message.nonce);
-                }
+            {
+                let mut state = self.state.write().await;
+                state
+                    .processed_nonces
+                    .entry(evm_chain_id)
+                    .or_default()
+                    .insert(message.nonce);
             }
         }
 
-        // Update last polled block
         {
             self.state.write().await.evm_last_blocks.insert(evm_chain_id, to_block);
         }
 
         Ok(())
-    }
-
-    /// Parse EVM MessageSent log into GmpMessage.
-    ///
-    /// Event: MessageSent(uint32 indexed dstChainId, bytes32 dstAddr, bytes payload, uint64 nonce)
-    /// topics[0] = event signature, topics[1] = dstChainId (indexed)
-    /// data = ABI-encoded(bytes32 dstAddr, bytes payload, uint64 nonce)
-    fn parse_evm_message_sent(&self, log: &EvmLog, evm_chain_id: u32, gmp_endpoint_addr: &str) -> Option<GmpMessage> {
-        if log.topics.len() < 2 {
-            return None;
-        }
-
-        // topics[1] = dstChainId (uint32, padded to 32 bytes)
-        let dst_chain_id_hex = log.topics[1].strip_prefix("0x").unwrap_or(&log.topics[1]);
-        let dst_chain_id = match u32::from_str_radix(dst_chain_id_hex.trim_start_matches('0'), 16) {
-            Ok(id) => id,
-            Err(e) => {
-                warn!("Failed to parse EVM MessageSent dstChainId hex '{}': {}", dst_chain_id_hex, e);
-                return None;
-            }
-        };
-
-        // Parse non-indexed data: (bytes32 dstAddr, bytes payload, uint64 nonce)
-        let data = log.data.strip_prefix("0x").unwrap_or(&log.data);
-
-        // Minimum data: dstAddr(64) + payloadOffset(64) + nonce(64) + payloadLen(64) = 256 hex chars
-        if data.len() < 256 {
-            warn!("EVM MessageSent data too short: {} hex chars", data.len());
-            return None;
-        }
-
-        // Word 0 (0..64): dstAddr (bytes32)
-        let dst_addr = format!("0x{}", &data[0..64]);
-
-        // Word 1 (64..128): offset to payload data (should be 96 = 0x60)
-        let payload_offset_hex = &data[64..128];
-        let payload_offset = match usize::from_str_radix(
-            payload_offset_hex.trim_start_matches('0'),
-            16,
-        ) {
-            Ok(offset) => offset,
-            Err(e) => {
-                warn!("Failed to parse EVM MessageSent payload offset hex '{}': {}", payload_offset_hex, e);
-                return None;
-            }
-        };
-
-        // Word 2 (128..192): nonce (uint64)
-        let nonce_hex = &data[128..192];
-        let nonce = match u64::from_str_radix(nonce_hex.trim_start_matches('0'), 16) {
-            Ok(n) => n,
-            Err(e) => {
-                warn!("Failed to parse EVM MessageSent nonce hex '{}': {}", nonce_hex, e);
-                return None;
-            }
-        };
-
-        // Payload at offset (in bytes, so offset*2 in hex chars from start of data)
-        let payload_start = payload_offset * 2;
-        if data.len() < payload_start + 64 {
-            warn!("EVM MessageSent data too short for payload at offset {}", payload_offset);
-            return None;
-        }
-
-        // Payload length
-        let payload_len_hex = &data[payload_start..payload_start + 64];
-        let payload_len = match usize::from_str_radix(
-            payload_len_hex.trim_start_matches('0'),
-            16,
-        ) {
-            Ok(len) => len,
-            Err(e) => {
-                warn!("Failed to parse EVM MessageSent payload length hex '{}': {}", payload_len_hex, e);
-                return None;
-            }
-        };
-
-        // Payload data
-        let payload_data_start = payload_start + 64;
-        let payload_data_end = payload_data_start + payload_len * 2;
-        let payload = if payload_len > 0 && data.len() >= payload_data_end {
-            format!("0x{}", &data[payload_data_start..payload_data_end])
-        } else {
-            "0x".to_string()
-        };
-
-        // Source address: use the GMP endpoint contract address (padded to 32 bytes)
-        let clean = gmp_endpoint_addr.strip_prefix("0x").unwrap_or(gmp_endpoint_addr).to_lowercase();
-        let gmp_addr = format!("0x{:0>64}", clean);
-
-        Some(GmpMessage {
-            src_chain_id: evm_chain_id,
-            remote_gmp_endpoint_addr: gmp_addr,
-            dst_chain_id,
-            dst_addr,
-            payload,
-            nonce,
-        })
-    }
-
-    /// Send a locally-signed EVM transaction via eth_sendRawTransaction.
-    ///
-    /// Builds a legacy (pre-EIP-1559) transaction, signs it with the relay's ECDSA key,
-    /// and broadcasts via eth_sendRawTransaction. Works with public RPCs that don't hold keys.
-    async fn evm_send_raw_transaction(
-        &self,
-        rpc_url: &str,
-        from: &str,
-        to: &str,
-        calldata: &str,
-        chain_id: u32,
-    ) -> Result<String> {
-        // 1. Fetch nonce
-        let nonce_hex: String = self
-            .evm_json_rpc(
-                rpc_url,
-                "eth_getTransactionCount",
-                vec![serde_json::json!(from), serde_json::json!("pending")],
-            )
-            .await
-            .context("eth_getTransactionCount failed")?;
-        let nonce = u64::from_str_radix(
-            nonce_hex.strip_prefix("0x").unwrap_or(&nonce_hex),
-            16,
-        )
-        .context("Failed to parse nonce")?;
-
-        // 2. Fetch gas price
-        let gas_price_hex: String = self
-            .evm_json_rpc(rpc_url, "eth_gasPrice", vec![])
-            .await
-            .context("eth_gasPrice failed")?;
-        let gas_price = u64::from_str_radix(
-            gas_price_hex.strip_prefix("0x").unwrap_or(&gas_price_hex),
-            16,
-        )
-        .context("Failed to parse gas price")?;
-
-        let gas_limit: u64 = 2_000_000;
-
-        // Decode `to` address (20 bytes)
-        let to_hex = to.strip_prefix("0x").unwrap_or(to);
-        let to_bytes =
-            hex::decode(to_hex).context("Failed to decode EVM 'to' address")?;
-
-        // Decode calldata
-        let calldata_hex = calldata.strip_prefix("0x").unwrap_or(calldata);
-        let data_bytes =
-            hex::decode(calldata_hex).context("Failed to decode EVM calldata")?;
-
-        // 3. RLP-encode unsigned tx for EIP-155 signing:
-        //    [nonce, gasPrice, gasLimit, to, value, data, chainId, 0, 0]
-        let unsigned_items: Vec<Vec<u8>> = vec![
-            rlp_encode_u64(nonce),
-            rlp_encode_u64(gas_price),
-            rlp_encode_u64(gas_limit),
-            to_bytes.clone(),
-            vec![], // value = 0
-            data_bytes.clone(),
-            rlp_encode_u64(chain_id as u64),
-            vec![], // 0
-            vec![], // 0
-        ];
-        let unsigned_rlp = rlp_encode_list(&unsigned_items);
-
-        // 4. Keccak256 hash
-        let mut hasher = Keccak256::new();
-        hasher.update(&unsigned_rlp);
-        let tx_hash: [u8; 32] = hasher.finalize().into();
-
-        // 5. Sign with ECDSA key
-        let (r, s, recovery_id) = self
-            .crypto_service
-            .sign_evm_transaction_hash(&tx_hash)
-            .context("Failed to sign EVM transaction")?;
-
-        // 6. Compute EIP-155 v value: recovery_id + chainId * 2 + 35
-        let v = (recovery_id as u64) + (chain_id as u64) * 2 + 35;
-
-        // 7. Build signed tx RLP: [nonce, gasPrice, gasLimit, to, value, data, v, r, s]
-        let signed_items: Vec<Vec<u8>> = vec![
-            rlp_encode_u64(nonce),
-            rlp_encode_u64(gas_price),
-            rlp_encode_u64(gas_limit),
-            to_bytes,
-            vec![], // value = 0
-            data_bytes,
-            rlp_encode_u64(v),
-            r.to_vec(),
-            s.to_vec(),
-        ];
-        let signed_rlp = rlp_encode_list(&signed_items);
-        let raw_tx = format!("0x{}", hex::encode(&signed_rlp));
-
-        debug!(
-            "EVM raw tx: nonce={}, gas_price={}, chain_id={}, from={}",
-            nonce, gas_price, chain_id, from
-        );
-
-        // 8. Send via eth_sendRawTransaction
-        let tx_hash_result: String = self
-            .evm_json_rpc(
-                rpc_url,
-                "eth_sendRawTransaction",
-                vec![serde_json::json!(raw_tx)],
-            )
-            .await
-            .context("eth_sendRawTransaction failed")?;
-
-        Ok(tx_hash_result)
-    }
-
-    /// Wait for an EVM transaction receipt and verify success.
-    async fn evm_wait_for_receipt(&self, rpc_url: &str, tx_hash: &str) -> Result<()> {
-        for _ in 0..30 {
-            let receipt: Option<serde_json::Value> = self
-                .evm_json_rpc(
-                    rpc_url,
-                    "eth_getTransactionReceipt",
-                    vec![serde_json::json!(tx_hash)],
-                )
-                .await?;
-
-            if let Some(receipt) = receipt {
-                let status = receipt
-                    .get("status")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("0x0");
-                if status == "0x1" {
-                    return Ok(());
-                } else {
-                    anyhow::bail!(
-                        "EVM transaction {} failed with status: {}",
-                        tx_hash,
-                        status
-                    );
-                }
-            }
-
-            tokio::time::sleep(Duration::from_millis(500)).await;
-        }
-
-        anyhow::bail!("Timed out waiting for EVM transaction receipt: {}", tx_hash)
-    }
-
-    /// Check if a message was already delivered on the EVM GMP endpoint.
-    ///
-    /// Calls `isMessageDelivered(bytes32 intentId, uint8 msgType)` view function.
-    async fn evm_is_message_delivered(
-        &self,
-        rpc_url: &str,
-        gmp_endpoint: &str,
-        intent_id: &[u8],
-        msg_type: u8,
-    ) -> Result<bool> {
-        // Function selector: keccak256("isMessageDelivered(bytes32,uint8)")[0..4]
-        let selector = &Keccak256::digest(b"isMessageDelivered(bytes32,uint8)")[..4];
-
-        // ABI-encode: selector + intentId (32 bytes) + msgType (uint8 padded to 32 bytes)
-        let mut calldata = Vec::with_capacity(68);
-        calldata.extend_from_slice(selector);
-
-        // intentId as bytes32 (left-pad if needed)
-        let mut intent_id_padded = [0u8; 32];
-        let len = intent_id.len().min(32);
-        intent_id_padded[..len].copy_from_slice(&intent_id[..len]);
-        calldata.extend_from_slice(&intent_id_padded);
-
-        // msgType as uint8 padded to 32 bytes
-        let mut msg_type_padded = [0u8; 32];
-        msg_type_padded[31] = msg_type;
-        calldata.extend_from_slice(&msg_type_padded);
-
-        let data_hex = format!("0x{}", hex::encode(&calldata));
-
-        let result: String = self
-            .evm_json_rpc(
-                rpc_url,
-                "eth_call",
-                vec![
-                    serde_json::json!({
-                        "to": gmp_endpoint,
-                        "data": data_hex,
-                    }),
-                    serde_json::json!("latest"),
-                ],
-            )
-            .await
-            .context("Failed to call isMessageDelivered on EVM")?;
-
-        // Result is ABI-encoded bool: 32 bytes, last byte is 0 or 1
-        let clean = result.strip_prefix("0x").unwrap_or(&result);
-        Ok(clean.ends_with('1'))
-    }
-
-    /// Get the current EVM block number.
-    async fn evm_get_block_number(&self, rpc_url: &str) -> Result<u64> {
-        let block_hex: String = self
-            .evm_json_rpc(rpc_url, "eth_blockNumber", vec![])
-            .await
-            .context("eth_blockNumber failed")?;
-
-        let clean = block_hex.strip_prefix("0x").unwrap_or(&block_hex);
-        u64::from_str_radix(clean, 16).context("Failed to parse block number")
-    }
-
-    /// Generic EVM JSON-RPC call helper.
-    async fn evm_json_rpc<T: serde::de::DeserializeOwned>(
-        &self,
-        rpc_url: &str,
-        method: &str,
-        params: Vec<serde_json::Value>,
-    ) -> Result<T> {
-        let request = serde_json::json!({
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params,
-            "id": 1,
-        });
-
-        let rpc_future = async {
-            let resp = self
-                .http_client
-                .post(rpc_url)
-                .json(&request)
-                .send()
-                .await
-                .with_context(|| format!("Failed to send {} request to {}", method, rpc_url))?;
-            resp.json::<serde_json::Value>()
-                .await
-                .with_context(|| format!("Failed to parse {} response from {}", method, rpc_url))
-        };
-
-        let response: serde_json::Value = tokio::time::timeout(Duration::from_secs(15), rpc_future)
-            .await
-            .map_err(|_| anyhow::anyhow!("Timed out after 15s waiting for {} from {}", method, rpc_url))??;
-
-        if let Some(error) = response.get("error") {
-            let code = error.get("code").and_then(|c| c.as_i64()).unwrap_or(0);
-            let message = error
-                .get("message")
-                .and_then(|m| m.as_str())
-                .unwrap_or("unknown error");
-            anyhow::bail!(
-                "JSON-RPC error from {} ({}): {} (code: {})",
-                rpc_url,
-                method,
-                message,
-                code
-            );
-        }
-
-        let result = response
-            .get("result")
-            .ok_or_else(|| anyhow::anyhow!("No result in {} response", method))?;
-
-        serde_json::from_value(result.clone())
-            .with_context(|| format!("Failed to deserialize {} result", method))
     }
 
     /// Deliver message to SVM chain via integrated-gmp-endpoint DeliverMessage instruction.
@@ -2133,131 +1431,10 @@ impl SvmDeliverMessageInstruction {
 // HELPER FUNCTIONS
 // ============================================================================
 
-/// Parse Move `vector<u8>` from a view function result into a hex string (no 0x prefix).
-///
-/// Handles two formats returned by Aptos view functions:
-/// - Hex string: `"0x3c44cddd..."` -> `"3c44cddd..."`
-/// - JSON byte array: `["60", "68", ...]` -> hex encoded
-pub fn parse_view_bytes(value: &serde_json::Value) -> Result<String> {
-    if let Some(hex_str) = value.as_str() {
-        // Hex string format: "0x..."
-        Ok(hex_str.strip_prefix("0x").unwrap_or(hex_str).to_string())
-    } else if let Some(arr) = value.as_array() {
-        // JSON byte array format: ["60", "68", ...]
-        let mut bytes = Vec::with_capacity(arr.len());
-        for elem in arr {
-            let byte: u8 = elem
-                .as_str()
-                .and_then(|s| s.parse().ok())
-                .or_else(|| elem.as_u64().map(|n| n as u8))
-                .context("Invalid byte in view function result")?;
-            bytes.push(byte);
-        }
-        Ok(hex::encode(bytes))
-    } else {
-        anyhow::bail!("Unexpected view function bytes format: {:?}", value)
-    }
-}
-
-/// Convert array of byte strings (e.g., ["60", "68"]) to hex string with 0x prefix.
-#[allow(dead_code)]
-pub fn bytes_array_to_hex(bytes: &[String]) -> Result<String> {
-    let mut result = Vec::with_capacity(bytes.len());
-    for byte_str in bytes {
-        let byte: u8 = byte_str.parse().context("Invalid byte value")?;
-        result.push(byte);
-    }
-    Ok(format!("0x{}", hex::encode(result)))
-}
-
 /// Convert hex string (with or without 0x prefix) to bytes.
 pub fn hex_to_bytes(hex_str: &str) -> Result<Vec<u8>> {
     let hex_clean = hex_str.strip_prefix("0x").unwrap_or(hex_str);
     hex::decode(hex_clean).context("Invalid hex string")
-}
-
-/// Normalize address to have 0x prefix.
-pub fn normalize_address(addr: &str) -> String {
-    if addr.starts_with("0x") {
-        addr.to_string()
-    } else {
-        format!("0x{}", addr)
-    }
-}
-
-/// Check if the VM execution succeeded by parsing the CLI JSON output.
-///
-/// The Aptos CLI returns JSON with `"success": true/false` and `"vm_status"` fields.
-/// CLI exit code 0 alone doesn't guarantee VM execution success on all networks.
-pub fn check_vm_status_success(output: &str) -> Result<bool, anyhow::Error> {
-    // Try to parse as JSON
-    if let Ok(json) = serde_json::from_str::<serde_json::Value>(output) {
-        // Check "Result"."success" (standard Aptos CLI format)
-        if let Some(result) = json.get("Result") {
-            if let Some(success) = result.get("success") {
-                return success.as_bool().ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "VM status 'success' field is not a boolean: {:?}",
-                        success
-                    )
-                });
-            }
-        }
-        // Check top-level "success"
-        if let Some(success) = json.get("success") {
-            return success.as_bool().ok_or_else(|| {
-                anyhow::anyhow!(
-                    "VM status 'success' field is not a boolean: {:?}",
-                    success
-                )
-            });
-        }
-    }
-
-    // If we can't parse JSON, check for string indicators
-    if output.contains("\"success\": true") || output.contains("\"success\":true") {
-        return Ok(true);
-    }
-    if output.contains("\"success\": false") || output.contains("\"success\":false") {
-        return Ok(false);
-    }
-
-    // If no success field found at all, assume CLI exit code was sufficient
-    // (conservative: don't break on unknown output formats)
-    Ok(true)
-}
-
-/// Extract transaction hash from CLI output (handles both traditional and JSON formats).
-///
-/// This matches the pattern used by solver's hub.rs for consistency.
-pub fn extract_transaction_hash(output: &str) -> Option<String> {
-    // Try JSON format first: "transaction_hash": "0x..."
-    if let Some(start) = output.find("\"transaction_hash\"") {
-        let after_key = &output[start..];
-        if let Some(colon_pos) = after_key.find(':') {
-            let value_part = &after_key[colon_pos + 1..];
-            if let Some(quote_start) = value_part.find('"') {
-                let after_quote = &value_part[quote_start + 1..];
-                if let Some(quote_end) = after_quote.find('"') {
-                    let hash = &after_quote[..quote_end];
-                    if hash.starts_with("0x") {
-                        return Some(hash.to_string());
-                    }
-                }
-            }
-        }
-    }
-
-    // Fall back to traditional CLI format: "Transaction hash: 0x..."
-    for line in output.lines() {
-        if line.contains("hash") || line.contains("Hash") {
-            if let Some(hash) = line.split_whitespace().find(|s| s.starts_with("0x")) {
-                return Some(hash.to_string());
-            }
-        }
-    }
-
-    None
 }
 
 /// Parse a hex address into a 32-byte array.
@@ -2305,128 +1482,4 @@ pub fn ed25519_seed_to_keypair_bytes(seed: &[u8]) -> Result<[u8; 64]> {
     Ok(keypair_bytes)
 }
 
-// ============================================================================
-// EVM ABI ENCODING HELPERS
-// ============================================================================
-
-/// Compute keccak256 event topic hash for an event signature string.
-fn evm_event_topic(signature: &str) -> String {
-    let mut hasher = Keccak256::new();
-    hasher.update(signature.as_bytes());
-    format!("0x{}", hex::encode(hasher.finalize()))
-}
-
-/// ABI-encode a call to `deliverMessage(uint32,bytes32,bytes)`.
-///
-/// Returns the full calldata (selector + encoded params) as a hex string with 0x prefix.
-fn evm_encode_deliver_message(
-    src_chain_id: u32,
-    remote_gmp_endpoint_addr: &str,
-    payload: &str,
-) -> Result<String> {
-    // Function selector: keccak256("deliverMessage(uint32,bytes32,bytes)")[0:4]
-    let mut hasher = Keccak256::new();
-    hasher.update(b"deliverMessage(uint32,bytes32,bytes)");
-    let hash = hasher.finalize();
-    let selector = &hash[..4];
-
-    // Parse remote_gmp_endpoint_addr to 32 bytes
-    let remote_gmp_endpoint_addr_bytes = parse_32_byte_address(remote_gmp_endpoint_addr)?;
-
-    // Parse payload to bytes
-    let payload_bytes = hex_to_bytes(payload)?;
-
-    // ABI encoding: (uint32, bytes32, bytes)
-    // Word 0: srcChainId (uint32, left-padded to 32 bytes)
-    // Word 1: remoteGmpEndpointAddr (bytes32)
-    // Word 2: offset to payload (= 96 = 3 * 32, after the 3 head words)
-    // Word 3: payload length
-    // Word 4+: payload data (right-padded to 32-byte boundary)
-    let mut data = Vec::new();
-
-    // Selector
-    data.extend_from_slice(selector);
-
-    // Word 0: srcChainId
-    let mut word = [0u8; 32];
-    word[28..32].copy_from_slice(&src_chain_id.to_be_bytes());
-    data.extend_from_slice(&word);
-
-    // Word 1: remoteGmpEndpointAddr
-    data.extend_from_slice(&remote_gmp_endpoint_addr_bytes);
-
-    // Word 2: offset to payload (96 = 0x60, after 3 head words)
-    let mut word = [0u8; 32];
-    word[31] = 96;
-    data.extend_from_slice(&word);
-
-    // Dynamic section: payload
-    // Length
-    let mut word = [0u8; 32];
-    let payload_len = payload_bytes.len() as u64;
-    word[24..32].copy_from_slice(&payload_len.to_be_bytes());
-    data.extend_from_slice(&word);
-
-    // Payload data (right-padded to 32-byte boundary)
-    data.extend_from_slice(&payload_bytes);
-    let padding = (32 - (payload_bytes.len() % 32)) % 32;
-    data.extend(std::iter::repeat(0u8).take(padding));
-
-    Ok(format!("0x{}", hex::encode(data)))
-}
-
-// ============================================================================
-// RLP ENCODING HELPERS (for legacy EVM transactions)
-// ============================================================================
-
-/// Encode a u64 as big-endian bytes with no leading zeros (RLP integer format).
-fn rlp_encode_u64(val: u64) -> Vec<u8> {
-    if val == 0 {
-        return vec![];
-    }
-    let bytes = val.to_be_bytes();
-    let start = bytes.iter().position(|&b| b != 0).unwrap_or(8);
-    bytes[start..].to_vec()
-}
-
-/// RLP-encode a single byte-string item.
-fn rlp_encode_item(data: &[u8]) -> Vec<u8> {
-    if data.len() == 1 && data[0] < 0x80 {
-        // Single byte below 0x80: encoded as itself
-        vec![data[0]]
-    } else if data.is_empty() {
-        // Empty bytes: 0x80
-        vec![0x80]
-    } else if data.len() <= 55 {
-        let mut out = vec![0x80 + data.len() as u8];
-        out.extend_from_slice(data);
-        out
-    } else {
-        let len_bytes = rlp_encode_u64(data.len() as u64);
-        let mut out = vec![0xb7 + len_bytes.len() as u8];
-        out.extend_from_slice(&len_bytes);
-        out.extend_from_slice(data);
-        out
-    }
-}
-
-/// RLP-encode a list of items (each item is already raw bytes, NOT RLP-encoded).
-fn rlp_encode_list(items: &[Vec<u8>]) -> Vec<u8> {
-    let mut payload = Vec::new();
-    for item in items {
-        payload.extend(rlp_encode_item(item));
-    }
-
-    if payload.len() <= 55 {
-        let mut out = vec![0xc0 + payload.len() as u8];
-        out.extend(payload);
-        out
-    } else {
-        let len_bytes = rlp_encode_u64(payload.len() as u64);
-        let mut out = vec![0xf7 + len_bytes.len() as u8];
-        out.extend_from_slice(&len_bytes);
-        out.extend(payload);
-        out
-    }
-}
 
