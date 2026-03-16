@@ -27,6 +27,6 @@ export BASE_SEPOLIA_RPC_URL="$EVM_RPC_URL"
 EVM_HARDHAT_NETWORK="baseSepolia"
 EVM_DISPLAY_NAME="Base Sepolia Testnet"
 EVM_HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet" "$TESTNET_ASSETS_CONFIG")
-EVM_DEPLOY_SCRIPT="deploy-to-base-testnet.sh"
+EVM_DEPLOY_SCRIPT="deploy-to-base.sh"
 
 source "$SCRIPT_DIR/../../common/scripts/configure-evm.sh"

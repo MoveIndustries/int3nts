@@ -50,7 +50,7 @@ echo ""
 echo "--------------------------------------------"
 echo " Step 1: Deploy to Movement Mainnet"
 echo "--------------------------------------------"
-"$SCRIPT_DIR/scripts/deploy-to-movement-mainnet.sh"
+"$SCRIPT_DIR/scripts/deploy-to-movement.sh"
 echo ""
 
 # Propagate MVM addresses for subsequent deploys (EVM needs MOVEMENT_INTENT_MODULE_ADDR)
@@ -64,13 +64,13 @@ fi
 echo "--------------------------------------------"
 echo " Step 2: Deploy to Base Mainnet"
 echo "--------------------------------------------"
-"$SCRIPT_DIR/scripts/deploy-to-base-mainnet.sh"
+"$SCRIPT_DIR/scripts/deploy-to-base.sh"
 echo ""
 
 echo "--------------------------------------------"
 echo " Step 3: Deploy to HyperEVM Mainnet"
 echo "--------------------------------------------"
-"$SCRIPT_DIR/scripts/deploy-to-hyperliquid-mainnet.sh"
+"$SCRIPT_DIR/scripts/deploy-to-hyperliquid.sh"
 echo ""
 
 # ============================================================================

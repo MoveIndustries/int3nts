@@ -27,7 +27,7 @@ Sets up cross-chain GMP routing between deployed contracts.
 ### Check Preparedness
 
 ```bash
-./testing-infra/networks/testnet/check-testnet-preparedness.sh
+./testing-infra/networks/testnet/check-preparedness.sh
 ```
 
 ### Local Testing

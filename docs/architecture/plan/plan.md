@@ -400,9 +400,9 @@ MOVEMENT_MODULE_ADDR=
 
 ---
 
-**`testing-infra/networks/mainnet/scripts/deploy-to-hyperliquid-mainnet.sh`** (new file)
+**`testing-infra/networks/mainnet/scripts/deploy-to-hyperliquid.sh`** (new file)
 
-Mirrors `networks/testnet/scripts/deploy-to-base-testnet.sh` with:
+Mirrors `networks/testnet/scripts/deploy-to-base.sh` with:
 
 - `HYPERLIQUID_DEPLOYER_PRIVATE_KEY` instead of `BASE_DEPLOYER_PRIVATE_KEY`
 - RPC URL: `https://api.hyperliquid.xyz/evm` (no API key needed)
@@ -412,18 +412,18 @@ Mirrors `networks/testnet/scripts/deploy-to-base-testnet.sh` with:
 
 ---
 
-**`testing-infra/networks/mainnet/scripts/configure-hyperliquid-mainnet.sh`** (new file)
+**`testing-infra/networks/mainnet/scripts/configure-hyperliquid.sh`** (new file)
 
-Mirrors `networks/testnet/scripts/configure-base-testnet.sh` with:
+Mirrors `networks/testnet/scripts/configure-base.sh` with:
 
 - Reads `HYPERLIQUID_GMP_ENDPOINT_ADDR`, `HYPERLIQUID_INFLOW_ESCROW_ADDR`, `HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR`
 - Runs `configure-gmp.js --network hyperliquidMainnet` and `configure-hub-config.js --network hyperliquidMainnet`
 
 ---
 
-**`testing-infra/networks/mainnet/scripts/configure-movement-mainnet.sh`** (new file)
+**`testing-infra/networks/mainnet/scripts/configure-movement.sh`** (new file)
 
-Mirrors `networks/testnet/scripts/configure-movement-testnet.sh` for mainnet, including a HyperEVM block:
+Mirrors `networks/testnet/scripts/configure-movement.sh` for mainnet, including a HyperEVM block:
 ```bash
 # --- HyperEVM Mainnet ---
 HYPERLIQUID_CHAIN_ID=$(get_chain_id "hyperliquid")

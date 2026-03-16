@@ -12,7 +12,7 @@
 #
 # Requires:
 #   - .env.testnet with deployer keys for all chains
-#   - Movement CLI (see deploy-to-movement-testnet.sh for install)
+#   - Movement CLI (see scripts/deploy-to-movement.sh for install)
 
 set -e
 
@@ -50,7 +50,7 @@ echo ""
 echo "--------------------------------------------"
 echo " Step 1: Deploy to Movement Testnet"
 echo "--------------------------------------------"
-"$SCRIPT_DIR/scripts/deploy-to-movement-testnet.sh"
+"$SCRIPT_DIR/scripts/deploy-to-movement.sh"
 echo ""
 
 # Propagate MVM addresses for subsequent deploys (EVM/SVM need MOVEMENT_INTENT_MODULE_ADDR)
@@ -64,13 +64,13 @@ fi
 echo "--------------------------------------------"
 echo " Step 2: Deploy to Base Sepolia"
 echo "--------------------------------------------"
-"$SCRIPT_DIR/scripts/deploy-to-base-testnet.sh"
+"$SCRIPT_DIR/scripts/deploy-to-base.sh"
 echo ""
 
 echo "--------------------------------------------"
 echo " Step 3: Deploy to Solana Devnet"
 echo "--------------------------------------------"
-"$SCRIPT_DIR/scripts/deploy-to-solana-devnet.sh"
+"$SCRIPT_DIR/scripts/deploy-to-solana.sh"
 echo ""
 
 # ============================================================================

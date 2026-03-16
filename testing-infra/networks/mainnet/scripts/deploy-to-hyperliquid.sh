@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Deploy EVM Intent Contracts to Base Mainnet
+# Deploy EVM Intent Contracts to HyperEVM Mainnet (Hyperliquid)
 # Deploys all 3 contracts: IntentGmp, IntentInflowEscrow, IntentOutflowValidator
 # Reads keys from .env.mainnet and deploys/configures all contracts
 
@@ -27,19 +27,19 @@ if [ ! -f "$ASSETS_CONFIG_FILE" ]; then
     exit 1
 fi
 
-require_var "BASE_RPC_URL" "$BASE_RPC_URL"
+require_var "HYPERLIQUID_RPC_URL" "$HYPERLIQUID_RPC_URL"
 
-EVM_CHAIN_PREFIX="BASE"
-EVM_RPC_URL="$BASE_RPC_URL"
-export BASE_RPC_URL
-EVM_DEPLOYER_ADDR="$BASE_DEPLOYER_ADDR"
-EVM_HARDHAT_NETWORK="baseMainnet"
-EVM_DISPLAY_NAME="Base Mainnet"
+EVM_CHAIN_PREFIX="HYPERLIQUID"
+EVM_RPC_URL="$HYPERLIQUID_RPC_URL"
+export HYPERLIQUID_RPC_URL
+EVM_DEPLOYER_ADDR="$HYPERLIQUID_DEPLOYER_ADDR"
+EVM_HARDHAT_NETWORK="hyperliquidMainnet"
+EVM_DISPLAY_NAME="HyperEVM Mainnet"
 EVM_HUB_CHAIN_ID=$(get_chain_id "movement_mainnet" "$ASSETS_CONFIG_FILE")
 EVM_NETWORK_LABEL="mainnet"
-EVM_CHAIN_LABEL="Base"
-EVM_FRONTEND_ENV_VAR="NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS"
-EVM_LOG_PREFIX="base-mainnet"
-EVM_CHECK_SCRIPT="./testing-infra/networks/mainnet/check-mainnet-preparedness.sh"
+EVM_CHAIN_LABEL="HyperEVM"
+EVM_FRONTEND_ENV_VAR="NEXT_PUBLIC_HYPEREVM_ESCROW_CONTRACT_ADDRESS"
+EVM_LOG_PREFIX="hyperliquid-mainnet"
+EVM_CHECK_SCRIPT="./testing-infra/networks/mainnet/check-preparedness.sh"
 
 source "$SCRIPT_DIR/../../common/scripts/deploy-to-evm.sh"

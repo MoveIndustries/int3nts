@@ -27,6 +27,6 @@ export BASE_RPC_URL
 EVM_HARDHAT_NETWORK="baseMainnet"
 EVM_DISPLAY_NAME="Base Mainnet"
 EVM_HUB_CHAIN_ID=$(get_chain_id "movement_mainnet" "$MAINNET_ASSETS_CONFIG")
-EVM_DEPLOY_SCRIPT="deploy-to-base-mainnet.sh"
+EVM_DEPLOY_SCRIPT="deploy-to-base.sh"
 
 source "$SCRIPT_DIR/../../common/scripts/configure-evm.sh"

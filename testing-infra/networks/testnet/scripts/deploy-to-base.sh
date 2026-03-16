@@ -39,6 +39,6 @@ EVM_NETWORK_LABEL="testnet"
 EVM_CHAIN_LABEL="Base"
 EVM_FRONTEND_ENV_VAR="NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS"
 EVM_LOG_PREFIX="base-sepolia"
-EVM_CHECK_SCRIPT="./testing-infra/networks/testnet/check-testnet-preparedness.sh"
+EVM_CHECK_SCRIPT="./testing-infra/networks/testnet/check-preparedness.sh"
 
 source "$SCRIPT_DIR/../../common/scripts/deploy-to-evm.sh"

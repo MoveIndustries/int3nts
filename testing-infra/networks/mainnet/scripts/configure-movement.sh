@@ -9,10 +9,10 @@
 # Requires:
 #   - Movement CLI
 #   - .env.mainnet with:
-#     - MOVEMENT_INTENT_MODULE_ADDR (from deploy-to-movement-mainnet.sh)
-#     - MOVEMENT_MODULE_PRIVATE_KEY (from deploy-to-movement-mainnet.sh)
-#     - BASE_GMP_ENDPOINT_ADDR + BASE_CHAIN_ID (from deploy-to-base-mainnet.sh)
-#     - HYPERLIQUID_GMP_ENDPOINT_ADDR + HYPERLIQUID_CHAIN_ID (from deploy-to-hyperliquid-mainnet.sh)
+#     - MOVEMENT_INTENT_MODULE_ADDR (from deploy-to-movement.sh)
+#     - MOVEMENT_MODULE_PRIVATE_KEY (from deploy-to-movement.sh)
+#     - BASE_GMP_ENDPOINT_ADDR + BASE_CHAIN_ID (from deploy-to-base.sh)
+#     - HYPERLIQUID_GMP_ENDPOINT_ADDR + HYPERLIQUID_CHAIN_ID (from deploy-to-hyperliquid.sh)
 #     - INTEGRATED_GMP_MVM_ADDR (from get_relay_addresses) [optional, for relay auth]
 
 set -e
@@ -32,18 +32,18 @@ echo ""
 # Check for movement CLI
 if ! command -v movement &> /dev/null; then
     echo "ERROR: movement CLI not found"
-    echo "   See deploy-to-movement-mainnet.sh header for install instructions"
+    echo "   See deploy-to-movement.sh header for install instructions"
     exit 1
 fi
 
 # Load .env.mainnet
 load_env_file "$SCRIPT_DIR/../.env.mainnet"
 
-require_var "MOVEMENT_INTENT_MODULE_ADDR" "$MOVEMENT_INTENT_MODULE_ADDR" "Run deploy-to-movement-mainnet.sh first"
-require_var "MOVEMENT_MODULE_PRIVATE_KEY" "$MOVEMENT_MODULE_PRIVATE_KEY" "Should have been saved by deploy-to-movement-mainnet.sh"
-require_var "BASE_GMP_ENDPOINT_ADDR" "$BASE_GMP_ENDPOINT_ADDR" "Run deploy-to-base-mainnet.sh first"
-require_var "BASE_CHAIN_ID" "$BASE_CHAIN_ID" "Run deploy-to-base-mainnet.sh first"
-require_var "HYPERLIQUID_GMP_ENDPOINT_ADDR" "$HYPERLIQUID_GMP_ENDPOINT_ADDR" "Run deploy-to-hyperliquid-mainnet.sh first"
+require_var "MOVEMENT_INTENT_MODULE_ADDR" "$MOVEMENT_INTENT_MODULE_ADDR" "Run deploy-to-movement.sh first"
+require_var "MOVEMENT_MODULE_PRIVATE_KEY" "$MOVEMENT_MODULE_PRIVATE_KEY" "Should have been saved by deploy-to-movement.sh"
+require_var "BASE_GMP_ENDPOINT_ADDR" "$BASE_GMP_ENDPOINT_ADDR" "Run deploy-to-base.sh first"
+require_var "BASE_CHAIN_ID" "$BASE_CHAIN_ID" "Run deploy-to-base.sh first"
+require_var "HYPERLIQUID_GMP_ENDPOINT_ADDR" "$HYPERLIQUID_GMP_ENDPOINT_ADDR" "Run deploy-to-hyperliquid.sh first"
 
 MODULE_ADDR="$MOVEMENT_INTENT_MODULE_ADDR"
 HYPERLIQUID_CHAIN_ID=$(get_chain_id "hyperliquid_mainnet" "$ASSETS_CONFIG_FILE")

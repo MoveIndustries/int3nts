@@ -9,10 +9,10 @@
 # Requires:
 #   - Movement CLI
 #   - .env.testnet with:
-#     - MOVEMENT_INTENT_MODULE_ADDR (from deploy-to-movement-testnet.sh)
-#     - MOVEMENT_MODULE_PRIVATE_KEY (from deploy-to-movement-testnet.sh)
-#     - BASE_GMP_ENDPOINT_ADDR + BASE_CHAIN_ID (from deploy-to-base-testnet.sh)
-#     - SOLANA_GMP_ID (from deploy-to-solana-devnet.sh) [optional]
+#     - MOVEMENT_INTENT_MODULE_ADDR (from deploy-to-movement.sh)
+#     - MOVEMENT_MODULE_PRIVATE_KEY (from deploy-to-movement.sh)
+#     - BASE_GMP_ENDPOINT_ADDR + BASE_CHAIN_ID (from deploy-to-base.sh)
+#     - SOLANA_GMP_ID (from deploy-to-solana.sh) [optional]
 #     - INTEGRATED_GMP_MVM_ADDR (from get_relay_addresses) [optional, for relay auth]
 
 set -e
@@ -29,18 +29,18 @@ echo ""
 # Check for movement CLI
 if ! command -v movement &> /dev/null; then
     echo "ERROR: movement CLI not found"
-    echo "   See deploy-to-movement-testnet.sh header for install instructions"
+    echo "   See deploy-to-movement.sh header for install instructions"
     exit 1
 fi
 
 # Load .env.testnet
 load_env_file "$SCRIPT_DIR/../.env.testnet"
 
-require_var "MOVEMENT_INTENT_MODULE_ADDR" "$MOVEMENT_INTENT_MODULE_ADDR" "Run deploy-to-movement-testnet.sh first"
-require_var "MOVEMENT_MODULE_PRIVATE_KEY" "$MOVEMENT_MODULE_PRIVATE_KEY" "Should have been saved by deploy-to-movement-testnet.sh"
-require_var "BASE_GMP_ENDPOINT_ADDR" "$BASE_GMP_ENDPOINT_ADDR" "Run deploy-to-base-testnet.sh first"
-require_var "BASE_CHAIN_ID" "$BASE_CHAIN_ID" "Run deploy-to-base-testnet.sh first"
-require_var "SOLANA_GMP_ID" "$SOLANA_GMP_ID" "Run deploy-to-solana-devnet.sh first"
+require_var "MOVEMENT_INTENT_MODULE_ADDR" "$MOVEMENT_INTENT_MODULE_ADDR" "Run deploy-to-movement.sh first"
+require_var "MOVEMENT_MODULE_PRIVATE_KEY" "$MOVEMENT_MODULE_PRIVATE_KEY" "Should have been saved by deploy-to-movement.sh"
+require_var "BASE_GMP_ENDPOINT_ADDR" "$BASE_GMP_ENDPOINT_ADDR" "Run deploy-to-base.sh first"
+require_var "BASE_CHAIN_ID" "$BASE_CHAIN_ID" "Run deploy-to-base.sh first"
+require_var "SOLANA_GMP_ID" "$SOLANA_GMP_ID" "Run deploy-to-solana.sh first"
 
 MODULE_ADDR="$MOVEMENT_INTENT_MODULE_ADDR"
 MOVEMENT_RPC_URL="https://testnet.movementnetwork.xyz/v1"
