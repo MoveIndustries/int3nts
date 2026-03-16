@@ -219,7 +219,7 @@ if [ -n "$SOLVER_PROFILE" ]; then
         echo "     --network custom \\"
         echo "     --rest-url https://testnet.movementnetwork.xyz/v1 \\"
         echo "     --private-key \"\$MOVEMENT_SOLVER_PRIVATE_KEY\" \\"
-        echo "     --skip-faucet --assume-yes"
+        echo "     --assume-yes"
         echo ""
         echo "   Note: MOVEMENT_SOLVER_PRIVATE_KEY should be set in .env.testnet"
         echo ""

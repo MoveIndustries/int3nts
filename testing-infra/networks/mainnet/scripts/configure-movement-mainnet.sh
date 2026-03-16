@@ -37,14 +37,7 @@ if ! command -v movement &> /dev/null; then
 fi
 
 # Load .env.mainnet
-MAINNET_KEYS_FILE="$SCRIPT_DIR/../.env.mainnet"
-if [ ! -f "$MAINNET_KEYS_FILE" ]; then
-    echo "ERROR: .env.mainnet not found at $MAINNET_KEYS_FILE"
-    exit 1
-fi
-if [ "${DEPLOY_ENV_SOURCED:-}" != "1" ]; then
-    source "$MAINNET_KEYS_FILE"
-fi
+load_env_file "$SCRIPT_DIR/../.env.mainnet"
 
 require_var "MOVEMENT_INTENT_MODULE_ADDR" "$MOVEMENT_INTENT_MODULE_ADDR" "Run deploy-to-movement-mainnet.sh first"
 require_var "MOVEMENT_MODULE_PRIVATE_KEY" "$MOVEMENT_MODULE_PRIVATE_KEY" "Should have been saved by deploy-to-movement-mainnet.sh"
@@ -61,7 +54,6 @@ echo " Setting up admin profile..."
 movement init --profile "$TEMP_PROFILE" \
   --network custom \
   --rest-url "$MOVEMENT_RPC_URL" \
-  --faucet-url https://faucet.movementnetwork.xyz/ \
   --private-key "$MOVEMENT_MODULE_PRIVATE_KEY" \
   --skip-faucet \
   --assume-yes 2>/dev/null

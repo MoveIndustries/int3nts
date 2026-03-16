@@ -28,14 +28,7 @@ echo "=================================="
 echo ""
 
 # Load .env.mainnet
-MAINNET_KEYS_FILE="$SCRIPT_DIR/../.env.mainnet"
-if [ ! -f "$MAINNET_KEYS_FILE" ]; then
-    echo "ERROR: .env.mainnet not found at $MAINNET_KEYS_FILE"
-    exit 1
-fi
-if [ "${DEPLOY_ENV_SOURCED:-}" != "1" ]; then
-    source "$MAINNET_KEYS_FILE"
-fi
+load_env_file "$SCRIPT_DIR/../.env.mainnet"
 
 require_var "HYPERLIQUID_DEPLOYER_PRIVATE_KEY" "$HYPERLIQUID_DEPLOYER_PRIVATE_KEY"
 require_var "HYPERLIQUID_GMP_ENDPOINT_ADDR" "$HYPERLIQUID_GMP_ENDPOINT_ADDR" "Run deploy-to-hyperliquid-mainnet.sh first"
@@ -53,40 +46,13 @@ echo ""
 # 1. Verify contracts are deployed
 echo " 1. Verifying deployed contracts..."
 
-GMP_CODE=$(curl -s --max-time 10 -X POST "$HYPERLIQUID_RPC_URL" \
-    -H "Content-Type: application/json" \
-    -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$HYPERLIQUID_GMP_ENDPOINT_ADDR\",\"latest\"],\"id\":1}" \
-    | jq -r '.result // ""' 2>/dev/null)
-
-if [ -z "$GMP_CODE" ] || [ "$GMP_CODE" = "0x" ] || [ "$GMP_CODE" = "" ]; then
-    echo "FATAL: IntentGmp contract not found at $HYPERLIQUID_GMP_ENDPOINT_ADDR"
-    exit 1
-fi
-echo "   IntentGmp ($HYPERLIQUID_GMP_ENDPOINT_ADDR): deployed"
+verify_evm_contract "$HYPERLIQUID_RPC_URL" "$HYPERLIQUID_GMP_ENDPOINT_ADDR" "IntentGmp"
 
 require_var "HYPERLIQUID_INFLOW_ESCROW_ADDR" "$HYPERLIQUID_INFLOW_ESCROW_ADDR" "Run deploy-to-hyperliquid-mainnet.sh first"
-ESCROW_CODE=$(curl -s --max-time 10 -X POST "$HYPERLIQUID_RPC_URL" \
-    -H "Content-Type: application/json" \
-    -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$HYPERLIQUID_INFLOW_ESCROW_ADDR\",\"latest\"],\"id\":1}" \
-    | jq -r '.result // ""' 2>/dev/null)
-
-if [ -z "$ESCROW_CODE" ] || [ "$ESCROW_CODE" = "0x" ] || [ "$ESCROW_CODE" = "" ]; then
-    echo "FATAL: IntentInflowEscrow contract not found at $HYPERLIQUID_INFLOW_ESCROW_ADDR"
-    exit 1
-fi
-echo "   IntentInflowEscrow ($HYPERLIQUID_INFLOW_ESCROW_ADDR): deployed"
+verify_evm_contract "$HYPERLIQUID_RPC_URL" "$HYPERLIQUID_INFLOW_ESCROW_ADDR" "IntentInflowEscrow"
 
 require_var "HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR" "$HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR" "Run deploy-to-hyperliquid-mainnet.sh first"
-OUTFLOW_CODE=$(curl -s --max-time 10 -X POST "$HYPERLIQUID_RPC_URL" \
-    -H "Content-Type: application/json" \
-    -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getCode\",\"params\":[\"$HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR\",\"latest\"],\"id\":1}" \
-    | jq -r '.result // ""' 2>/dev/null)
-
-if [ -z "$OUTFLOW_CODE" ] || [ "$OUTFLOW_CODE" = "0x" ] || [ "$OUTFLOW_CODE" = "" ]; then
-    echo "FATAL: IntentOutflowValidator contract not found at $HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR"
-    exit 1
-fi
-echo "   IntentOutflowValidator ($HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR): deployed"
+verify_evm_contract "$HYPERLIQUID_RPC_URL" "$HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR" "IntentOutflowValidator"
 echo ""
 
 # 2. Set remote GMP endpoint on GMP endpoint

@@ -73,13 +73,13 @@ fi
 
 FUNDER_ADDR="${MOVEMENT_DEPLOYER_ADDR#0x}"
 FUNDER_ADDR_FULL="0x${FUNDER_ADDR}"
+MOVEMENT_RPC_URL="https://testnet.movementnetwork.xyz/v1"
 
 # Setup funding account profile
 echo " Step 1: Setting up funding account..."
 movement init --profile movement-funder \
   --network custom \
-  --rest-url https://testnet.movementnetwork.xyz/v1 \
-  --faucet-url https://faucet.movementnetwork.xyz/ \
+  --rest-url "$MOVEMENT_RPC_URL" \
   --private-key "$MOVEMENT_DEPLOYER_PRIVATE_KEY" \
   --skip-faucet \
   --assume-yes 2>/dev/null
@@ -104,8 +104,7 @@ DEPLOY_PRIVATE_KEY=$(cat "${KEY_FILE}.key" 2>/dev/null || cat "$KEY_FILE" 2>/dev
 TEMP_PROFILE="movement-deploy-temp-$$"
 movement init --profile "$TEMP_PROFILE" \
   --network custom \
-  --rest-url https://testnet.movementnetwork.xyz/v1 \
-  --faucet-url https://faucet.movementnetwork.xyz/ \
+  --rest-url "$MOVEMENT_RPC_URL" \
   --private-key "$DEPLOY_PRIVATE_KEY" \
   --skip-faucet \
   --assume-yes 2>/dev/null
@@ -123,77 +122,18 @@ DEPLOY_ADDR_FULL="0x${DEPLOY_ADDR}"
 echo "   Module address: $DEPLOY_ADDR_FULL"
 echo ""
 
-# Fund the new address - try faucet first, fall back to transfer from deployer
+# Fund the new address — transfer from deployer
 echo " Step 3: Funding module address..."
 
 FUND_AMOUNT=100000000  # 1 MOVE in octas
-FAUCET_SUCCESS=false
 
-# Try faucet via curl (Movement testnet faucet API)
-echo "   Trying faucet..."
-FAUCET_RESPONSE=$(curl -s -X POST "https://faucet.movementnetwork.xyz/mint?amount=$FUND_AMOUNT&address=$DEPLOY_ADDR_FULL" 2>/dev/null || echo "")
-
-if [ -n "$FAUCET_RESPONSE" ] && ! echo "$FAUCET_RESPONSE" | grep -qi "error"; then
-    echo "   ✅ Faucet request sent"
-    FAUCET_SUCCESS=true
-    sleep 3  # Wait for faucet transaction
-else
-    # Try alternative faucet method via CLI
-    if movement account fund-with-faucet \
-        --profile "$TEMP_PROFILE" \
-        --faucet-url https://faucet.movementnetwork.xyz/ \
-        --amount $FUND_AMOUNT 2>/dev/null; then
-        echo "   ✅ Faucet funding successful"
-        FAUCET_SUCCESS=true
-    fi
-fi
-
-# Check if funding worked
-if [ "$FAUCET_SUCCESS" = true ]; then
-    sleep 2
-    BALANCE=$(curl -s "https://testnet.movementnetwork.xyz/v1/accounts/$DEPLOY_ADDR_FULL/resources" 2>/dev/null | jq -r '.[] | select(.type == "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>") | .data.coin.value // "0"' || echo "0")
-    if [ "$BALANCE" = "0" ] || [ -z "$BALANCE" ]; then
-        echo "   ️  Faucet didn't fund the account"
-        FAUCET_SUCCESS=false
-    fi
-fi
-
-# If faucet failed, offer options
-if [ "$FAUCET_SUCCESS" = false ]; then
-    echo ""
-    echo "   Faucet unavailable or failed."
-    echo "   Module address: $DEPLOY_ADDR_FULL"
-    echo ""
-    echo "   Options:"
-    echo "   [y] Transfer 1 MOVE from your deployer account ($FUNDER_ADDR_FULL)"
-    echo "   [m] Manually fund via https://faucet.movementlabs.xyz (then press Enter)"
-    echo "   [n] Cancel deployment"
-    echo ""
-    read -p "   Choice (y/m/n): " -n 1 -r
-    echo
-    
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "   Transferring from deployer account..."
-        movement move run \
-          --profile movement-funder \
-          --function-id "0x1::aptos_account::transfer" \
-          --args "address:$DEPLOY_ADDR_FULL" "u64:$FUND_AMOUNT" \
-          --assume-yes
-        echo "   ✅ Transferred $FUND_AMOUNT octas (1 MOVE) from deployer"
-    elif [[ $REPLY =~ ^[Mm]$ ]]; then
-        echo ""
-        echo "   Please fund this address manually:"
-        echo "   $DEPLOY_ADDR_FULL"
-        echo ""
-        echo "   Visit: https://faucet.movementlabs.xyz"
-        echo ""
-        read -p "   Press Enter when funded..." -r
-    else
-        echo "   ❌ Deployment cancelled"
-        rm -rf "$TEMP_DIR"
-        exit 1
-    fi
-fi
+echo "   Transferring from deployer account..."
+movement move run \
+  --profile movement-funder \
+  --function-id "0x1::aptos_account::transfer" \
+  --args "address:$DEPLOY_ADDR_FULL" "u64:$FUND_AMOUNT" \
+  --assume-yes
+echo "   ✅ Transferred $FUND_AMOUNT octas (1 MOVE) from deployer"
 
 # Wait for transaction to propagate
 sleep 3
@@ -201,7 +141,7 @@ sleep 3
 # Verify balance with retry option
 while true; do
     echo "   Verifying balance..."
-    BALANCE=$(curl -s "https://testnet.movementnetwork.xyz/v1/accounts/$DEPLOY_ADDR_FULL/resources" 2>/dev/null | jq -r '.[] | select(.type == "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>") | .data.coin.value // "0"' || echo "0")
+    BALANCE=$(curl -s "$MOVEMENT_RPC_URL/accounts/$DEPLOY_ADDR_FULL/resources" 2>/dev/null | jq -r '.[] | select(.type == "0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>") | .data.coin.value // "0"' || echo "0")
     if [ -z "$BALANCE" ]; then BALANCE="0"; fi
     echo "   Module address balance: $BALANCE octas"
     
@@ -237,7 +177,7 @@ echo " Configuration:"
 echo "   Funder Address: $FUNDER_ADDR_FULL"
 echo "   Module Address: $DEPLOY_ADDR_FULL"
 echo "   Network: Movement Bardock Testnet"
-echo "   RPC URL: https://testnet.movementnetwork.xyz/v1"
+echo "   RPC URL: $MOVEMENT_RPC_URL"
 echo ""
 
 # Deploy Move modules (intent-gmp first, then intent-hub)
@@ -409,7 +349,7 @@ LOG_FILE="$LOG_DIR/deploy-movement-testnet-$(date +%Y%m%d-%H%M%S).log"
     echo "Module address:            $DEPLOY_ADDR_FULL"
     echo "Module private key:        $DEPLOY_PRIVATE_KEY"
     echo "Network:                   Movement Bardock Testnet"
-    echo "RPC URL:                   https://testnet.movementnetwork.xyz/v1"
+    echo "RPC URL:                   $MOVEMENT_RPC_URL"
 } > "$LOG_FILE"
 echo " Deployment log saved to: $LOG_FILE"
 

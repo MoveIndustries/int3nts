@@ -34,14 +34,7 @@ if ! command -v movement &> /dev/null; then
 fi
 
 # Load .env.testnet
-TESTNET_KEYS_FILE="$SCRIPT_DIR/../.env.testnet"
-if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
-    exit 1
-fi
-if [ "${DEPLOY_ENV_SOURCED:-}" != "1" ]; then
-    source "$TESTNET_KEYS_FILE"
-fi
+load_env_file "$SCRIPT_DIR/../.env.testnet"
 
 require_var "MOVEMENT_INTENT_MODULE_ADDR" "$MOVEMENT_INTENT_MODULE_ADDR" "Run deploy-to-movement-testnet.sh first"
 require_var "MOVEMENT_MODULE_PRIVATE_KEY" "$MOVEMENT_MODULE_PRIVATE_KEY" "Should have been saved by deploy-to-movement-testnet.sh"
@@ -51,15 +44,14 @@ require_var "SOLANA_GMP_ID" "$SOLANA_GMP_ID" "Run deploy-to-solana-devnet.sh fir
 
 MODULE_ADDR="$MOVEMENT_INTENT_MODULE_ADDR"
 MOVEMENT_RPC_URL="https://testnet.movementnetwork.xyz/v1"
-SVM_CHAIN_ID=$(get_chain_id "solana_devnet")
+SVM_CHAIN_ID=$(get_chain_id "solana_devnet" "$TESTNET_ASSETS_CONFIG")
 
 # Create temporary Movement CLI profile with module admin key
 TEMP_PROFILE="movement-configure-$$"
 echo " Setting up admin profile..."
 movement init --profile "$TEMP_PROFILE" \
   --network custom \
-  --rest-url https://testnet.movementnetwork.xyz/v1 \
-  --faucet-url https://faucet.movementnetwork.xyz/ \
+  --rest-url "$MOVEMENT_RPC_URL" \
   --private-key "$MOVEMENT_MODULE_PRIVATE_KEY" \
   --skip-faucet \
   --assume-yes 2>/dev/null

@@ -23,18 +23,7 @@ echo "=========================================="
 echo ""
 
 # Load .env.testnet
-TESTNET_KEYS_FILE="$SCRIPT_DIR/../.env.testnet"
-
-if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "❌ ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
-    echo "   Create it from env.testnet.example in this directory"
-    exit 1
-fi
-
-# Source the keys file (skip if parent already exported env)
-if [ "${DEPLOY_ENV_SOURCED:-}" != "1" ]; then
-    source "$TESTNET_KEYS_FILE"
-fi
+load_env_file "$SCRIPT_DIR/../.env.testnet"
 
 # Check required variables
 if [ -z "$SOLANA_DEPLOYER_PRIVATE_KEY" ]; then
@@ -55,8 +44,8 @@ fi
 
 # Solana devnet RPC
 SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://api.devnet.solana.com}"
-HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet")
-SVM_CHAIN_ID=$(get_chain_id "solana_devnet")
+HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet" "$TESTNET_ASSETS_CONFIG")
+SVM_CHAIN_ID=$(get_chain_id "solana_devnet" "$TESTNET_ASSETS_CONFIG")
 
 echo " Configuration:"
 echo "   Deployer Address: $SOLANA_DEPLOYER_ADDR"

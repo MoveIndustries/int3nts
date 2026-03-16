@@ -38,14 +38,7 @@ echo "=============================================="
 echo ""
 
 # Load .env.testnet
-TESTNET_KEYS_FILE="$SCRIPT_DIR/../.env.testnet"
-if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
-    exit 1
-fi
-if [ "${DEPLOY_ENV_SOURCED:-}" != "1" ]; then
-    source "$TESTNET_KEYS_FILE"
-fi
+load_env_file "$SCRIPT_DIR/../.env.testnet"
 
 require_var "SOLANA_DEPLOYER_PRIVATE_KEY" "$SOLANA_DEPLOYER_PRIVATE_KEY"
 require_var "MOVEMENT_INTENT_MODULE_ADDR" "$MOVEMENT_INTENT_MODULE_ADDR" "Run deploy-to-movement-testnet.sh first"
@@ -54,7 +47,7 @@ require_var "SOLANA_PROGRAM_ID" "$SOLANA_PROGRAM_ID" "Run deploy-to-solana-devne
 require_var "SOLANA_OUTFLOW_ID" "$SOLANA_OUTFLOW_ID" "Run deploy-to-solana-devnet.sh first"
 
 SOLANA_RPC_URL="${SOLANA_RPC_URL:-https://api.devnet.solana.com}"
-HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet")
+HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet" "$TESTNET_ASSETS_CONFIG")
 
 echo " Configuration:"
 echo "   Hub Chain ID: $HUB_CHAIN_ID"

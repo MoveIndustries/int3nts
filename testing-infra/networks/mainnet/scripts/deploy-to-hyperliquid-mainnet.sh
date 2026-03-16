@@ -23,18 +23,7 @@ echo "   IntentGmp, IntentInflowEscrow, IntentOutflowValidator"
 echo ""
 
 # Load .env.mainnet
-MAINNET_KEYS_FILE="$SCRIPT_DIR/../.env.mainnet"
-
-if [ ! -f "$MAINNET_KEYS_FILE" ]; then
-    echo "❌ ERROR: .env.mainnet not found at $MAINNET_KEYS_FILE"
-    echo "   Create it from env.mainnet.example in this directory"
-    exit 1
-fi
-
-# Source the keys file (skip if parent already exported env)
-if [ "${DEPLOY_ENV_SOURCED:-}" != "1" ]; then
-    source "$MAINNET_KEYS_FILE"
-fi
+load_env_file "$SCRIPT_DIR/../.env.mainnet"
 
 # Check required variables
 if [ -z "$HYPERLIQUID_DEPLOYER_PRIVATE_KEY" ]; then

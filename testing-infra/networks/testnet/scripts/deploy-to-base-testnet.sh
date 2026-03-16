@@ -21,18 +21,7 @@ echo "   IntentGmp, IntentInflowEscrow, IntentOutflowValidator"
 echo ""
 
 # Load .env.testnet
-TESTNET_KEYS_FILE="$SCRIPT_DIR/../.env.testnet"
-
-if [ ! -f "$TESTNET_KEYS_FILE" ]; then
-    echo "❌ ERROR: .env.testnet not found at $TESTNET_KEYS_FILE"
-    echo "   Create it from env.testnet.example in this directory"
-    exit 1
-fi
-
-# Source the keys file (skip if parent already exported env)
-if [ "${DEPLOY_ENV_SOURCED:-}" != "1" ]; then
-    source "$TESTNET_KEYS_FILE"
-fi
+load_env_file "$SCRIPT_DIR/../.env.testnet"
 
 # Check required variables
 if [ -z "$BASE_DEPLOYER_PRIVATE_KEY" ]; then
@@ -90,7 +79,7 @@ fi
 export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"
 export APPROVER_ADDR="$INTEGRATED_GMP_EVM_PUBKEY_HASH"
 export MOVEMENT_INTENT_MODULE_ADDR
-export HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet")
+export HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet" "$TESTNET_ASSETS_CONFIG")
 export BASE_SEPOLIA_RPC_URL
 # Relay address for integrated-gmp (derived from ECDSA key, different from deployer)
 export RELAY_ADDRESS="${INTEGRATED_GMP_EVM_PUBKEY_HASH}"

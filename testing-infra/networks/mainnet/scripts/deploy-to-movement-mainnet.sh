@@ -81,7 +81,6 @@ echo " Step 1: Setting up funding account..."
 movement init --profile movement-funder \
   --network custom \
   --rest-url "$MOVEMENT_RPC_URL" \
-  --faucet-url https://faucet.movementnetwork.xyz/ \
   --private-key "$MOVEMENT_DEPLOYER_PRIVATE_KEY" \
   --skip-faucet \
   --assume-yes 2>/dev/null
@@ -107,7 +106,6 @@ TEMP_PROFILE="movement-deploy-temp-$$"
 movement init --profile "$TEMP_PROFILE" \
   --network custom \
   --rest-url "$MOVEMENT_RPC_URL" \
-  --faucet-url https://faucet.movementnetwork.xyz/ \
   --private-key "$DEPLOY_PRIVATE_KEY" \
   --skip-faucet \
   --assume-yes 2>/dev/null
@@ -125,7 +123,7 @@ DEPLOY_ADDR_FULL="0x${DEPLOY_ADDR}"
 echo "   Module address: $DEPLOY_ADDR_FULL"
 echo ""
 
-# Fund the new address — no faucet on mainnet, transfer from deployer
+# Fund the new address — transfer from deployer
 echo " Step 3: Funding module address..."
 
 FUND_AMOUNT=100000000  # 1 MOVE in octas
