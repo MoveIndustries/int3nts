@@ -15,7 +15,7 @@ export PROJECT_ROOT
 source "$PROJECT_ROOT/testing-infra/ci-e2e/util.sh" 2>/dev/null || true
 source "$SCRIPT_DIR/../lib/env-utils.sh"
 
-ASSETS_CONFIG="$SCRIPT_DIR/../config/mainnet-assets.toml"
+ASSETS_CONFIG_FILE="$SCRIPT_DIR/../config/mainnet-assets.toml"
 
 echo " Deploying EVM Contracts to HyperEVM Mainnet"
 echo "================================================="
@@ -49,8 +49,8 @@ if [ -z "$INTEGRATED_GMP_EVM_PUBKEY_HASH" ]; then
 fi
 
 # Load assets configuration
-if [ ! -f "$ASSETS_CONFIG" ]; then
-    echo "❌ ERROR: mainnet-assets.toml not found at $ASSETS_CONFIG"
+if [ ! -f "$ASSETS_CONFIG_FILE" ]; then
+    echo "❌ ERROR: mainnet-assets.toml not found at $ASSETS_CONFIG_FILE"
     exit 1
 fi
 
@@ -88,7 +88,7 @@ fi
 export DEPLOYER_PRIVATE_KEY="$HYPERLIQUID_DEPLOYER_PRIVATE_KEY"
 export APPROVER_ADDR="$INTEGRATED_GMP_EVM_PUBKEY_HASH"
 export MOVEMENT_INTENT_MODULE_ADDR
-export HUB_CHAIN_ID=$(get_chain_id "movement_mainnet" "$ASSETS_CONFIG")
+export HUB_CHAIN_ID=$(get_chain_id "movement_mainnet" "$ASSETS_CONFIG_FILE")
 export HYPERLIQUID_RPC_URL
 # Relay address for integrated-gmp (derived from ECDSA key, different from deployer)
 export RELAY_ADDRESS="${INTEGRATED_GMP_EVM_PUBKEY_HASH}"

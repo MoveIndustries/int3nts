@@ -9,8 +9,8 @@
 # The new module address must be updated in coordinator and solver config
 # files after deployment.
 #
-# REQUIRES: Movement CLI
-# Install for mainnet:
+# REQUIRES: Movement CLI (not aptos CLI)
+# Install for mainnet (Move 2 support):
 #   ARM64: curl -LO https://github.com/movementlabsxyz/homebrew-movement-cli/releases/download/bypass-homebrew/movement-move2-testnet-macos-arm64.tar.gz && mkdir -p temp_extract && tar -xzf movement-move2-testnet-macos-arm64.tar.gz -C temp_extract && chmod +x temp_extract/movement && sudo mv temp_extract/movement /usr/local/bin/movement && rm -rf temp_extract
 #   x86_64: curl -LO https://github.com/movementlabsxyz/homebrew-movement-cli/releases/download/bypass-homebrew/movement-move2-testnet-macos-x86_64.tar.gz && mkdir -p temp_extract && tar -xzf movement-move2-testnet-macos-x86_64.tar.gz -C temp_extract && chmod +x temp_extract/movement && sudo mv temp_extract/movement /usr/local/bin/movement && rm -rf temp_extract
 #
@@ -23,7 +23,6 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../../.." && pwd )"
 export PROJECT_ROOT
 
-ASSETS_CONFIG="$SCRIPT_DIR/../config/mainnet-assets.toml"
 MOVEMENT_RPC_URL="https://mainnet.movementnetwork.xyz/v1"
 
 echo " Deploying Move Intent Framework to Movement Mainnet"
@@ -35,7 +34,7 @@ if ! command -v movement &> /dev/null; then
     echo "❌ ERROR: movement CLI not found"
     echo ""
     echo "   Movement mainnet requires the Movement CLI (not aptos CLI)."
-    echo "   Install the Movement CLI:"
+    echo "   Install the Move 2 mainnet CLI:"
     echo ""
     echo "   # For Mac ARM64 (M-series):"
     echo "   curl -LO https://github.com/movementlabsxyz/homebrew-movement-cli/releases/download/bypass-homebrew/movement-move2-testnet-macos-arm64.tar.gz && mkdir -p temp_extract && tar -xzf movement-move2-testnet-macos-arm64.tar.gz -C temp_extract && chmod +x temp_extract/movement && sudo mv temp_extract/movement /usr/local/bin/movement && rm -rf temp_extract"

@@ -22,7 +22,7 @@ PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../../.." && pwd )"
 
 source "$SCRIPT_DIR/../lib/env-utils.sh"
 
-ASSETS_CONFIG="$SCRIPT_DIR/../config/mainnet-assets.toml"
+ASSETS_CONFIG_FILE="$SCRIPT_DIR/../config/mainnet-assets.toml"
 MOVEMENT_RPC_URL="https://mainnet.movementnetwork.xyz/v1"
 
 echo " Configuring Movement Mainnet (Remote GMP Endpoints)"
@@ -53,7 +53,7 @@ require_var "BASE_CHAIN_ID" "$BASE_CHAIN_ID" "Run deploy-to-base-mainnet.sh firs
 require_var "HYPERLIQUID_GMP_ENDPOINT_ADDR" "$HYPERLIQUID_GMP_ENDPOINT_ADDR" "Run deploy-to-hyperliquid-mainnet.sh first"
 
 MODULE_ADDR="$MOVEMENT_INTENT_MODULE_ADDR"
-HYPERLIQUID_CHAIN_ID=$(get_chain_id "hyperliquid_mainnet" "$ASSETS_CONFIG")
+HYPERLIQUID_CHAIN_ID=$(get_chain_id "hyperliquid_mainnet" "$ASSETS_CONFIG_FILE")
 
 # Create temporary Movement CLI profile with module admin key
 TEMP_PROFILE="movement-configure-$$"

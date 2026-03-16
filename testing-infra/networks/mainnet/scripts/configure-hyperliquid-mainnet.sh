@@ -21,7 +21,7 @@ PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../../.." && pwd )"
 
 source "$SCRIPT_DIR/../lib/env-utils.sh"
 
-ASSETS_CONFIG="$SCRIPT_DIR/../config/mainnet-assets.toml"
+ASSETS_CONFIG_FILE="$SCRIPT_DIR/../config/mainnet-assets.toml"
 
 echo " Configuring HyperEVM Mainnet"
 echo "=================================="
@@ -42,7 +42,7 @@ require_var "HYPERLIQUID_GMP_ENDPOINT_ADDR" "$HYPERLIQUID_GMP_ENDPOINT_ADDR" "Ru
 require_var "MOVEMENT_INTENT_MODULE_ADDR" "$MOVEMENT_INTENT_MODULE_ADDR" "Run deploy-to-movement-mainnet.sh first"
 require_var "HYPERLIQUID_RPC_URL" "$HYPERLIQUID_RPC_URL"
 
-HUB_CHAIN_ID=$(get_chain_id "movement_mainnet" "$ASSETS_CONFIG")
+HUB_CHAIN_ID=$(get_chain_id "movement_mainnet" "$ASSETS_CONFIG_FILE")
 
 echo " Configuration:"
 echo "   GMP Endpoint:  $HYPERLIQUID_GMP_ENDPOINT_ADDR"
