@@ -11,14 +11,14 @@
 # to move balances from CoinStore into the primary fungible store.
 #
 # Usage:
-#   nix develop ./nix -c bash -c "./testing-infra/testnet/scripts/migrate-coins-to-fa.sh"
+#   nix develop ./nix -c bash -c "./testing-infra/networks/testnet/scripts/migrate-coins-to-fa.sh"
 #
-# Reads MOVEMENT_SOLVER_PRIVATE_KEY from testing-infra/testnet/.env.testnet.
+# Reads MOVEMENT_SOLVER_PRIVATE_KEY from testing-infra/networks/testnet/.env.testnet.
 
 set -euo pipefail
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../.." && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../../.." && pwd )"
 
 # Load .env.testnet
 TESTNET_KEYS_FILE="$SCRIPT_DIR/../.env.testnet"

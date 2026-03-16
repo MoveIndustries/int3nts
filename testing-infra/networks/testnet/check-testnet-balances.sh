@@ -7,11 +7,11 @@
 #   - Base Sepolia (ETH, USDC)
 #   - Ethereum Sepolia (ETH, USDC)
 # 
-# Asset addresses are read from testing-infra/testnet/config/testnet-assets.toml
+# Asset addresses are read from testing-infra/networks/testnet/config/testnet-assets.toml
 
 # Get the script directory and project root
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../.." && pwd )"
 export PROJECT_ROOT
 
 # Source utilities (for error handling only, not logging)
@@ -34,11 +34,11 @@ fi
 source "$TESTNET_KEYS_FILE"
 
 # Load assets configuration
-ASSETS_CONFIG_FILE="$PROJECT_ROOT/testing-infra/testnet/config/testnet-assets.toml"
+ASSETS_CONFIG_FILE="$PROJECT_ROOT/testing-infra/networks/testnet/config/testnet-assets.toml"
 
 if [ ! -f "$ASSETS_CONFIG_FILE" ]; then
     echo "❌ ERROR: testnet-assets.toml not found at $ASSETS_CONFIG_FILE"
-    echo "   Asset addresses must be configured in testing-infra/testnet/config/testnet-assets.toml"
+    echo "   Asset addresses must be configured in testing-infra/networks/testnet/config/testnet-assets.toml"
     exit 1
 fi
 

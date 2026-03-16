@@ -15,4 +15,4 @@ Infrastructure setup for running chains for development and testing.
 
 ## Testnet
 
-Scripts for deploying to and interacting with public testnets (Movement Bardock, Base Sepolia). See the **[testnet README](../../testing-infra/testnet/README.md)** for deployment and interaction scripts.
+Scripts for deploying to and interacting with public testnets (Movement Bardock, Base Sepolia). See the **[testnet README](../../testing-infra/networks/testnet/README.md)** for deployment and interaction scripts.

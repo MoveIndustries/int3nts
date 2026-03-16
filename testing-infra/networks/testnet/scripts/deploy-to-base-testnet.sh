@@ -8,7 +8,7 @@ set -e
 
 # Get the script directory and project root
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../.." && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../../.." && pwd )"
 export PROJECT_ROOT
 
 # Source utilities from testing-infra (for CI testing infrastructure)
@@ -47,7 +47,7 @@ if [ -z "$INTEGRATED_GMP_EVM_PUBKEY_HASH" ]; then
 fi
 
 # Load assets configuration
-ASSETS_CONFIG_FILE="$PROJECT_ROOT/testing-infra/testnet/config/testnet-assets.toml"
+ASSETS_CONFIG_FILE="$PROJECT_ROOT/testing-infra/networks/testnet/config/testnet-assets.toml"
 
 if [ ! -f "$ASSETS_CONFIG_FILE" ]; then
     echo "❌ ERROR: testnet-assets.toml not found at $ASSETS_CONFIG_FILE"
@@ -180,7 +180,7 @@ if [ -n "$GMP_ENDPOINT_ADDR" ] && [ -n "$ESCROW_ADDR" ]; then
     echo "   4. frontend/.env.local"
     echo "      NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS=$ESCROW_ADDR"
     echo ""
-    echo "   5. Run ./testing-infra/testnet/check-testnet-preparedness.sh to verify"
+    echo "   5. Run ./testing-infra/networks/testnet/check-testnet-preparedness.sh to verify"
 
     # Save deployment log
     LOG_DIR="$SCRIPT_DIR/../logs"

@@ -24,7 +24,7 @@ set -e
 
 # Get the script directory and project root
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_ROOT="$( cd "$SCRIPT_DIR/../.." && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../.." && pwd )"
 
 echo " Running Solver Locally (Testnet Mode)"
 echo "========================================="
@@ -193,7 +193,7 @@ else
     echo "   ️  Coordinator not responding at $COORDINATOR_URL (HTTP $HTTP_CODE)"
     echo ""
     echo "   Make sure coordinator is running first:"
-    echo "   ./testing-infra/testnet/run-coordinator-local.sh"
+    echo "   ./testing-infra/networks/testnet/run-coordinator-local.sh"
     echo ""
     echo "   Quick check: curl $COORDINATOR_URL/health"
     echo ""

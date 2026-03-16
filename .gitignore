@@ -22,7 +22,7 @@ dev-debug.log
 .env
 .env.*
 !.env.*.example
-testing-infra/testnet/.env.testnet
+testing-infra/networks/testnet/.env.testnet
 
 # Testnet and CI config files (contain sensitive keys)
 solver/config/solver_testnet.toml

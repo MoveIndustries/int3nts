@@ -9,7 +9,7 @@ Separate from `testing-infra/ci-e2e/` which is for local CI testing with Docker.
 ### Deploy
 
 ```bash
-./testing-infra/testnet/deploy.sh
+./testing-infra/networks/testnet/deploy.sh
 ```
 
 Deploys to all three chains. Prints a summary of addresses to update in `.env.testnet` and service config files.
@@ -19,7 +19,7 @@ Deploys to all three chains. Prints a summary of addresses to update in `.env.te
 After updating `.env.testnet` with deployed addresses:
 
 ```bash
-./testing-infra/testnet/configure.sh
+./testing-infra/networks/testnet/configure.sh
 ```
 
 Sets up cross-chain GMP routing between deployed contracts.
@@ -27,7 +27,7 @@ Sets up cross-chain GMP routing between deployed contracts.
 ### Check Preparedness
 
 ```bash
-./testing-infra/testnet/check-testnet-preparedness.sh
+./testing-infra/networks/testnet/check-testnet-preparedness.sh
 ```
 
 ### Local Testing
@@ -35,9 +35,9 @@ Sets up cross-chain GMP routing between deployed contracts.
 Run services locally before EC2 deployment. Start each in a separate terminal:
 
 ```bash
-./testing-infra/testnet/run-coordinator-local.sh [--release]
-./testing-infra/testnet/run-integrated-gmp-local.sh [--release]
-./testing-infra/testnet/run-solver-local.sh [--release]
+./testing-infra/networks/testnet/run-coordinator-local.sh
+./testing-infra/networks/testnet/run-integrated-gmp-local.sh
+./testing-infra/networks/testnet/run-solver-local.sh
 ```
 
 Start the frontend:

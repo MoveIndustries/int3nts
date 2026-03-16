@@ -8,7 +8,7 @@ set -e
 
 # Get the script directory and project root
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../.." && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../../.." && pwd )"
 export PROJECT_ROOT
 
 # Re-exec inside nix develop if not already in a nix shell
@@ -361,6 +361,6 @@ echo "      escrow_program_id = \"$ESCROW_ID\""
 echo "      (in the [[connected_chain]] SVM section)"
 echo ""
 echo "   5. Run configure-solana-devnet.sh to set up cross-chain config"
-echo "   6. Run ./testing-infra/testnet/check-testnet-preparedness.sh to verify"
+echo "   6. Run ./testing-infra/networks/testnet/check-testnet-preparedness.sh to verify"
 echo "   (Or use deploy.sh to run the full pipeline)"
 echo ""

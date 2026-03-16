@@ -24,7 +24,7 @@
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../.." && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../../.." && pwd )"
 
 # Re-exec inside nix develop if not already in a nix shell
 if [ -z "${IN_NIX_SHELL:-}" ]; then
