@@ -63,7 +63,7 @@ async fn test_contracts_deployed_on_chain2() {
     
     // Extract the account address from the module address
     let connected_chain_mvm = config.connected_chain_mvm
-        .as_ref()
+        .first()
         .expect("Connected Move VM chain must be configured for this test");
     let module_addr = connected_chain_mvm.intent_module_addr.replace("0x", "");
     let account_addr = if module_addr.contains("::") {

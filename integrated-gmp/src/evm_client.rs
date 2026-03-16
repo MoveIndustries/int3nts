@@ -273,6 +273,9 @@ impl GmpEvmClient {
         let v = (recovery_id as u64) + (self.chain_id as u64) * 2 + 35;
 
         // Build signed tx RLP: [nonce, gasPrice, gasLimit, to, value, data, v, r, s]
+        // r and s are 32-byte big-endian integers; strip leading zeros for valid RLP.
+        let r_trimmed = strip_leading_zeros(&r);
+        let s_trimmed = strip_leading_zeros(&s);
         let signed_items: Vec<Vec<u8>> = vec![
             rlp_encode_u64(nonce),
             rlp_encode_u64(gas_price),
@@ -281,8 +284,8 @@ impl GmpEvmClient {
             vec![], // value = 0
             data_bytes,
             rlp_encode_u64(v),
-            r.to_vec(),
-            s.to_vec(),
+            r_trimmed,
+            s_trimmed,
         ];
         let signed_rlp = rlp_encode_list(&signed_items);
         let raw_tx = format!("0x{}", hex::encode(&signed_rlp));
@@ -489,6 +492,11 @@ fn hex_to_bytes(hex_str: &str) -> Result<Vec<u8>> {
 // ============================================================================
 // RLP ENCODING HELPERS (for legacy EVM transactions)
 // ============================================================================
+
+fn strip_leading_zeros(bytes: &[u8]) -> Vec<u8> {
+    let start = bytes.iter().position(|&b| b != 0).unwrap_or(bytes.len());
+    bytes[start..].to_vec()
+}
 
 fn rlp_encode_u64(val: u64) -> Vec<u8> {
     if val == 0 {
