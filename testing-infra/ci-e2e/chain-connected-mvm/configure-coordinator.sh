@@ -2,7 +2,7 @@
 
 # Configure Coordinator for Connected Move VM Chain
 #
-# This script adds the [connected_chain_mvm] section to coordinator-e2e-ci-testing.toml.
+# This script adds a [[connected_chain_mvm]] entry to coordinator-e2e-ci-testing.toml.
 # Must be called AFTER chain-hub/configure-coordinator.sh which creates the base config.
 
 set -e
@@ -38,11 +38,11 @@ if [ ! -f "$COORDINATOR_E2E_CI_TESTING_CONFIG" ]; then
     exit 1
 fi
 
-# Append connected_chain_mvm section to config (insert before [api] section)
+# Append connected_chain_mvm entry to config (insert before [api] section)
 TEMP_FILE=$(mktemp)
 cat > "$TEMP_FILE" << EOF
 
-[connected_chain_mvm]
+[[connected_chain_mvm]]
 name = "Connected Move VM Chain"
 rpc_url = "http://127.0.0.1:8082"
 chain_id = 2

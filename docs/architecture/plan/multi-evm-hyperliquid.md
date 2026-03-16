@@ -7,11 +7,12 @@
 | Stage | Status |
 |---|---|
 | Stage 1 — Coordinator: multi-chain config | ✅ done |
-| Stage 2 — Integrated-GMP: multi-chain relay config | — |
-| Stage 3 — Solver: multi-chain client dispatch | — |
-| Stage 4 — Directory restructure + HyperEVM mainnet deploy scripts | — |
-| Stage 5 — Frontend + SDK: add Hyperliquid chain and tokens | — |
-| Stage 6 — Mainnet config: wire up HyperEVM (post-deployment) | blocked on Stage 4 |
+| Stage 2 — Integrated-GMP: multi-chain relay config | ✅ done |
+| Stage 3 — Integrated-GMP: migrate EVM calls to chain-clients EvmClient | — |
+| Stage 4 — Solver: multi-chain client dispatch | — |
+| Stage 5 — Directory restructure + HyperEVM mainnet deploy scripts | — |
+| Stage 6 — Frontend + SDK: add Hyperliquid chain and tokens | — |
+| Stage 7 — Mainnet config: wire up HyperEVM (post-deployment) | blocked on Stage 5 |
 
 ## Goal
 
@@ -160,7 +161,73 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 ---
 
-## Stage 3 — Solver: multi-chain client dispatch
+## Stage 3 — Integrated-GMP: migrate EVM calls to chain-clients EvmClient
+
+**Scope:** `chain-clients/evm/` and `integrated-gmp/`.
+
+The integrated-gmp relay currently makes raw JSON-RPC calls to EVM chains via a bare `reqwest::Client` and inline `evm_json_rpc` helper. MVM and SVM both use shared clients from `chain-clients/` (`MvmClient`, `GmpSvmClient` wrapping `SvmClient`). EVM should follow the same pattern.
+
+### Problem
+
+`NativeGmpRelay` has no `evm_clients` field. Instead it uses `self.http_client` (a generic reqwest `Client`) with a private `evm_json_rpc` helper to make raw `eth_*` calls. This is asymmetric with MVM (`mvm_connected_clients: HashMap<u32, MvmClient>`) and SVM (`svm_clients: HashMap<u32, GmpSvmClient>`).
+
+### Part A — Extend `chain-clients/evm` with write capabilities
+
+`EvmClient` is currently read-only. The relay needs:
+
+- `eth_sendRawTransaction` (locally-signed transaction broadcast)
+- `eth_getTransactionCount` (nonce lookup)
+- `eth_gasPrice`
+- `eth_getTransactionReceipt` (wait for confirmation)
+- `eth_call` (generic view calls — used for `isMessageDelivered`)
+- `eth_getLogs` (event polling with topic filters)
+
+Add these as methods on `EvmClient` (or a new `EvmRpcClient` trait/struct if the escrow-specific client shouldn't grow write methods). The key design choice: keep the low-level JSON-RPC plumbing in `chain-clients/evm` so consumers don't duplicate it.
+
+### Part B — Add `GmpEvmClient` wrapper in integrated-gmp
+
+Mirror the SVM pattern (`GmpSvmClient` wraps `SvmClient`):
+
+```rust
+// integrated-gmp/src/evm_client.rs
+pub struct GmpEvmClient {
+    evm_client: EvmClient,  // from chain-clients/evm
+    gmp_endpoint_addr: String,
+}
+```
+
+GMP-specific methods move here:
+- `is_message_delivered(intent_id, msg_type) -> Result<bool>`
+- `deliver_message(src_chain_id, remote_endpoint, payload) -> Result<String>` (returns tx hash)
+- `poll_message_sent_events(from_block, to_block) -> Result<Vec<GmpMessage>>`
+- `wait_for_receipt(tx_hash) -> Result<()>`
+
+### Part C — Wire into `NativeGmpRelay`
+
+Add `evm_clients: HashMap<u32, GmpEvmClient>` to the struct, initialized from `config.evm_chains` in `new()`. Remove `http_client` field (or keep only if used elsewhere). Replace all inline `evm_json_rpc` / `evm_send_raw_transaction` / `evm_is_message_delivered` / `evm_wait_for_receipt` / `evm_get_block_number` calls with `GmpEvmClient` method calls.
+
+### Files to change
+
+- `chain-clients/evm/src/client.rs` — add write/generic RPC methods
+- `chain-clients/evm/src/lib.rs` — re-export new types if any
+- `integrated-gmp/src/evm_client.rs` — new file, `GmpEvmClient` wrapper
+- `integrated-gmp/src/lib.rs` — add `pub mod evm_client;`
+- `integrated-gmp/src/integrated_gmp_relay.rs` — replace inline EVM code with `GmpEvmClient`
+
+### Test commands
+
+```bash
+nix develop ./nix -c bash -c "./chain-clients/scripts/test.sh"
+RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --quiet"
+```
+
+### End of stage
+
+Run tests → `/review-me` → ask user → if yes, `/commit`.
+
+---
+
+## Stage 4 — Solver: multi-chain client dispatch
 
 **Scope:** `solver/` only.
 
@@ -194,7 +261,7 @@ evm_clients: HashMap<u64, ConnectedEvmClient>,
 
 **`solver/config/solver_testnet.toml`**
 
-No syntax change needed (already `[[connected_chain]]` array). Just note that a second EVM entry will be added in Stage 6 once Hyperliquid contract addresses are known.
+No syntax change needed (already `[[connected_chain]]` array). Just note that a second EVM entry will be added in Stage 7 once Hyperliquid contract addresses are known.
 
 ### Test command
 
@@ -208,7 +275,7 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 ---
 
-## Stage 4 — Directory restructure + HyperEVM mainnet deploy scripts
+## Stage 5 — Directory restructure + HyperEVM mainnet deploy scripts
 
 **Scope:** `intent-frameworks/evm/` and `testing-infra/`.
 
@@ -216,7 +283,7 @@ This stage does two things: restructures `testing-infra/` to separate testnet an
 
 ### Cross-stage note
 
-After Stages 1–2, the coordinator and integrated-gmp configs use `[[connected_chain_*]]` (array of tables) for all chain types. The summary output in `deploy.sh` still references the old `[connected_chain_evm]` key. Those references must be updated in this stage.
+After Stages 1–3, the coordinator and integrated-gmp configs use `[[connected_chain_*]]` (array of tables) for all chain types. The summary output in `deploy.sh` still references the old `[connected_chain_evm]` key. Those references must be updated in this stage.
 
 ### Part A — Directory restructure
 
@@ -400,7 +467,7 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 ---
 
-## Stage 5 — Frontend + SDK: add Hyperliquid testnet chain and tokens
+## Stage 6 — Frontend + SDK: add Hyperliquid testnet chain and tokens
 
 **Scope:** `packages/sdk/` and `frontend/` only.
 
@@ -470,9 +537,9 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 ---
 
-## Stage 6 — Mainnet config: wire up HyperEVM (post-deployment)
+## Stage 7 — Mainnet config: wire up HyperEVM (post-deployment)
 
-**Blocked on:** operational contract deployment from Stage 4.
+**Blocked on:** operational contract deployment from Stage 5.
 
 Once `IntentGmp`, `IntentInflowEscrow`, and `IntentOutflowValidator` are deployed to HyperEVM mainnet and addresses are known:
 
@@ -533,7 +600,7 @@ move_rate = 0.01
 
 **`packages/sdk/src/config.ts`** and **`frontend/src/config/chains.ts`**
 
-Fill in the `escrowContractAddress` and `outflowValidatorAddress` values added as `undefined` in Stage 5.
+Fill in the `escrowContractAddress` and `outflowValidatorAddress` values added as `undefined` in Stage 6.
 
 ### End of stage
 
@@ -541,11 +608,11 @@ Run all tests → `/review-me` → ask user → if yes, `/commit`.
 
 ---
 
-## On-chain registration (operational, Stage 6 prerequisite)
+## On-chain registration (operational, Stage 7 prerequisite)
 
 The hub contract is chain-agnostic — `desired_chain_id` is free-form at intent creation time — but routing is **permissioned by registration**. When the hub sends `IntentRequirements` it calls `get_remote_gmp_endpoint_addr(chain_id)` and aborts if the chain is not registered.
 
-Two admin transactions are required after contracts are deployed (Stage 4):
+Two admin transactions are required after contracts are deployed (Stage 5):
 
 ### 1. Register HyperEVM on the MVM hub
 
@@ -572,7 +639,7 @@ Until both transactions are confirmed, any intent targeting chain ID 999 will ab
 
 ---
 
-## Open questions (resolve before Stage 6)
+## Open questions (resolve before Stage 7)
 
 1. **Which tokens are available on HyperEVM mainnet?** HYPE is native. Is USDC deployed? Need contract address.
 2. **Approver key for integrated-gmp:** Use the same ECDSA key as Base Sepolia or generate a new one per chain?

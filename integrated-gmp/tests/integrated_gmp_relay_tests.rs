@@ -378,52 +378,45 @@ fn test_relay_config_extracts_mvm_connected_chain() {
     );
 
     // MVM connected chain should be extracted
+    assert_eq!(relay_config.mvm_chains.len(), 1, "Should have one MVM connected chain");
     assert_eq!(
-        relay_config.mvm_connected_chain_id,
-        Some(2),
+        relay_config.mvm_chains[0].chain_id, 2,
         "MVM connected chain ID should be extracted"
     );
     assert_eq!(
-        relay_config.mvm_connected_rpc_url,
-        Some("http://127.0.0.1:18082".to_string()),
+        relay_config.mvm_chains[0].rpc_url, "http://127.0.0.1:18082",
         "MVM connected RPC URL should be extracted"
     );
     assert_eq!(
-        relay_config.mvm_connected_module_addr,
-        Some("0x2".to_string()),
+        relay_config.mvm_chains[0].module_addr, "0x2",
         "MVM connected module address should be extracted"
     );
 }
 
 /// 23. Test: Relay Config Handles Missing MVM Connected Chain
-/// Verifies that NativeGmpRelayConfig sets MVM connected fields to None when not configured.
-/// Why: When only hub and SVM are configured, MVM connected fields should be None.
+/// Verifies that NativeGmpRelayConfig has empty mvm_chains when not configured.
+/// Why: When only hub and SVM are configured, mvm_chains should be empty.
 #[test]
 fn test_relay_config_handles_missing_mvm_connected() {
     let mut config = build_test_config_with_svm();
     // Clear MVM connected chain to simulate hub-only + SVM config
-    config.connected_chain_mvm = None;
+    config.connected_chain_mvm = vec![];
 
     let relay_config = NativeGmpRelayConfig::from_config(&config).unwrap();
 
-    // MVM connected chain should be None
+    // MVM connected chains should be empty
     assert!(
-        relay_config.mvm_connected_chain_id.is_none(),
-        "MVM connected chain ID should be None when not configured"
-    );
-    assert!(
-        relay_config.mvm_connected_rpc_url.is_none(),
-        "MVM connected RPC URL should be None when not configured"
-    );
-    assert!(
-        relay_config.mvm_connected_module_addr.is_none(),
-        "MVM connected module address should be None when not configured"
+        relay_config.mvm_chains.is_empty(),
+        "MVM connected chains should be empty when not configured"
     );
 
     // SVM should still be extracted
     assert_eq!(
-        relay_config.svm_chain_id,
-        Some(901),
+        relay_config.svm_chains.len(), 1,
+        "Should have one SVM chain"
+    );
+    assert_eq!(
+        relay_config.svm_chains[0].chain_id, 901,
         "SVM chain ID should still be extracted"
     );
 }
@@ -440,18 +433,18 @@ fn test_relay_config_extracts_both_connected_chains() {
 
     // Both connected chains should be present
     assert!(
-        relay_config.mvm_connected_chain_id.is_some(),
+        !relay_config.mvm_chains.is_empty(),
         "MVM connected should be present"
     );
     assert!(
-        relay_config.svm_chain_id.is_some(),
+        !relay_config.svm_chains.is_empty(),
         "SVM should be present"
     );
 
     // Verify they have different chain IDs
     assert_ne!(
-        relay_config.mvm_connected_chain_id,
-        relay_config.svm_chain_id,
+        relay_config.mvm_chains[0].chain_id,
+        relay_config.svm_chains[0].chain_id,
         "MVM connected and SVM should have different chain IDs"
     );
 }

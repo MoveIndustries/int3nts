@@ -32,7 +32,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::process::Command;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -53,6 +53,45 @@ const SYSTEM_PROGRAM_ID: Pubkey = Pubkey::new_from_array([0; 32]);
 // CONFIGURATION
 // ============================================================================
 
+/// Per-chain relay configuration for a connected MVM chain.
+#[derive(Debug, Clone)]
+pub struct MvmRelayChainConfig {
+    /// MVM chain RPC URL
+    pub rpc_url: String,
+    /// MVM intent module address (where gmp_sender is deployed)
+    pub module_addr: String,
+    /// MVM chain ID
+    pub chain_id: u32,
+}
+
+/// Per-chain relay configuration for a connected EVM chain.
+#[derive(Debug, Clone)]
+pub struct EvmRelayChainConfig {
+    /// EVM RPC URL
+    pub rpc_url: String,
+    /// EVM GMP endpoint contract address (IntentGmp)
+    pub gmp_endpoint_addr: Option<String>,
+    /// EVM chain ID
+    pub chain_id: u32,
+    /// EVM relay address (the `from` address for eth_sendRawTransaction, must be authorized relay in IntentGmp)
+    pub relay_address: String,
+}
+
+/// Per-chain relay configuration for a connected SVM chain.
+#[derive(Debug, Clone)]
+pub struct SvmRelayChainConfig {
+    /// SVM RPC URL
+    pub rpc_url: String,
+    /// SVM integrated GMP endpoint program ID
+    pub gmp_program_id: Option<String>,
+    /// SVM intent escrow program ID (for routing IntentRequirements)
+    pub escrow_program_id: Option<String>,
+    /// SVM outflow validator program ID (for routing IntentRequirements)
+    pub outflow_program_id: Option<String>,
+    /// SVM chain ID
+    pub chain_id: u32,
+}
+
 /// Configuration for the integrated GMP relay.
 #[derive(Debug, Clone)]
 pub struct NativeGmpRelayConfig {
@@ -62,30 +101,12 @@ pub struct NativeGmpRelayConfig {
     pub mvm_module_addr: String,
     /// MVM chain ID
     pub mvm_chain_id: u32,
-    /// MVM connected chain RPC URL (optional, for MVM connected chain)
-    pub mvm_connected_rpc_url: Option<String>,
-    /// MVM connected chain module address (optional)
-    pub mvm_connected_module_addr: Option<String>,
-    /// MVM connected chain ID (optional)
-    pub mvm_connected_chain_id: Option<u32>,
-    /// SVM RPC URL (optional, for SVM connected chain)
-    pub svm_rpc_url: Option<String>,
-    /// SVM integrated GMP endpoint program ID (optional)
-    pub svm_gmp_program_id: Option<String>,
-    /// SVM intent escrow program ID (optional, for routing IntentRequirements)
-    pub svm_escrow_program_id: Option<String>,
-    /// SVM outflow validator program ID (optional, for routing IntentRequirements)
-    pub svm_outflow_program_id: Option<String>,
-    /// SVM chain ID (optional)
-    pub svm_chain_id: Option<u32>,
-    /// EVM RPC URL (optional, for EVM connected chain)
-    pub evm_rpc_url: Option<String>,
-    /// EVM GMP endpoint contract address (IntentGmp)
-    pub evm_gmp_endpoint_addr: Option<String>,
-    /// EVM chain ID (optional)
-    pub evm_chain_id: Option<u32>,
-    /// EVM relay address (the `from` address for eth_sendTransaction, must be authorized relay in IntentGmp)
-    pub evm_relay_address: Option<String>,
+    /// Connected MVM chains (each can send/receive GMP messages)
+    pub mvm_chains: Vec<MvmRelayChainConfig>,
+    /// Connected EVM chains (each can send/receive GMP messages)
+    pub evm_chains: Vec<EvmRelayChainConfig>,
+    /// Connected SVM chains (each can send/receive GMP messages)
+    pub svm_chains: Vec<SvmRelayChainConfig>,
     /// Polling interval in milliseconds
     pub polling_interval_ms: u64,
     /// Relay operator private key (base64 encoded Ed25519)
@@ -97,64 +118,64 @@ impl NativeGmpRelayConfig {
     pub fn from_config(config: &Config) -> Result<Self> {
         let operator_private_key = config.integrated_gmp.get_private_key()?;
 
-        // Extract MVM connected chain config if present
-        let (mvm_connected_rpc_url, mvm_connected_module_addr, mvm_connected_chain_id) =
-            if let Some(ref mvm_config) = config.connected_chain_mvm {
-                (
-                    Some(mvm_config.rpc_url.clone()),
-                    Some(mvm_config.intent_module_addr.clone()),
-                    Some(mvm_config.chain_id as u32),
-                )
-            } else {
-                (None, None, None)
-            };
+        let mvm_chains: Vec<MvmRelayChainConfig> = config
+            .connected_chain_mvm
+            .iter()
+            .map(|mvm| MvmRelayChainConfig {
+                rpc_url: mvm.rpc_url.clone(),
+                module_addr: mvm.intent_module_addr.clone(),
+                chain_id: mvm.chain_id as u32,
+            })
+            .collect();
 
-        // Extract SVM connected chain config if present
-        let (svm_rpc_url, svm_gmp_program_id, svm_escrow_program_id, svm_outflow_program_id, svm_chain_id) =
-            if let Some(ref svm_config) = config.connected_chain_svm {
-                (
-                    Some(svm_config.rpc_url.clone()),
-                    svm_config.gmp_endpoint_program_id.clone(),
-                    Some(svm_config.escrow_program_id.clone()),
-                    Some(svm_config.outflow_program_id.clone()),
-                    Some(svm_config.chain_id as u32),
-                )
-            } else {
-                (None, None, None, None, None)
-            };
+        let evm_chains: Vec<EvmRelayChainConfig> = config
+            .connected_chain_evm
+            .iter()
+            .map(|evm| EvmRelayChainConfig {
+                rpc_url: evm.rpc_url.clone(),
+                gmp_endpoint_addr: evm.gmp_endpoint_addr.clone(),
+                chain_id: evm.chain_id as u32,
+                relay_address: evm.approver_evm_pubkey_hash.clone(),
+            })
+            .collect();
 
-        // Extract EVM connected chain config if present
-        let (evm_rpc_url, evm_gmp_endpoint_addr, evm_chain_id, evm_relay_address) =
-            if let Some(ref evm_config) = config.connected_chain_evm {
-                (
-                    Some(evm_config.rpc_url.clone()),
-                    evm_config.gmp_endpoint_addr.clone(),
-                    Some(evm_config.chain_id as u32),
-                    Some(evm_config.approver_evm_pubkey_hash.clone()),
-                )
-            } else {
-                (None, None, None, None)
-            };
+        let svm_chains: Vec<SvmRelayChainConfig> = config
+            .connected_chain_svm
+            .iter()
+            .map(|svm| SvmRelayChainConfig {
+                rpc_url: svm.rpc_url.clone(),
+                gmp_program_id: svm.gmp_endpoint_program_id.clone(),
+                escrow_program_id: Some(svm.escrow_program_id.clone()),
+                outflow_program_id: Some(svm.outflow_program_id.clone()),
+                chain_id: svm.chain_id as u32,
+            })
+            .collect();
 
         Ok(Self {
             mvm_rpc_url: config.hub_chain.rpc_url.clone(),
             mvm_module_addr: config.hub_chain.intent_module_addr.clone(),
             mvm_chain_id: config.hub_chain.chain_id as u32,
-            mvm_connected_rpc_url,
-            mvm_connected_module_addr,
-            mvm_connected_chain_id,
-            svm_rpc_url,
-            svm_gmp_program_id,
-            svm_escrow_program_id,
-            svm_outflow_program_id,
-            svm_chain_id,
-            evm_rpc_url,
-            evm_gmp_endpoint_addr,
-            evm_chain_id,
-            evm_relay_address,
+            mvm_chains,
+            evm_chains,
+            svm_chains,
             polling_interval_ms: config.integrated_gmp.polling_interval_ms,
             operator_private_key,
         })
+    }
+
+    /// Find the EVM chain config for a given chain ID.
+    pub fn find_evm_chain(&self, chain_id: u32) -> Option<&EvmRelayChainConfig> {
+        self.evm_chains.iter().find(|c| c.chain_id == chain_id)
+    }
+
+    /// Find the MVM connected chain config for a given chain ID.
+    pub fn find_mvm_chain(&self, chain_id: u32) -> Option<&MvmRelayChainConfig> {
+        self.mvm_chains.iter().find(|c| c.chain_id == chain_id)
+    }
+
+    /// Find the SVM chain config for a given chain ID.
+    pub fn find_svm_chain(&self, chain_id: u32) -> Option<&SvmRelayChainConfig> {
+        self.svm_chains.iter().find(|c| c.chain_id == chain_id)
     }
 }
 
@@ -254,21 +275,21 @@ impl DeliveryAttempt {
 #[derive(Debug, Default)]
 struct RelayState {
     /// Processed nonces per source chain (chain_id -> set of processed nonces)
-    processed_nonces: std::collections::HashMap<u32, HashSet<u64>>,
+    processed_nonces: HashMap<u32, HashSet<u64>>,
     /// Last polled nonce for MVM hub outbox (view function based)
     mvm_hub_last_nonce: u64,
-    /// Last polled nonce for MVM connected chain outbox (view function based)
-    mvm_connected_last_nonce: u64,
+    /// Last polled nonce per connected MVM chain (chain_id -> last nonce)
+    mvm_connected_last_nonces: HashMap<u32, u64>,
     /// SVM outbound nonce cursor per destination chain (dst_chain_id -> next nonce to process).
     /// Value N means nonces 0..N-1 have been processed; N is the next to process.
-    svm_next_nonce: std::collections::HashMap<u32, u64>,
-    /// Last polled EVM block number
-    evm_last_block: u64,
+    svm_next_nonce: HashMap<u32, u64>,
+    /// Last polled EVM block number per chain (chain_id -> block number)
+    evm_last_blocks: HashMap<u32, u64>,
     /// Per-message delivery attempt tracking: (src_chain_id, nonce) -> DeliveryAttempt
-    delivery_attempts: std::collections::HashMap<(u32, u64), DeliveryAttempt>,
+    delivery_attempts: HashMap<(u32, u64), DeliveryAttempt>,
     /// Per-chain poll failure tracking: chain_name -> DeliveryAttempt
     /// When a poll fails (RPC unreachable), the chain enters backoff before retrying.
-    chain_poll_failures: std::collections::HashMap<String, DeliveryAttempt>,
+    chain_poll_failures: HashMap<String, DeliveryAttempt>,
 }
 
 // ============================================================================
@@ -281,8 +302,10 @@ pub struct NativeGmpRelay {
     config: NativeGmpRelayConfig,
     crypto_service: CryptoService,
     mvm_client: MvmClient,
-    mvm_connected_client: Option<MvmClient>,
-    svm_client: Option<GmpSvmClient>,
+    /// Connected MVM clients keyed by chain ID
+    mvm_connected_clients: HashMap<u32, MvmClient>,
+    /// Connected SVM clients keyed by chain ID
+    svm_clients: HashMap<u32, GmpSvmClient>,
     #[allow(dead_code)]
     http_client: Client,
     state: Arc<RwLock<RelayState>>,
@@ -293,21 +316,23 @@ impl NativeGmpRelay {
     pub fn new(config: NativeGmpRelayConfig, crypto_service: CryptoService) -> Result<Self> {
         let mvm_client = MvmClient::new(&config.mvm_rpc_url)?;
 
-        // Initialize MVM connected client if configured
-        let mvm_connected_client = match &config.mvm_connected_rpc_url {
-            Some(rpc_url) => {
-                Some(MvmClient::new(rpc_url).context("Failed to create MVM connected client")?)
-            }
-            _ => None,
-        };
+        // Initialize MVM connected clients
+        let mut mvm_connected_clients = HashMap::new();
+        for mvm_chain in &config.mvm_chains {
+            let client = MvmClient::new(&mvm_chain.rpc_url)
+                .with_context(|| format!("Failed to create MVM client for chain {}", mvm_chain.chain_id))?;
+            mvm_connected_clients.insert(mvm_chain.chain_id, client);
+        }
 
-        // Initialize SVM client if configured
-        let svm_client = match (&config.svm_rpc_url, &config.svm_gmp_program_id) {
-            (Some(rpc_url), Some(program_id)) => {
-                Some(GmpSvmClient::new(rpc_url, program_id).context("Failed to create SVM client")?)
+        // Initialize SVM clients
+        let mut svm_clients = HashMap::new();
+        for svm_chain in &config.svm_chains {
+            if let Some(ref program_id) = svm_chain.gmp_program_id {
+                let client = GmpSvmClient::new(&svm_chain.rpc_url, program_id)
+                    .with_context(|| format!("Failed to create SVM client for chain {}", svm_chain.chain_id))?;
+                svm_clients.insert(svm_chain.chain_id, client);
             }
-            _ => None,
-        };
+        }
 
         let http_client = Client::builder()
             .connect_timeout(Duration::from_secs(10))
@@ -319,8 +344,8 @@ impl NativeGmpRelay {
             config,
             crypto_service,
             mvm_client,
-            mvm_connected_client,
-            svm_client,
+            mvm_connected_clients,
+            svm_clients,
             http_client,
             state: Arc::new(RwLock::new(RelayState::default())),
         })
@@ -346,28 +371,29 @@ impl NativeGmpRelay {
         )
         .await?;
 
-        // Check MVM connected (if configured)
-        if let (Some(ref client), Some(ref module_addr)) =
-            (&self.mvm_connected_client, &self.config.mvm_connected_module_addr)
-        {
-            self.check_mvm_relay_auth(client, module_addr, &mvm_addr, "MVM connected")
-                .await?;
+        // Check all connected MVM chains
+        for mvm_chain in &self.config.mvm_chains {
+            if let Some(client) = self.mvm_connected_clients.get(&mvm_chain.chain_id) {
+                let label = format!("MVM connected (chain_id={})", mvm_chain.chain_id);
+                self.check_mvm_relay_auth(client, &mvm_chain.module_addr, &mvm_addr, &label)
+                    .await?;
+            }
         }
 
-        // Check EVM (if configured)
-        if let (Some(ref rpc_url), Some(ref gmp_endpoint)) =
-            (&self.config.evm_rpc_url, &self.config.evm_gmp_endpoint_addr)
-        {
-            self.check_evm_relay_auth(rpc_url, gmp_endpoint, &evm_addr)
-                .await?;
+        // Check all connected EVM chains
+        for evm_chain in &self.config.evm_chains {
+            if let Some(ref gmp_endpoint) = evm_chain.gmp_endpoint_addr {
+                self.check_evm_relay_auth(&evm_chain.rpc_url, gmp_endpoint, &evm_addr)
+                    .await?;
+            }
         }
 
-        // Check SVM (if configured)
-        if let (Some(ref rpc_url), Some(ref program_id_str)) =
-            (&self.config.svm_rpc_url, &self.config.svm_gmp_program_id)
-        {
-            self.check_svm_relay_auth(rpc_url, program_id_str, &svm_addr)
-                .await?;
+        // Check all connected SVM chains
+        for svm_chain in &self.config.svm_chains {
+            if let Some(ref program_id_str) = svm_chain.gmp_program_id {
+                self.check_svm_relay_auth(&svm_chain.rpc_url, program_id_str, &svm_addr)
+                    .await?;
+            }
         }
 
         info!("Relay authorization verified on all configured chains");
@@ -603,16 +629,16 @@ impl NativeGmpRelay {
             self.config.mvm_chain_id, self.config.polling_interval_ms
         );
 
-        if let Some(ref mvm_connected_chain_id) = self.config.mvm_connected_chain_id {
-            info!("MVM connected chain configured: chain_id={}", mvm_connected_chain_id);
+        for mvm_chain in &self.config.mvm_chains {
+            info!("MVM connected chain configured: chain_id={}", mvm_chain.chain_id);
         }
 
-        if let Some(ref svm_chain_id) = self.config.svm_chain_id {
-            info!("SVM chain configured: chain_id={}", svm_chain_id);
+        for svm_chain in &self.config.svm_chains {
+            info!("SVM chain configured: chain_id={}", svm_chain.chain_id);
         }
 
-        if let Some(ref evm_chain_id) = self.config.evm_chain_id {
-            info!("EVM chain configured: chain_id={}", evm_chain_id);
+        for evm_chain in &self.config.evm_chains {
+            info!("EVM chain configured: chain_id={}", evm_chain.chain_id);
         }
 
         // Verify relay is authorized on all destination chains before starting
@@ -629,27 +655,36 @@ impl NativeGmpRelay {
                 }
             }
 
-            // Poll MVM connected chain for MessageSent events (if configured)
-            if self.mvm_connected_client.is_some() && self.should_poll_chain("mvm_connected").await {
-                match self.poll_mvm_connected_events().await {
-                    Ok(()) => self.clear_chain_poll_failure("mvm_connected").await,
-                    Err(e) => self.record_chain_poll_failure("mvm_connected", &format!("{:#}", e)).await,
+            // Poll all connected MVM chains for MessageSent events
+            for mvm_chain in &self.config.mvm_chains {
+                let poll_key = format!("mvm_connected_{}", mvm_chain.chain_id);
+                if self.should_poll_chain(&poll_key).await {
+                    match self.poll_mvm_connected_events(mvm_chain).await {
+                        Ok(()) => self.clear_chain_poll_failure(&poll_key).await,
+                        Err(e) => self.record_chain_poll_failure(&poll_key, &format!("{:#}", e)).await,
+                    }
                 }
             }
 
-            // Poll SVM for outbound messages (if configured)
-            if self.config.svm_rpc_url.is_some() && self.should_poll_chain("svm").await {
-                match self.poll_svm_events().await {
-                    Ok(()) => self.clear_chain_poll_failure("svm").await,
-                    Err(e) => self.record_chain_poll_failure("svm", &format!("{:#}", e)).await,
+            // Poll all connected SVM chains for outbound messages
+            for svm_chain in &self.config.svm_chains {
+                let poll_key = format!("svm_{}", svm_chain.chain_id);
+                if self.should_poll_chain(&poll_key).await {
+                    match self.poll_svm_events(svm_chain).await {
+                        Ok(()) => self.clear_chain_poll_failure(&poll_key).await,
+                        Err(e) => self.record_chain_poll_failure(&poll_key, &format!("{:#}", e)).await,
+                    }
                 }
             }
 
-            // Poll EVM for MessageSent events (if configured)
-            if self.config.evm_rpc_url.is_some() && self.should_poll_chain("evm").await {
-                match self.poll_evm_events().await {
-                    Ok(()) => self.clear_chain_poll_failure("evm").await,
-                    Err(e) => self.record_chain_poll_failure("evm", &format!("{:#}", e)).await,
+            // Poll all connected EVM chains for MessageSent events
+            for evm_chain in &self.config.evm_chains {
+                let poll_key = format!("evm_{}", evm_chain.chain_id);
+                if self.should_poll_chain(&poll_key).await {
+                    match self.poll_evm_events(evm_chain).await {
+                        Ok(()) => self.clear_chain_poll_failure(&poll_key).await,
+                        Err(e) => self.record_chain_poll_failure(&poll_key, &format!("{:#}", e)).await,
+                    }
                 }
             }
 
@@ -680,36 +715,28 @@ impl NativeGmpRelay {
         Ok(())
     }
 
-    /// Poll MVM connected chain outbox for new messages via view functions.
-    async fn poll_mvm_connected_events(&self) -> Result<()> {
-        let Some(ref mvm_connected_client) = self.mvm_connected_client else {
-            return Ok(());
-        };
-
-        let Some(mvm_connected_chain_id) = self.config.mvm_connected_chain_id else {
-            return Ok(());
-        };
-
-        let Some(ref mvm_connected_module_addr) = self.config.mvm_connected_module_addr else {
-            return Ok(());
-        };
+    /// Poll a connected MVM chain outbox for new messages via view functions.
+    async fn poll_mvm_connected_events(&self, mvm_chain: &MvmRelayChainConfig) -> Result<()> {
+        let client = self.mvm_connected_clients.get(&mvm_chain.chain_id)
+            .ok_or_else(|| anyhow::anyhow!("No MVM client for chain {}", mvm_chain.chain_id))?;
 
         let last_nonce = {
-            self.state.read().await.mvm_connected_last_nonce
+            *self.state.read().await.mvm_connected_last_nonces.get(&mvm_chain.chain_id).unwrap_or(&0)
         };
 
+        let chain_label = format!("connected({})", mvm_chain.chain_id);
         let new_last = self
             .poll_mvm_outbox(
-                mvm_connected_client,
-                mvm_connected_module_addr,
-                mvm_connected_chain_id,
+                client,
+                &mvm_chain.module_addr,
+                mvm_chain.chain_id,
                 last_nonce,
-                "connected",
+                &chain_label,
             )
             .await?;
 
         if new_last > last_nonce {
-            self.state.write().await.mvm_connected_last_nonce = new_last;
+            self.state.write().await.mvm_connected_last_nonces.insert(mvm_chain.chain_id, new_last);
         }
 
         Ok(())
@@ -881,25 +908,30 @@ impl NativeGmpRelay {
     ///
     /// Reads the OutboundNonceAccount for each known destination chain via
     /// getAccountInfo, then reads individual MessageAccount PDAs for any new nonces.
-    async fn poll_svm_events(&self) -> Result<()> {
-        let Some(ref svm_client) = self.svm_client else {
-            return Ok(());
-        };
+    async fn poll_svm_events(&self, svm_chain: &SvmRelayChainConfig) -> Result<()> {
+        let svm_client = self.svm_clients.get(&svm_chain.chain_id)
+            .ok_or_else(|| anyhow::anyhow!("No SVM client for chain {}", svm_chain.chain_id))?;
 
-        let Some(svm_chain_id) = self.config.svm_chain_id else {
-            return Ok(());
-        };
+        let svm_chain_id = svm_chain.chain_id;
 
         let gmp_program_id = Pubkey::from_str(
-            self.config.svm_gmp_program_id.as_ref().unwrap(),
+            svm_chain.gmp_program_id.as_ref()
+                .ok_or_else(|| anyhow::anyhow!("SVM GMP program ID not configured for chain {}", svm_chain_id))?,
         )
         .context("Invalid SVM GMP program ID")?;
 
-        // Collect destination chain IDs to poll nonces for.
-        // SVM sends messages to the MVM hub (and potentially EVM).
+        // Collect all known destination chain IDs to poll nonces for.
         let mut dst_chain_ids = vec![self.config.mvm_chain_id];
-        if let Some(evm_chain_id) = self.config.evm_chain_id {
-            dst_chain_ids.push(evm_chain_id);
+        for mvm_chain in &self.config.mvm_chains {
+            dst_chain_ids.push(mvm_chain.chain_id);
+        }
+        for evm_chain in &self.config.evm_chains {
+            dst_chain_ids.push(evm_chain.chain_id);
+        }
+        for other_svm in &self.config.svm_chains {
+            if other_svm.chain_id != svm_chain_id {
+                dst_chain_ids.push(other_svm.chain_id);
+            }
         }
 
         for dst_chain_id in dst_chain_ids {
@@ -1034,26 +1066,36 @@ impl NativeGmpRelay {
 
     /// Deliver a GMP message to the destination chain.
     async fn deliver_message(&self, message: &GmpMessage) -> Result<()> {
-        // Determine destination chain type based on chain ID
-        if message.dst_chain_id == self.config.mvm_chain_id {
-            // Destination is MVM hub
-            self.deliver_to_mvm_hub(message).await
-        } else if Some(message.dst_chain_id) == self.config.mvm_connected_chain_id {
-            // Destination is MVM connected chain
-            self.deliver_to_mvm_connected(message).await
-        } else if Some(message.dst_chain_id) == self.config.svm_chain_id {
-            // Destination is SVM
-            self.deliver_to_svm(message).await
-        } else if Some(message.dst_chain_id) == self.config.evm_chain_id {
-            // Destination is EVM
-            self.deliver_to_evm(message).await
-        } else {
-            warn!(
-                "Unknown destination chain ID: {}. Known chains: MVM hub={}, MVM connected={:?}, SVM={:?}, EVM={:?}",
-                message.dst_chain_id, self.config.mvm_chain_id, self.config.mvm_connected_chain_id, self.config.svm_chain_id, self.config.evm_chain_id
-            );
-            Ok(())
+        let dst = message.dst_chain_id;
+
+        // Destination is MVM hub
+        if dst == self.config.mvm_chain_id {
+            return self.deliver_to_mvm_hub(message).await;
         }
+
+        // Destination is a connected MVM chain
+        if let Some(mvm_chain) = self.config.find_mvm_chain(dst) {
+            return self.deliver_to_mvm_connected(message, mvm_chain).await;
+        }
+
+        // Destination is a connected SVM chain
+        if let Some(svm_chain) = self.config.find_svm_chain(dst) {
+            return self.deliver_to_svm(message, svm_chain).await;
+        }
+
+        // Destination is a connected EVM chain
+        if let Some(evm_chain) = self.config.find_evm_chain(dst) {
+            return self.deliver_to_evm(message, evm_chain).await;
+        }
+
+        let known_mvm: Vec<u32> = self.config.mvm_chains.iter().map(|c| c.chain_id).collect();
+        let known_evm: Vec<u32> = self.config.evm_chains.iter().map(|c| c.chain_id).collect();
+        let known_svm: Vec<u32> = self.config.svm_chains.iter().map(|c| c.chain_id).collect();
+        warn!(
+            "Unknown destination chain ID: {}. Known chains: MVM hub={}, MVM connected={:?}, SVM={:?}, EVM={:?}",
+            dst, self.config.mvm_chain_id, known_mvm, known_svm, known_evm
+        );
+        Ok(())
     }
 
     /// Deliver message to MVM hub chain via intent_gmp::deliver_message_entry.
@@ -1069,20 +1111,10 @@ impl NativeGmpRelay {
         .await
     }
 
-    /// Deliver message to MVM connected chain via intent_gmp::deliver_message_entry.
-    async fn deliver_to_mvm_connected(&self, message: &GmpMessage) -> Result<()> {
-        let rpc_url = self
-            .config
-            .mvm_connected_rpc_url
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("MVM connected chain not configured"))?;
-        let module_addr = self
-            .config
-            .mvm_connected_module_addr
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("MVM connected chain module address not configured"))?;
-
-        self.deliver_to_mvm_chain(message, rpc_url, module_addr, "connected")
+    /// Deliver message to a connected MVM chain via intent_gmp::deliver_message_entry.
+    async fn deliver_to_mvm_connected(&self, message: &GmpMessage, mvm_chain: &MvmRelayChainConfig) -> Result<()> {
+        let chain_label = format!("connected({})", mvm_chain.chain_id);
+        self.deliver_to_mvm_chain(message, &mvm_chain.rpc_url, &mvm_chain.module_addr, &chain_label)
             .await
     }
 
@@ -1196,26 +1228,14 @@ impl NativeGmpRelay {
     /// Deliver message to EVM chain via IntentGmp.deliverMessage().
     ///
     /// ABI-encodes the call and sends via eth_sendRawTransaction (locally signed).
-    async fn deliver_to_evm(&self, message: &GmpMessage) -> Result<()> {
-        let evm_rpc_url = self
-            .config
-            .evm_rpc_url
+    async fn deliver_to_evm(&self, message: &GmpMessage, evm_chain: &EvmRelayChainConfig) -> Result<()> {
+        let evm_rpc_url = &evm_chain.rpc_url;
+        let gmp_endpoint = evm_chain
+            .gmp_endpoint_addr
             .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("EVM RPC URL not configured"))?;
-        let gmp_endpoint = self
-            .config
-            .evm_gmp_endpoint_addr
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("EVM GMP endpoint address not configured"))?;
-        let relay_addr = self
-            .config
-            .evm_relay_address
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("EVM relay address not configured"))?;
-        let chain_id = self
-            .config
-            .evm_chain_id
-            .ok_or_else(|| anyhow::anyhow!("EVM chain ID not configured"))?;
+            .ok_or_else(|| anyhow::anyhow!("EVM GMP endpoint address not configured for chain {}", evm_chain.chain_id))?;
+        let relay_addr = &evm_chain.relay_address;
+        let chain_id = evm_chain.chain_id;
 
         info!(
             "Delivering message to EVM: dst_chain={}, nonce={}",
@@ -1265,29 +1285,21 @@ impl NativeGmpRelay {
         Ok(())
     }
 
-    /// Poll EVM chain for MessageSent events from IntentGmp contract.
-    async fn poll_evm_events(&self) -> Result<()> {
-        let evm_rpc_url = self
-            .config
-            .evm_rpc_url
+    /// Poll an EVM chain for MessageSent events from IntentGmp contract.
+    async fn poll_evm_events(&self, evm_chain: &EvmRelayChainConfig) -> Result<()> {
+        let evm_rpc_url = &evm_chain.rpc_url;
+        let gmp_endpoint = evm_chain
+            .gmp_endpoint_addr
             .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("EVM not configured"))?;
-        let gmp_endpoint = self
-            .config
-            .evm_gmp_endpoint_addr
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("EVM GMP endpoint address not configured"))?;
-        let evm_chain_id = self
-            .config
-            .evm_chain_id
-            .ok_or_else(|| anyhow::anyhow!("EVM chain ID not configured"))?;
+            .ok_or_else(|| anyhow::anyhow!("EVM GMP endpoint address not configured for chain {}", evm_chain.chain_id))?;
+        let evm_chain_id = evm_chain.chain_id;
 
         // Get current block number
         let current_block = self.evm_get_block_number(evm_rpc_url).await?;
 
         // Determine start block (max 10 block range for Alchemy free tier)
         let max_range: u64 = 10;
-        let last_block = { self.state.read().await.evm_last_block };
+        let last_block = { *self.state.read().await.evm_last_blocks.get(&evm_chain_id).unwrap_or(&0) };
         let from_block = if last_block == 0 {
             // First poll: start from recent blocks
             current_block.saturating_sub(max_range)
@@ -1317,7 +1329,7 @@ impl NativeGmpRelay {
         let logs: Vec<EvmLog> = self.evm_json_rpc(evm_rpc_url, "eth_getLogs", vec![filter]).await?;
 
         for log in &logs {
-            if let Some(message) = self.parse_evm_message_sent(log, evm_chain_id) {
+            if let Some(message) = self.parse_evm_message_sent(log, evm_chain_id, gmp_endpoint) {
                 info!(
                     "Found EVM MessageSent: dst_chain={}, nonce={}",
                     message.dst_chain_id, message.nonce
@@ -1375,7 +1387,7 @@ impl NativeGmpRelay {
 
         // Update last polled block
         {
-            self.state.write().await.evm_last_block = to_block;
+            self.state.write().await.evm_last_blocks.insert(evm_chain_id, to_block);
         }
 
         Ok(())
@@ -1386,7 +1398,7 @@ impl NativeGmpRelay {
     /// Event: MessageSent(uint32 indexed dstChainId, bytes32 dstAddr, bytes payload, uint64 nonce)
     /// topics[0] = event signature, topics[1] = dstChainId (indexed)
     /// data = ABI-encoded(bytes32 dstAddr, bytes payload, uint64 nonce)
-    fn parse_evm_message_sent(&self, log: &EvmLog, evm_chain_id: u32) -> Option<GmpMessage> {
+    fn parse_evm_message_sent(&self, log: &EvmLog, evm_chain_id: u32, gmp_endpoint_addr: &str) -> Option<GmpMessage> {
         if log.topics.len() < 2 {
             return None;
         }
@@ -1466,15 +1478,8 @@ impl NativeGmpRelay {
         };
 
         // Source address: use the GMP endpoint contract address (padded to 32 bytes)
-        let gmp_addr = self
-            .config
-            .evm_gmp_endpoint_addr
-            .as_ref()
-            .map(|a| {
-                let clean = a.strip_prefix("0x").unwrap_or(a).to_lowercase();
-                format!("0x{:0>64}", clean)
-            })
-            .unwrap_or_else(|| "0x".to_string());
+        let clean = gmp_endpoint_addr.strip_prefix("0x").unwrap_or(gmp_endpoint_addr).to_lowercase();
+        let gmp_addr = format!("0x{:0>64}", clean);
 
         Some(GmpMessage {
             src_chain_id: evm_chain_id,
@@ -1751,14 +1756,11 @@ impl NativeGmpRelay {
     /// Builds and submits a DeliverMessage transaction to the SVM integrated-gmp-endpoint program.
     /// For IntentRequirements messages (0x01), also derives and passes the outflow-validator
     /// accounts needed for GmpReceive CPI.
-    async fn deliver_to_svm(&self, message: &GmpMessage) -> Result<()> {
-        let Some(ref rpc_url) = self.config.svm_rpc_url else {
-            return Err(anyhow::anyhow!("SVM not configured"));
-        };
+    async fn deliver_to_svm(&self, message: &GmpMessage, svm_chain: &SvmRelayChainConfig) -> Result<()> {
+        let rpc_url = &svm_chain.rpc_url;
 
-        let Some(ref program_id_str) = self.config.svm_gmp_program_id else {
-            return Err(anyhow::anyhow!("SVM GMP program ID not configured"));
-        };
+        let program_id_str = svm_chain.gmp_program_id.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("SVM GMP program ID not configured for chain {}", svm_chain.chain_id))?;
 
         info!(
             "Delivering message to SVM: dst_chain={}, nonce={}",
@@ -1817,7 +1819,7 @@ impl NativeGmpRelay {
         }
 
         // Get outflow_validator program for destination_program_1 (required for routing IntentRequirements)
-        let outflow_program = if let Some(ref outflow_id) = self.config.svm_outflow_program_id {
+        let outflow_program = if let Some(ref outflow_id) = svm_chain.outflow_program_id {
             Pubkey::from_str(outflow_id).context("Invalid SVM outflow program ID")?
         } else {
             // If no outflow configured, use dst_program as placeholder (routing won't be used)
@@ -1825,7 +1827,7 @@ impl NativeGmpRelay {
         };
 
         // Get intent_escrow program for destination_program_2 (required for routing)
-        let escrow_program = if let Some(ref escrow_id) = self.config.svm_escrow_program_id {
+        let escrow_program = if let Some(ref escrow_id) = svm_chain.escrow_program_id {
             Pubkey::from_str(escrow_id).context("Invalid SVM escrow program ID")?
         } else {
             // If no escrow configured, use dst_program as placeholder (routing won't be used)

@@ -2,7 +2,7 @@
 
 # Configure Coordinator for Connected SVM Chain
 #
-# This script adds the [connected_chain_svm] section to coordinator-e2e-ci-testing.toml.
+# This script adds a [[connected_chain_svm]] entry to coordinator-e2e-ci-testing.toml.
 # Must be called AFTER chain-hub/configure-coordinator.sh which creates the base config.
 
 set -e
@@ -36,7 +36,7 @@ fi
 TEMP_FILE=$(mktemp)
 cat > "$TEMP_FILE" << EOF
 
-[connected_chain_svm]
+[[connected_chain_svm]]
 name = "Connected SVM Chain"
 rpc_url = "http://127.0.0.1:8899"
 escrow_program_id = "$SVM_PROGRAM_ID"
