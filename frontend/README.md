@@ -7,6 +7,9 @@ Browser UI for the cross-chain intent protocol.
 ## Quick Start
 
 ```bash
+# Build the SDK (required before any frontend command, run from frontend/)
+cd ../packages/sdk && npm install && npm run build && cd -
+
 # Install dependencies (use --legacy-peer-deps due to React 19 compatibility)
 npm install --legacy-peer-deps
 

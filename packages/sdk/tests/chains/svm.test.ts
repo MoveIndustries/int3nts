@@ -161,7 +161,6 @@ describe('instruction builders', () => {
       requesterToken: REQUESTER,
       tokenMint: TOKEN_MINT,
       reservedSolver: SOLVER,
-      expiryDuration: 120,
       programId: PROGRAM_ID,
     });
 
@@ -171,7 +170,7 @@ describe('instruction builders', () => {
     expect(Buffer.from(instruction.data.subarray(1, 33))).toEqual(
       Buffer.from(svmHexToBytes(INTENT_ID))
     );
-    expect(instruction.data).toHaveLength(1 + 32 + 8 + 1 + 8);
+    expect(instruction.data).toHaveLength(1 + 32 + 8);
   });
 
   /// 10. Test: Claim Instruction Layout

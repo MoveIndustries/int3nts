@@ -86,7 +86,7 @@ interface IntentHandlerDeps {
   setCreatingEscrow: (v: boolean) => void;
   // Wagmi write functions (typed loosely to avoid wagmi internal type coupling)
   writeApprove: (params: { address: `0x${string}`; abi: readonly unknown[]; functionName: string; args: readonly unknown[] }) => void;
-  writeCreateEscrow: (params: { address: `0x${string}`; abi: readonly unknown[]; functionName: string; args: readonly unknown[] }) => void;
+  writeCreateEscrow: (params: { address: `0x${string}`; abi: readonly unknown[]; functionName: string; args: readonly unknown[]; gas?: bigint }) => void;
 }
 
 export function useIntentHandlers(deps: IntentHandlerDeps) {
@@ -484,6 +484,7 @@ export function useIntentHandlers(deps: IntentHandlerDeps) {
         abi: INTENT_ESCROW_ABI,
         functionName: 'createEscrowWithValidation',
         args: [intentIdEvm, tokenAddress, amount],
+        gas: BigInt(500_000),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create escrow');

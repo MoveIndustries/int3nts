@@ -385,7 +385,7 @@ export function IntentBuilder() {
   // Auto-calculate desired amount based on solver's exchange rate
   // This runs when offered token/amount or desired token changes
   useEffect(() => {
-    if (!offeredToken || !desiredToken || !offeredAmount || parseFloat(offeredAmount) <= 0) {
+    if (!offeredToken || !desiredToken || !offeredAmount || !(parseFloat(offeredAmount) > 0)) {
       // Only reset if not already showing not available yet (which indicates a fetch was attempted)
       if (desiredAmount !== 'not available yet') {
         setDesiredAmount('');

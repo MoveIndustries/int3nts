@@ -262,24 +262,13 @@ function encodeU64(value: bigint | number): Buffer {
   return buffer;
 }
 
-function encodeI64(value: bigint | number): Buffer {
-  const buffer = Buffer.alloc(8);
-  buffer.writeBigInt64LE(BigInt(value), 0);
-  return buffer;
-}
-
-function encodeCreateEscrowData(intentId: string, amount: bigint, expiryDuration?: number): Buffer {
+function encodeCreateEscrowData(intentId: string, amount: bigint): Buffer {
   const intentIdBytes = Buffer.from(svmHexToBytes(intentId));
-  const expiryTag = expiryDuration === undefined ? 0 : 1;
-  const expiryBytes =
-    expiryDuration === undefined ? Buffer.alloc(0) : encodeI64(expiryDuration);
 
   return Buffer.concat([
     Buffer.from([3]), // EscrowInstruction::CreateEscrow (index 3: Initialize=0, GmpReceive=1, SetGmpConfig=2, CreateEscrow=3)
     intentIdBytes,
     encodeU64(amount),
-    Buffer.from([expiryTag]),
-    expiryBytes,
   ]);
 }
 
@@ -313,7 +302,6 @@ export function buildCreateEscrowInstruction(params: {
   tokenMint: PublicKey;
   reservedSolver: PublicKey;
   programId: PublicKey;
-  expiryDuration?: number;
   gmpParams?: CreateEscrowGmpParams;
 }): TransactionInstruction {
   const programId = params.programId;
@@ -376,7 +364,7 @@ export function buildCreateEscrowInstruction(params: {
   return new TransactionInstruction({
     programId,
     keys,
-    data: encodeCreateEscrowData(params.intentId, params.amount, params.expiryDuration),
+    data: encodeCreateEscrowData(params.intentId, params.amount),
   });
 }
 
