@@ -60,6 +60,10 @@ curl -s http://localhost:3333/health | jq   # coordinator
 curl -s http://localhost:3334/health | jq   # integrated-gmp
 ```
 
+## Cost Estimates
+
+See [cost-estimate-deployment.md](cost-estimate-deployment.md) for one-time deployment and ongoing operational cost estimates across testnet and mainnet chains.
+
 ## Configuration
 
 - `.env.testnet` - Private keys and addresses (gitignored)
