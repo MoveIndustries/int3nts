@@ -2,11 +2,6 @@
 
 # Configure Base Sepolia Testnet - Set remote GMP endpoint and update hub config
 #
-# Steps:
-#   1. Verify all 3 contracts are deployed on-chain
-#   2. Set remote GMP endpoint on IntentGmp for hub chain (Movement)
-#   3. Update hub config on IntentInflowEscrow and IntentOutflowValidator
-#
 # Requires:
 #   - .env.testnet with:
 #     - BASE_DEPLOYER_PRIVATE_KEY
@@ -21,86 +16,17 @@ PROJECT_ROOT="$( cd "$SCRIPT_DIR/../../../.." && pwd )"
 
 source "$SCRIPT_DIR/../lib/env-utils.sh"
 
-echo " Configuring Base Sepolia Testnet"
-echo "=================================="
-echo ""
-
 # Load .env.testnet
 load_env_file "$SCRIPT_DIR/../.env.testnet"
 
-require_var "BASE_DEPLOYER_PRIVATE_KEY" "$BASE_DEPLOYER_PRIVATE_KEY"
-require_var "BASE_GMP_ENDPOINT_ADDR" "$BASE_GMP_ENDPOINT_ADDR" "Run deploy-to-base-testnet.sh first"
-require_var "MOVEMENT_INTENT_MODULE_ADDR" "$MOVEMENT_INTENT_MODULE_ADDR" "Run deploy-to-movement-testnet.sh first"
-
 require_var "ALCHEMY_BASE_SEPOLIA_API_KEY" "$ALCHEMY_BASE_SEPOLIA_API_KEY" "Get your free API key at: https://www.alchemy.com/"
-BASE_SEPOLIA_RPC_URL="https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_BASE_SEPOLIA_API_KEY}"
 
-HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet" "$TESTNET_ASSETS_CONFIG")
+EVM_CHAIN_PREFIX="BASE"
+EVM_RPC_URL="https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_BASE_SEPOLIA_API_KEY}"
+export BASE_SEPOLIA_RPC_URL="$EVM_RPC_URL"
+EVM_HARDHAT_NETWORK="baseSepolia"
+EVM_DISPLAY_NAME="Base Sepolia Testnet"
+EVM_HUB_CHAIN_ID=$(get_chain_id "movement_bardock_testnet" "$TESTNET_ASSETS_CONFIG")
+EVM_DEPLOY_SCRIPT="deploy-to-base-testnet.sh"
 
-echo " Configuration:"
-echo "   GMP Endpoint:  $BASE_GMP_ENDPOINT_ADDR"
-echo "   Hub Chain ID:  $HUB_CHAIN_ID"
-echo "   Hub Module:    $MOVEMENT_INTENT_MODULE_ADDR"
-echo ""
-
-# 1. Verify contracts are deployed
-echo " 1. Verifying deployed contracts..."
-
-verify_evm_contract "$BASE_SEPOLIA_RPC_URL" "$BASE_GMP_ENDPOINT_ADDR" "IntentGmp"
-
-require_var "BASE_INFLOW_ESCROW_ADDR" "$BASE_INFLOW_ESCROW_ADDR" "Run deploy-to-base-testnet.sh first"
-verify_evm_contract "$BASE_SEPOLIA_RPC_URL" "$BASE_INFLOW_ESCROW_ADDR" "IntentInflowEscrow"
-
-require_var "BASE_OUTFLOW_VALIDATOR_ADDR" "$BASE_OUTFLOW_VALIDATOR_ADDR" "Run deploy-to-base-testnet.sh first"
-verify_evm_contract "$BASE_SEPOLIA_RPC_URL" "$BASE_OUTFLOW_VALIDATOR_ADDR" "IntentOutflowValidator"
-echo ""
-
-# 2. Set remote GMP endpoint on GMP endpoint
-echo " 2. Setting remote GMP endpoint for hub chain $HUB_CHAIN_ID..."
-
-cd "$PROJECT_ROOT/intent-frameworks/evm"
-
-# Install dependencies if needed
-if [ ! -d "node_modules" ]; then
-    echo "   Installing dependencies..."
-    npm install
-fi
-
-export DEPLOYER_PRIVATE_KEY="$BASE_DEPLOYER_PRIVATE_KEY"
-export BASE_SEPOLIA_RPC_URL
-export GMP_ENDPOINT_ADDR="$BASE_GMP_ENDPOINT_ADDR"
-export HUB_CHAIN_ID
-export MOVEMENT_INTENT_MODULE_ADDR
-
-set +e
-CONFIGURE_OUTPUT=$(npx hardhat run scripts/configure-gmp.js --network baseSepolia 2>&1)
-CONFIGURE_EXIT=$?
-set -e
-
-echo "$CONFIGURE_OUTPUT"
-
-if [ $CONFIGURE_EXIT -ne 0 ]; then
-    echo "FATAL: Failed to set remote GMP endpoint on IntentGmp"
-    exit 1
-fi
-
-# 3. Update hub config on escrow and outflow validator
-echo " 3. Updating hub config on IntentInflowEscrow and IntentOutflowValidator..."
-
-export INFLOW_ESCROW_ADDR="$BASE_INFLOW_ESCROW_ADDR"
-export OUTFLOW_VALIDATOR_ADDR="$BASE_OUTFLOW_VALIDATOR_ADDR"
-
-set +e
-HUB_CONFIG_OUTPUT=$(npx hardhat run scripts/configure-hub-config.js --network baseSepolia 2>&1)
-HUB_CONFIG_EXIT=$?
-set -e
-
-echo "$HUB_CONFIG_OUTPUT"
-
-if [ $HUB_CONFIG_EXIT -ne 0 ]; then
-    echo "FATAL: Failed to update hub config on escrow/outflow contracts"
-    exit 1
-fi
-
-echo ""
-echo " Base Sepolia configuration verified."
+source "$SCRIPT_DIR/../../common/scripts/configure-evm.sh"

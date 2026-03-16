@@ -3,7 +3,7 @@
 # Source this file: source "$(dirname "$0")/lib/env-utils.sh"
 
 # Shared functions (update_env_var, pad_address_32, require_var, get_chain_id, verify_movement_view)
-SHARED_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")/../../shared/lib"
+SHARED_LIB_DIR="$(dirname "${BASH_SOURCE[0]}")/../../common/lib"
 ENV_FILE_NAME=".env.mainnet"
 source "$SHARED_LIB_DIR/env-utils.sh"
 
