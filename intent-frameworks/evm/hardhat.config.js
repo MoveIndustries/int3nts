@@ -30,6 +30,20 @@ module.exports = {
         accounts: [process.env.DEPLOYER_PRIVATE_KEY, process.env.SOLVER_EVM_PRIVATE_KEY].filter(Boolean),
       },
     } : {}),
+    ...(process.env.BASE_RPC_URL ? {
+      baseMainnet: {
+        url: process.env.BASE_RPC_URL,
+        chainId: 8453,
+        accounts: [process.env.DEPLOYER_PRIVATE_KEY].filter(Boolean),
+      },
+    } : {}),
+    ...(process.env.HYPERLIQUID_RPC_URL ? {
+      hyperliquidMainnet: {
+        url: process.env.HYPERLIQUID_RPC_URL,
+        chainId: 999,
+        accounts: [process.env.DEPLOYER_PRIVATE_KEY].filter(Boolean),
+      },
+    } : {}),
   },
 };
 

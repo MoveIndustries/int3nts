@@ -36,6 +36,7 @@ integrated-gmp/config/integrated-gmp-e2e-ci-testing.toml
 testing-infra/ci-e2e/.integrated-gmp-keys.env
 
 # Editor and OS files
+.cursor/
 .idea
 *.suo
 *.ntvs*
