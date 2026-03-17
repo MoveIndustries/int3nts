@@ -62,7 +62,7 @@ curl -s http://localhost:3334/health | jq   # integrated-gmp
 
 ## Cost Estimates
 
-See [cost-estimate-deployment.md](cost-estimate-deployment.md) for one-time deployment and ongoing operational cost estimates across testnet and mainnet chains.
+See [supported-networks.md](../../../docs/testing-infra/supported-networks.md) for supported networks and deployment cost estimates.
 
 ## Configuration
 

@@ -11,8 +11,8 @@
 | Stage 3 — Integrated-GMP: migrate EVM calls to chain-clients EvmClient | ✅ done |
 | Stage 4 — Solver: multi-chain client dispatch | ✅ done |
 | Stage 5 — Directory restructure + HyperEVM mainnet deploy scripts | ✅ done |
-| Stage 6 — Frontend + SDK: add Hyperliquid chain and tokens | — |
-| Stage 7 — Mainnet config: wire up HyperEVM (post-deployment) | blocked on Stage 5 |
+| Stage 6 — Frontend + SDK: add Hyperliquid chain and tokens | ✅ done |
+| Stage 7 — Mainnet config: wire up HyperEVM (post-deployment) | blocked on deployment |
 
 ## Goal
 

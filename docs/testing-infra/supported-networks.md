@@ -1,20 +1,18 @@
-# Deployment Cost Estimates
+# Supported Networks
 
-Calculated: 2026-03-16
+Networks supported for int3nts contract deployment, with cost estimates.
 
-Rough estimates for deploying int3nts contracts.
-
-**Caveat:** Gas prices fluctuate constantly. These are order-of-magnitude estimates, not quotes. Verify current prices before deploying.
+Gas prices fluctuate constantly. Cost figures are order-of-magnitude estimates as of 2026-03-16, not quotes. Verify current prices before deploying.
 
 ## Testnet
 
 | Chain | Supported | Notes |
 |---|---|---|
-| Base (Sepolia) | ✓ | |
-| Ethereum (Sepolia) | ✓ | |
-| HyperEVM (Hyperliquid Testnet) | ✗ | Testnet tokens (HYPE) not easily obtainable via public faucet |
-| Movement (Bardock) | ✓ | |
-| Solana (Devnet) | ✓ | |
+| Base (Sepolia) | yes | |
+| Ethereum (Sepolia) | yes | |
+| HyperEVM (Hyperliquid Testnet) | no | Testnet tokens (HYPE) not easily obtainable via public faucet |
+| Movement (Bardock) | yes | |
+| Solana (Devnet) | yes | |
 
 Testnet deployments use faucet tokens and have no real cost.
 
@@ -22,13 +20,15 @@ Testnet deployments use faucet tokens and have no real cost.
 
 | Chain | Supported | Notes |
 |---|---|---|
-| Base | ✓ | L2, very cheap |
-| Ethereum | ✗ | High gas costs: ~$272 deployment, ~$1–5 per solver/relay tx |
-| HyperEVM | ✓ | Estimated ~$1 |
-| Movement | ✓ | Effectively free |
-| Solana | ✗ | High program rent: ~$297 for 3 programs |
+| Base | yes | L2, very cheap |
+| Ethereum | no | High gas costs: ~$272 deployment, ~$1-5 per solver/relay tx |
+| HyperEVM | yes | Estimated ~$1 |
+| Movement | yes | Effectively free |
+| Solana | no | High program rent: ~$297 for 3 programs |
 
-### Token prices and deployment costs (current as of 2026-03-16)
+## Deployment Cost Breakdown
+
+### Token prices (as of 2026-03-16)
 
 | Chain | Native token | Token price | Deployment cost (USD) |
 |---|---|---|---|
@@ -67,9 +67,9 @@ Movement deployment is effectively free.
 
 Included for reference — not currently targeted for mainnet deployment due to cost.
 
-**The main cost driver is program binary size.** Unlike EVM chains where deployment cost is gas × gas price (a transaction fee), Solana charges **rent** — a one-time SOL deposit proportional to the on-chain storage the program occupies. Larger binaries = more storage = more SOL locked up. The deposit is permanent (not refunded unless the program is closed) and must be paid upfront.
+The main cost driver is program binary size. Unlike EVM chains where deployment cost is gas x gas price (a transaction fee), Solana charges rent — a one-time SOL deposit proportional to the on-chain storage the program occupies. Larger binaries = more storage = more SOL locked up. The deposit is permanent (not refunded unless the program is closed) and must be paid upfront.
 
-The rent-exempt minimum is calculated as: `(890,880 + data_size_bytes × 6,960) lamports`. For upgradeable programs, the on-chain `programdata` account stores the full compiled binary plus a 45-byte header, so `data_size_bytes = binary_size + 45`.
+The rent-exempt minimum is calculated as: `(890,880 + data_size_bytes x 6,960) lamports`. For upgradeable programs, the on-chain `programdata` account stores the full compiled binary plus a 45-byte header, so `data_size_bytes = binary_size + 45`.
 
 Using actual compiled binary sizes from `target/deploy/`:
 
@@ -80,6 +80,6 @@ Using actual compiled binary sizes from `target/deploy/`:
 | intent_outflow_validator.so | 134,560 bytes | 134,605 bytes | 0.938 SOL | $87 |
 | **Total** | **458,784 bytes** | | **3.20 SOL** | **$297** |
 
-If deployed as upgradeable with a 2× size buffer (`--max-len`), the deposit doubles: ~6.4 SOL / ~$594.
+If deployed as upgradeable with a 2x size buffer (`--max-len`), the deposit doubles: ~6.4 SOL / ~$594.
 
 Per-intent PDA accounts are tiny (< 0.01 SOL each).
