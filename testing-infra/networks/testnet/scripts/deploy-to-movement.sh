@@ -27,5 +27,6 @@ MVM_NETWORK_LABEL="testnet"
 MVM_LOG_PREFIX="movement-testnet"
 MVM_PUBLISH_FLAGS="--dev"
 MVM_NEXT_STEPS="Deploy Base and Solana contracts"
+MVM_FRONTEND_INTENT_CONTRACT_ADDR_ENV_VAR="NEXT_PUBLIC_MOVEMENT_TESTNET_INTENT_CONTRACT_ADDRESS"
 
 source "$SCRIPT_DIR/../../common/scripts/deploy-to-movement.sh"

@@ -10,7 +10,7 @@
 #   EVM_HUB_CHAIN_ID      - Hub chain ID (from get_chain_id)
 #   EVM_NETWORK_LABEL     - testnet/mainnet (for config file paths)
 #   EVM_CHAIN_LABEL       - Base/HyperEVM (for config section descriptions)
-#   EVM_FRONTEND_ENV_VAR  - Frontend env var name (NEXT_PUBLIC_BASE_ESCROW_CONTRACT_ADDRESS)
+#   EVM_FRONTEND_ESCROW_CONTRACT_ADDR_ENV_VAR  - .env.local key for the escrow contract addr (e.g. NEXT_PUBLIC_BASE_TESTNET_ESCROW_CONTRACT_ADDR)
 #   EVM_LOG_PREFIX        - Log file prefix (base-sepolia, base-mainnet, hyperliquid-mainnet)
 #   EVM_CHECK_SCRIPT      - Preparedness check script path
 
@@ -139,7 +139,7 @@ if [ -n "$GMP_ENDPOINT_ADDR" ] && [ -n "$ESCROW_ADDR" ]; then
     echo "      (in the [[connected_chain]] EVM ${EVM_CHAIN_LABEL} section)"
     echo ""
     echo "   4. frontend/.env.local"
-    echo "      ${EVM_FRONTEND_ENV_VAR}=$ESCROW_ADDR"
+    echo "      ${EVM_FRONTEND_ESCROW_CONTRACT_ADDR_ENV_VAR}=$ESCROW_ADDR"
     echo ""
     echo "   5. Run ${EVM_CHECK_SCRIPT} to verify"
 
@@ -169,6 +169,6 @@ else
     echo "   - coordinator/config/coordinator_${EVM_NETWORK_LABEL}.toml (escrow_contract_addr in [[connected_chain_evm]] ${EVM_CHAIN_LABEL} section)"
     echo "   - integrated-gmp/config/integrated-gmp_${EVM_NETWORK_LABEL}.toml (escrow_contract_addr + gmp_endpoint_addr in [[connected_chain_evm]] ${EVM_CHAIN_LABEL} section)"
     echo "   - solver/config/solver_${EVM_NETWORK_LABEL}.toml (escrow_contract_addr in [[connected_chain]] EVM ${EVM_CHAIN_LABEL} section)"
-    echo "   - frontend/.env.local (${EVM_FRONTEND_ENV_VAR})"
+    echo "   - frontend/.env.local (${EVM_FRONTEND_ESCROW_CONTRACT_ADDR_ENV_VAR})"
 fi
 echo ""

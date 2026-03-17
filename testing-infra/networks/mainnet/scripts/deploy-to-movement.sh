@@ -27,5 +27,6 @@ MVM_NETWORK_LABEL="mainnet"
 MVM_LOG_PREFIX="movement-mainnet"
 MVM_PUBLISH_FLAGS=""
 MVM_NEXT_STEPS="Deploy Base and HyperEVM contracts"
+MVM_FRONTEND_INTENT_CONTRACT_ADDR_ENV_VAR="NEXT_PUBLIC_MOVEMENT_MAINNET_INTENT_CONTRACT_ADDRESS"
 
 source "$SCRIPT_DIR/../../common/scripts/deploy-to-movement.sh"

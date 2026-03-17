@@ -8,6 +8,7 @@
 #   MVM_LOG_PREFIX         - Log file prefix (movement-testnet, movement-mainnet)
 #   MVM_PUBLISH_FLAGS      - Extra flags for `movement move publish` (e.g. "--dev")
 #   MVM_NEXT_STEPS         - Next steps text (chain names to deploy next)
+#   MVM_FRONTEND_INTENT_CONTRACT_ADDR_ENV_VAR   - .env.local key for the intent contract addr (e.g. NEXT_PUBLIC_MOVEMENT_TESTNET_INTENT_CONTRACT_ADDR)
 #   CALLER_SCRIPT_DIR      - The calling script's directory (for log/env paths)
 #
 # Also expects env-utils.sh to be sourced (for load_env_file, require_var).
@@ -293,7 +294,7 @@ echo "      module_addr = \"$DEPLOY_ADDR_FULL\""
 echo "      (in the [hub_chain] section)"
 echo ""
 echo "   4. frontend/.env.local:"
-echo "      NEXT_PUBLIC_INTENT_CONTRACT_ADDRESS=$DEPLOY_ADDR_FULL"
+echo "      ${MVM_FRONTEND_INTENT_CONTRACT_ADDR_ENV_VAR}=$DEPLOY_ADDR_FULL"
 echo ""
 echo " Next steps:"
 echo "   1. Update the config files above with the new module address"
