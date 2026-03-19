@@ -46,7 +46,7 @@ name = "Connected SVM Chain"
 rpc_url = "http://127.0.0.1:8899"
 escrow_program_id = "$SVM_PROGRAM_ID"
 outflow_program_id = "$SVM_OUTFLOW_VALIDATOR_ID"
-chain_id = 901
+chain_id = 2
 gmp_endpoint_program_id = "$SVM_GMP_ENDPOINT_ID"
 EOF
 

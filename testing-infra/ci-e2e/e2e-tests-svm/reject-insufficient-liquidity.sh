@@ -15,7 +15,7 @@ cd "$PROJECT_ROOT"
 
 # Resolve chain addresses for the second draft
 HUB_CHAIN_ID=1
-CONNECTED_CHAIN_ID=901
+CONNECTED_CHAIN_ID=2
 HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
 TEST_TOKENS_HUB=$(get_profile_address "test-tokens-chain1")
 REQUESTER_HUB_ADDR=$(get_profile_address "requester-chain1")

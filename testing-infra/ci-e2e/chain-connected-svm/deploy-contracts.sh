@@ -16,7 +16,7 @@ log " Deploying SVM programs (intent_inflow_escrow, intent-gmp, intent-outflow-v
 log_and_echo " All output logged to: $LOG_FILE"
 
 SVM_RPC_URL="http://127.0.0.1:8899"
-SVM_CHAIN_ID=901
+SVM_CHAIN_ID=2
 CHAIN_INFO="$PROJECT_ROOT/.tmp/chain-info.env"
 
 if [ -f "$CHAIN_INFO" ]; then
