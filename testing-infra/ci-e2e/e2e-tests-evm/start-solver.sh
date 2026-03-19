@@ -127,6 +127,7 @@ rpc_url = "$EVM_RPC_URL"
 chain_id = $EVM_CHAIN_ID
 escrow_contract_addr = "$escrow_addr"
 private_key_env = "SOLVER_EVM_PRIVATE_KEY"
+network_name = "$EVM_NETWORK"
 outflow_validator_addr = "$outflow_validator_addr"
 gmp_endpoint_addr = "$gmp_endpoint_addr"
 
