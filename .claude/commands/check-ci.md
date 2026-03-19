@@ -18,8 +18,8 @@ Investigate CI test results for a given PR number.
 # Get current branch name
 git branch --show-current
 
-# Find PR associated with current branch
-gh pr list --head "$(git branch --show-current)" --json number,title,url,state | jq -r '.[] | "PR #\(.number): \(.title)\nURL: \(.url)\nState: \(.state)"'
+# Find PR associated with current branch (raw JSON — Claude parses it directly)
+gh pr list --head "$(git branch --show-current)" --json number,title,url,state
 ```
 
 If no PR is found for the current branch, ask the user for a PR number.
@@ -29,7 +29,7 @@ If no PR is found for the current branch, ask the user for a PR number.
 Display basic PR information:
 
 ```bash
-gh pr view <PR_NUMBER> --json number,title,url,headRefName,baseRefName,state | jq -r '"PR #\(.number): \(.title)\nBranch: \(.headRefName) → \(.baseRefName)\nState: \(.state)\nURL: \(.url)"'
+gh pr view <PR_NUMBER> --json number,title,url,headRefName,baseRefName,state
 ```
 
 Present as:
@@ -84,8 +84,8 @@ For the selected check(s), fetch the logs using the GitHub API (the `gh run view
 # Get the run ID and job ID from the check URL
 # URL format: https://github.com/<org>/<repo>/actions/runs/<run_id>/job/<job_id>
 
-# First, identify which step failed:
-gh run view <run_id> --json jobs | jq '.jobs[] | select(.databaseId == <job_id>) | {name: .name, conclusion: .conclusion, steps: [.steps[] | select(.conclusion == "failure") | {name: .name, conclusion: .conclusion}]}'
+# First, get all job data as raw JSON (Claude parses it directly — no jq piping):
+gh run view <run_id> --json jobs
 
 # Fetch actual logs via the API (reliable, unlike gh run view --log):
 gh api repos/<owner>/<repo>/actions/jobs/<job_id>/logs 2>&1 | tail -200
@@ -149,4 +149,4 @@ Ask if the user wants to:
 - Parse job IDs from the check URLs automatically
 - Truncate very long logs - show most relevant parts
 - For "All failing checks", summarize each briefly first, then offer deep dives
-- **Do NOT use `--jq` with `gh` commands** — the `\(` sequences in jq expressions break Claude Code's glob-based permission matching (e.g. `Bash(gh pr view*)`). Always pipe to `jq -r` instead.
+- **Do NOT pipe `gh` commands to `jq`** — piped commands don't match the `Bash(gh ...:*)` permission globs, causing unnecessary permission prompts. Instead, use `gh --json <fields>` to get raw JSON and parse it directly in your response. Similarly, avoid `--jq` with `\(` interpolation as it also breaks glob matching.
