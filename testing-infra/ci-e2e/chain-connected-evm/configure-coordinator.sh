@@ -4,6 +4,7 @@
 #
 # This script adds a [[connected_chain_evm]] entry to coordinator-e2e-ci-testing.toml.
 # Must be called AFTER chain-hub/configure-coordinator.sh which creates the base config.
+# Accepts instance number as argument (default: 1).
 
 set -e
 
@@ -14,10 +15,15 @@ source "$SCRIPT_DIR/utils.sh"
 
 # Setup project root and logging
 setup_project_root
-setup_logging "configure-coordinator-connected-evm"
+
+# Accept instance number as argument (default: 1)
+evm_instance_vars "${1:-1}"
+source "$EVM_CHAIN_INFO_FILE" 2>/dev/null || true
+
+setup_logging "configure-coordinator-connected-evm${EVM_INSTANCE}"
 cd "$PROJECT_ROOT"
 
-log_and_echo "   Configuring coordinator for Connected EVM Chain..."
+log_and_echo "   Configuring coordinator for Connected EVM Chain (instance $EVM_INSTANCE)..."
 log_and_echo ""
 
 # Get EVM escrow contract address (single contract, one escrow per intentId)
@@ -37,10 +43,10 @@ TEMP_FILE=$(mktemp)
 cat > "$TEMP_FILE" << EOF
 
 [[connected_chain_evm]]
-name = "Connected EVM Chain"
-rpc_url = "http://127.0.0.1:8545"
+name = "Connected EVM Chain $EVM_INSTANCE"
+rpc_url = "$EVM_RPC_URL"
 escrow_contract_addr = "$CONTRACT_ADDR"
-chain_id = 31337
+chain_id = $EVM_CHAIN_ID
 EOF
 
 # Insert the EVM section before [api] section
@@ -54,5 +60,5 @@ rm -f "$TEMP_FILE"
 
 export COORDINATOR_CONFIG_PATH="$COORDINATOR_E2E_CI_TESTING_CONFIG"
 
-log_and_echo "   Added Connected EVM Chain section to coordinator config"
+log_and_echo "   Added Connected EVM Chain $EVM_INSTANCE section to coordinator config"
 log_and_echo ""

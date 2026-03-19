@@ -13,13 +13,26 @@ module.exports = {
   },
   networks: {
     hardhat: {
-      chainId: 31337,
+      chainId: parseInt(process.env.HARDHAT_CHAIN_ID || "31337"),
     },
     localhost: {
       url: "http://127.0.0.1:8545",
       chainId: 31337,
       accounts: {
-        // Hardhat default accounts (same as when running hardhat node)
+        mnemonic: "test test test test test test test test test test test junk",
+      },
+    },
+    "localhost-e2e-1": {
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
+      accounts: {
+        mnemonic: "test test test test test test test test test test test junk",
+      },
+    },
+    "localhost-e2e-2": {
+      url: "http://127.0.0.1:8546",
+      chainId: 31338,
+      accounts: {
         mnemonic: "test test test test test test test test test test test junk",
       },
     },

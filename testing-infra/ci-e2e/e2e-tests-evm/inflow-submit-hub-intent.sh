@@ -9,8 +9,13 @@ source "$SCRIPT_DIR/../chain-connected-evm/utils.sh"
 
 # Setup project root and logging
 setup_project_root
-setup_logging "inflow-submit-hub-intent-evm"
 cd "$PROJECT_ROOT"
+
+# Load EVM instance vars
+evm_instance_vars "${EVM_INSTANCE:-1}"
+source "$EVM_CHAIN_INFO_FILE" 2>/dev/null || true
+
+setup_logging "inflow-submit-hub-intent-evm${EVM_INSTANCE}"
 
 # Verify services are running before proceeding
 verify_coordinator_running
@@ -21,8 +26,8 @@ verify_solver_registered
 # Generate a random intent_id that will be used for both hub and escrow
 INTENT_ID="0x$(openssl rand -hex 32)"
 
-# EVM mode: CONNECTED_CHAIN_ID=31337 (matches Hardhat default network chain ID)
-CONNECTED_CHAIN_ID=31337
+# EVM mode: use chain ID from evm_instance_vars
+CONNECTED_CHAIN_ID=$EVM_CHAIN_ID
 
 # Get addresses
 HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
@@ -41,8 +46,7 @@ if [ -z "$REQUESTER_EVM_ADDR" ]; then
     exit 1
 fi
 
-# Get USDcon EVM address
-source "$PROJECT_ROOT/.tmp/chain-info.env" 2>/dev/null || true
+# Get USDcon EVM address (loaded from chain-info-evm${EVM_INSTANCE}.env above)
 USD_EVM_ADDR="${USD_EVM_ADDR:-}"
 
 log ""

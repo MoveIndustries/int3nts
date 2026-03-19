@@ -1,4 +1,20 @@
-# Multi-EVM Support + HyperEVM Mainnet Integration
+# Multi-EVM E2E Testing: Parameterized Chain Instances
+
+## Goal
+
+Run two independent EVM chain instances in E2E tests to validate multi-EVM support end-to-end. No directory duplication — parameterize existing `chain-connected-evm/` scripts by instance number.
+
+## Instance layout
+
+| Property | Instance 1 | Instance 2 |
+|---|---|---|
+| Port | 8545 | 8546 |
+| Chain ID | 31337 | 31338 |
+| Hardhat network | `localhost-e2e-1` | `localhost-e2e-2` |
+| Env var suffix | `_EVM1` | `_EVM2` |
+| PID file | `hardhat-node-1.pid` | `hardhat-node-2.pid` |
+
+---
 
 ## Progress
 
@@ -6,39 +22,13 @@
 
 | Stage | Status |
 |---|---|
-| Stage 1 — Coordinator: multi-chain config | ✅ done |
-| Stage 2 — Integrated-GMP: multi-chain relay config | ✅ done |
-| Stage 3 — Integrated-GMP: migrate EVM calls to chain-clients EvmClient | ✅ done |
-| Stage 4 — Solver: multi-chain client dispatch | ✅ done |
-| Stage 5 — Directory restructure + HyperEVM mainnet deploy scripts | ✅ done |
-| Stage 6 — Frontend + SDK: add Hyperliquid chain and tokens | ✅ done |
-| Stage 7 — Mainnet config: wire up HyperEVM (post-deployment) | blocked on deployment |
-
-## Goal
-
-Extend the system to support multiple simultaneous connected chains of each type (EVM, MVM, SVM), then add HyperEVM mainnet (chain ID 999) alongside the existing Base Sepolia testnet.
-
-The target chains for the mainnet testing environment in `testing-infra/` are: Base mainnet, HyperEVM mainnet, and Movement mainnet. HyperEVM is mainnet-only — testnet tokens (HYPE) are not easily obtainable, so it cannot be tested against the Hyperliquid testnet.
-
-## Background
-
-### Current state
-
-| Component | MVM | EVM | SVM | Issue |
-|---|---|---|---|---|
-| Coordinator | `Option` — single | `Option` — single | `Option` — single | All three must become `Vec` |
-| Integrated-GMP | `Option` — single | `Option` — single | `Option` — single | All three must become `Vec`; relay routing must iterate per chain |
-| Solver | `Vec<ConnectedChainConfig>` — already multi (all types) | same | same | Single `evm_client` field; dispatch logic must be fixed |
-| Frontend / SDK | `Record<string, ChainConfig>` — already multi | same | same | Just add new entries |
-
-### HyperEVM mainnet
-
-- Chain type: HyperEVM (EVM-compatible)
-- Chain ID: `999`
-- RPC: `https://api.hyperliquid.xyz/evm`
-- Native token: HYPE (18 decimals)
-- Explorer: `https://explorer.hyperliquid.xyz`
-- Reuses existing `IntentInflowEscrow`, `IntentOutflowValidator`, `IntentGmp` contracts — no new Solidity needed.
+| Stage 1 — Parameterize chain-connected-evm/ scripts | ✅ done |
+| Stage 2 — Hardhat config: add localhost-e2e-2 network | ✅ done |
+| Stage 3 — e2e-common.sh: setup both instances | ✅ done |
+| Stage 4 — Service startup: configure for both instances | ✅ done |
+| Stage 5 — Parameterize test scripts | ✅ done |
+| Stage 6 — Test runners: run tests against both chains | ✅ done |
+| Stage 7 — Cleanup: stop both instances | ✅ done |
 
 ---
 
@@ -54,219 +44,61 @@ After completing each stage:
 
 ---
 
-## Stage 1 — Coordinator: multi-chain config
+## Stage 1 — Parameterize chain-connected-evm/ scripts
 
-**Scope:** `coordinator/` only.
+**Scope:** `testing-infra/ci-e2e/chain-connected-evm/` only.
 
-### Files to change
+Every script in this directory accepts an instance number argument (`1` or `2`). The instance number determines all instance-specific values.
 
-**`coordinator/src/config/mod.rs`**
+### Mapping function
 
-All three connected-chain fields become `Vec`:
-- `connected_chain_mvm: Option<ChainConfig>` → `Vec<ChainConfig>`
-- `connected_chain_evm: Option<EvmChainConfig>` → `Vec<EvmChainConfig>`
-- `connected_chain_svm: Option<SvmChainConfig>` → `Vec<SvmChainConfig>`
-
-For each field:
-- `validate()`: replace single-option checks with loops; check every chain against hub and every other chain for duplicate IDs.
-- `chain_type_for_id()`: iterate the Vec instead of checking a single Option.
-- `default()`: `None` → `vec![]`.
-
-**`coordinator/config/coordinator_testnet.toml`** and **`coordinator/config/coordinator.template.toml`**
-
-TOML syntax: `[connected_chain_*]` (single table) → `[[connected_chain_*]]` (array of tables) for all three chain types.
-
-### Test command
+Add to `utils.sh` (or a new shared helper) a function that derives all values from the instance number:
 
 ```bash
-RUST_LOG=off nix develop ./nix -c bash -c "cd coordinator && cargo test --quiet"
-```
-
-### End of stage
-
-Run tests → `/review-me` → ask user → if yes, `/commit`.
-
----
-
-## Stage 2 — Integrated-GMP: multi-chain relay config
-
-**Scope:** `integrated-gmp/` only.
-
-### Files to change
-
-**`integrated-gmp/src/config/mod.rs`**
-
-Same symmetric treatment as Stage 1 — all three connected-chain fields become `Vec`:
-- `connected_chain_mvm: Option<_>` → `Vec<_>`
-- `connected_chain_evm: Option<EvmChainConfig>` → `Vec<EvmChainConfig>`
-- `connected_chain_svm: Option<_>` → `Vec<_>`
-
-For each: `validate()` loops, `default()` uses `vec![]`, TOML migrates to `[[...]]`.
-
-**`integrated-gmp/src/integrated_gmp_relay.rs`**
-
-`NativeGmpRelayConfig` currently has single EVM fields:
-```rust
-pub evm_rpc_url: Option<String>,
-pub evm_gmp_endpoint_addr: Option<String>,
-pub evm_chain_id: Option<u32>,
-pub evm_relay_address: Option<String>,
-```
-
-Replace with a struct and Vec:
-```rust
-pub struct EvmRelayChainConfig {
-    pub rpc_url: String,
-    pub gmp_endpoint_addr: Option<String>,
-    pub chain_id: u32,
-    pub relay_address: String,
-}
-
-// in NativeGmpRelayConfig:
-pub evm_chains: Vec<EvmRelayChainConfig>,
-```
-
-`from_config()`: iterate `config.connected_chain_evm` to build the Vec.
-
-`RelayState`: `evm_last_block: u64` → `evm_last_blocks: HashMap<u32, u64>` (keyed by chain ID).
-
-Relay delivery logic: when routing a message by `dst_chain_id`, iterate `evm_chains` to find the matching entry instead of checking a single optional chain ID.
-
-EVM polling loop: iterate all entries in `evm_chains` and poll each independently.
-
-**`integrated-gmp/config/integrated-gmp_testnet.toml`**
-
-Same TOML syntax migration as coordinator:
-```toml
-# Before
-[connected_chain_evm]
-...
-
-# After
-[[connected_chain_evm]]
-...
-```
-
-**`integrated-gmp/config/integrated-gmp.template.toml`** (if it exists) — same migration.
-
-### Test command
-
-```bash
-RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --quiet"
-```
-
-### End of stage
-
-Run tests → `/review-me` → ask user → if yes, `/commit`.
-
----
-
-## Stage 3 — Integrated-GMP: migrate EVM calls to chain-clients EvmClient
-
-**Scope:** `chain-clients/evm/` and `integrated-gmp/`.
-
-The integrated-gmp relay currently makes raw JSON-RPC calls to EVM chains via a bare `reqwest::Client` and inline `evm_json_rpc` helper. MVM and SVM both use shared clients from `chain-clients/` (`MvmClient`, `GmpSvmClient` wrapping `SvmClient`). EVM should follow the same pattern.
-
-### Problem
-
-`NativeGmpRelay` has no `evm_clients` field. Instead it uses `self.http_client` (a generic reqwest `Client`) with a private `evm_json_rpc` helper to make raw `eth_*` calls. This is asymmetric with MVM (`mvm_connected_clients: HashMap<u32, MvmClient>`) and SVM (`svm_clients: HashMap<u32, GmpSvmClient>`).
-
-### Part A — Extend `chain-clients/evm` with write capabilities
-
-`EvmClient` is currently read-only. The relay needs:
-
-- `eth_sendRawTransaction` (locally-signed transaction broadcast)
-- `eth_getTransactionCount` (nonce lookup)
-- `eth_gasPrice`
-- `eth_getTransactionReceipt` (wait for confirmation)
-- `eth_call` (generic view calls — used for `isMessageDelivered`)
-- `eth_getLogs` (event polling with topic filters)
-
-Add these as methods on `EvmClient` (or a new `EvmRpcClient` trait/struct if the escrow-specific client shouldn't grow write methods). The key design choice: keep the low-level JSON-RPC plumbing in `chain-clients/evm` so consumers don't duplicate it.
-
-### Part B — Add `GmpEvmClient` wrapper in integrated-gmp
-
-Mirror the SVM pattern (`GmpSvmClient` wraps `SvmClient`):
-
-```rust
-// integrated-gmp/src/evm_client.rs
-pub struct GmpEvmClient {
-    evm_client: EvmClient,  // from chain-clients/evm
-    gmp_endpoint_addr: String,
+# Usage: evm_instance_vars <instance_number>
+# Sets: EVM_PORT, EVM_CHAIN_ID, EVM_NETWORK, EVM_SUFFIX, EVM_PID_FILE
+evm_instance_vars() {
+  local n="$1"
+  case "$n" in
+    1) EVM_PORT=8545; EVM_CHAIN_ID=31337; EVM_NETWORK=localhost;  EVM_SUFFIX=_EVM1 ;;
+    2) EVM_PORT=8546; EVM_CHAIN_ID=31338; EVM_NETWORK=localhost-e2e-2; EVM_SUFFIX=_EVM2 ;;
+    *) echo "Unknown EVM instance: $n" >&2; exit 1 ;;
+  esac
+  EVM_RPC_URL="http://127.0.0.1:$EVM_PORT"
+  EVM_PID_FILE="$PROJECT_ROOT/.tmp/hardhat-node-${n}.pid"
 }
 ```
 
-GMP-specific methods move here:
-- `is_message_delivered(intent_id, msg_type) -> Result<bool>`
-- `deliver_message(src_chain_id, remote_endpoint, payload) -> Result<String>` (returns tx hash)
-- `poll_message_sent_events(from_block, to_block) -> Result<Vec<GmpMessage>>`
-- `wait_for_receipt(tx_hash) -> Result<()>`
-
-### Part C — Wire into `NativeGmpRelay`
-
-Add `evm_clients: HashMap<u32, GmpEvmClient>` to the struct, initialized from `config.evm_chains` in `new()`. Remove `http_client` field (or keep only if used elsewhere). Replace all inline `evm_json_rpc` / `evm_send_raw_transaction` / `evm_is_message_delivered` / `evm_wait_for_receipt` / `evm_get_block_number` calls with `GmpEvmClient` method calls.
-
 ### Files to change
 
-- `chain-clients/evm/src/client.rs` — add write/generic RPC methods
-- `chain-clients/evm/src/lib.rs` — re-export new types if any
-- `integrated-gmp/src/evm_client.rs` — new file, `GmpEvmClient` wrapper
-- `integrated-gmp/src/lib.rs` — add `pub mod evm_client;`
-- `integrated-gmp/src/integrated_gmp_relay.rs` — replace inline EVM code with `GmpEvmClient`
+**`utils.sh`** — Add `evm_instance_vars` function. Existing helpers that reference port 8545, chain ID 31337, or `hardhat-node.pid` must use the derived variables instead.
 
-### Test commands
+**`setup-chain.sh`** — Accept instance number as `$1`. Call `evm_instance_vars "$1"`. Start Hardhat on `$EVM_PORT` with `--chain-id $EVM_CHAIN_ID`. Write PID to `$EVM_PID_FILE`.
+
+**`stop-chain.sh`** — Accept instance number as `$1`. Read PID from `$EVM_PID_FILE`. Kill process and release `$EVM_PORT`.
+
+**`cleanup.sh`** — Accept instance number as `$1`. Call `stop-chain.sh "$1"`. Remove instance-specific logs, PID file, and state.
+
+**`deploy-contracts.sh`** — Accept instance number as `$1`. Deploy to `$EVM_NETWORK` (Hardhat network name). Save contract addresses and account info to `.tmp/chain-info-evm${n}.env` (instance-specific file) using suffixed variable names:
 
 ```bash
-nix develop ./nix -c bash -c "./chain-clients/scripts/test.sh"
-RUST_LOG=off nix develop ./nix -c bash -c "cd integrated-gmp && cargo test --quiet"
+# .tmp/chain-info-evm1.env
+GMP_ENDPOINT_ADDR_EVM1=0x...
+ESCROW_GMP_ADDR_EVM1=0x...
+OUTFLOW_VALIDATOR_ADDR_EVM1=0x...
+USD_EVM_ADDR_EVM1=0x...
+RELAY_ETH_ADDRESS_EVM1=0x...
 ```
 
-### End of stage
+**`configure-coordinator.sh`** — Accept instance number as `$1`. Append a `[[connected_chain_evm]]` block to the coordinator config using `$EVM_CHAIN_ID`, `$EVM_RPC_URL`, and the suffixed contract addresses.
 
-Run tests → `/review-me` → ask user → if yes, `/commit`.
-
----
-
-## Stage 4 — Solver: multi-chain client dispatch
-
-**Scope:** `solver/` only.
-
-The solver config already supports `Vec<ConnectedChainConfig>` for all chain types, so no config struct change is needed. The problem is `OutflowService` holds single-chain client fields (e.g. `evm_client: Option<ConnectedEvmClient>`). The same fix applies to any equivalent MVM or SVM single-client fields.
-
-### Files to change
-
-**`solver/src/service/outflow.rs`**
-
-Replace single client with a map keyed by chain ID:
-
-```rust
-// Before
-evm_client: Option<ConnectedEvmClient>,
-
-// After
-evm_clients: HashMap<u64, ConnectedEvmClient>,
-```
-
-`OutflowService::new()`:
-- Iterate all EVM configs from `config.connected_chain.iter()`.
-- Instantiate `ConnectedEvmClient` for each and insert into the map.
-
-`get_chain_id("evm")`: this method assumed a single EVM chain — it is used by `get_target_chain_for_intent()`. Replace it: iterate `config.connected_chain` and check all EVM entries for a chain ID match directly in `get_target_chain_for_intent`.
-
-`execute_evm_gmp_fulfillment()`: currently uses `self.evm_client.as_ref()`. Change to look up the client by `intent.draft_data.desired_chain_id` in `evm_clients`.
-
-**`solver/src/config.rs`**
-
-`get_evm_config()` returns the first EVM config and is used only for the single-client initialization above. After the above refactor it is no longer needed — remove it, or rename to `get_evm_configs()` returning an iterator if anything else needs it.
-
-**`solver/config/solver_testnet.toml`**
-
-No syntax change needed (already `[[connected_chain]]` array). Just note that a second EVM entry will be added in Stage 7 once Hyperliquid contract addresses are known.
+**`configure-integrated-gmp.sh`** — Accept instance number as `$1`. Append a `[[connected_chain_evm]]` block to the integrated-gmp config using instance-specific values.
 
 ### Test command
 
 ```bash
-RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet"
+# Smoke test: start instance 1, deploy, stop
+nix develop ./nix -c bash -c "cd testing-infra/ci-e2e && source chain-connected-evm/utils.sh && chain-connected-evm/setup-chain.sh 1 && chain-connected-evm/deploy-contracts.sh 1 && chain-connected-evm/stop-chain.sh 1"
 ```
 
 ### End of stage
@@ -275,185 +107,28 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 ---
 
-## Stage 5 — Directory restructure + HyperEVM mainnet deploy scripts
+## Stage 2 — Hardhat config: add localhost-e2e-2 network
 
-**Scope:** `intent-frameworks/evm/` and `testing-infra/`.
+**Scope:** `intent-frameworks/evm/hardhat.config.js` only.
 
-This stage does two things: restructures `testing-infra/` to separate testnet and mainnet environments under a shared `networks/` parent, then adds HyperEVM mainnet as the first mainnet chain.
+### Files to change
 
-### Cross-stage note
+**`intent-frameworks/evm/hardhat.config.js`**
 
-After Stages 1–3, the coordinator and integrated-gmp configs use `[[connected_chain_*]]` (array of tables) for all chain types. The summary output in `deploy.sh` still references the old `[connected_chain_evm]` key. Those references must be updated in this stage.
+Add `localhost-e2e-2` network. Support configurable chain ID via env var so the same config works for both instances:
 
-### Part A — Directory restructure
-
-**Rename `testing-infra/testnet/` → `testing-infra/networks/testnet/`** (git mv)
-
-No content changes — this is a pure rename. All existing scripts, config, and logs move with it.
-
-**Move shared run scripts to `testing-infra/networks/`**
-
-These three scripts currently live in `testing-infra/testnet/` but are not testnet-specific — they just load config files. Move them one level up and require a `--network testnet|mainnet` argument so the same script works for both environments:
-
-- `testing-infra/networks/run-coordinator-local.sh`
-- `testing-infra/networks/run-integrated-gmp-local.sh`
-- `testing-infra/networks/run-solver-local.sh`
-
-Each script requires `--network` to be explicitly provided — no default:
-```bash
-if [ -z "$NETWORK" ]; then
-  echo "Usage: $0 --network testnet|mainnet" >&2
-  exit 1
-fi
-CONFIG_DIR="$(dirname "$0")/$NETWORK"
-```
-
-**Create `testing-infra/networks/mainnet/`** with the same skeleton as `testnet/`:
-
-```text
-networks/mainnet/
-  deploy.sh
-  configure.sh
-  scripts/
-  config/
-    mainnet-assets.toml
-  logs/        (gitignored)
-  env.mainnet.example
-```
-
----
-
-### Part B — HyperEVM mainnet scripts
-
-**`intent-frameworks/evm/hardhat.config.ts`**
-
-Add `hyperliquidMainnet` network entry:
-
-```typescript
-hyperliquidMainnet: {
-  url: process.env.HYPERLIQUID_RPC_URL ?? "https://api.hyperliquid.xyz/evm",
-  chainId: 999,
-  accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
+```javascript
+localhost: {
+  url: "http://127.0.0.1:8545",
+  chainId: 31337,
+  accounts: { mnemonic: "test test test test test test test test test test test junk" },
+},
+localhost-e2e-2: {
+  url: "http://127.0.0.1:8546",
+  chainId: 31338,
+  accounts: { mnemonic: "test test test test test test test test test test test junk" },
 },
 ```
-
-No new contracts needed — existing `IntentInflowEscrow`, `IntentOutflowValidator`, `IntentGmp` deploy unchanged.
-
----
-
-**`testing-infra/networks/mainnet/config/mainnet-assets.toml`**
-
-```toml
-[base]
-chain_id = 8453
-rpc_url = "https://mainnet.base.org"
-native_token = "ETH"
-native_token_decimals = 18
-
-[hyperliquid]
-chain_id = 999
-rpc_url = "https://api.hyperliquid.xyz/evm"
-native_token = "HYPE"
-native_token_decimals = 18
-
-[movement]
-chain_id = 250
-# rpc_url set via env
-native_token = "MOVE"
-native_token_decimals = 8
-```
-
----
-
-**`testing-infra/networks/mainnet/env.mainnet.example`**
-
-Mirrors `env.testnet.example` for mainnet chains (Base mainnet, Movement mainnet, HyperEVM):
-```bash
-# =============================================================================
-# BASE MAINNET (Connected EVM Chain)
-# =============================================================================
-BASE_DEPLOYER_PRIVATE_KEY=
-BASE_DEPLOYER_ADDR=
-SOLVER_EVM_PRIVATE_KEY_BASE=
-BASE_GMP_ENDPOINT_ADDR=
-BASE_INFLOW_ESCROW_ADDR=
-BASE_OUTFLOW_VALIDATOR_ADDR=
-BASE_CHAIN_ID=8453
-
-# =============================================================================
-# HYPERLIQUID MAINNET (Connected EVM Chain)
-# =============================================================================
-HYPERLIQUID_DEPLOYER_PRIVATE_KEY=
-HYPERLIQUID_DEPLOYER_ADDR=
-SOLVER_EVM_PRIVATE_KEY_HYPERLIQUID=
-HYPERLIQUID_GMP_ENDPOINT_ADDR=
-HYPERLIQUID_INFLOW_ESCROW_ADDR=
-HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR=
-HYPERLIQUID_CHAIN_ID=999
-
-# =============================================================================
-# MOVEMENT MAINNET (Hub Chain)
-# =============================================================================
-MOVEMENT_PRIVATE_KEY=
-MOVEMENT_MODULE_ADDR=
-```
-
----
-
-**`testing-infra/networks/mainnet/scripts/deploy-to-hyperliquid.sh`** (new file)
-
-Mirrors `networks/testnet/scripts/deploy-to-base.sh` with:
-
-- `HYPERLIQUID_DEPLOYER_PRIVATE_KEY` instead of `BASE_DEPLOYER_PRIVATE_KEY`
-- RPC URL: `https://api.hyperliquid.xyz/evm` (no API key needed)
-- Hardhat network: `hyperliquidMainnet`
-- Output env vars: `HYPERLIQUID_GMP_ENDPOINT_ADDR`, `HYPERLIQUID_INFLOW_ESCROW_ADDR`, `HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR`
-- Deployment log saved to `logs/deploy-hyperliquid-mainnet-<timestamp>.log`
-
----
-
-**`testing-infra/networks/mainnet/scripts/configure-hyperliquid.sh`** (new file)
-
-Mirrors `networks/testnet/scripts/configure-base.sh` with:
-
-- Reads `HYPERLIQUID_GMP_ENDPOINT_ADDR`, `HYPERLIQUID_INFLOW_ESCROW_ADDR`, `HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR`
-- Runs `configure-gmp.js --network hyperliquidMainnet` and `configure-hub-config.js --network hyperliquidMainnet`
-
----
-
-**`testing-infra/networks/mainnet/scripts/configure-movement.sh`** (new file)
-
-Mirrors `networks/testnet/scripts/configure-movement.sh` for mainnet, including a HyperEVM block:
-```bash
-# --- HyperEVM Mainnet ---
-HYPERLIQUID_CHAIN_ID=$(get_chain_id "hyperliquid")
-require_var "HYPERLIQUID_GMP_ENDPOINT_ADDR"
-
-ADDR_PADDED=$(pad_address_32 "$HYPERLIQUID_GMP_ENDPOINT_ADDR")
-movement move run \
-  --profile "$TEMP_PROFILE" \
-  --function-id "${MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr" \
-  --args "u32:$HYPERLIQUID_CHAIN_ID" "hex:${ADDR_PADDED}" \
-  --assume-yes
-
-movement move run \
-  --profile "$TEMP_PROFILE" \
-  --function-id "${MODULE_ADDR}::intent_gmp_hub::set_remote_gmp_endpoint_addr" \
-  --args "u32:$HYPERLIQUID_CHAIN_ID" "hex:${ADDR_PADDED}" \
-  --assume-yes
-```
-
----
-
-**`testing-infra/networks/mainnet/deploy.sh`**
-
-Same structure as `testnet/deploy.sh` but for mainnet chains (Base mainnet, Movement mainnet, HyperEVM mainnet). Also fix `[connected_chain_evm]` → `[[connected_chain_evm]]` in summary output.
-
----
-
-**`testing-infra/networks/mainnet/configure.sh`**
-
-Same structure as `testnet/configure.sh` but calls mainnet configure scripts.
 
 ### Test command
 
@@ -467,68 +142,22 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 ---
 
-## Stage 6 — Frontend + SDK: add Hyperliquid testnet chain and tokens
+## Stage 3 — e2e-common.sh: setup both instances
 
-**Scope:** `packages/sdk/` and `frontend/` only.
+**Scope:** `testing-infra/ci-e2e/e2e-common.sh` and `testing-infra/ci-e2e/e2e-tests-evm/`.
 
 ### Files to change
 
-**`packages/sdk/src/config.ts`**
+**`e2e-common.sh`**
 
-Add to `CHAIN_CONFIGS`:
-```typescript
-'hyperliquid': {
-  id: 'hyperliquid',
-  chainId: 999,
-  rpcUrl: 'https://api.hyperliquid.xyz/evm',
-  name: 'HyperEVM',
-  chainType: 'evm',
-  escrowContractAddress: undefined,          // fill after Stage 6 deployment
-  outflowValidatorAddress: undefined,        // fill after Stage 6 deployment
-},
-```
-
-**`frontend/src/config/chains.ts`**
-
-Add `'hyperliquid'` entry matching the SDK pattern. Use env vars for contract addresses:
-```typescript
-'hyperliquid': {
-  ...
-  escrowContractAddress: process.env.NEXT_PUBLIC_HYPERLIQUID_ESCROW_ADDR,
-  outflowValidatorAddress: process.env.NEXT_PUBLIC_HYPERLIQUID_OUTFLOW_ADDR,
-},
-```
-
-**`frontend/src/config/tokens.ts`**
-
-Add tokens for HyperEVM mainnet (HYPE native + USDC if available):
-```typescript
-// HyperEVM Mainnet
-{ chainId: 'hyperliquid', symbol: 'HYPE', decimals: 18, address: '0x0000...' },
-```
-
-**`frontend/src/lib/wagmi-config.ts`**
-
-Add HyperEVM mainnet as a viem custom chain and register it:
-```typescript
-import { defineChain } from 'viem'
-
-const hyperEvm = defineChain({
-  id: 999,
-  name: 'HyperEVM',
-  nativeCurrency: { name: 'HYPE', symbol: 'HYPE', decimals: 18 },
-  rpcUrls: {
-    default: { http: ['https://api.hyperliquid.xyz/evm'] },
-  },
-})
-```
-Add to `chains` array and `transports` map in `createConfig`.
-
-### Test commands
+`e2e_setup_chains` for EVM currently calls chain-connected-evm scripts once. Change to call them twice:
 
 ```bash
-nix develop ./nix -c bash -c "cd packages/sdk && npm install && npm test"
-nix develop ./nix -c bash -c "cd frontend && npm install --legacy-peer-deps && npm test"
+# In e2e_setup_chains (EVM path):
+chain-connected-evm/setup-chain.sh 1
+chain-connected-evm/deploy-contracts.sh 1
+chain-connected-evm/setup-chain.sh 2
+chain-connected-evm/deploy-contracts.sh 2
 ```
 
 ### End of stage
@@ -537,111 +166,154 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 ---
 
-## Stage 7 — Mainnet config: wire up HyperEVM (post-deployment)
+## Stage 4 — Service startup: configure for both instances
 
-**Blocked on:** operational contract deployment from Stage 5.
-
-Once `IntentGmp`, `IntentInflowEscrow`, and `IntentOutflowValidator` are deployed to HyperEVM mainnet and addresses are known:
+**Scope:** `testing-infra/ci-e2e/e2e-tests-evm/` service startup scripts.
 
 ### Files to change
 
-**`coordinator/config/coordinator_testnet.toml`**
+**`start-coordinator.sh`**
 
-Add second `[[connected_chain_evm]]` block for HyperEVM:
-```toml
-[[connected_chain_evm]]
-name = "HyperEVM"
-chain_id = 999
-rpc_url = "https://api.hyperliquid.xyz/evm"
-escrow_contract_addr = "<deployed-address>"
-outflow_validator_contract_addr = "<deployed-address>"
-event_block_range = 1000
+Call `configure-coordinator.sh` twice (with `1` and `2`) so the coordinator config has two `[[connected_chain_evm]]` blocks.
+
+**`start-integrated-gmp.sh`**
+
+Call `configure-integrated-gmp.sh` twice (with `1` and `2`) so the integrated-gmp config has two `[[connected_chain_evm]]` blocks.
+
+**`start-solver.sh`**
+
+Generate solver config with two `[[connected_chain]]` entries (type = "evm"), one per instance. Each entry uses the instance-specific RPC URL, chain ID, contract addresses, and a distinct `private_key_env` (`SOLVER_EVM_PRIVATE_KEY_1`, `SOLVER_EVM_PRIVATE_KEY_2`). Token pairs must reference both chain IDs.
+
+### Test command
+
+```bash
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inflow.sh"
 ```
-
-**`integrated-gmp/config/integrated-gmp_testnet.toml`**
-
-Add second `[[connected_chain_evm]]` block:
-```toml
-[[connected_chain_evm]]
-name = "HyperEVM"
-chain_id = 999
-rpc_url = "https://api.hyperliquid.xyz/evm"
-escrow_contract_addr = "<deployed-address>"
-gmp_endpoint_addr = "<deployed-address>"
-approver_evm_pubkey_hash = "<same-as-base-sepolia-or-new-key>"
-outflow_validator_addr = "<deployed-address>"
-```
-
-**`solver/config/solver_testnet.toml`**
-
-Add second EVM connected chain block + token pairs:
-```toml
-[[connected_chain]]
-type = "evm"
-name = "HyperEVM"
-chain_id = 999
-rpc_url = "https://api.hyperliquid.xyz/evm"
-escrow_contract_addr = "<deployed-address>"
-private_key_env = "SOLVER_EVM_PRIVATE_KEY_HYPERLIQUID"
-network_name = "hyperliquidMainnet"
-outflow_validator_addr = "<deployed-address>"
-gmp_endpoint_addr = "<deployed-address>"
-
-# Token pairs (fill in actual token addresses once known)
-[[acceptance.tokenpair]]
-source_chain_id = 250
-source_token = "..."
-target_chain_id = 999
-target_token = "..."
-ratio = 1.0
-fee_bps = 50
-move_rate = 0.01
-```
-
-**`packages/sdk/src/config.ts`** and **`frontend/src/config/chains.ts`**
-
-Fill in the `escrowContractAddress` and `outflowValidatorAddress` values added as `undefined` in Stage 6.
 
 ### End of stage
 
-Run all tests → `/review-me` → ask user → if yes, `/commit`.
+Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 ---
 
-## On-chain registration (operational, Stage 7 prerequisite)
+## Stage 5 — Parameterize test scripts
 
-The hub contract is chain-agnostic — `desired_chain_id` is free-form at intent creation time — but routing is **permissioned by registration**. When the hub sends `IntentRequirements` it calls `get_remote_gmp_endpoint_addr(chain_id)` and aborts if the chain is not registered.
+**Scope:** `testing-infra/ci-e2e/e2e-tests-evm/` test scripts.
 
-Two admin transactions are required after contracts are deployed (Stage 5):
+Test scripts (`inflow-submit-escrow.sh`, `outflow-submit-hub-intent.sh`, `balance-check.sh`, `wait-for-escrow-release.sh`, etc.) currently assume a single EVM chain. Parameterize them to accept the target chain via env vars.
 
-### 1. Register HyperEVM on the MVM hub
+### Env var interface
 
-The admin who owns the MVM hub contract must call:
-```move
-intent_gmp_hub::set_remote_gmp_endpoint_addr(
-    admin_signer,
-    999,                          // HyperEVM mainnet chain ID
-    <hyperliquid-IntentGmp-addr>  // deployed IntentGmp.sol address (bytes32)
-)
-```
+Each test script reads these env vars to determine which EVM instance to target:
 
-### 2. Register MVM on the new EVM IntentGmp
+- `EVM_CHAIN_ID` — chain ID (31337 or 31338)
+- `EVM_NETWORK` — Hardhat network name (`localhost-e2e-1` or `localhost-e2e-2`)
+- `EVM_SUFFIX` — env var suffix (`_EVM1` or `_EVM2`)
 
-On the newly deployed `IntentGmp.sol` on HyperEVM mainnet, the contract owner must call:
-```solidity
-setRemoteGmpEndpointAddr(
-    250,                        // Movement mainnet chain ID
-    <mvm-gmp-hub-addr-bytes32>  // MVM hub GMP endpoint address
-)
-```
+The suffix is used to look up instance-specific contract addresses and account info (e.g., `ESCROW_GMP_ADDR${EVM_SUFFIX}`).
 
-Until both transactions are confirmed, any intent targeting chain ID 999 will abort at the hub.
+### Files to change
+
+Every test script in `e2e-tests-evm/` that references EVM chain ID, RPC URL, contract addresses, or Hardhat network name. Replace hardcoded values with the env var interface above.
+
+### End of stage
+
+Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 ---
 
-## Open questions (resolve before Stage 7)
+## Stage 6 — Test runners: run tests against both chains
 
-1. **Which tokens are available on HyperEVM mainnet?** HYPE is native. Is USDC deployed? Need contract address.
-2. **Approver key for integrated-gmp:** Use the same ECDSA key as Base Sepolia or generate a new one per chain?
-3. **Solver private key:** Separate `SOLVER_EVM_PRIVATE_KEY_HYPERLIQUID` env var, or reuse the Base Sepolia key?
-4. **HyperEVM mainnet RPC rate limits:** Does `https://api.hyperliquid.xyz/evm` require an API key? What block range is safe for `event_block_range`?
+**Scope:** `testing-infra/ci-e2e/e2e-tests-evm/run-tests-inflow.sh` and `run-tests-outflow.sh`.
+
+### Files to change
+
+**`run-tests-inflow.sh`** and **`run-tests-outflow.sh`**
+
+After setup (chains + services), run the test sequence twice — once per EVM instance:
+
+```bash
+for n in 1 2; do
+  evm_instance_vars "$n"
+  export EVM_CHAIN_ID EVM_NETWORK EVM_SUFFIX
+  # run inflow/outflow test steps...
+done
+```
+
+### Test command
+
+```bash
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inflow.sh"
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-outflow.sh"
+```
+
+### End of stage
+
+Run tests → `/review-me` → ask user → if yes, `/commit`.
+
+---
+
+## Stage 7 — Cleanup: stop both instances
+
+**Scope:** `testing-infra/ci-e2e/chain-connected-evm/cleanup.sh` and `e2e-common.sh`.
+
+### Files to change
+
+**`e2e-common.sh`** (cleanup function)
+
+Call cleanup for both instances:
+
+```bash
+chain-connected-evm/stop-chain.sh 1
+chain-connected-evm/stop-chain.sh 2
+```
+
+**`chain-connected-evm/cleanup.sh`**
+
+When called without an argument, clean up both instances. When called with an instance number, clean up only that instance.
+
+### Test command
+
+Full E2E run (validates setup + tests + cleanup):
+
+```bash
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inflow.sh"
+```
+
+### End of stage
+
+Run tests → `/review-me` → ask user → if yes, `/commit`.
+
+---
+
+## Current state reference
+
+### Existing chain-connected-evm/ scripts
+
+| Script | Current behavior |
+|---|---|
+| `utils.sh` | EVM utilities (hardhat commands, account extraction) |
+| `setup-chain.sh` | Starts Hardhat on port 8545, chain ID 31337, PID → `.tmp/hardhat-node.pid` |
+| `stop-chain.sh` | Stops Hardhat, cleans port 8545 |
+| `cleanup.sh` | Calls stop-chain, deletes logs/state |
+| `deploy-contracts.sh` | Deploys IntentGmp, IntentInflowEscrow, IntentOutflowValidator, USDcon; saves to `.tmp/chain-info.env` |
+| `configure-coordinator.sh` | Appends `[[connected_chain_evm]]` to coordinator config |
+| `configure-integrated-gmp.sh` | Appends `[[connected_chain_evm]]` to integrated-gmp config |
+
+### Hardcoded values to parameterize
+
+- Port: `8545`
+- Chain ID: `31337`
+- Hardhat network: `localhost-e2e-1`
+- PID file: `.tmp/hardhat-node.pid`
+- Chain info file: `.tmp/chain-info.env` (EVM-specific vars)
+- Env var names: `GMP_ENDPOINT_ADDR`, `ESCROW_GMP_ADDR`, `OUTFLOW_VALIDATOR_ADDR`, `USD_EVM_ADDR`, `SOLVER_EVM_PRIVATE_KEY`, `SOLVER_EVM_ADDR`
+
+### Service ports (unchanged)
+
+| Service | Port |
+|---|---|
+| Coordinator | 3333 |
+| Integrated-GMP | (no HTTP port) |
+| Hardhat instance 1 | 8545 |
+| Hardhat instance 2 | 8546 |

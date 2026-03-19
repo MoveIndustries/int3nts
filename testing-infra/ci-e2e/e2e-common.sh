@@ -229,10 +229,23 @@ e2e_setup_chains() {
 
     ./testing-infra/ci-e2e/chain-hub/setup-chain.sh
     ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh
-    ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh
+
+    if [ "$E2E_CHAIN" = "evm" ]; then
+        # Setup two EVM instances for multi-chain testing
+        ./testing-infra/ci-e2e/chain-connected-evm/setup-chain.sh 1
+        ./testing-infra/ci-e2e/chain-connected-evm/setup-requester-solver.sh 1
+        ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
+        ./testing-infra/ci-e2e/chain-connected-evm/deploy-contracts.sh 1
+
+        ./testing-infra/ci-e2e/chain-connected-evm/setup-chain.sh 2
+        ./testing-infra/ci-e2e/chain-connected-evm/setup-requester-solver.sh 2
+        ./testing-infra/ci-e2e/chain-connected-evm/deploy-contracts.sh 2
+    else
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh
+        ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh
+    fi
 }
 
 # ------------------------------------------------------------------------------
