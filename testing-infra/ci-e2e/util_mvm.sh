@@ -51,11 +51,14 @@ fund_and_verify_account() {
     elif [ "$chain_num" = "2" ]; then
         rest_port="8082"
         faucet_port="8083"
+    elif [ "$chain_num" = "3" ]; then
+        rest_port="8084"
+        faucet_port="8085"
     else
-        log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1 or 2)"
+        log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
     fi
-    
+
     log "Funding $account_label..."
     local address=$(get_profile_address "$profile")
     local tx_hash=$(curl -s -X POST "http://127.0.0.1:${faucet_port}/mint?address=${address}&amount=100000000" | jq -r '.[0]')
@@ -126,18 +129,17 @@ init_aptos_profile() {
         exit 1
     fi
     
-    if [ "$chain_num" != "1" ] && [ "$chain_num" != "2" ]; then
-        log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1 or 2)"
-        exit 1
-    fi
-    
     local aptos_cmd
     if [ "$chain_num" = "1" ]; then
         # Hub: use local network
         aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network local --assume-yes"
-    else
-        # Chain 2 (connected): use custom network with specific ports
+    elif [ "$chain_num" = "2" ]; then
         aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network custom --rest-url http://127.0.0.1:8082 --faucet-url http://127.0.0.1:8083 --assume-yes"
+    elif [ "$chain_num" = "3" ]; then
+        aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network custom --rest-url http://127.0.0.1:8084 --faucet-url http://127.0.0.1:8085 --assume-yes"
+    else
+        log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
+        exit 1
     fi
     
     if [ -n "$log_file" ]; then
@@ -197,25 +199,26 @@ wait_for_mvm_chain_ready() {
     local sleep_seconds="${3:-5}"
     
     if [ -z "$chain_num" ]; then
-        log_and_echo "❌ ERROR: wait_for_mvm_chain_ready() requires a chain number (1 or 2)"
+        log_and_echo "❌ ERROR: wait_for_mvm_chain_ready() requires a chain number (1, 2, or 3)"
         exit 1
     fi
-    
-    if [ "$chain_num" != "1" ] && [ "$chain_num" != "2" ]; then
-        log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1 or 2)"
-        exit 1
-    fi
-    
+
     local rest_port
     local faucet_port
     if [ "$chain_num" = "1" ]; then
         rest_port="8080"
         faucet_port="8081"
-    else
+    elif [ "$chain_num" = "2" ]; then
         rest_port="8082"
         faucet_port="8083"
+    elif [ "$chain_num" = "3" ]; then
+        rest_port="8084"
+        faucet_port="8085"
+    else
+        log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
+        exit 1
     fi
-    
+
     log "   - Waiting for Chain $chain_num services..."
     for i in $(seq 1 "$max_attempts"); do
         if curl -s "http://127.0.0.1:${rest_port}/v1/ledger/info" >/dev/null 2>&1 && \
@@ -246,23 +249,24 @@ verify_mvm_chain_services() {
     local chain_num="$1"
     
     if [ -z "$chain_num" ]; then
-        log_and_echo "❌ ERROR: verify_mvm_chain_services() requires a chain number (1 or 2)"
+        log_and_echo "❌ ERROR: verify_mvm_chain_services() requires a chain number (1, 2, or 3)"
         exit 1
     fi
-    
-    if [ "$chain_num" != "1" ] && [ "$chain_num" != "2" ]; then
-        log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1 or 2)"
-        exit 1
-    fi
-    
+
     local rest_port
     local faucet_port
     if [ "$chain_num" = "1" ]; then
         rest_port="8080"
         faucet_port="8081"
-    else
+    elif [ "$chain_num" = "2" ]; then
         rest_port="8082"
         faucet_port="8083"
+    elif [ "$chain_num" = "3" ]; then
+        rest_port="8084"
+        faucet_port="8085"
+    else
+        log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
+        exit 1
     fi
     
     # Verify REST API
@@ -312,21 +316,21 @@ extract_apt_metadata() {
     fi
     
     if [ -z "$chain_num" ]; then
-        log_and_echo "❌ ERROR: extract_apt_metadata() requires a chain number (1 or 2)"
+        log_and_echo "❌ ERROR: extract_apt_metadata() requires a chain number (1, 2, or 3)"
         exit 1
     fi
-    
-    if [ "$chain_num" != "1" ] && [ "$chain_num" != "2" ]; then
-        log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1 or 2)"
-        exit 1
-    fi
-    
+
     # Determine REST API port based on chain number
     local rest_port
     if [ "$chain_num" = "1" ]; then
         rest_port="8080"
-    else
+    elif [ "$chain_num" = "2" ]; then
         rest_port="8082"
+    elif [ "$chain_num" = "3" ]; then
+        rest_port="8084"
+    else
+        log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
+        exit 1
     fi
     
     # Run aptos move command to get APT metadata
@@ -563,10 +567,14 @@ get_usdxyz_metadata_addr() {
     local rest_port
     if [ "$chain_num" = "1" ]; then
         rest_port="8080"
+    elif [ "$chain_num" = "2" ]; then
+        rest_port="8082"
+    elif [ "$chain_num" = "3" ]; then
+        rest_port="8084"
     else
         rest_port="8082"
     fi
-    
+
     # Call the view function to get metadata
     local metadata=$(curl -s "http://127.0.0.1:${rest_port}/v1/view" \
         -H 'Content-Type: application/json' \
@@ -605,10 +613,14 @@ get_usdxyz_balance() {
     local rest_port
     if [ "$chain_num" = "1" ]; then
         rest_port="8080"
+    elif [ "$chain_num" = "2" ]; then
+        rest_port="8082"
+    elif [ "$chain_num" = "3" ]; then
+        rest_port="8084"
     else
         rest_port="8082"
     fi
-    
+
     # Use || true to allow PANIC check to run if get_profile_address fails
     local account_addr=$(get_profile_address "$profile" 2>/dev/null) || true
     if [ -z "$account_addr" ]; then
@@ -697,27 +709,31 @@ display_balances_hub() {
 }
 
 # Display balances for Chain 2 (Connected Move VM)
-# Usage: display_balances_connected_mvm [test_tokens_addr]
+# Usage: display_balances_connected_mvm [test_tokens_addr] [chain_num]
 # Fetches and displays Requester and Solver balances on the Connected Move VM chain
 # If test_tokens_addr is provided, also displays USDcon balances (PANICS if lookup fails)
-# Only displays if Chain 2 profiles exist (skips silently if they don't)
+# chain_num defaults to MVM_INSTANCE or 2
+# Only displays if chain profiles exist (skips silently if they don't)
 display_balances_connected_mvm() {
     local test_tokens_addr="$1"
-    
-    # Check if Chain 2 profiles exist
-    if ! aptos config show-profiles 2>/dev/null | jq -r ".[\"Result\"][\"requester-chain2\"]" 2>/dev/null | grep -q "."; then
+    local chain_num="${2:-${MVM_INSTANCE:-2}}"
+    local req_profile="requester-chain${chain_num}"
+    local sol_profile="solver-chain${chain_num}"
+
+    # Check if chain profiles exist
+    if ! aptos config show-profiles 2>/dev/null | jq -r ".[\"Result\"][\"$req_profile\"]" 2>/dev/null | grep -q "."; then
         return 0  # Silently skip if profiles don't exist
     fi
-    
-    local requester2=$(aptos account balance --profile requester-chain2 2>/dev/null | jq -r '.Result[0].balance // 0' || echo "0")
-    local solver2=$(aptos account balance --profile solver-chain2 2>/dev/null | jq -r '.Result[0].balance // 0' || echo "0")
-    
-    log_and_echo "   Chain 2 (Connected MVM):"
-    
+
+    local requester_bal=$(aptos account balance --profile "$req_profile" 2>/dev/null | jq -r '.Result[0].balance // 0' || echo "0")
+    local solver_bal=$(aptos account balance --profile "$sol_profile" 2>/dev/null | jq -r '.Result[0].balance // 0' || echo "0")
+
+    log_and_echo "   Chain $chain_num (Connected MVM):"
+
     if [ -n "$test_tokens_addr" ]; then
-        local requester_usdcon=$(get_usdxyz_balance "requester-chain2" "2" "$test_tokens_addr")
-        local solver_usdcon=$(get_usdxyz_balance "solver-chain2" "2" "$test_tokens_addr")
-        
+        local requester_usdcon=$(get_usdxyz_balance "$req_profile" "$chain_num" "$test_tokens_addr")
+        local solver_usdcon=$(get_usdxyz_balance "$sol_profile" "$chain_num" "$test_tokens_addr")
+
         # PANIC if we passed a token address but couldn't get balances
         if [ -z "$requester_usdcon" ] || [ -z "$solver_usdcon" ]; then
             log_and_echo "❌ PANIC: display_balances_connected_mvm failed to get USDcon balances"
@@ -726,12 +742,12 @@ display_balances_connected_mvm() {
             log_and_echo "   solver_usdcon: '$solver_usdcon'"
             exit 1
         fi
-        
-        log_and_echo "      Requester: $requester2 Octas APT, $requester_usdcon 10e-6.USDcon"
-        log_and_echo "      Solver:   $solver2 Octas APT, $solver_usdcon 10e-6.USDcon"
+
+        log_and_echo "      Requester: $requester_bal Octas APT, $requester_usdcon 10e-6.USDcon"
+        log_and_echo "      Solver:   $solver_bal Octas APT, $solver_usdcon 10e-6.USDcon"
     else
-        log_and_echo "      Requester: $requester2 Octas"
-        log_and_echo "      Solver:   $solver2 Octas"
+        log_and_echo "      Requester: $requester_bal Octas"
+        log_and_echo "      Solver:   $solver_bal Octas"
     fi
 }
 
