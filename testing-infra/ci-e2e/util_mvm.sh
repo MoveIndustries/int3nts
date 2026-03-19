@@ -135,7 +135,7 @@ init_aptos_profile() {
     # Build network flags based on chain number
     local network_flags
     if [ "$chain_num" = "1" ]; then
-        network_flags="--network local"
+        network_flags="--network custom --rest-url http://127.0.0.1:1000 --faucet-url http://127.0.0.1:1001"
     elif [ "$chain_num" = "2" ]; then
         network_flags="--network custom --rest-url http://127.0.0.1:2000 --faucet-url http://127.0.0.1:2001"
     elif [ "$chain_num" = "3" ]; then
