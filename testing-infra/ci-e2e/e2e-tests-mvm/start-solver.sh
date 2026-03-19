@@ -157,18 +157,16 @@ SOLVER_CONFIG="$PROJECT_ROOT/.tmp/solver-e2e.toml"
 mkdir -p "$(dirname "$SOLVER_CONFIG")"
 generate_solver_config_mvm "$SOLVER_CONFIG"
 
-# Export solver's connected chain addresses for auto-registration
-for n in 2 3; do
-    var_name="SOLVER_MVM${n}_ADDR"
-    addr=$(get_profile_address "solver-chain${n}")
-    if [ -z "$addr" ]; then
-        log_and_echo "❌ ERROR: Failed to get solver Chain $n address"
-        log_and_echo "   Make sure solver-chain${n} profile exists"
-        exit 1
-    fi
-    export "$var_name"="0x${addr}"
-    log "   Exported $var_name=0x${addr}"
-done
+# Export solver's MVM address for auto-registration
+# Same profile key is used across both MVM instances, so one address covers both
+SOLVER_MVMCON_ADDR=$(get_profile_address "solver-chain2")
+if [ -z "$SOLVER_MVMCON_ADDR" ]; then
+    log_and_echo "❌ ERROR: Failed to get solver MVM address"
+    log_and_echo "   Make sure solver-chain2 profile exists"
+    exit 1
+fi
+export SOLVER_MVMCON_ADDR="0x${SOLVER_MVMCON_ADDR}"
+log "   Exported SOLVER_MVMCON_ADDR=$SOLVER_MVMCON_ADDR"
 
 # Unset testnet keys to prevent accidental use (E2E tests use profiles only)
 unset MOVEMENT_SOLVER_PRIVATE_KEY
