@@ -160,9 +160,16 @@ generate_solver_config_mvm "$SOLVER_CONFIG"
 # Export solver's MVM address for auto-registration
 # All MVM instances share the same solver key (via solver-mvm-shared-key.hex), so one address covers both
 SOLVER_MVMCON_ADDR=$(get_profile_address "solver-chain2")
+SOLVER_MVMCON_ADDR3=$(get_profile_address "solver-chain3")
 if [ -z "$SOLVER_MVMCON_ADDR" ]; then
     log_and_echo "❌ ERROR: Failed to get solver MVM address"
     log_and_echo "   Make sure solver-chain2 profile exists"
+    exit 1
+fi
+if [ "$SOLVER_MVMCON_ADDR" != "$SOLVER_MVMCON_ADDR3" ]; then
+    log_and_echo "❌ ERROR: Solver addresses differ across MVM instances (shared key broken)"
+    log_and_echo "   solver-chain2: $SOLVER_MVMCON_ADDR"
+    log_and_echo "   solver-chain3: $SOLVER_MVMCON_ADDR3"
     exit 1
 fi
 export SOLVER_MVMCON_ADDR="0x${SOLVER_MVMCON_ADDR}"
