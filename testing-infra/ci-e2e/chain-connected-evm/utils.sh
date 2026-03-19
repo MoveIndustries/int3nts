@@ -15,8 +15,8 @@ evm_instance_vars() {
     local n="${1:-1}"
     export EVM_INSTANCE="$n"
     case "$n" in
-        1) export EVM_PORT=8545; export EVM_CHAIN_ID=31337; export EVM_NETWORK=localhost-e2e-1 ;;
-        2) export EVM_PORT=8546; export EVM_CHAIN_ID=31338; export EVM_NETWORK=localhost-e2e-2 ;;
+        2) export EVM_PORT=8545; export EVM_CHAIN_ID=2; export EVM_NETWORK=localhost-e2e-2 ;;
+        3) export EVM_PORT=8546; export EVM_CHAIN_ID=3; export EVM_NETWORK=localhost-e2e-3 ;;
         *) echo "Unknown EVM instance: $n" >&2; exit 1 ;;
     esac
     export EVM_RPC_URL="http://127.0.0.1:$EVM_PORT"
@@ -31,7 +31,7 @@ evm_instance_vars() {
 # Sources the instance-specific chain-info file and sets EVM_INSTANCE vars.
 # Usage: load_evm_chain_info [instance_number]
 load_evm_chain_info() {
-    local n="${1:-${EVM_INSTANCE:-1}}"
+    local n="${1:-${EVM_INSTANCE:-2}}"
     evm_instance_vars "$n"
     if [ -f "$EVM_CHAIN_INFO_FILE" ]; then
         source "$EVM_CHAIN_INFO_FILE"

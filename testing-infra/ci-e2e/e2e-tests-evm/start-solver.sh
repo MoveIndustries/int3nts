@@ -94,7 +94,7 @@ address = "$solver_addr"
 EOF
 
     # Append connected_chain and tokenpair entries for each EVM instance
-    for n in 1 2; do
+    for n in 2 3; do
         evm_instance_vars "$n"
         source "$EVM_CHAIN_INFO_FILE" 2>/dev/null || true
 
@@ -176,7 +176,7 @@ generate_solver_config_evm "$SOLVER_CONFIG"
 
 # Export solver's EVM address for auto-registration
 # Hardhat account #2 is used for solver (same address on both instances — same mnemonic)
-evm_instance_vars 1
+evm_instance_vars 2
 export SOLVER_EVM_ADDR=$(get_hardhat_account_address "2" "$EVM_NETWORK")
 if [ -z "$SOLVER_EVM_ADDR" ]; then
     log_and_echo "❌ ERROR: Failed to get solver EVM address"

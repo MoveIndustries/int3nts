@@ -22,8 +22,8 @@ log ""
 
 log " Configuring coordinator..."
 source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-hub/configure-coordinator.sh"
-source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-evm/configure-coordinator.sh" 1
 source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-evm/configure-coordinator.sh" 2
+source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-evm/configure-coordinator.sh" 3
 
 log ""
 log "   Starting coordinator service..."

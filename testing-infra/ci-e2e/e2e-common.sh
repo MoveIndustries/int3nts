@@ -232,14 +232,14 @@ e2e_setup_chains() {
 
     if [ "$E2E_CHAIN" = "evm" ]; then
         # Setup two EVM instances for multi-chain testing
-        ./testing-infra/ci-e2e/chain-connected-evm/setup-chain.sh 1
-        ./testing-infra/ci-e2e/chain-connected-evm/setup-requester-solver.sh 1
-        ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
-        ./testing-infra/ci-e2e/chain-connected-evm/deploy-contracts.sh 1
-
         ./testing-infra/ci-e2e/chain-connected-evm/setup-chain.sh 2
         ./testing-infra/ci-e2e/chain-connected-evm/setup-requester-solver.sh 2
+        ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
         ./testing-infra/ci-e2e/chain-connected-evm/deploy-contracts.sh 2
+
+        ./testing-infra/ci-e2e/chain-connected-evm/setup-chain.sh 3
+        ./testing-infra/ci-e2e/chain-connected-evm/setup-requester-solver.sh 3
+        ./testing-infra/ci-e2e/chain-connected-evm/deploy-contracts.sh 3
     elif [ "$E2E_CHAIN" = "mvm" ]; then
         # Setup two MVM instances for multi-chain testing
         ./testing-infra/ci-e2e/chain-connected-mvm/setup-chain.sh 2

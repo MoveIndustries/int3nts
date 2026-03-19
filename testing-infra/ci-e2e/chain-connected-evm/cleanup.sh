@@ -23,8 +23,8 @@ log_and_echo " Cleaning up chains and processes..."
 rm -rf "$PROJECT_ROOT/.tmp/e2e-tests"
 
 # Stop both EVM instances
-./testing-infra/ci-e2e/chain-connected-evm/stop-chain.sh 1 || true
 ./testing-infra/ci-e2e/chain-connected-evm/stop-chain.sh 2 || true
+./testing-infra/ci-e2e/chain-connected-evm/stop-chain.sh 3 || true
 
 ./testing-infra/ci-e2e/chain-hub/stop-chain.sh
 ./testing-infra/ci-e2e/chain-connected-mvm/stop-chain.sh
@@ -46,8 +46,8 @@ fi
 rm -f "$PROJECT_ROOT/testing-infra/ci-e2e/.integrated-gmp-keys.env"
 rm -f "$PROJECT_ROOT/.tmp/intent-info.env"
 rm -f "$PROJECT_ROOT/.tmp/chain-info.env"
-rm -f "$PROJECT_ROOT/.tmp/chain-info-evm1.env"
 rm -f "$PROJECT_ROOT/.tmp/chain-info-evm2.env"
+rm -f "$PROJECT_ROOT/.tmp/chain-info-evm3.env"
 rm -f "$PROJECT_ROOT/.tmp/solver-e2e.toml"
 rm -f "$PROJECT_ROOT/.tmp/solver-e2e-evm.toml"
 rm -f "$PROJECT_ROOT/coordinator/config/coordinator-e2e-ci-testing.toml"

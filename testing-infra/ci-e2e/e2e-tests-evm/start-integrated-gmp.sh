@@ -22,8 +22,8 @@ log ""
 
 log " Configuring integrated-gmp..."
 source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-hub/configure-integrated-gmp.sh"
-source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-evm/configure-integrated-gmp.sh" 1
 source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-evm/configure-integrated-gmp.sh" 2
+source "$PROJECT_ROOT/testing-infra/ci-e2e/chain-connected-evm/configure-integrated-gmp.sh" 3
 
 log ""
 log "   Starting integrated-gmp service..."

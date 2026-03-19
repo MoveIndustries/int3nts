@@ -22,16 +22,16 @@ module.exports = {
         mnemonic: "test test test test test test test test test test test junk",
       },
     },
-    "localhost-e2e-1": {
+    "localhost-e2e-2": {
       url: "http://127.0.0.1:8545",
-      chainId: 31337,
+      chainId: 2,
       accounts: {
         mnemonic: "test test test test test test test test test test test junk",
       },
     },
-    "localhost-e2e-2": {
+    "localhost-e2e-3": {
       url: "http://127.0.0.1:8546",
-      chainId: 31338,
+      chainId: 3,
       accounts: {
         mnemonic: "test test test test test test test test test test test junk",
       },

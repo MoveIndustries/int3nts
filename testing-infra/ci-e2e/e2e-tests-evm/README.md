@@ -2,7 +2,7 @@
 
 Tests mixed-chain intent framework: intents on Move VM Hub with escrows on two independent EVM chains.
 
-Two Hardhat instances run simultaneously (port 8545/chain 31337 and port 8546/chain 31338), validating multi-EVM routing end-to-end.
+Two Hardhat instances run simultaneously (port 8545/chain 2 and port 8546/chain 3), validating multi-EVM routing end-to-end.
 
 ## Quick Start
 

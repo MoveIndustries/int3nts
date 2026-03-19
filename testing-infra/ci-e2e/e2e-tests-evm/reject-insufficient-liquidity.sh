@@ -15,7 +15,7 @@ setup_project_root
 cd "$PROJECT_ROOT"
 
 # Load EVM instance vars
-evm_instance_vars "${EVM_INSTANCE:-1}"
+evm_instance_vars "${EVM_INSTANCE:-2}"
 source "$EVM_CHAIN_INFO_FILE" 2>/dev/null || true
 
 # Resolve chain addresses for the second draft

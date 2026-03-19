@@ -16,7 +16,7 @@ source "$SCRIPT_DIR/../chain-connected-evm/utils.sh"
 setup_project_root
 
 # Load EVM instance vars and chain info
-evm_instance_vars "${EVM_INSTANCE:-1}"
+evm_instance_vars "${EVM_INSTANCE:-2}"
 source "$EVM_CHAIN_INFO_FILE" 2>/dev/null || true
 
 # Load INTENT_ID - this will exit if missing

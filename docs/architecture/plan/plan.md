@@ -6,13 +6,13 @@ Run two independent EVM chain instances in E2E tests to validate multi-EVM suppo
 
 ## Instance layout
 
-| Property | Instance 1 | Instance 2 |
+| Property | Instance 2 | Instance 3 |
 |---|---|---|
 | Port | 8545 | 8546 |
-| Chain ID | 31337 | 31338 |
-| Hardhat network | `localhost-e2e-1` | `localhost-e2e-2` |
-| Env var suffix | `_EVM1` | `_EVM2` |
-| PID file | `hardhat-node-1.pid` | `hardhat-node-2.pid` |
+| Chain ID | 2 | 3 |
+| Hardhat network | `localhost-e2e-2` | `localhost-e2e-3` |
+| Env var suffix | `_EVM2` | `_EVM3` |
+| PID file | `hardhat-node-2.pid` | `hardhat-node-3.pid` |
 
 ---
 
@@ -48,7 +48,7 @@ After completing each stage:
 
 **Scope:** `testing-infra/ci-e2e/chain-connected-evm/` only.
 
-Every script in this directory accepts an instance number argument (`1` or `2`). The instance number determines all instance-specific values.
+Every script in this directory accepts an instance number argument (`2` or `3`). The instance number determines all instance-specific values (instance 1 = hub).
 
 ### Mapping function
 
@@ -60,8 +60,8 @@ Add to `utils.sh` (or a new shared helper) a function that derives all values fr
 evm_instance_vars() {
   local n="$1"
   case "$n" in
-    1) EVM_PORT=8545; EVM_CHAIN_ID=31337; EVM_NETWORK=localhost;  EVM_SUFFIX=_EVM1 ;;
-    2) EVM_PORT=8546; EVM_CHAIN_ID=31338; EVM_NETWORK=localhost-e2e-2; EVM_SUFFIX=_EVM2 ;;
+    2) EVM_PORT=8545; EVM_CHAIN_ID=2; EVM_NETWORK=localhost-e2e-2; EVM_SUFFIX=_EVM2 ;;
+    3) EVM_PORT=8546; EVM_CHAIN_ID=3; EVM_NETWORK=localhost-e2e-3; EVM_SUFFIX=_EVM3 ;;
     *) echo "Unknown EVM instance: $n" >&2; exit 1 ;;
   esac
   EVM_RPC_URL="http://127.0.0.1:$EVM_PORT"
@@ -71,7 +71,7 @@ evm_instance_vars() {
 
 ### Files to change
 
-**`utils.sh`** — Add `evm_instance_vars` function. Existing helpers that reference port 8545, chain ID 31337, or `hardhat-node.pid` must use the derived variables instead.
+**`utils.sh`** — Add `evm_instance_vars` function. Existing helpers that reference port 8545, chain ID 2, or `hardhat-node.pid` must use the derived variables instead.
 
 **`setup-chain.sh`** — Accept instance number as `$1`. Call `evm_instance_vars "$1"`. Start Hardhat on `$EVM_PORT` with `--chain-id $EVM_CHAIN_ID`. Write PID to `$EVM_PID_FILE`.
 
@@ -82,12 +82,12 @@ evm_instance_vars() {
 **`deploy-contracts.sh`** — Accept instance number as `$1`. Deploy to `$EVM_NETWORK` (Hardhat network name). Save contract addresses and account info to `.tmp/chain-info-evm${n}.env` (instance-specific file) using suffixed variable names:
 
 ```bash
-# .tmp/chain-info-evm1.env
-GMP_ENDPOINT_ADDR_EVM1=0x...
-ESCROW_GMP_ADDR_EVM1=0x...
-OUTFLOW_VALIDATOR_ADDR_EVM1=0x...
-USD_EVM_ADDR_EVM1=0x...
-RELAY_ETH_ADDRESS_EVM1=0x...
+# .tmp/chain-info-evm2.env
+GMP_ENDPOINT_ADDR_EVM2=0x...
+ESCROW_GMP_ADDR_EVM2=0x...
+OUTFLOW_VALIDATOR_ADDR_EVM2=0x...
+USD_EVM_ADDR_EVM2=0x...
+RELAY_ETH_ADDRESS_EVM2=0x...
 ```
 
 **`configure-coordinator.sh`** — Accept instance number as `$1`. Append a `[[connected_chain_evm]]` block to the coordinator config using `$EVM_CHAIN_ID`, `$EVM_RPC_URL`, and the suffixed contract addresses.
@@ -97,8 +97,8 @@ RELAY_ETH_ADDRESS_EVM1=0x...
 ### Test command
 
 ```bash
-# Smoke test: start instance 1, deploy, stop
-nix develop ./nix -c bash -c "cd testing-infra/ci-e2e && source chain-connected-evm/utils.sh && chain-connected-evm/setup-chain.sh 1 && chain-connected-evm/deploy-contracts.sh 1 && chain-connected-evm/stop-chain.sh 1"
+# Smoke test: start instance 2, deploy, stop
+nix develop ./nix -c bash -c "cd testing-infra/ci-e2e && source chain-connected-evm/utils.sh && chain-connected-evm/setup-chain.sh 2 && chain-connected-evm/deploy-contracts.sh 2 && chain-connected-evm/stop-chain.sh 2"
 ```
 
 ### End of stage
@@ -115,17 +115,17 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 **`intent-frameworks/evm/hardhat.config.js`**
 
-Add `localhost-e2e-2` network. Support configurable chain ID via env var so the same config works for both instances:
+Add `localhost-e2e-3` network. Support configurable chain ID via env var so the same config works for both instances:
 
 ```javascript
-localhost: {
+"localhost-e2e-2": {
   url: "http://127.0.0.1:8545",
-  chainId: 31337,
+  chainId: 2,
   accounts: { mnemonic: "test test test test test test test test test test test junk" },
 },
-localhost-e2e-2: {
+"localhost-e2e-3": {
   url: "http://127.0.0.1:8546",
-  chainId: 31338,
+  chainId: 3,
   accounts: { mnemonic: "test test test test test test test test test test test junk" },
 },
 ```
@@ -154,10 +154,10 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 ```bash
 # In e2e_setup_chains (EVM path):
-chain-connected-evm/setup-chain.sh 1
-chain-connected-evm/deploy-contracts.sh 1
 chain-connected-evm/setup-chain.sh 2
 chain-connected-evm/deploy-contracts.sh 2
+chain-connected-evm/setup-chain.sh 3
+chain-connected-evm/deploy-contracts.sh 3
 ```
 
 ### End of stage
@@ -174,15 +174,15 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 
 **`start-coordinator.sh`**
 
-Call `configure-coordinator.sh` twice (with `1` and `2`) so the coordinator config has two `[[connected_chain_evm]]` blocks.
+Call `configure-coordinator.sh` twice (with `2` and `3`) so the coordinator config has two `[[connected_chain_evm]]` blocks.
 
 **`start-integrated-gmp.sh`**
 
-Call `configure-integrated-gmp.sh` twice (with `1` and `2`) so the integrated-gmp config has two `[[connected_chain_evm]]` blocks.
+Call `configure-integrated-gmp.sh` twice (with `2` and `3`) so the integrated-gmp config has two `[[connected_chain_evm]]` blocks.
 
 **`start-solver.sh`**
 
-Generate solver config with two `[[connected_chain]]` entries (type = "evm"), one per instance. Each entry uses the instance-specific RPC URL, chain ID, contract addresses, and a distinct `private_key_env` (`SOLVER_EVM_PRIVATE_KEY_1`, `SOLVER_EVM_PRIVATE_KEY_2`). Token pairs must reference both chain IDs.
+Generate solver config with two `[[connected_chain]]` entries (type = "evm"), one per instance. Each entry uses the instance-specific RPC URL, chain ID, contract addresses, and a distinct `private_key_env` (`SOLVER_EVM_PRIVATE_KEY_2`, `SOLVER_EVM_PRIVATE_KEY_3`). Token pairs must reference both chain IDs.
 
 ### Test command
 
@@ -206,9 +206,9 @@ Test scripts (`inflow-submit-escrow.sh`, `outflow-submit-hub-intent.sh`, `balanc
 
 Each test script reads these env vars to determine which EVM instance to target:
 
-- `EVM_CHAIN_ID` — chain ID (31337 or 31338)
-- `EVM_NETWORK` — Hardhat network name (`localhost-e2e-1` or `localhost-e2e-2`)
-- `EVM_SUFFIX` — env var suffix (`_EVM1` or `_EVM2`)
+- `EVM_CHAIN_ID` — chain ID (2 or 3)
+- `EVM_NETWORK` — Hardhat network name (`localhost-e2e-2` or `localhost-e2e-3`)
+- `EVM_SUFFIX` — env var suffix (`_EVM2` or `_EVM3`)
 
 The suffix is used to look up instance-specific contract addresses and account info (e.g., `ESCROW_GMP_ADDR${EVM_SUFFIX}`).
 
@@ -233,7 +233,7 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 After setup (chains + services), run the test sequence twice — once per EVM instance:
 
 ```bash
-for n in 1 2; do
+for n in 2 3; do
   evm_instance_vars "$n"
   export EVM_CHAIN_ID EVM_NETWORK EVM_SUFFIX
   # run inflow/outflow test steps...
@@ -264,8 +264,8 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 Call cleanup for both instances:
 
 ```bash
-chain-connected-evm/stop-chain.sh 1
 chain-connected-evm/stop-chain.sh 2
+chain-connected-evm/stop-chain.sh 3
 ```
 
 **`chain-connected-evm/cleanup.sh`**
@@ -293,7 +293,7 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 | Script | Current behavior |
 |---|---|
 | `utils.sh` | EVM utilities (hardhat commands, account extraction) |
-| `setup-chain.sh` | Starts Hardhat on port 8545, chain ID 31337, PID → `.tmp/hardhat-node.pid` |
+| `setup-chain.sh` | Starts Hardhat on port 8545, chain ID 2, PID → `.tmp/hardhat-node.pid` |
 | `stop-chain.sh` | Stops Hardhat, cleans port 8545 |
 | `cleanup.sh` | Calls stop-chain, deletes logs/state |
 | `deploy-contracts.sh` | Deploys IntentGmp, IntentInflowEscrow, IntentOutflowValidator, USDcon; saves to `.tmp/chain-info.env` |
@@ -303,8 +303,8 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 ### Hardcoded values to parameterize
 
 - Port: `8545`
-- Chain ID: `31337`
-- Hardhat network: `localhost-e2e-1`
+- Chain ID: `2`
+- Hardhat network: `localhost-e2e-2`
 - PID file: `.tmp/hardhat-node.pid`
 - Chain info file: `.tmp/chain-info.env` (EVM-specific vars)
 - Env var names: `GMP_ENDPOINT_ADDR`, `ESCROW_GMP_ADDR`, `OUTFLOW_VALIDATOR_ADDR`, `USD_EVM_ADDR`, `SOLVER_EVM_PRIVATE_KEY`, `SOLVER_EVM_ADDR`
@@ -315,5 +315,5 @@ Run tests → `/review-me` → ask user → if yes, `/commit`.
 |---|---|
 | Coordinator | 3333 |
 | Integrated-GMP | (no HTTP port) |
-| Hardhat instance 1 | 8545 |
-| Hardhat instance 2 | 8546 |
+| Hardhat instance 2 | 8545 |
+| Hardhat instance 3 | 8546 |
