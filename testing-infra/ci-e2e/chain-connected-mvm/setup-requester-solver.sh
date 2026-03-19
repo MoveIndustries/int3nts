@@ -39,8 +39,17 @@ log " Creating test accounts for Chain $MVM_INSTANCE..."
 log "Creating requester-chain${MVM_INSTANCE} account for Chain $MVM_INSTANCE..."
 init_aptos_profile "requester-chain${MVM_INSTANCE}" "$MVM_INSTANCE" "$LOG_FILE"
 
+# Solver uses a shared key across all MVM connected chain instances so the solver
+# address is the same on every chain (mirrors EVM where Hardhat's deterministic
+# mnemonic gives the same account on all instances).
+SOLVER_MVM_KEY_FILE="$PROJECT_ROOT/.tmp/solver-mvm-shared-key.hex"
+SOLVER_KEY=""
+if [ -f "$SOLVER_MVM_KEY_FILE" ]; then
+    SOLVER_KEY=$(cat "$SOLVER_MVM_KEY_FILE")
+    log "   Using shared solver key from $SOLVER_MVM_KEY_FILE"
+fi
 log "Creating solver-chain${MVM_INSTANCE} account for Chain $MVM_INSTANCE..."
-init_aptos_profile "solver-chain${MVM_INSTANCE}" "$MVM_INSTANCE" "$LOG_FILE"
+init_aptos_profile "solver-chain${MVM_INSTANCE}" "$MVM_INSTANCE" "$LOG_FILE" "$SOLVER_KEY"
 
 log "Creating test-tokens-chain${MVM_INSTANCE} account for Chain $MVM_INSTANCE..."
 init_aptos_profile "test-tokens-chain${MVM_INSTANCE}" "$MVM_INSTANCE" "$LOG_FILE"

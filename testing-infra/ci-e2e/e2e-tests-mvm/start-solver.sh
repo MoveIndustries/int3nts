@@ -158,7 +158,7 @@ mkdir -p "$(dirname "$SOLVER_CONFIG")"
 generate_solver_config_mvm "$SOLVER_CONFIG"
 
 # Export solver's MVM address for auto-registration
-# Same profile key is used across both MVM instances, so one address covers both
+# All MVM instances share the same solver key (via solver-mvm-shared-key.hex), so one address covers both
 SOLVER_MVMCON_ADDR=$(get_profile_address "solver-chain2")
 if [ -z "$SOLVER_MVMCON_ADDR" ]; then
     log_and_echo "❌ ERROR: Failed to get solver MVM address"

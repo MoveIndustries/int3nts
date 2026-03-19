@@ -107,41 +107,53 @@ fund_and_verify_account() {
 }
 
 # Initialize Aptos profile
-# Usage: init_aptos_profile <profile_name> <chain_number> [log_file]
+# Usage: init_aptos_profile <profile_name> <chain_number> [log_file] [private_key]
 # Example: init_aptos_profile "requester-chain1" "1"
-#          init_aptos_profile "requester-chain2" "2"
+#          init_aptos_profile "solver-chain3" "3" "$LOG_FILE" "0xabcdef..."
 # Creates an Aptos profile for the specified chain:
 #   - Hub: uses --network local (ports 1000/1001)
 #   - Chain 2 (connected): uses --network custom with --rest-url and --faucet-url (ports 2000/2001)
+#   - Chain 3 (connected): uses --network custom with --rest-url and --faucet-url (ports 3000/3001)
+# If private_key is provided, uses --private-key flag (same keypair across chains).
 # If log_file is provided, redirects output there; otherwise uses LOG_FILE if set
 init_aptos_profile() {
     local profile="$1"
     local chain_num="$2"
     local log_file="${3:-$LOG_FILE}"
-    
+    local private_key="$4"
+
     if [ -z "$profile" ]; then
         log_and_echo "❌ ERROR: init_aptos_profile() requires a profile name"
         exit 1
     fi
-    
+
     if [ -z "$chain_num" ]; then
-        log_and_echo "❌ ERROR: init_aptos_profile() requires a chain number (1 or 2)"
+        log_and_echo "❌ ERROR: init_aptos_profile() requires a chain number (1, 2, or 3)"
         exit 1
     fi
-    
-    local aptos_cmd
+
+    # Build network flags based on chain number
+    local network_flags
     if [ "$chain_num" = "1" ]; then
-        # Hub: use local network
-        aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network local --assume-yes"
+        network_flags="--network local"
     elif [ "$chain_num" = "2" ]; then
-        aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network custom --rest-url http://127.0.0.1:2000 --faucet-url http://127.0.0.1:2001 --assume-yes"
+        network_flags="--network custom --rest-url http://127.0.0.1:2000 --faucet-url http://127.0.0.1:2001"
     elif [ "$chain_num" = "3" ]; then
-        aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network custom --rest-url http://127.0.0.1:3000 --faucet-url http://127.0.0.1:3001 --assume-yes"
+        network_flags="--network custom --rest-url http://127.0.0.1:3000 --faucet-url http://127.0.0.1:3001"
     else
         log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
     fi
-    
+
+    local aptos_cmd
+    if [ -n "$private_key" ]; then
+        # Use provided key (no stdin prompt needed)
+        aptos_cmd="aptos init --profile $profile $network_flags --private-key $private_key --assume-yes"
+    else
+        # Generate random key (press enter to skip private key prompt)
+        aptos_cmd="printf \"\\n\" | aptos init --profile $profile $network_flags --assume-yes"
+    fi
+
     if [ -n "$log_file" ]; then
         if eval "$aptos_cmd >> \"$log_file\" 2>&1"; then
             log "✅ Profile $profile created successfully on Chain $chain_num"

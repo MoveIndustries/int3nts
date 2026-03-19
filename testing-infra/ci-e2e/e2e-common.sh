@@ -242,6 +242,12 @@ e2e_setup_chains() {
         ./testing-infra/ci-e2e/chain-connected-evm/deploy-contracts.sh 3
     elif [ "$E2E_CHAIN" = "mvm" ]; then
         # Setup two MVM instances for multi-chain testing
+        # Generate a shared solver key so all MVM connected chain instances use the
+        # same solver address (mirrors EVM where Hardhat's deterministic mnemonic
+        # gives the same account on all instances).
+        mkdir -p "$PROJECT_ROOT/.tmp"
+        openssl rand -hex 32 | sed 's/^/0x/' > "$PROJECT_ROOT/.tmp/solver-mvm-shared-key.hex"
+
         ./testing-infra/ci-e2e/chain-connected-mvm/setup-chain.sh 2
         ./testing-infra/ci-e2e/chain-connected-mvm/setup-requester-solver.sh 2
         ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
