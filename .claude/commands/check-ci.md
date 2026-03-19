@@ -19,7 +19,7 @@ Investigate CI test results for a given PR number.
 git branch --show-current
 
 # Find PR associated with current branch
-gh pr list --head "$(git branch --show-current)" --json number,title,url,state --jq '.[] | "PR #\(.number): \(.title)\nURL: \(.url)\nState: \(.state)"'
+gh pr list --head "$(git branch --show-current)" --json number,title,url,state | jq -r '.[] | "PR #\(.number): \(.title)\nURL: \(.url)\nState: \(.state)"'
 ```
 
 If no PR is found for the current branch, ask the user for a PR number.
@@ -29,7 +29,7 @@ If no PR is found for the current branch, ask the user for a PR number.
 Display basic PR information:
 
 ```bash
-gh pr view <PR_NUMBER> --json number,title,url,headRefName,baseRefName,state --jq '"PR #\(.number): \(.title)\nBranch: \(.headRefName) → \(.baseRefName)\nState: \(.state)\nURL: \(.url)"'
+gh pr view <PR_NUMBER> --json number,title,url,headRefName,baseRefName,state | jq -r '"PR #\(.number): \(.title)\nBranch: \(.headRefName) → \(.baseRefName)\nState: \(.state)\nURL: \(.url)"'
 ```
 
 Present as:
@@ -78,18 +78,23 @@ Use AskUserQuestion to ask which check(s) the user wants to investigate. Include
 
 ## Step 5: Fetch Logs for Selected Check
 
-For the selected check(s), fetch the logs:
+For the selected check(s), fetch the logs using the GitHub API (the `gh run view --log` / `--log-failed` commands often return empty output and are unreliable):
 
 ```bash
 # Get the run ID and job ID from the check URL
 # URL format: https://github.com/<org>/<repo>/actions/runs/<run_id>/job/<job_id>
 
-# View failed steps only (preferred for failures)
-gh run view <run_id> --job <job_id> --log-failed
+# First, identify which step failed:
+gh run view <run_id> --json jobs | jq '.jobs[] | select(.databaseId == <job_id>) | {name: .name, conclusion: .conclusion, steps: [.steps[] | select(.conclusion == "failure") | {name: .name, conclusion: .conclusion}]}'
 
-# If user wants full logs
-gh run view <run_id> --job <job_id> --log
+# Fetch actual logs via the API (reliable, unlike gh run view --log):
+gh api repos/<owner>/<repo>/actions/jobs/<job_id>/logs 2>&1 | tail -200
+
+# For shorter summary of just the end (where failures usually are):
+gh api repos/<owner>/<repo>/actions/jobs/<job_id>/logs 2>&1 | tail -80
 ```
+
+**IMPORTANT**: Do NOT use `gh run view --log-failed` or `gh run view --log` — these frequently return empty output. Always use `gh api repos/<owner>/<repo>/actions/jobs/<job_id>/logs` instead.
 
 ## Step 6: Analyze and Present Findings
 
@@ -144,3 +149,4 @@ Ask if the user wants to:
 - Parse job IDs from the check URLs automatically
 - Truncate very long logs - show most relevant parts
 - For "All failing checks", summarize each briefly first, then offer deep dives
+- **Do NOT use `--jq` with `gh` commands** — the `\(` sequences in jq expressions break Claude Code's glob-based permission matching (e.g. `Bash(gh pr view*)`). Always pipe to `jq -r` instead.
