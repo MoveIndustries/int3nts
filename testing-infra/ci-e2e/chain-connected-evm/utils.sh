@@ -15,8 +15,8 @@ evm_instance_vars() {
     local n="${1:-1}"
     export EVM_INSTANCE="$n"
     case "$n" in
-        2) export EVM_PORT=8545; export EVM_CHAIN_ID=2; export EVM_NETWORK=localhost-e2e-2 ;;
-        3) export EVM_PORT=8546; export EVM_CHAIN_ID=3; export EVM_NETWORK=localhost-e2e-3 ;;
+        2) export EVM_PORT=2000; export EVM_CHAIN_ID=2; export EVM_NETWORK=localhost-e2e-2 ;;
+        3) export EVM_PORT=3000; export EVM_CHAIN_ID=3; export EVM_NETWORK=localhost-e2e-3 ;;
         *) echo "Unknown EVM instance: $n" >&2; exit 1 ;;
     esac
     export EVM_RPC_URL="http://127.0.0.1:$EVM_PORT"
@@ -75,11 +75,11 @@ run_hardhat_command() {
 # Check if EVM chain is running
 # Usage: check_evm_chain_running [port]
 # Example: check_evm_chain_running
-#          check_evm_chain_running "8545"
-# Checks if EVM chain is responding on the specified port (default: $EVM_PORT or 8545)
+#          check_evm_chain_running "2000"
+# Checks if EVM chain is responding on the specified port (default: $EVM_PORT or 2000)
 # Returns 0 if chain is running, 1 if not
 check_evm_chain_running() {
-    local port="${1:-${EVM_PORT:-8545}}"
+    local port="${1:-${EVM_PORT:-2000}}"
     
     if curl -s -X POST "http://127.0.0.1:${port}" \
         -H "Content-Type: application/json" \

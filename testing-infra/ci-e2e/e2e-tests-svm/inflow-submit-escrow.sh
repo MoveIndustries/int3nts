@@ -35,7 +35,7 @@ log "   Waiting for GMP relay to deliver IntentRequirements to SVM chain..."
 log "   (Hub intent creation sends requirements via GMP - relay must deliver them first)"
 
 CLI_BIN="$PROJECT_ROOT/intent-frameworks/svm/target/debug/intent_escrow_cli"
-SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:8899}"
+SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:2000}"
 
 GMP_DELIVERED=0
 for attempt in $(seq 1 30); do
@@ -87,7 +87,7 @@ export SVM_GMP_ENDPOINT_ID="$SVM_GMP_ENDPOINT_ID"
 # Chain ID of the hub (Movement) for GMP routing
 export HUB_CHAIN_ID="1"
 # Solana RPC endpoint URL
-export SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:8899}"
+export SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:2000}"
 # Path to keypair file for transaction fees
 export SVM_PAYER_KEYPAIR="$SVM_PAYER_KEYPAIR"
 # Path to requester's keypair file (signs the escrow creation)

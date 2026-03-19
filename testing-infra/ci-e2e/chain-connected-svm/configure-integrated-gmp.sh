@@ -43,7 +43,7 @@ cat > "$TEMP_FILE" << EOF
 
 [[connected_chain_svm]]
 name = "Connected SVM Chain"
-rpc_url = "http://127.0.0.1:8899"
+rpc_url = "http://127.0.0.1:2000"
 escrow_program_id = "$SVM_PROGRAM_ID"
 outflow_program_id = "$SVM_OUTFLOW_VALIDATOR_ID"
 chain_id = 2

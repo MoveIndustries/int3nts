@@ -58,7 +58,7 @@ mkdir -p "$(dirname "$TEMP_CONFIG")"
 cat > "$TEMP_CONFIG" << 'TMPEOF'
 [hub_chain]
 name = "placeholder"
-rpc_url = "http://127.0.0.1:8080"
+rpc_url = "http://127.0.0.1:1000"
 chain_id = 1
 intent_module_addr = "0x1"
 

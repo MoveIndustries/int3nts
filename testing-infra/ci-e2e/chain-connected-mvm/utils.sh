@@ -15,8 +15,8 @@ mvm_instance_vars() {
     local n="${1:-2}"
     export MVM_INSTANCE="$n"
     case "$n" in
-        2) export MVM_REST_PORT=8082; export MVM_FAUCET_PORT=8083; export MVM_CHAIN_ID=2; export MVM_DOCKER_PROJECT=aptos-chain2 ;;
-        3) export MVM_REST_PORT=8084; export MVM_FAUCET_PORT=8085; export MVM_CHAIN_ID=3; export MVM_DOCKER_PROJECT=aptos-chain3 ;;
+        2) export MVM_REST_PORT=2000; export MVM_FAUCET_PORT=2001; export MVM_CHAIN_ID=2; export MVM_DOCKER_PROJECT=aptos-chain2 ;;
+        3) export MVM_REST_PORT=3000; export MVM_FAUCET_PORT=3001; export MVM_CHAIN_ID=3; export MVM_DOCKER_PROJECT=aptos-chain3 ;;
         *) echo "Unknown MVM instance: $n" >&2; exit 1 ;;
     esac
     export MVM_RPC_URL="http://127.0.0.1:$MVM_REST_PORT/v1"

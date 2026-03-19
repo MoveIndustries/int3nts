@@ -27,7 +27,7 @@ if [ -z "$SVM_PROGRAM_ID" ]; then
     exit 1
 fi
 
-SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:8899}"
+SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:2000}"
 
 log_and_echo "⏳ Waiting for escrow auto-release..."
 log "   Intent ID: $INTENT_ID"

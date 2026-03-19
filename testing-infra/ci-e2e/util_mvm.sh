@@ -46,14 +46,14 @@ fund_and_verify_account() {
     local rest_port
     local faucet_port
     if [ "$chain_num" = "1" ]; then
-        rest_port="8080"
-        faucet_port="8081"
+        rest_port="1000"
+        faucet_port="1001"
     elif [ "$chain_num" = "2" ]; then
-        rest_port="8082"
-        faucet_port="8083"
+        rest_port="2000"
+        faucet_port="2001"
     elif [ "$chain_num" = "3" ]; then
-        rest_port="8084"
-        faucet_port="8085"
+        rest_port="3000"
+        faucet_port="3001"
     else
         log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
@@ -111,8 +111,8 @@ fund_and_verify_account() {
 # Example: init_aptos_profile "requester-chain1" "1"
 #          init_aptos_profile "requester-chain2" "2"
 # Creates an Aptos profile for the specified chain:
-#   - Hub: uses --network local (ports 8080/8081)
-#   - Chain 2 (connected): uses --network custom with --rest-url and --faucet-url (ports 8082/8083)
+#   - Hub: uses --network local (ports 1000/1001)
+#   - Chain 2 (connected): uses --network custom with --rest-url and --faucet-url (ports 2000/2001)
 # If log_file is provided, redirects output there; otherwise uses LOG_FILE if set
 init_aptos_profile() {
     local profile="$1"
@@ -134,9 +134,9 @@ init_aptos_profile() {
         # Hub: use local network
         aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network local --assume-yes"
     elif [ "$chain_num" = "2" ]; then
-        aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network custom --rest-url http://127.0.0.1:8082 --faucet-url http://127.0.0.1:8083 --assume-yes"
+        aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network custom --rest-url http://127.0.0.1:2000 --faucet-url http://127.0.0.1:2001 --assume-yes"
     elif [ "$chain_num" = "3" ]; then
-        aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network custom --rest-url http://127.0.0.1:8084 --faucet-url http://127.0.0.1:8085 --assume-yes"
+        aptos_cmd="printf \"\\n\" | aptos init --profile $profile --network custom --rest-url http://127.0.0.1:3000 --faucet-url http://127.0.0.1:3001 --assume-yes"
     else
         log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
@@ -189,8 +189,8 @@ cleanup_aptos_profile() {
 # Example: wait_for_mvm_chain_ready "1"
 #          wait_for_mvm_chain_ready "2" "30" "5"
 # Waits for both REST API and faucet to be ready:
-#   - Hub: checks ports 8080 (REST) and 8081 (faucet)
-#   - Chain 2: checks ports 8082 (REST) and 8083 (faucet)
+#   - Hub: checks ports 1000 (REST) and 1001 (faucet)
+#   - Chain 2: checks ports 2000 (REST) and 2001 (faucet)
 # Default: 30 attempts with 5 second intervals
 # Returns 0 if chain is ready, exits with error if timeout
 wait_for_mvm_chain_ready() {
@@ -206,14 +206,14 @@ wait_for_mvm_chain_ready() {
     local rest_port
     local faucet_port
     if [ "$chain_num" = "1" ]; then
-        rest_port="8080"
-        faucet_port="8081"
+        rest_port="1000"
+        faucet_port="1001"
     elif [ "$chain_num" = "2" ]; then
-        rest_port="8082"
-        faucet_port="8083"
+        rest_port="2000"
+        faucet_port="2001"
     elif [ "$chain_num" = "3" ]; then
-        rest_port="8084"
-        faucet_port="8085"
+        rest_port="3000"
+        faucet_port="3001"
     else
         log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
@@ -242,8 +242,8 @@ wait_for_mvm_chain_ready() {
 # Verifies both REST API and faucet are responding correctly:
 #   - REST API: checks http://127.0.0.1:<rest_port>/v1
 #   - Faucet: checks http://127.0.0.1:<faucet_port>/ should return "tap:ok"
-#   - Hub: ports 8080 (REST) and 8081 (faucet)
-#   - Chain 2: ports 8082 (REST) and 8083 (faucet)
+#   - Hub: ports 1000 (REST) and 1001 (faucet)
+#   - Chain 2: ports 2000 (REST) and 2001 (faucet)
 # Exits with error if any service is not responding correctly
 verify_mvm_chain_services() {
     local chain_num="$1"
@@ -256,14 +256,14 @@ verify_mvm_chain_services() {
     local rest_port
     local faucet_port
     if [ "$chain_num" = "1" ]; then
-        rest_port="8080"
-        faucet_port="8081"
+        rest_port="1000"
+        faucet_port="1001"
     elif [ "$chain_num" = "2" ]; then
-        rest_port="8082"
-        faucet_port="8083"
+        rest_port="2000"
+        faucet_port="2001"
     elif [ "$chain_num" = "3" ]; then
-        rest_port="8084"
-        faucet_port="8085"
+        rest_port="3000"
+        faucet_port="3001"
     else
         log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
@@ -292,7 +292,7 @@ verify_mvm_chain_services() {
 # Extract APT metadata address from Aptos chain
 # Usage: extract_apt_metadata <profile> <chain_addr> <account_addr> <chain_num> [log_file]
 # Returns: metadata address via stdout, exits on error
-# chain_num: 1 for Hub (port 8080), 2 for Chain 2 (connected, port 8082)
+# chain_num: 1 for Hub (port 1000), 2 for Chain 2 (connected, port 2000)
 extract_apt_metadata() {
     local profile="$1"
     local chain_addr="$2"
@@ -323,11 +323,11 @@ extract_apt_metadata() {
     # Determine REST API port based on chain number
     local rest_port
     if [ "$chain_num" = "1" ]; then
-        rest_port="8080"
+        rest_port="1000"
     elif [ "$chain_num" = "2" ]; then
-        rest_port="8082"
+        rest_port="2000"
     elif [ "$chain_num" = "3" ]; then
-        rest_port="8084"
+        rest_port="3000"
     else
         log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
@@ -566,13 +566,13 @@ get_usdxyz_metadata_addr() {
     
     local rest_port
     if [ "$chain_num" = "1" ]; then
-        rest_port="8080"
+        rest_port="1000"
     elif [ "$chain_num" = "2" ]; then
-        rest_port="8082"
+        rest_port="2000"
     elif [ "$chain_num" = "3" ]; then
-        rest_port="8084"
+        rest_port="3000"
     else
-        rest_port="8082"
+        rest_port="2000"
     fi
 
     # Call the view function to get metadata
@@ -612,13 +612,13 @@ get_usdxyz_balance() {
     
     local rest_port
     if [ "$chain_num" = "1" ]; then
-        rest_port="8080"
+        rest_port="1000"
     elif [ "$chain_num" = "2" ]; then
-        rest_port="8082"
+        rest_port="2000"
     elif [ "$chain_num" = "3" ]; then
-        rest_port="8084"
+        rest_port="3000"
     else
-        rest_port="8082"
+        rest_port="2000"
     fi
 
     # Use || true to allow PANIC check to run if get_profile_address fails
@@ -886,7 +886,7 @@ verify_solver_registered() {
     # Call the entry function to check registration status
     # The function emits an event - we'll check the event to see if solver is registered
     local temp_file=$(mktemp)
-    local rpc_url=$(aptos config show-profiles | jq -r ".[\"Result\"][\"$profile\"].rest_url" 2>/dev/null || echo "http://127.0.0.1:8080")
+    local rpc_url=$(aptos config show-profiles | jq -r ".[\"Result\"][\"$profile\"].rest_url" 2>/dev/null || echo "http://127.0.0.1:1000")
     local solver_addr_hex="0x${solver_addr}"
     
     if [ -n "$log_file" ]; then
@@ -960,7 +960,7 @@ list_all_solvers() {
     chain_addr="${chain_addr#0x}"
 
     # Get RPC URL for the profile
-    local rpc_url=$(aptos config show-profiles | jq -r ".[\"Result\"][\"$profile\"].rest_url" 2>/dev/null || echo "http://127.0.0.1:8080")
+    local rpc_url=$(aptos config show-profiles | jq -r ".[\"Result\"][\"$profile\"].rest_url" 2>/dev/null || echo "http://127.0.0.1:1000")
     
     # Call the Move entry function to list all solvers
     local temp_file=$(mktemp)

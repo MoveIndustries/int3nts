@@ -39,7 +39,7 @@ generate_solver_config_evm() {
 
     # Use environment variables from test setup
     local coordinator_url="${COORDINATOR_URL:-http://127.0.0.1:3333}"
-    local hub_rpc="${CHAIN1_URL:-http://127.0.0.1:8080/v1}"
+    local hub_rpc="${CHAIN1_URL:-http://127.0.0.1:1000/v1}"
     local hub_chain_id="${HUB_CHAIN_ID:-1}"
     local module_addr="0x${chain1_addr}"
     local solver_addr="0x${solver_chain1_addr}"

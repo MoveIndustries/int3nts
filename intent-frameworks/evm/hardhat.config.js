@@ -23,14 +23,14 @@ module.exports = {
       },
     },
     "localhost-e2e-2": {
-      url: "http://127.0.0.1:8545",
+      url: "http://127.0.0.1:2000",
       chainId: 2,
       accounts: {
         mnemonic: "test test test test test test test test test test test junk",
       },
     },
     "localhost-e2e-3": {
-      url: "http://127.0.0.1:8546",
+      url: "http://127.0.0.1:3000",
       chainId: 3,
       accounts: {
         mnemonic: "test test test test test test test test test test test junk",

@@ -49,7 +49,7 @@ display_balances_connected_evm() {
     local usdcon_addr="$1"
     
     # Check if EVM chain is running
-    if ! curl -s -X POST "http://127.0.0.1:${EVM_PORT:-8545}" \
+    if ! curl -s -X POST "http://127.0.0.1:${EVM_PORT:-2000}" \
         -H "Content-Type: application/json" \
         -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
         >/dev/null 2>&1; then

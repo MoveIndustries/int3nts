@@ -24,12 +24,12 @@ pkill -f "solana-test-validator" || true
 sleep 2
 
 log ""
-log " Starting solana-test-validator on port 8899..."
+log " Starting solana-test-validator on port 2000..."
 
 LEDGER_DIR="$PROJECT_ROOT/.tmp/solana-test-validator"
 mkdir -p "$LEDGER_DIR"
 
-svm_cmd "solana-test-validator --reset --ledger \"$LEDGER_DIR\" --rpc-port 8899" > "$LOG_FILE" 2>&1 &
+svm_cmd "solana-test-validator --reset --ledger \"$LEDGER_DIR\" --rpc-port 2000" > "$LOG_FILE" 2>&1 &
 VALIDATOR_PID=$!
 
 mkdir -p "$PROJECT_ROOT/.tmp"
@@ -40,7 +40,7 @@ log "   solana-test-validator started with PID: $VALIDATOR_PID"
 log ""
 log "⏳ Waiting for SVM chain to be ready..."
 for i in {1..120}; do
-    if check_svm_chain_running "http://127.0.0.1:8899"; then
+    if check_svm_chain_running "http://127.0.0.1:2000"; then
         log "   ✅ SVM chain ready!"
         break
     fi
@@ -61,5 +61,5 @@ done
 
 log ""
 log "✅ SVM chain is running!"
-log "   RPC URL: http://127.0.0.1:8899"
+log "   RPC URL: http://127.0.0.1:2000"
 log "   PID: $VALIDATOR_PID"

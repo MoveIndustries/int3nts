@@ -15,7 +15,7 @@ cd "$PROJECT_ROOT"
 log " Deploying SVM programs (intent_inflow_escrow, intent-gmp, intent-outflow-validator)..."
 log_and_echo " All output logged to: $LOG_FILE"
 
-SVM_RPC_URL="http://127.0.0.1:8899"
+SVM_RPC_URL="http://127.0.0.1:2000"
 SVM_CHAIN_ID=2
 CHAIN_INFO="$PROJECT_ROOT/.tmp/chain-info.env"
 

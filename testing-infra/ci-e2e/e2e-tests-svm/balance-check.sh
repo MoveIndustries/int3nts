@@ -27,7 +27,7 @@ fi
 
 get_svm_balance() {
     local token_account="$1"
-    SVM_TOKEN_ACCOUNT="$token_account" SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:8899}" \
+    SVM_TOKEN_ACCOUNT="$token_account" SVM_RPC_URL="${SVM_RPC_URL:-http://127.0.0.1:2000}" \
         bash "$PROJECT_ROOT/intent-frameworks/svm/scripts/get-token-balance.sh" \
         | grep -Eo 'Balance: [0-9]+' | awk '{print $2}' | tail -1 | tr -d '\n'
 }
@@ -38,7 +38,7 @@ get_svm_sol_balance() {
         echo "0"
         return
     fi
-    svm_cmd "solana balance \"$pubkey\" --url \"${SVM_RPC_URL:-http://127.0.0.1:8899}\"" \
+    svm_cmd "solana balance \"$pubkey\" --url \"${SVM_RPC_URL:-http://127.0.0.1:2000}\"" \
         | awk '{print $1}' | tail -n 1
 }
 

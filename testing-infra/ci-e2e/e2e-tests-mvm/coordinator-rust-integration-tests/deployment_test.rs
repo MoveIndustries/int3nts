@@ -13,7 +13,7 @@ async fn test_contracts_deployed_on_chain1() {
     let config = coordinator::config::Config::load()
         .expect("Failed to load coordinator config - ensure config/coordinator.toml exists with module addresses");
     
-    let _mvm_client = MvmClient::new("http://127.0.0.1:8080").unwrap();
+    let _mvm_client = MvmClient::new("http://127.0.0.1:1000").unwrap();
     
     // Extract the account address from the module address
     // Module address format: "0x{address}::module_name"
@@ -26,7 +26,7 @@ async fn test_contracts_deployed_on_chain1() {
     };
     
     // Query the modules for this account
-    let url = format!("http://127.0.0.1:8080/v1/accounts/{}/modules", account_addr);
+    let url = format!("http://127.0.0.1:1000/v1/accounts/{}/modules", account_addr);
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -73,7 +73,7 @@ async fn test_contracts_deployed_on_chain2() {
     };
     
     // Query the modules for this account
-    let url = format!("http://127.0.0.1:8082/v1/accounts/{}/modules", account_addr);
+    let url = format!("http://127.0.0.1:2000/v1/accounts/{}/modules", account_addr);
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()

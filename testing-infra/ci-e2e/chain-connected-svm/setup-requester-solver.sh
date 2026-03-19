@@ -16,7 +16,7 @@ log " Requester and Solver Account Setup - SVM CHAIN"
 log "================================================="
 log_and_echo " All output logged to: $LOG_FILE"
 
-SVM_RPC_URL="http://127.0.0.1:8899"
+SVM_RPC_URL="http://127.0.0.1:2000"
 E2E_DIR="$PROJECT_ROOT/.tmp/svm-e2e"
 mkdir -p "$E2E_DIR"
 

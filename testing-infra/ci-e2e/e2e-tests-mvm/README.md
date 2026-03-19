@@ -2,7 +2,7 @@
 
 Tests Move VM-only cross-chain intent framework: intents on Hub with escrows on two independent MVM connected chains.
 
-Two Docker-based Aptos localnet instances run simultaneously (port 8082/chain 2 and port 8084/chain 3), validating multi-MVM routing end-to-end.
+Two Docker-based Aptos localnet instances run simultaneously (port 2000/chain 2 and port 3000/chain 3), validating multi-MVM routing end-to-end.
 
 ## Quick Start
 
