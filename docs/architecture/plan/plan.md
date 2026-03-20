@@ -5,7 +5,7 @@
 | Stage | Description | Status |
 |-------|-------------|--------|
 | 1 | Parallel cargo builds + docker pull overlap | done |
-| 2 | Parallel chain startup | todo |
+| 2 | Parallel chain startup + account setup + connected deploys | done |
 | 3 | Reduce stabilization sleeps | todo |
 | 4 | Parallel service startup (coordinator + integrated-gmp) | todo |
 | 5 | Docker image pre-pull overlap with builds | todo |
@@ -13,6 +13,23 @@
 ## Goal
 
 Reduce E2E test wall time (~18 min) by eliminating unnecessary sequential operations and fixed sleeps. Each stage is independently valuable and safe to land on its own.
+
+## CI Timings
+
+Before: `chore/e2e-speedups` plan-only commit 8a651cc (run 23354564110)
+Stage 1: `chore/e2e-speedups` parallel builds commit 7bd16b0 (run 23355126386)
+
+| Job | Before | Stage 1 |
+|-----|--------|---------|
+| mvm-chain-inflow | 15m 29s | 15m 19s |
+| mvm-chain-outflow | 15m 13s | 14m 09s |
+| rust-integration | 15m 33s | 15m 27s |
+| evm-chain-outflow | 17m 10s | 15m 01s |
+| evm-chain-inflow | 18m 49s | 18m 22s |
+| svm-chain-outflow | 25m 37s | 24m 04s |
+| svm-chain-inflow | 26m 22s | 25m 05s |
+
+Stage 1 saved ~1-2 min on most jobs. Slowest job (svm-chain-inflow) down from 26m 22s to 25m 05s.
 
 ## Stage protocol (every stage)
 
