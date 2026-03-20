@@ -262,25 +262,53 @@ e2e_setup_chains() {
     log_and_echo " Setting up chains and deploying contracts..."
     log_and_echo "======================================================"
 
-    ./testing-infra/ci-e2e/chain-hub/setup-chain.sh
-    ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
+    # Phase 1: Start all chains in parallel (no dependencies between them)
+    ./testing-infra/ci-e2e/chain-hub/setup-chain.sh &
+    local hub_chain_pid=$!
 
-    # Generate shared solver keys for chains that need them
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 2 &
+    local connected2_chain_pid=$!
+
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 3 &
+    local connected3_chain_pid=$!
+
+    wait "$hub_chain_pid"
+    wait "$connected2_chain_pid"
+    wait "$connected3_chain_pid"
+
+    # Phase 2: Account setup (hub + both connected instances in parallel)
+    # Generate shared solver keys first (instant, needed by account setup)
     mkdir -p "$PROJECT_ROOT/.tmp"
     case "$E2E_CHAIN" in
         mvm) openssl rand -hex 32 | sed 's/^/0x/' > "$PROJECT_ROOT/.tmp/solver-mvm-shared-key.hex" ;;
         svm) ensure_svm_keypair "$PROJECT_ROOT/.tmp/solver-svm-shared-key.json" ;;
     esac
 
-    # Setup two connected chain instances for multi-chain testing
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 2
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2
-    ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2
+    ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh &
+    local hub_accounts_pid=$!
 
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 3
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2 &
+    local connected2_accounts_pid=$!
+
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3 &
+    local connected3_accounts_pid=$!
+
+    wait "$hub_accounts_pid"
+    wait "$connected2_accounts_pid"
+    wait "$connected3_accounts_pid"
+
+    # Phase 3: Hub contract deployment (connected deploys depend on HUB_MODULE_ADDR)
+    ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
+
+    # Phase 4: Connected contract deployments in parallel (both read HUB_MODULE_ADDR)
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2 &
+    local connected2_deploy_pid=$!
+
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3 &
+    local connected3_deploy_pid=$!
+
+    wait "$connected2_deploy_pid"
+    wait "$connected3_deploy_pid"
 }
 
 # ------------------------------------------------------------------------------
