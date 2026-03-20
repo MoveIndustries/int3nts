@@ -44,7 +44,7 @@ log " Starting solana-test-validator on port $SVM_PORT..."
 
 mkdir -p "$SVM_LEDGER_DIR"
 
-svm_cmd "solana-test-validator --reset --ledger \"$SVM_LEDGER_DIR\" --rpc-port $SVM_PORT" > "$LOG_FILE" 2>&1 &
+svm_cmd "solana-test-validator --reset --ledger \"$SVM_LEDGER_DIR\" --rpc-port $SVM_PORT --faucet-port $SVM_FAUCET_PORT" > "$LOG_FILE" 2>&1 &
 VALIDATOR_PID=$!
 
 mkdir -p "$PROJECT_ROOT/.tmp"

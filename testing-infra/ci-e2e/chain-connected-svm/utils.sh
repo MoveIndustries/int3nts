@@ -13,15 +13,15 @@ source "$SCRIPT_DIR_SVM_UTILS/../util.sh"
 source "$SCRIPT_DIR_SVM_UTILS/../util_svm.sh"
 
 # Derive all instance-specific values from instance number.
-# Sets: SVM_INSTANCE, SVM_PORT, SVM_CHAIN_ID, SVM_RPC_URL, SVM_PID_FILE,
-#       SVM_CHAIN_INFO_FILE, SVM_LEDGER_DIR, SVM_E2E_DIR
+# Sets: SVM_INSTANCE, SVM_PORT, SVM_FAUCET_PORT, SVM_CHAIN_ID, SVM_RPC_URL,
+#       SVM_PID_FILE, SVM_CHAIN_INFO_FILE, SVM_LEDGER_DIR, SVM_E2E_DIR
 # Usage: svm_instance_vars <instance_number>
 svm_instance_vars() {
     local n="${1:-1}"
     export SVM_INSTANCE="$n"
     case "$n" in
-        2) export SVM_PORT=2000; export SVM_CHAIN_ID=2 ;;
-        3) export SVM_PORT=3000; export SVM_CHAIN_ID=3 ;;
+        2) export SVM_PORT=2000; export SVM_FAUCET_PORT=2001; export SVM_CHAIN_ID=2 ;;
+        3) export SVM_PORT=3000; export SVM_FAUCET_PORT=3001; export SVM_CHAIN_ID=3 ;;
         *) echo "Unknown SVM instance: $n" >&2; exit 1 ;;
     esac
     export SVM_RPC_URL="http://127.0.0.1:$SVM_PORT"
