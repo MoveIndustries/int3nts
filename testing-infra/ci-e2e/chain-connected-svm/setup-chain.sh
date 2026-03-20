@@ -64,10 +64,19 @@ for i in {1..120}; do
     fi
     if [ "$i" -eq 120 ]; then
         log_and_echo "   ❌ Timeout waiting for solana-test-validator (120 seconds)"
-        log_and_echo "   Last 50 lines of validator log:"
+        log_and_echo "   Last 50 lines of setup log:"
         tail -50 "$LOG_FILE" | while IFS= read -r line; do
             log_and_echo "   $line"
         done
+        INTERNAL_LOG="$SVM_LEDGER_DIR/validator.log"
+        if [ -f "$INTERNAL_LOG" ]; then
+            log_and_echo "   Last 100 lines of validator internal log ($INTERNAL_LOG):"
+            tail -100 "$INTERNAL_LOG" | while IFS= read -r line; do
+                log_and_echo "   $line"
+            done
+        else
+            log_and_echo "   No validator internal log found at $INTERNAL_LOG"
+        fi
         kill "$VALIDATOR_PID" 2>/dev/null || true
         exit 1
     fi
