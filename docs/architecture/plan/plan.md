@@ -4,7 +4,7 @@
 
 | Stage | Description | Status |
 |-------|-------------|--------|
-| 1 | Single `cargo build` invocation | todo |
+| 1 | Parallel cargo builds + docker pull overlap | done |
 | 2 | Parallel chain startup | todo |
 | 3 | Reduce stabilization sleeps | todo |
 | 4 | Parallel service startup (coordinator + integrated-gmp) | todo |
@@ -26,15 +26,15 @@ Reduce E2E test wall time (~18 min) by eliminating unnecessary sequential operat
 
 ## Stage 1 — Single `cargo build` invocation
 
-**Why**: Today `_e2e_build_full` runs 3 sequential `cargo build` invocations (coordinator, integrated-gmp, solver). Since they share a workspace, Cargo can build all bins in one invocation, leveraging shared dependency compilation.
+**Why**: Today `_e2e_build_full` runs 3 sequential `cargo build` invocations (coordinator, integrated-gmp, solver). Each crate has its own `target/` directory (no shared workspace), so they can build in parallel using background processes. Same for `build_common_bins_if_missing` in `--no-build` mode.
 
-**Scope**: `testing-infra/ci-e2e/util.sh` (`_e2e_build_full`), `testing-infra/ci-e2e/e2e-common.sh` (`e2e_build`)
+**Scope**: `testing-infra/ci-e2e/util.sh` (`_e2e_build_full`, `build_common_bins_if_missing`), `testing-infra/ci-e2e/e2e-common.sh` (`e2e_build`)
 
 **Files to change**:
 
 - `testing-infra/ci-e2e/util.sh`
-  - `_e2e_build_full()`: Replace the 3 sequential `pushd/cargo build/popd` blocks with a single `cargo build` from `$PROJECT_ROOT` that lists all required `--bin` flags for the chain type. Chain-specific bins (sign_intent, get_approver_eth_address, intent_escrow_cli) included in the same invocation.
-  - `build_common_bins_if_missing()`: Replace 4 sequential `build_if_missing` calls with a single `cargo build` that lists all common bins. Only run if any binary is missing.
+  - `_e2e_build_full()`: Run the 3 crate builds (coordinator, integrated-gmp, solver) in parallel using `&` + `wait`. Each still uses `pushd/cargo build/popd` but runs in a subshell in background. Chain-specific extra bins (sign_intent, get_approver_eth_address) are part of the integrated-gmp or solver build so they stay together. SVM intent_escrow_cli is a separate workspace — runs as a 4th parallel job.
+  - `build_common_bins_if_missing()`: Same pattern — check which bins are missing, then run needed builds in parallel.
 
 - `testing-infra/ci-e2e/e2e-common.sh`
   - `e2e_build()`: Move `docker pull` to run in background (`&`) before the cargo build, then `wait` for it after cargo completes. This overlaps docker pull with compilation.

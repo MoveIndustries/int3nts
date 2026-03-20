@@ -40,23 +40,77 @@ build_if_missing() {
 
 # Build the common set of binaries required by all E2E test scripts.
 # Checks each binary individually and only builds what's missing.
+# Runs independent crate builds in parallel.
 # Usage: build_common_bins_if_missing
 # Requires PROJECT_ROOT to be set.
 build_common_bins_if_missing() {
-    # Order: coordinator first (fastest independent build ~57s),
-    # then generate_keys before integrated-gmp (same crate, warms dep cache)
-    build_if_missing "$PROJECT_ROOT/coordinator" "cargo build --bin coordinator" \
-        "Coordinator: coordinator" \
-        "$PROJECT_ROOT/coordinator/target/debug/coordinator"
-    build_if_missing "$PROJECT_ROOT/integrated-gmp" "cargo build --bin generate_keys" \
-        "Integrated-GMP: generate_keys" \
-        "$PROJECT_ROOT/integrated-gmp/target/debug/generate_keys"
-    build_if_missing "$PROJECT_ROOT/integrated-gmp" "cargo build --bin integrated-gmp" \
-        "Integrated-GMP: integrated-gmp" \
-        "$PROJECT_ROOT/integrated-gmp/target/debug/integrated-gmp"
-    build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin solver" \
-        "Solver: solver" \
-        "$PROJECT_ROOT/solver/target/debug/solver"
+    # Determine which crates need building
+    local need_coordinator=false
+    local need_igmp=false
+    local need_solver=false
+
+    if [ ! -f "$PROJECT_ROOT/coordinator/target/debug/coordinator" ]; then
+        need_coordinator=true
+    fi
+    if [ ! -f "$PROJECT_ROOT/integrated-gmp/target/debug/generate_keys" ] || \
+       [ ! -f "$PROJECT_ROOT/integrated-gmp/target/debug/integrated-gmp" ]; then
+        need_igmp=true
+    fi
+    if [ ! -f "$PROJECT_ROOT/solver/target/debug/solver" ]; then
+        need_solver=true
+    fi
+
+    # Launch needed builds in parallel (each crate has its own target/ dir)
+    local coordinator_pid="" igmp_pid="" solver_pid=""
+
+    if [ "$need_coordinator" = "true" ]; then
+        (
+            pushd "$PROJECT_ROOT/coordinator" > /dev/null
+            cargo build --bin coordinator 2>&1 | tail -5
+            popd > /dev/null
+        ) &
+        coordinator_pid=$!
+    fi
+
+    if [ "$need_igmp" = "true" ]; then
+        (
+            pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
+            cargo build --bin generate_keys --bin integrated-gmp 2>&1 | tail -5
+            popd > /dev/null
+        ) &
+        igmp_pid=$!
+    fi
+
+    if [ "$need_solver" = "true" ]; then
+        (
+            pushd "$PROJECT_ROOT/solver" > /dev/null
+            cargo build --bin solver 2>&1 | tail -5
+            popd > /dev/null
+        ) &
+        solver_pid=$!
+    fi
+
+    # Wait for all parallel builds
+    if [ -n "$coordinator_pid" ]; then
+        wait "$coordinator_pid"
+        log_and_echo "   ✅ Coordinator: coordinator (built)"
+    else
+        log_and_echo "   ✅ Coordinator: coordinator (exists)"
+    fi
+
+    if [ -n "$igmp_pid" ]; then
+        wait "$igmp_pid"
+        log_and_echo "   ✅ Integrated-GMP: generate_keys, integrated-gmp (built)"
+    else
+        log_and_echo "   ✅ Integrated-GMP: generate_keys, integrated-gmp (exists)"
+    fi
+
+    if [ -n "$solver_pid" ]; then
+        wait "$solver_pid"
+        log_and_echo "   ✅ Solver: solver (built)"
+    else
+        log_and_echo "   ✅ Solver: solver (exists)"
+    fi
 }
 
 # Get project root - can be called from any script location
