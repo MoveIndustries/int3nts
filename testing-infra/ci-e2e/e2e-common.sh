@@ -276,26 +276,16 @@ e2e_setup_chains() {
     wait "$connected2_chain_pid"
     wait "$connected3_chain_pid"
 
-    # Phase 2: Account setup (hub + both connected instances in parallel)
-    # Generate shared solver keys first (instant, needed by account setup)
+    # Phase 2: Account setup (sequential — all write to shared ~/.aptos/config.yaml)
     mkdir -p "$PROJECT_ROOT/.tmp"
     case "$E2E_CHAIN" in
         mvm) openssl rand -hex 32 | sed 's/^/0x/' > "$PROJECT_ROOT/.tmp/solver-mvm-shared-key.hex" ;;
         svm) ensure_svm_keypair "$PROJECT_ROOT/.tmp/solver-svm-shared-key.json" ;;
     esac
 
-    ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh &
-    local hub_accounts_pid=$!
-
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2 &
-    local connected2_accounts_pid=$!
-
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3 &
-    local connected3_accounts_pid=$!
-
-    wait "$hub_accounts_pid"
-    wait "$connected2_accounts_pid"
-    wait "$connected3_accounts_pid"
+    ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3
 
     # Phase 3: Hub contract deployment (connected deploys depend on HUB_MODULE_ADDR)
     ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh

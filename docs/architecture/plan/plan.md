@@ -5,7 +5,7 @@
 | Stage | Description | Status |
 |-------|-------------|--------|
 | 1 | Parallel cargo builds + docker pull overlap | done |
-| 2 | Parallel chain startup + account setup + connected deploys | done |
+| 2 | Parallel chain startup + parallel connected deploys | in progress |
 | 3 | Reduce stabilization sleeps | todo |
 | 4 | Parallel service startup (coordinator + integrated-gmp) | todo |
 | 5 | Docker image pre-pull overlap with builds | todo |
@@ -66,22 +66,22 @@ nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inf
 
 ---
 
-## Stage 2 — Parallel chain startup
+## Stage 2 — Parallel chain startup + parallel connected deploys
 
 **Why**: `e2e_setup_chains` starts hub chain, then connected instance 2, then instance 3 sequentially. Each waits independently for its chain to become ready (up to 150s for MVM, 180s for EVM). These chains have zero startup dependencies on each other.
 
 **Scope**: `testing-infra/ci-e2e/e2e-common.sh` (`e2e_setup_chains`)
 
+**Constraint**: Account setup (`setup-requester-solver.sh`) must remain **sequential** because all instances write profiles to the same `~/.aptos/config.yaml` via the Aptos CLI. Parallel writes corrupt the file (confirmed by CI run 23357830574: `jq: parse error`, `Could not extract address for profile`).
+
 **Files to change**:
 
 - `testing-infra/ci-e2e/e2e-common.sh`
-  - `e2e_setup_chains()`: Start hub chain and both connected chain instances in parallel using background processes (`&`) + `wait`. The sequencing becomes:
-    1. Start hub chain (`setup-chain.sh`) in background
-    2. Start connected chain instance 2 (`setup-chain.sh 2`) in background
-    3. Start connected chain instance 3 (`setup-chain.sh 3`) in background
-    4. `wait` for all three — fail if any fails
-    5. Then run account setup + contract deployment sequentially (these depend on chains being up)
-  - Hub contract deployment must still happen before connected contract deployment (connected contracts reference hub addresses). But requester/solver setup for hub and connected chains can also overlap.
+  - `e2e_setup_chains()`: The sequencing becomes:
+    1. **Parallel**: Start hub chain, connected instance 2, connected instance 3 (`setup-chain.sh` x3 via `&` + `wait`)
+    2. **Sequential**: Generate shared solver keys, then account setup for hub, chain 2, chain 3 (`setup-requester-solver.sh` — must be sequential, shared Aptos CLI config)
+    3. **Sequential**: Hub contract deployment (`deploy-contracts.sh` — produces `HUB_MODULE_ADDR`)
+    4. **Parallel**: Connected contract deployments for chain 2 and 3 (`deploy-contracts.sh 2`, `deploy-contracts.sh 3` — both read `HUB_MODULE_ADDR`, no shared config writes)
 
 **Test command**:
 ```bash
