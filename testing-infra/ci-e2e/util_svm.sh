@@ -20,12 +20,15 @@ svm_cmd() {
         setup_project_root
     fi
     # Filter nix develop banners from stdout while preserving the command status.
+    # Save and restore the caller's errexit state to avoid overriding their set +e.
     local status
+    local caller_errexit=0
+    [[ $- == *e* ]] && caller_errexit=1
     set +e
     NIX_CONFIG="warn-dirty = false" nix develop "$PROJECT_ROOT/nix" -c bash -c "$cmd" \
         | sed -e '/^\[nix\] Dev shell ready:/d' -e '/^warning: Git tree/d'
     status=${PIPESTATUS[0]}
-    set -e
+    [ "$caller_errexit" -eq 1 ] && set -e
     return "$status"
 }
 
