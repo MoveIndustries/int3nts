@@ -290,15 +290,9 @@ e2e_setup_chains() {
     # Phase 3: Hub contract deployment (connected deploys depend on HUB_MODULE_ADDR)
     ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
 
-    # Phase 4: Connected contract deployments in parallel (both read HUB_MODULE_ADDR)
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2 &
-    local connected2_deploy_pid=$!
-
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3 &
-    local connected3_deploy_pid=$!
-
-    wait "$connected2_deploy_pid"
-    wait "$connected3_deploy_pid"
+    # Phase 4: Connected contract deployments (sequential — also write to shared ~/.aptos/config.yaml)
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3
 }
 
 # ------------------------------------------------------------------------------

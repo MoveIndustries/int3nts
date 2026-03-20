@@ -5,7 +5,7 @@
 | Stage | Description | Status |
 |-------|-------------|--------|
 | 1 | Parallel cargo builds + docker pull overlap | done |
-| 2 | Parallel chain startup + parallel connected deploys | in progress |
+| 2 | Parallel chain startup | in progress |
 | 3 | Reduce stabilization sleeps | todo |
 | 4 | Parallel service startup (coordinator + integrated-gmp) | todo |
 | 5 | Docker image pre-pull overlap with builds | todo |
@@ -66,7 +66,7 @@ nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inf
 
 ---
 
-## Stage 2 — Parallel chain startup + parallel connected deploys
+## Stage 2 — Parallel chain startup
 
 **Why**: `e2e_setup_chains` starts hub chain, then connected instance 2, then instance 3 sequentially. Each waits independently for its chain to become ready (up to 150s for MVM, 180s for EVM). These chains have zero startup dependencies on each other.
 
@@ -81,7 +81,7 @@ nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inf
     1. **Parallel**: Start hub chain, connected instance 2, connected instance 3 (`setup-chain.sh` x3 via `&` + `wait`)
     2. **Sequential**: Generate shared solver keys, then account setup for hub, chain 2, chain 3 (`setup-requester-solver.sh` — must be sequential, shared Aptos CLI config)
     3. **Sequential**: Hub contract deployment (`deploy-contracts.sh` — produces `HUB_MODULE_ADDR`)
-    4. **Parallel**: Connected contract deployments for chain 2 and 3 (`deploy-contracts.sh 2`, `deploy-contracts.sh 3` — both read `HUB_MODULE_ADDR`, no shared config writes)
+    4. **Sequential**: Connected contract deployments for chain 2 and 3 (also write to shared `~/.aptos/config.yaml`)
 
 **Test command**:
 ```bash
