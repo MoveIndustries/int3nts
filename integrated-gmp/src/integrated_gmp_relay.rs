@@ -277,9 +277,8 @@ struct RelayState {
     mvm_hub_last_nonce: u64,
     /// Last polled nonce per connected MVM chain (chain_id -> last nonce)
     mvm_connected_last_nonces: HashMap<u32, u64>,
-    /// SVM outbound nonce cursor per destination chain (dst_chain_id -> next nonce to process).
-    /// Value N means nonces 0..N-1 have been processed; N is the next to process.
-    svm_next_nonce: HashMap<u32, u64>,
+    /// Last polled nonce per connected SVM chain (chain_id -> last nonce)
+    svm_last_nonces: HashMap<u32, u64>,
     /// Last polled EVM block number per chain (chain_id -> block number)
     evm_last_blocks: HashMap<u32, u64>,
     /// Per-message delivery attempt tracking: (src_chain_id, nonce) -> DeliveryAttempt
@@ -744,10 +743,10 @@ impl NativeGmpRelay {
         Ok(new_last)
     }
 
-    /// Poll SVM for outbound messages using nonce-based polling.
+    /// Poll SVM for outbound messages using global nonce-based polling.
     ///
-    /// Reads the OutboundNonceAccount for each known destination chain via
-    /// getAccountInfo, then reads individual MessageAccount PDAs for any new nonces.
+    /// Reads the single OutboundNonceAccount via getAccountInfo, then reads
+    /// individual MessageAccount PDAs for any new nonces — same pattern as MVM.
     async fn poll_svm_events(&self, svm_chain: &SvmRelayChainConfig) -> Result<()> {
         let svm_client = self.svm_clients.get(&svm_chain.chain_id)
             .ok_or_else(|| anyhow::anyhow!("No SVM client for chain {}", svm_chain.chain_id))?;
@@ -760,112 +759,95 @@ impl NativeGmpRelay {
         )
         .context("Invalid SVM GMP program ID")?;
 
-        // Collect all known destination chain IDs to poll nonces for.
-        let mut dst_chain_ids = vec![self.config.mvm_chain_id];
-        for mvm_chain in &self.config.mvm_chains {
-            dst_chain_ids.push(mvm_chain.chain_id);
-        }
-        for evm_chain in &self.config.evm_chains {
-            dst_chain_ids.push(evm_chain.chain_id);
-        }
-        for other_svm in &self.config.svm_chains {
-            if other_svm.chain_id != svm_chain_id {
-                dst_chain_ids.push(other_svm.chain_id);
-            }
+        // Read the global on-chain nonce counter
+        let next_nonce = svm_client
+            .get_outbound_nonce(&gmp_program_id)
+            .await
+            .context("Failed to read SVM outbound nonce")?;
+
+        let maybe_last = {
+            self.state.read().await.svm_last_nonces.get(&svm_chain_id).copied()
+        };
+
+        let start = match maybe_last {
+            Some(last) => last + 1,
+            None => 0, // SVM nonces start at 0
+        };
+
+        if start >= next_nonce {
+            return Ok(());
         }
 
-        for dst_chain_id in dst_chain_ids {
-            // Read the on-chain nonce counter (getAccountInfo — not rate-limited)
-            let next_nonce = svm_client
-                .get_outbound_nonce(&gmp_program_id, dst_chain_id)
+        info!(
+            "SVM outbox (chain_id={}): processing nonces {}..{} ({} messages)",
+            svm_chain_id, start, next_nonce - 1, next_nonce - start
+        );
+
+        let mut new_last = maybe_last;
+
+        for nonce in start..next_nonce {
+            let msg = svm_client
+                .get_message_data(&gmp_program_id, nonce)
                 .await
-                .context("Failed to read SVM outbound nonce")?;
+                .context(format!("Failed to read SVM message nonce={}", nonce))?;
 
-            if next_nonce == 0 {
-                continue; // No messages sent to this chain
-            }
-
-            // Get our cursor for this destination chain
-            let start = {
-                let state = self.state.read().await;
-                *state.svm_next_nonce.get(&dst_chain_id).unwrap_or(&0)
+            let Some(msg) = msg else {
+                warn!(
+                    "SVM outbox: message account not found for nonce={}. Skipping (may be cleaned up).",
+                    nonce
+                );
+                new_last = Some(nonce);
+                continue;
             };
 
-            if start >= next_nonce {
-                continue; // No new messages
-            }
+            let message = GmpMessage {
+                src_chain_id: svm_chain_id,
+                remote_gmp_endpoint_addr: format!("0x{}", hex::encode(msg.remote_gmp_endpoint_addr)),
+                dst_chain_id: msg.dst_chain_id,
+                dst_addr: format!("0x{}", hex::encode(msg.dst_addr)),
+                payload: format!("0x{}", hex::encode(&msg.payload)),
+                nonce: msg.nonce,
+            };
 
-            debug!(
-                "SVM outbox (dst_chain={}): polling nonces {}..{} (next_nonce={})",
-                dst_chain_id,
-                start,
-                next_nonce - 1,
-                next_nonce
+            info!(
+                "SVM outbox: nonce={}, src={}, dst_chain={}",
+                nonce, message.remote_gmp_endpoint_addr, message.dst_chain_id
             );
 
-            for nonce in start..next_nonce {
-                // Read the message account (getAccountInfo — not rate-limited)
-                let msg = svm_client
-                    .get_message_data(&gmp_program_id, dst_chain_id, nonce)
-                    .await
-                    .context(format!("Failed to read SVM message nonce={}", nonce))?;
+            if !self.should_attempt_delivery(svm_chain_id, nonce).await {
+                new_last = Some(nonce);
+                continue;
+            }
 
-                let Some(msg) = msg else {
+            if let Err(e) = self.deliver_message(&message).await {
+                let err_str = format!("{:#}", e);
+                if err_str.contains("E_UNKNOWN_REMOTE_GMP_ENDPOINT")
+                    || err_str.contains("E_ALREADY_DELIVERED")
+                    || err_str.contains("AlreadyDelivered")
+                    || err_str.contains("Already delivered")
+                    || err_str.contains("E_INTENT_NOT_FOUND")
+                {
                     warn!(
-                        "SVM outbox: message account not found for dst_chain={}, nonce={}. Skipping.",
-                        dst_chain_id, nonce
+                        "Permanent delivery failure for SVM nonce={}, skipping: {}",
+                        nonce, err_str
                     );
-                    // Advance past missing message (may have been cleaned up)
-                    self.state.write().await.svm_next_nonce.insert(dst_chain_id, nonce + 1);
-                    continue;
-                };
-
-                // Build GmpMessage from the on-chain data
-                let message = GmpMessage {
-                    src_chain_id: svm_chain_id,
-                    remote_gmp_endpoint_addr: format!("0x{}", hex::encode(msg.remote_gmp_endpoint_addr)),
-                    dst_chain_id: msg.dst_chain_id,
-                    dst_addr: format!("0x{}", hex::encode(msg.dst_addr)),
-                    payload: format!("0x{}", hex::encode(&msg.payload)),
-                    nonce: msg.nonce,
-                };
-
-                info!(
-                    "SVM outbox: nonce={}, src={}, dst_chain={}",
-                    nonce, message.remote_gmp_endpoint_addr, message.dst_chain_id
-                );
-
-                // Check if this message should be attempted (not in backoff / not exhausted)
-                if !self.should_attempt_delivery(svm_chain_id, nonce).await {
-                    self.state.write().await.svm_next_nonce.insert(dst_chain_id, nonce + 1);
+                    new_last = Some(nonce);
                     continue;
                 }
-
-                if let Err(e) = self.deliver_message(&message).await {
-                    let err_str = format!("{:#}", e);
-                    // Permanent errors: skip and advance past the message
-                    if err_str.contains("E_UNKNOWN_REMOTE_GMP_ENDPOINT")
-                        || err_str.contains("E_ALREADY_DELIVERED")
-                        || err_str.contains("E_INTENT_NOT_FOUND")
-                    {
-                        warn!(
-                            "Permanent delivery failure for SVM nonce={}, skipping: {}",
-                            nonce, err_str
-                        );
-                        self.state.write().await.svm_next_nonce.insert(dst_chain_id, nonce + 1);
-                        continue;
-                    }
-                    // Transient failure: record attempt with backoff
-                    let exhausted = self.record_delivery_failure(&message, &err_str).await;
-                    // Advance past this nonce regardless — it will be retried via delivery_attempts tracking
-                    self.state.write().await.svm_next_nonce.insert(dst_chain_id, nonce + 1);
-                    if exhausted {
-                        continue;
-                    }
+                let exhausted = self.record_delivery_failure(&message, &err_str).await;
+                new_last = Some(nonce);
+                if exhausted {
                     continue;
                 }
+                continue;
+            }
 
-                self.state.write().await.svm_next_nonce.insert(dst_chain_id, nonce + 1);
+            new_last = Some(nonce);
+        }
+
+        if let Some(last) = new_last {
+            if maybe_last != new_last {
+                self.state.write().await.svm_last_nonces.insert(svm_chain_id, last);
             }
         }
 
