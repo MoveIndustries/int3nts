@@ -230,38 +230,22 @@ e2e_setup_chains() {
     ./testing-infra/ci-e2e/chain-hub/setup-chain.sh
     ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
 
-    if [ "$E2E_CHAIN" = "evm" ]; then
-        # Setup two EVM instances for multi-chain testing
-        ./testing-infra/ci-e2e/chain-connected-evm/setup-chain.sh 2
-        ./testing-infra/ci-e2e/chain-connected-evm/setup-requester-solver.sh 2
-        ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
-        ./testing-infra/ci-e2e/chain-connected-evm/deploy-contracts.sh 2
+    # Generate shared solver keys for chains that need them
+    mkdir -p "$PROJECT_ROOT/.tmp"
+    case "$E2E_CHAIN" in
+        mvm) openssl rand -hex 32 | sed 's/^/0x/' > "$PROJECT_ROOT/.tmp/solver-mvm-shared-key.hex" ;;
+        svm) ensure_svm_keypair "$PROJECT_ROOT/.tmp/solver-svm-shared-key.json" ;;
+    esac
 
-        ./testing-infra/ci-e2e/chain-connected-evm/setup-chain.sh 3
-        ./testing-infra/ci-e2e/chain-connected-evm/setup-requester-solver.sh 3
-        ./testing-infra/ci-e2e/chain-connected-evm/deploy-contracts.sh 3
-    elif [ "$E2E_CHAIN" = "mvm" ]; then
-        # Setup two MVM instances for multi-chain testing
-        # Generate a shared solver key so all MVM connected chain instances use the
-        # same solver address (mirrors EVM where Hardhat's deterministic mnemonic
-        # gives the same account on all instances).
-        mkdir -p "$PROJECT_ROOT/.tmp"
-        openssl rand -hex 32 | sed 's/^/0x/' > "$PROJECT_ROOT/.tmp/solver-mvm-shared-key.hex"
+    # Setup two connected chain instances for multi-chain testing
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 2
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2
+    ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2
 
-        ./testing-infra/ci-e2e/chain-connected-mvm/setup-chain.sh 2
-        ./testing-infra/ci-e2e/chain-connected-mvm/setup-requester-solver.sh 2
-        ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
-        ./testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh 2
-
-        ./testing-infra/ci-e2e/chain-connected-mvm/setup-chain.sh 3
-        ./testing-infra/ci-e2e/chain-connected-mvm/setup-requester-solver.sh 3
-        ./testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh 3
-    else
-        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh
-        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh
-        ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
-        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh
-    fi
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 3
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3
 }
 
 # ------------------------------------------------------------------------------
