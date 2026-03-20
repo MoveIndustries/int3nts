@@ -15,11 +15,15 @@ Investigate CI test results for a given PR number.
 **If no PR number is provided**, auto-detect from the current branch:
 
 ```bash
-# Get current branch name
+# Step A: Get current branch name
 git branch --show-current
+```
 
-# Find PR associated with current branch (raw JSON — Claude parses it directly)
-gh pr list --head "$(git branch --show-current)" --json number,title,url,state
+Then use the result in a separate command (do NOT embed subshells — they break permission glob matching):
+
+```bash
+# Step B: Find PR associated with current branch (raw JSON — Claude parses it directly)
+gh pr list --head "<branch-name-from-step-A>" --json number,title,url,state
 ```
 
 If no PR is found for the current branch, ask the user for a PR number.

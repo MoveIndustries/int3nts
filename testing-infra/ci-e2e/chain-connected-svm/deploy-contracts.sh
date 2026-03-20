@@ -46,7 +46,15 @@ if [ ! -f "$ESCROW_KEYPAIR" ]; then
     svm_cmd "solana-keygen new --no-bip39-passphrase --silent -o \"$ESCROW_KEYPAIR\""
 fi
 
+set +e
 svm_cmd "solana program deploy --url \"$SVM_RPC_URL\" --keypair \"$SVM_PAYER_KEYPAIR\" \"$ESCROW_SO\" --program-id \"$ESCROW_KEYPAIR\"" >> "$LOG_FILE" 2>&1
+deploy_status=$?
+set -e
+if [ "$deploy_status" -ne 0 ]; then
+    log_and_echo "❌ intent_inflow_escrow deploy failed (exit $deploy_status). Last 50 lines of log:"
+    tail -50 "$LOG_FILE" | while IFS= read -r line; do log_and_echo "   $line"; done
+    exit "$deploy_status"
+fi
 SVM_PROGRAM_ID=$(svm_cmd "solana address -k \"$ESCROW_KEYPAIR\"" | tail -n 1)
 log "   ✅ intent_inflow_escrow deployed: $SVM_PROGRAM_ID"
 
@@ -63,7 +71,15 @@ if [ ! -f "$GMP_KEYPAIR" ]; then
     svm_cmd "solana-keygen new --no-bip39-passphrase --silent -o \"$GMP_KEYPAIR\""
 fi
 
+set +e
 svm_cmd "solana program deploy --url \"$SVM_RPC_URL\" --keypair \"$SVM_PAYER_KEYPAIR\" \"$GMP_SO\" --program-id \"$GMP_KEYPAIR\"" >> "$LOG_FILE" 2>&1
+deploy_status=$?
+set -e
+if [ "$deploy_status" -ne 0 ]; then
+    log_and_echo "❌ intent-gmp deploy failed (exit $deploy_status). Last 50 lines of log:"
+    tail -50 "$LOG_FILE" | while IFS= read -r line; do log_and_echo "   $line"; done
+    exit "$deploy_status"
+fi
 SVM_GMP_ENDPOINT_ID=$(svm_cmd "solana address -k \"$GMP_KEYPAIR\"" | tail -n 1)
 log "   ✅ intent-gmp deployed: $SVM_GMP_ENDPOINT_ID"
 
@@ -80,7 +96,15 @@ if [ ! -f "$OUTFLOW_KEYPAIR" ]; then
     svm_cmd "solana-keygen new --no-bip39-passphrase --silent -o \"$OUTFLOW_KEYPAIR\""
 fi
 
+set +e
 svm_cmd "solana program deploy --url \"$SVM_RPC_URL\" --keypair \"$SVM_PAYER_KEYPAIR\" \"$OUTFLOW_SO\" --program-id \"$OUTFLOW_KEYPAIR\"" >> "$LOG_FILE" 2>&1
+deploy_status=$?
+set -e
+if [ "$deploy_status" -ne 0 ]; then
+    log_and_echo "❌ intent-outflow-validator deploy failed (exit $deploy_status). Last 50 lines of log:"
+    tail -50 "$LOG_FILE" | while IFS= read -r line; do log_and_echo "   $line"; done
+    exit "$deploy_status"
+fi
 SVM_OUTFLOW_VALIDATOR_ID=$(svm_cmd "solana address -k \"$OUTFLOW_KEYPAIR\"" | tail -n 1)
 log "   ✅ intent-outflow-validator deployed: $SVM_OUTFLOW_VALIDATOR_ID"
 
