@@ -156,7 +156,10 @@ impl GmpEvmClient {
                 let status = receipt
                     .get("status")
                     .and_then(|s| s.as_str())
-                    .unwrap_or("0x0");
+                    .ok_or_else(|| anyhow::anyhow!(
+                        "EVM receipt for {} missing status field: {receipt}",
+                        tx_hash
+                    ))?;
                 if status == "0x1" {
                     return Ok(());
                 } else {

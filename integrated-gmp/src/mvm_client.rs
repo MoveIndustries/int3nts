@@ -66,7 +66,9 @@ impl GmpMvmClient {
             .as_array()
             .and_then(|arr| arr.first())
             .and_then(|v| v.as_bool())
-            .unwrap_or(false);
+            .ok_or_else(|| anyhow::anyhow!(
+                "Unexpected response format from is_relay_authorized: {result}"
+            ))?;
 
         Ok(authorized)
     }
