@@ -7,23 +7,23 @@ This guide contains testing and validation commands for Docker-based localnets.
 ### Service Health Checks for Multiple Chains
 
 ```bash
-# Hub (ports 1000/1001)
+# Hub (ports 1000/1010)
 curl -s http://127.0.0.1:1000/v1/ledger/info
-curl -s http://127.0.0.1:1001/
+curl -s http://127.0.0.1:1010/
 
-# Chain 2 (ports 2000/2001)
+# Chain 2 (ports 2000/2010)
 curl -s http://127.0.0.1:2000/v1/ledger/info
-curl -s http://127.0.0.1:2001/
+curl -s http://127.0.0.1:2010/
 ```
 
 ### Multi-Chain Account Funding
 
 ```bash
 # Fund account on Hub
-curl -X POST "http://127.0.0.1:1001/mint?address=<ACCOUNT_ADDR>&amount=100000000"
+curl -X POST "http://127.0.0.1:1010/mint?address=<ACCOUNT_ADDR>&amount=100000000"
 
 # Fund account on Chain 2
-curl -X POST "http://127.0.0.1:2001/mint?address=<ACCOUNT_ADDR>&amount=100000000"
+curl -X POST "http://127.0.0.1:2010/mint?address=<ACCOUNT_ADDR>&amount=100000000"
 ```
 
 ### Multi-Chain Balance Verification
@@ -55,7 +55,7 @@ curl -s http://127.0.0.1:1000/v1/ledger/info
 
 ```bash
 # Check faucet health
-curl -s http://127.0.0.1:1001/
+curl -s http://127.0.0.1:1010/
 
 # Should return "tap:ok" if healthy
 ```
@@ -66,11 +66,11 @@ curl -s http://127.0.0.1:1001/
 
 ```bash
 # Fund an account via faucet API
-curl -X POST "http://127.0.0.1:1001/mint?address=<ACCOUNT_ADDR>&amount=100000000"
+curl -X POST "http://127.0.0.1:1010/mint?address=<ACCOUNT_ADDR>&amount=100000000"
 
 # Example with specific address
 SENDER=0x85eb5517a0e7fbd349ecd71794c940695f2a8c3a3f120a32aa57087c6997d81d
-TX_HASH=$(curl -s -X POST "http://127.0.0.1:1001/mint?address=${SENDER}&amount=100000000" | jq -r '.[0]')
+TX_HASH=$(curl -s -X POST "http://127.0.0.1:1010/mint?address=${SENDER}&amount=100000000" | jq -r '.[0]')
 ```
 
 ### Transaction Verification
@@ -166,7 +166,7 @@ ps aux | grep "aptos node"
 curl -s http://127.0.0.1:1000/v1 | grep -E '"chain_id"|"block_height"'
 
 # Manual funding via faucet API (use address=, not auth_key=)
-curl -X POST "http://127.0.0.1:1001/mint?address=<ACCOUNT_ADDR>&amount=100000000"
+curl -X POST "http://127.0.0.1:1010/mint?address=<ACCOUNT_ADDR>&amount=100000000"
 ```
 
 ### Port Conflicts
@@ -176,7 +176,7 @@ If you get port conflicts:
 ```bash
 # Check what's using the ports
 lsof -i :1000
-lsof -i :1001
+lsof -i :1010
 
 # Kill existing processes
 pkill -f "aptos node"

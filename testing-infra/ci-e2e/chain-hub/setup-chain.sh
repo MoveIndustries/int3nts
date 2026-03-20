@@ -19,7 +19,7 @@ log " Stopping existing Hub container..."
 docker-compose -f testing-infra/ci-e2e/chain-hub/docker-compose-hub-chain.yml -p aptos-chain1 down 2>/dev/null || true
 
 log ""
-log " Starting Hub (ports 1000/1001)..."
+log " Starting Hub (ports 1000/1010)..."
 docker-compose -f testing-infra/ci-e2e/chain-hub/docker-compose-hub-chain.yml -p aptos-chain1 up -d
 
 log ""
@@ -45,5 +45,5 @@ log "   Hub: ID=$CHAIN1_ID, Height=$CHAIN1_HEIGHT, Role=$CHAIN1_ROLE"
 
 log ""
 log " Hub setup complete!"
-log "   Hub is running on ports 1000 (REST) and 1001 (faucet)"
+log "   Hub is running on ports 1000 (REST) and 1010 (faucet)"
 

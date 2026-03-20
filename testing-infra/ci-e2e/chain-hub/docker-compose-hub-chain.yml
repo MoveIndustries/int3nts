@@ -6,7 +6,7 @@ services:
     container_name: aptos-localnet-chain1
     ports:
       - "1000:8080"  # REST API on port 1000
-      - "1001:8081"  # Faucet on port 1001
+      - "1010:8081"  # Faucet on port 1010
     volumes:
       - aptos-data:/aptos/config
     command: >

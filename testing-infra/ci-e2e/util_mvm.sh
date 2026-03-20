@@ -47,13 +47,13 @@ fund_and_verify_account() {
     local faucet_port
     if [ "$chain_num" = "1" ]; then
         rest_port="1000"
-        faucet_port="1001"
+        faucet_port="1010"
     elif [ "$chain_num" = "2" ]; then
         rest_port="2000"
-        faucet_port="2001"
+        faucet_port="2010"
     elif [ "$chain_num" = "3" ]; then
         rest_port="3000"
-        faucet_port="3001"
+        faucet_port="3010"
     else
         log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
@@ -111,9 +111,9 @@ fund_and_verify_account() {
 # Example: init_aptos_profile "requester-chain1" "1"
 #          init_aptos_profile "solver-chain3" "3" "$LOG_FILE" "0xabcdef..."
 # Creates an Aptos profile for the specified chain:
-#   - Hub: uses --network local (ports 1000/1001)
-#   - Chain 2 (connected): uses --network custom with --rest-url and --faucet-url (ports 2000/2001)
-#   - Chain 3 (connected): uses --network custom with --rest-url and --faucet-url (ports 3000/3001)
+#   - Hub: uses --network local (ports 1000/1010)
+#   - Chain 2 (connected): uses --network custom with --rest-url and --faucet-url (ports 2000/2010)
+#   - Chain 3 (connected): uses --network custom with --rest-url and --faucet-url (ports 3000/3010)
 # If private_key is provided, uses --private-key flag (same keypair across chains).
 # If log_file is provided, redirects output there; otherwise uses LOG_FILE if set
 init_aptos_profile() {
@@ -135,11 +135,11 @@ init_aptos_profile() {
     # Build network flags based on chain number
     local network_flags
     if [ "$chain_num" = "1" ]; then
-        network_flags="--network custom --rest-url http://127.0.0.1:1000 --faucet-url http://127.0.0.1:1001"
+        network_flags="--network custom --rest-url http://127.0.0.1:1000 --faucet-url http://127.0.0.1:1010"
     elif [ "$chain_num" = "2" ]; then
-        network_flags="--network custom --rest-url http://127.0.0.1:2000 --faucet-url http://127.0.0.1:2001"
+        network_flags="--network custom --rest-url http://127.0.0.1:2000 --faucet-url http://127.0.0.1:2010"
     elif [ "$chain_num" = "3" ]; then
-        network_flags="--network custom --rest-url http://127.0.0.1:3000 --faucet-url http://127.0.0.1:3001"
+        network_flags="--network custom --rest-url http://127.0.0.1:3000 --faucet-url http://127.0.0.1:3010"
     else
         log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
@@ -201,8 +201,8 @@ cleanup_aptos_profile() {
 # Example: wait_for_mvm_chain_ready "1"
 #          wait_for_mvm_chain_ready "2" "30" "5"
 # Waits for both REST API and faucet to be ready:
-#   - Hub: checks ports 1000 (REST) and 1001 (faucet)
-#   - Chain 2: checks ports 2000 (REST) and 2001 (faucet)
+#   - Hub: checks ports 1000 (REST) and 1010 (faucet)
+#   - Chain 2: checks ports 2000 (REST) and 2010 (faucet)
 # Default: 30 attempts with 5 second intervals
 # Returns 0 if chain is ready, exits with error if timeout
 wait_for_mvm_chain_ready() {
@@ -219,13 +219,13 @@ wait_for_mvm_chain_ready() {
     local faucet_port
     if [ "$chain_num" = "1" ]; then
         rest_port="1000"
-        faucet_port="1001"
+        faucet_port="1010"
     elif [ "$chain_num" = "2" ]; then
         rest_port="2000"
-        faucet_port="2001"
+        faucet_port="2010"
     elif [ "$chain_num" = "3" ]; then
         rest_port="3000"
-        faucet_port="3001"
+        faucet_port="3010"
     else
         log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
@@ -254,8 +254,8 @@ wait_for_mvm_chain_ready() {
 # Verifies both REST API and faucet are responding correctly:
 #   - REST API: checks http://127.0.0.1:<rest_port>/v1
 #   - Faucet: checks http://127.0.0.1:<faucet_port>/ should return "tap:ok"
-#   - Hub: ports 1000 (REST) and 1001 (faucet)
-#   - Chain 2: ports 2000 (REST) and 2001 (faucet)
+#   - Hub: ports 1000 (REST) and 1010 (faucet)
+#   - Chain 2: ports 2000 (REST) and 2010 (faucet)
 # Exits with error if any service is not responding correctly
 verify_mvm_chain_services() {
     local chain_num="$1"
@@ -269,18 +269,18 @@ verify_mvm_chain_services() {
     local faucet_port
     if [ "$chain_num" = "1" ]; then
         rest_port="1000"
-        faucet_port="1001"
+        faucet_port="1010"
     elif [ "$chain_num" = "2" ]; then
         rest_port="2000"
-        faucet_port="2001"
+        faucet_port="2010"
     elif [ "$chain_num" = "3" ]; then
         rest_port="3000"
-        faucet_port="3001"
+        faucet_port="3010"
     else
         log_and_echo "❌ ERROR: Invalid chain number: $chain_num (must be 1, 2, or 3)"
         exit 1
     fi
-    
+
     # Verify REST API
     log "   - Verifying Chain $chain_num REST API..."
     if ! curl -s "http://127.0.0.1:${rest_port}/v1" > /dev/null; then
