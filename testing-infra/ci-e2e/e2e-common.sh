@@ -276,7 +276,10 @@ e2e_setup_chains() {
     wait "$connected2_chain_pid"
     wait "$connected3_chain_pid"
 
-    # Phase 2: Account setup in parallel (flock serializes ~/.aptos/config.yaml access)
+    # Phase 2: Account setup
+    # Hub runs in parallel with connected chains. Connected chains run sequentially
+    # for EVM (Hardhat races over compilation cache in the shared project directory)
+    # and in parallel for MVM/SVM (flock serializes Aptos CLI config access).
     mkdir -p "$PROJECT_ROOT/.tmp"
     case "$E2E_CHAIN" in
         mvm) openssl rand -hex 32 | sed 's/^/0x/' > "$PROJECT_ROOT/.tmp/solver-mvm-shared-key.hex" ;;
@@ -286,28 +289,42 @@ e2e_setup_chains() {
     ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh &
     local hub_accounts_pid=$!
 
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2 &
-    local connected2_accounts_pid=$!
+    if [ "$E2E_CHAIN" = "evm" ]; then
+        # EVM: sequential — two npx hardhat processes in the same directory conflict
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3
+    else
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2 &
+        local connected2_accounts_pid=$!
 
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3 &
-    local connected3_accounts_pid=$!
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3 &
+        local connected3_accounts_pid=$!
+
+        wait "$connected2_accounts_pid"
+        wait "$connected3_accounts_pid"
+    fi
 
     wait "$hub_accounts_pid"
-    wait "$connected2_accounts_pid"
-    wait "$connected3_accounts_pid"
 
     # Phase 3: Hub contract deployment (connected deploys depend on HUB_MODULE_ADDR)
     ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
 
-    # Phase 4: Connected contract deployments in parallel (flock serializes config access)
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2 &
-    local connected2_deploy_pid=$!
+    # Phase 4: Connected contract deployments
+    # EVM: sequential (same Hardhat cache race as Phase 2)
+    # MVM/SVM: parallel (flock serializes Aptos CLI config access)
+    if [ "$E2E_CHAIN" = "evm" ]; then
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3
+    else
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2 &
+        local connected2_deploy_pid=$!
 
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3 &
-    local connected3_deploy_pid=$!
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3 &
+        local connected3_deploy_pid=$!
 
-    wait "$connected2_deploy_pid"
-    wait "$connected3_deploy_pid"
+        wait "$connected2_deploy_pid"
+        wait "$connected3_deploy_pid"
+    fi
 }
 
 # ------------------------------------------------------------------------------

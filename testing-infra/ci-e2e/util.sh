@@ -165,6 +165,40 @@ setup_logging() {
     export LOG_DIR LOG_FILE
 }
 
+# Print a highly visible balance validation header
+# Usage: log_balance_header "Final Balance Validation (instance 2)"
+log_balance_header() {
+    local title="$1"
+    local border="+ + + + + + + + + + + + + + + + + + + + + + + + + + + + + +"
+    log_and_echo ""
+    log_and_echo "$border"
+    log_and_echo "$border"
+    log_and_echo ""
+    log_and_echo "  $title"
+    log_and_echo ""
+    log_and_echo "$border"
+    log_and_echo "$border"
+    log_and_echo ""
+}
+
+# Print a balance validation result with EXPECTED and ACTUAL values
+# Usage: log_balance_result "Solver on Hub" "$actual" "$expected" "10e-6.USDhub"
+log_balance_result() {
+    local label="$1"
+    local actual="$2"
+    local expected="$3"
+    local unit="$4"
+    log_and_echo ""
+    log_and_echo "   EXPECTED: $expected $unit"
+    log_and_echo "   ACTUAL:   $actual $unit"
+    log_and_echo ""
+    if [ "$actual" = "$expected" ]; then
+        log_and_echo "   => PASS  $label"
+    else
+        log_and_echo "   => FAIL  $label"
+    fi
+}
+
 # Helper function to print important messages to terminal (also logs them)
 log_and_echo() {
     echo "$@"
@@ -1334,13 +1368,12 @@ build_draft_data() {
     local fee_in_offered_token="${10}"
     local extra_fields="${11:-{}}"
 
-    # Validate extra_fields is valid JSON, default to {} if not
+    # Validate extra_fields is valid JSON — fail hard if invalid
     local validated_extra
     if ! validated_extra=$(echo "$extra_fields" | jq . 2>/dev/null); then
-        # Redirect warning to stderr so it doesn't contaminate JSON output
-        echo "   Warning: extra_fields is not valid JSON, using empty object" >&2
-        [ -n "$LOG_FILE" ] && echo "   Warning: extra_fields is not valid JSON, using empty object" >> "$LOG_FILE"
-        validated_extra="{}"
+        echo "   ERROR: extra_fields is not valid JSON: $extra_fields" >&2
+        [ -n "$LOG_FILE" ] && echo "   ERROR: extra_fields is not valid JSON: $extra_fields" >> "$LOG_FILE"
+        return 1
     fi
 
     # Build the JSON object (redirect any warnings to stderr)

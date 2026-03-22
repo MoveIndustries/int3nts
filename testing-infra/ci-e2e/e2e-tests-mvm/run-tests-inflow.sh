@@ -40,9 +40,7 @@ log_and_echo ""
 log_and_echo " Submitting cross-chain intents via coordinator negotiation routing..."
 log_and_echo "========================================================================="
 ./testing-infra/ci-e2e/e2e-tests-mvm/inflow-submit-hub-intent.sh
-log_and_echo ""
-log_and_echo " Pre-Escrow Balance Validation (instance 2)"
-log_and_echo "=========================================="
+log_balance_header "Pre-Escrow Balance Validation (instance 2)"
 # Pre: solver_hub=2000000, requester_hub=2000000, solver_mvm2=2000000, requester_mvm2=2000000
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 2000000 2000000 2000000 2000000
 
@@ -51,9 +49,7 @@ e2e_wait_for_fulfillment "inflow" 20
 
 ./testing-infra/ci-e2e/e2e-tests-mvm/wait-for-escrow-release.sh
 
-log_and_echo ""
-log_and_echo " Final Balance Validation (instance 2)"
-log_and_echo "=========================================="
+log_balance_header "Final Balance Validation (instance 2)"
 # Post: solver_hub=1015000, requester_hub=2985000, solver_mvm2=3000000, requester_mvm2=1000000
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 1015000 2985000 3000000 1000000
 
@@ -68,9 +64,7 @@ log_and_echo " INFLOW test against MVM instance 3 (chain ID $MVM_CHAIN_ID)"
 log_and_echo "========================================================================="
 
 ./testing-infra/ci-e2e/e2e-tests-mvm/inflow-submit-hub-intent.sh
-log_and_echo ""
-log_and_echo " Pre-Escrow Balance Validation (instance 3)"
-log_and_echo "=========================================="
+log_balance_header "Pre-Escrow Balance Validation (instance 3)"
 # Pre: hub balances carried from instance 2; mvm3 is fresh
 # solver_hub=1015000, requester_hub=2985000, solver_mvm3=2000000, requester_mvm3=2000000
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 1015000 2985000 2000000 2000000
@@ -80,9 +74,7 @@ e2e_wait_for_fulfillment "inflow" 20
 
 ./testing-infra/ci-e2e/e2e-tests-mvm/wait-for-escrow-release.sh
 
-log_and_echo ""
-log_and_echo " Final Balance Validation (instance 3)"
-log_and_echo "=========================================="
+log_balance_header "Final Balance Validation (instance 3)"
 # Post: solver_hub=30000, requester_hub=3970000, solver_mvm3=3000000, requester_mvm3=1000000
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 30000 3970000 3000000 1000000
 

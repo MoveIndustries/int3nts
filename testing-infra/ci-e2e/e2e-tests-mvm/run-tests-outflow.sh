@@ -66,9 +66,7 @@ log_and_echo ""
 log_and_echo " Testing OUTFLOW intents (hub chain -> connected MVM chain)..."
 log_and_echo "================================================================="
 log_and_echo "   Submitting outflow cross-chain intents via coordinator negotiation routing..."
-log_and_echo ""
-log_and_echo " Pre-Intent Balance Validation (instance 2)"
-log_and_echo "=========================================="
+log_balance_header "Pre-Intent Balance Validation (instance 2)"
 # Pre: solver_hub=2000000, requester_hub=2000000, solver_mvm2=2000000, requester_mvm2=2000000
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 2000000 2000000 2000000 2000000
 
@@ -76,9 +74,7 @@ log_and_echo "=========================================="
 
 e2e_wait_for_fulfillment "outflow" 40
 
-log_and_echo ""
-log_and_echo " Final Balance View (instance 2)"
-log_and_echo "=========================================="
+log_balance_header "Final Balance View (instance 2)"
 # Post: solver_hub=3000000, requester_hub=1000000, solver_mvm2=1015000, requester_mvm2=2985000
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 3000000 1000000 1015000 2985000
 
@@ -92,9 +88,7 @@ log_and_echo ""
 log_and_echo " OUTFLOW test against MVM instance 3 (chain ID $MVM_CHAIN_ID)"
 log_and_echo "================================================================="
 
-log_and_echo ""
-log_and_echo " Pre-Intent Balance Validation (instance 3)"
-log_and_echo "=========================================="
+log_balance_header "Pre-Intent Balance Validation (instance 3)"
 # Pre: hub balances carried from instance 2; mvm3 is fresh
 # solver_hub=3000000, requester_hub=1000000, solver_mvm3=2000000, requester_mvm3=2000000
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 3000000 1000000 2000000 2000000
@@ -103,9 +97,7 @@ log_and_echo "=========================================="
 
 e2e_wait_for_fulfillment "outflow" 40
 
-log_and_echo ""
-log_and_echo " Final Balance View (instance 3)"
-log_and_echo "=========================================="
+log_balance_header "Final Balance View (instance 3)"
 # Post: solver_hub=4000000, requester_hub=0, solver_mvm3=1015000, requester_mvm3=2985000
 ./testing-infra/ci-e2e/e2e-tests-mvm/balance-check.sh 4000000 0 1015000 2985000
 
