@@ -6,6 +6,7 @@
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "$SCRIPT_DIR/../util_mvm.sh"
 source "$SCRIPT_DIR/utils.sh"
 
 setup_project_root
@@ -341,21 +342,23 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     log "   SVM GMP endpoint address (hex): $SVM_GMP_ENDPOINT_HEX"
 
     # Set remote GMP endpoint on hub's intent_gmp for SVM GMP endpoint
-    if aptos move run --profile intent-account-chain1 --assume-yes \
+    if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr \
         --args u32:$SVM_CHAIN_ID "hex:${SVM_GMP_ENDPOINT_HEX}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub intent_gmp now trusts SVM GMP endpoint (chain $SVM_CHAIN_ID)"
     else
-        log "   ️ Could not set remote GMP endpoint on hub (ignoring)"
+        log_and_echo "   ❌ Failed to set remote GMP endpoint on hub for SVM chain (chain_id=$SVM_CHAIN_ID)"
+        exit 1
     fi
 
     # Set remote GMP endpoint on hub's intent_gmp_hub for SVM GMP endpoint
-    if aptos move run --profile intent-account-chain1 --assume-yes \
+    if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_remote_gmp_endpoint_addr \
         --args u32:$SVM_CHAIN_ID "hex:${SVM_GMP_ENDPOINT_HEX}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub intent_gmp_hub now trusts SVM GMP endpoint (chain $SVM_CHAIN_ID)"
     else
-        log "   ️ Could not set remote GMP endpoint in intent_gmp_hub (ignoring)"
+        log_and_echo "   ❌ Failed to set remote GMP endpoint in intent_gmp_hub for SVM chain (chain_id=$SVM_CHAIN_ID)"
+        exit 1
     fi
 else
     log "   ️ WARNING: HUB_MODULE_ADDR not found, skipping hub trust config for SVM"

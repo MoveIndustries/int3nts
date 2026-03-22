@@ -40,23 +40,77 @@ build_if_missing() {
 
 # Build the common set of binaries required by all E2E test scripts.
 # Checks each binary individually and only builds what's missing.
+# Runs independent crate builds in parallel.
 # Usage: build_common_bins_if_missing
 # Requires PROJECT_ROOT to be set.
 build_common_bins_if_missing() {
-    # Order: coordinator first (fastest independent build ~57s),
-    # then generate_keys before integrated-gmp (same crate, warms dep cache)
-    build_if_missing "$PROJECT_ROOT/coordinator" "cargo build --bin coordinator" \
-        "Coordinator: coordinator" \
-        "$PROJECT_ROOT/coordinator/target/debug/coordinator"
-    build_if_missing "$PROJECT_ROOT/integrated-gmp" "cargo build --bin generate_keys" \
-        "Integrated-GMP: generate_keys" \
-        "$PROJECT_ROOT/integrated-gmp/target/debug/generate_keys"
-    build_if_missing "$PROJECT_ROOT/integrated-gmp" "cargo build --bin integrated-gmp" \
-        "Integrated-GMP: integrated-gmp" \
-        "$PROJECT_ROOT/integrated-gmp/target/debug/integrated-gmp"
-    build_if_missing "$PROJECT_ROOT/solver" "cargo build --bin solver" \
-        "Solver: solver" \
-        "$PROJECT_ROOT/solver/target/debug/solver"
+    # Determine which crates need building
+    local need_coordinator=false
+    local need_igmp=false
+    local need_solver=false
+
+    if [ ! -f "$PROJECT_ROOT/coordinator/target/debug/coordinator" ]; then
+        need_coordinator=true
+    fi
+    if [ ! -f "$PROJECT_ROOT/integrated-gmp/target/debug/generate_keys" ] || \
+       [ ! -f "$PROJECT_ROOT/integrated-gmp/target/debug/integrated-gmp" ]; then
+        need_igmp=true
+    fi
+    if [ ! -f "$PROJECT_ROOT/solver/target/debug/solver" ]; then
+        need_solver=true
+    fi
+
+    # Launch needed builds in parallel (each crate has its own target/ dir)
+    local coordinator_pid="" igmp_pid="" solver_pid=""
+
+    if [ "$need_coordinator" = "true" ]; then
+        (
+            pushd "$PROJECT_ROOT/coordinator" > /dev/null
+            cargo build --bin coordinator 2>&1 | tail -5
+            popd > /dev/null
+        ) &
+        coordinator_pid=$!
+    fi
+
+    if [ "$need_igmp" = "true" ]; then
+        (
+            pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
+            cargo build --bin generate_keys --bin integrated-gmp 2>&1 | tail -5
+            popd > /dev/null
+        ) &
+        igmp_pid=$!
+    fi
+
+    if [ "$need_solver" = "true" ]; then
+        (
+            pushd "$PROJECT_ROOT/solver" > /dev/null
+            cargo build --bin solver 2>&1 | tail -5
+            popd > /dev/null
+        ) &
+        solver_pid=$!
+    fi
+
+    # Wait for all parallel builds
+    if [ -n "$coordinator_pid" ]; then
+        wait "$coordinator_pid"
+        log_and_echo "   ✅ Coordinator: coordinator (built)"
+    else
+        log_and_echo "   ✅ Coordinator: coordinator (exists)"
+    fi
+
+    if [ -n "$igmp_pid" ]; then
+        wait "$igmp_pid"
+        log_and_echo "   ✅ Integrated-GMP: generate_keys, integrated-gmp (built)"
+    else
+        log_and_echo "   ✅ Integrated-GMP: generate_keys, integrated-gmp (exists)"
+    fi
+
+    if [ -n "$solver_pid" ]; then
+        wait "$solver_pid"
+        log_and_echo "   ✅ Solver: solver (built)"
+    else
+        log_and_echo "   ✅ Solver: solver (exists)"
+    fi
 }
 
 # Get project root - can be called from any script location
@@ -109,6 +163,40 @@ setup_logging() {
     : > "$LOG_FILE"
     
     export LOG_DIR LOG_FILE
+}
+
+# Print a highly visible balance validation header
+# Usage: log_balance_header "Final Balance Validation (instance 2)"
+log_balance_header() {
+    local title="$1"
+    local border="+ + + + + + + + + + + + + + + + + + + + + + + + + + + + + +"
+    log_and_echo ""
+    log_and_echo "$border"
+    log_and_echo "$border"
+    log_and_echo ""
+    log_and_echo "  $title"
+    log_and_echo ""
+    log_and_echo "$border"
+    log_and_echo "$border"
+    log_and_echo ""
+}
+
+# Print a balance validation result with EXPECTED and ACTUAL values
+# Usage: log_balance_result "Solver on Hub" "$actual" "$expected" "10e-6.USDhub"
+log_balance_result() {
+    local label="$1"
+    local actual="$2"
+    local expected="$3"
+    local unit="$4"
+    log_and_echo ""
+    log_and_echo "   EXPECTED: $expected $unit"
+    log_and_echo "   ACTUAL:   $actual $unit"
+    log_and_echo ""
+    if [ "$actual" = "$expected" ]; then
+        log_and_echo "   => PASS  $label"
+    else
+        log_and_echo "   => FAIL  $label"
+    fi
 }
 
 # Helper function to print important messages to terminal (also logs them)
@@ -684,9 +772,23 @@ start_coordinator() {
         if check_coordinator_health; then
             log "   ✅ Coordinator is ready!"
 
-            # Give coordinator time to start polling and collect initial events
-            log "   - Waiting for coordinator to poll and collect events (30 seconds)..."
-            sleep 30
+            # Wait for coordinator to complete first poll cycle by checking /events endpoint
+            log "   - Waiting for coordinator /events endpoint..."
+            local EVENTS_READY=0
+            for i in $(seq 1 15); do
+                if curl -s -f "http://127.0.0.1:3333/events" > /dev/null 2>&1; then
+                    EVENTS_READY=1
+                    break
+                fi
+                sleep 2
+            done
+            if [ "$EVENTS_READY" -ne 1 ]; then
+                log_and_echo "   ❌ Coordinator /events endpoint not ready after 30s"
+                exit 1
+            fi
+            # One extra polling interval to ensure first cycle completes
+            sleep 2
+            log "   - Coordinator events endpoint ready"
 
             COORDINATOR_LOG="$log_file"
             export COORDINATOR_PID COORDINATOR_LOG
@@ -957,9 +1059,9 @@ start_integrated_gmp() {
         if check_integrated_gmp_health; then
             log "   ✅ Integrated-GMP is ready!"
 
-            # Give integrated-gmp time to start polling and collect initial events
-            log "   - Waiting for integrated-gmp to poll and collect events (10 seconds)..."
-            sleep 10
+            # Brief stabilization wait after initialization confirmed
+            log "   - Waiting for integrated-gmp to start polling (5 seconds)..."
+            sleep 5
 
             return 0
         fi
@@ -1278,15 +1380,26 @@ build_draft_data() {
     local intent_id="$8"
     local issuer="$9"
     local fee_in_offered_token="${10}"
-    local extra_fields="${11:-{}}"
+    # Do NOT write this as: local extra_fields="${11:-{}}"
+    # Bash closes parameter expansions at the first unmatched "}". So ${11:-{}}
+    # is parsed as ${11:-{} (default = "{") followed by a literal "}". When $11
+    # IS set, the expansion yields "$11" + "}" — silently appending a stray "}"
+    # that breaks JSON. The if/else avoids putting {} inside a ${...} default.
+    # This is only an E2E test issue — production and Rust integration tests
+    # build draft JSON via serde_json, not bash string interpolation.
+    local extra_fields
+    if [ $# -ge 11 ]; then
+        extra_fields="${11}"
+    else
+        extra_fields="{}"
+    fi
 
-    # Validate extra_fields is valid JSON, default to {} if not
+    # Validate extra_fields is valid JSON — fail hard if invalid
     local validated_extra
     if ! validated_extra=$(echo "$extra_fields" | jq . 2>/dev/null); then
-        # Redirect warning to stderr so it doesn't contaminate JSON output
-        echo "   Warning: extra_fields is not valid JSON, using empty object" >&2
-        [ -n "$LOG_FILE" ] && echo "   Warning: extra_fields is not valid JSON, using empty object" >> "$LOG_FILE"
-        validated_extra="{}"
+        echo "   ERROR: extra_fields is not valid JSON: $extra_fields" >&2
+        [ -n "$LOG_FILE" ] && echo "   ERROR: extra_fields is not valid JSON: $extra_fields" >> "$LOG_FILE"
+        return 1
     fi
 
     # Build the JSON object (redirect any warnings to stderr)

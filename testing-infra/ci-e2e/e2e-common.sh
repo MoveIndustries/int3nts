@@ -105,15 +105,25 @@ e2e_build() {
     if [ "$SKIP_BUILD" = "true" ]; then
         log_and_echo " Build if missing (--no-build)"
         log_and_echo "========================================"
-        _e2e_build_skip
     else
         log_and_echo " Build bins and pre-pull docker images"
         log_and_echo "========================================"
+    fi
+
+    # Start docker pull in background — runs in parallel with cargo builds
+    docker pull "$APTOS_DOCKER_IMAGE" > /dev/null 2>&1 &
+    local docker_pull_pid=$!
+
+    if [ "$SKIP_BUILD" = "true" ]; then
+        _e2e_build_skip
+    else
         _e2e_build_full
     fi
 
+    # Wait for docker pull to finish
     log_and_echo ""
-    docker pull "$APTOS_DOCKER_IMAGE"
+    wait "$docker_pull_pid"
+    log_and_echo "   ✅ Docker image pulled: aptos-tools"
 }
 
 # Build-if-missing logic (--no-build mode)
@@ -156,65 +166,90 @@ _e2e_build_skip() {
     esac
 }
 
-# Full build logic
+# Full build logic — runs independent crate builds in parallel
 _e2e_build_full() {
     # Delete existing binaries to ensure fresh build
-    rm -f "$PROJECT_ROOT/target/debug/integrated-gmp" "$PROJECT_ROOT/target/debug/solver" "$PROJECT_ROOT/target/debug/coordinator"
-    rm -f "$PROJECT_ROOT/target/release/integrated-gmp" "$PROJECT_ROOT/target/release/solver" "$PROJECT_ROOT/target/release/coordinator"
+    rm -f "$PROJECT_ROOT/coordinator/target/debug/coordinator"
+    rm -f "$PROJECT_ROOT/integrated-gmp/target/debug/integrated-gmp" "$PROJECT_ROOT/integrated-gmp/target/debug/generate_keys" "$PROJECT_ROOT/integrated-gmp/target/debug/get_approver_eth_address"
+    rm -f "$PROJECT_ROOT/solver/target/debug/solver" "$PROJECT_ROOT/solver/target/debug/sign_intent"
 
-    # SVM on-chain programs (must come before common bins)
-    if [ "$E2E_CHAIN" = "svm" ]; then
-        pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
-        ./scripts/build-with-docker.sh 2>&1 | tail -5
-        popd > /dev/null
-        log_and_echo "   ✅ SVM: on-chain programs (intent_inflow_escrow, intent_gmp, intent_outflow_validator)"
-    fi
-
-    pushd "$PROJECT_ROOT/coordinator" > /dev/null
-    cargo build --bin coordinator 2>&1 | tail -5
-    popd > /dev/null
-    log_and_echo "   ✅ Coordinator: coordinator"
+    # Determine per-crate --bin flags based on chain type
+    local igmp_bins="--bin integrated-gmp --bin generate_keys"
+    local solver_bins="--bin solver"
 
     case "$E2E_CHAIN" in
         mvm)
-            pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
-            cargo build --bin integrated-gmp --bin generate_keys 2>&1 | tail -5
-            popd > /dev/null
-            log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys"
-
-            pushd "$PROJECT_ROOT/solver" > /dev/null
-            cargo build --bin solver --bin sign_intent 2>&1 | tail -5
-            popd > /dev/null
-            log_and_echo "   ✅ Solver: solver, sign_intent"
+            solver_bins="--bin solver --bin sign_intent"
             ;;
         evm)
-            pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
-            cargo build --bin integrated-gmp --bin generate_keys --bin get_approver_eth_address 2>&1 | tail -5
-            popd > /dev/null
-            log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys, get_approver_eth_address"
-
-            pushd "$PROJECT_ROOT/solver" > /dev/null
-            cargo build --bin solver --bin sign_intent 2>&1 | tail -5
-            popd > /dev/null
-            log_and_echo "   ✅ Solver: solver, sign_intent"
+            igmp_bins="--bin integrated-gmp --bin generate_keys --bin get_approver_eth_address"
+            solver_bins="--bin solver --bin sign_intent"
             ;;
-        svm)
-            pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
-            cargo build --bin integrated-gmp --bin generate_keys 2>&1 | tail -5
-            popd > /dev/null
-            log_and_echo "   ✅ Integrated-GMP: integrated-gmp, generate_keys"
+    esac
 
-            pushd "$PROJECT_ROOT/solver" > /dev/null
-            cargo build --bin solver 2>&1 | tail -5
+    # SVM on-chain programs (Docker-based Anchor build — independent of cargo builds)
+    local svm_programs_pid=""
+    if [ "$E2E_CHAIN" = "svm" ]; then
+        (
+            pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
+            ./scripts/build-with-docker.sh 2>&1 | tail -5
             popd > /dev/null
-            log_and_echo "   ✅ Solver: solver"
+        ) &
+        svm_programs_pid=$!
+    fi
 
+    # Launch all three crate builds in parallel (each has its own target/ dir)
+    (
+        pushd "$PROJECT_ROOT/coordinator" > /dev/null
+        cargo build --bin coordinator 2>&1 | tail -5
+        popd > /dev/null
+    ) &
+    local coordinator_pid=$!
+
+    (
+        pushd "$PROJECT_ROOT/integrated-gmp" > /dev/null
+        cargo build $igmp_bins 2>&1 | tail -5
+        popd > /dev/null
+    ) &
+    local igmp_pid=$!
+
+    (
+        pushd "$PROJECT_ROOT/solver" > /dev/null
+        cargo build $solver_bins 2>&1 | tail -5
+        popd > /dev/null
+    ) &
+    local solver_pid=$!
+
+    # SVM intent_escrow_cli (separate workspace, can also run in parallel)
+    local svm_cli_pid=""
+    if [ "$E2E_CHAIN" = "svm" ]; then
+        (
             pushd "$PROJECT_ROOT/intent-frameworks/svm" > /dev/null
             cargo build -p intent_escrow_cli 2>&1 | tail -5
             popd > /dev/null
-            log_and_echo "   ✅ SVM: intent_escrow_cli"
-            ;;
-    esac
+        ) &
+        svm_cli_pid=$!
+    fi
+
+    # Wait for all builds — fail if any fails
+    wait "$coordinator_pid"
+    log_and_echo "   ✅ Coordinator: coordinator"
+
+    wait "$igmp_pid"
+    log_and_echo "   ✅ Integrated-GMP: ${igmp_bins//--bin /}"
+
+    wait "$solver_pid"
+    log_and_echo "   ✅ Solver: ${solver_bins//--bin /}"
+
+    if [ -n "$svm_programs_pid" ]; then
+        wait "$svm_programs_pid"
+        log_and_echo "   ✅ SVM: on-chain programs (intent_inflow_escrow, intent_gmp, intent_outflow_validator)"
+    fi
+
+    if [ -n "$svm_cli_pid" ]; then
+        wait "$svm_cli_pid"
+        log_and_echo "   ✅ SVM: intent_escrow_cli"
+    fi
 }
 
 # ------------------------------------------------------------------------------
@@ -227,25 +262,69 @@ e2e_setup_chains() {
     log_and_echo " Setting up chains and deploying contracts..."
     log_and_echo "======================================================"
 
-    ./testing-infra/ci-e2e/chain-hub/setup-chain.sh
-    ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh
+    # Phase 1: Start all chains in parallel (no dependencies between them)
+    ./testing-infra/ci-e2e/chain-hub/setup-chain.sh &
+    local hub_chain_pid=$!
 
-    # Generate shared solver keys for chains that need them
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 2 &
+    local connected2_chain_pid=$!
+
+    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 3 &
+    local connected3_chain_pid=$!
+
+    wait "$hub_chain_pid"
+    wait "$connected2_chain_pid"
+    wait "$connected3_chain_pid"
+
+    # Phase 2: Account setup
+    # Hub runs in parallel with connected chains. Connected chains run sequentially
+    # for EVM (Hardhat races over compilation cache in the shared project directory)
+    # and in parallel for MVM/SVM (flock serializes Aptos CLI config access).
     mkdir -p "$PROJECT_ROOT/.tmp"
     case "$E2E_CHAIN" in
         mvm) openssl rand -hex 32 | sed 's/^/0x/' > "$PROJECT_ROOT/.tmp/solver-mvm-shared-key.hex" ;;
         svm) ensure_svm_keypair "$PROJECT_ROOT/.tmp/solver-svm-shared-key.json" ;;
     esac
 
-    # Setup two connected chain instances for multi-chain testing
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 2
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2
-    ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2
+    ./testing-infra/ci-e2e/chain-hub/setup-requester-solver.sh &
+    local hub_accounts_pid=$!
 
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 3
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3
+    if [ "$E2E_CHAIN" = "evm" ]; then
+        # EVM: sequential — two npx hardhat processes in the same directory conflict
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3
+    else
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 2 &
+        local connected2_accounts_pid=$!
+
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-requester-solver.sh 3 &
+        local connected3_accounts_pid=$!
+
+        wait "$connected2_accounts_pid"
+        wait "$connected3_accounts_pid"
+    fi
+
+    wait "$hub_accounts_pid"
+
+    # Phase 3: Hub contract deployment (connected deploys depend on HUB_MODULE_ADDR)
+    ./testing-infra/ci-e2e/chain-hub/deploy-contracts.sh
+
+    # Phase 4: Connected contract deployments
+    # EVM: sequential (same Hardhat cache race as Phase 2)
+    # MVM/SVM: parallel (flock serializes Aptos CLI config access)
+    if [ "$E2E_CHAIN" = "evm" ]; then
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3
+    else
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 2 &
+        local connected2_deploy_pid=$!
+
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/deploy-contracts.sh 3 &
+        local connected3_deploy_pid=$!
+
+        wait "$connected2_deploy_pid"
+        wait "$connected3_deploy_pid"
+    fi
 }
 
 # ------------------------------------------------------------------------------
@@ -256,10 +335,14 @@ e2e_setup_chains() {
 # ------------------------------------------------------------------------------
 e2e_start_services() {
     log_and_echo ""
-    log_and_echo " Starting coordinator and integrated-gmp..."
+    log_and_echo " Starting coordinator and integrated-gmp in parallel..."
     log_and_echo "=========================================================================="
-    ./testing-infra/ci-e2e/e2e-tests-${E2E_CHAIN}/start-coordinator.sh
-    ./testing-infra/ci-e2e/e2e-tests-${E2E_CHAIN}/start-integrated-gmp.sh
+    ./testing-infra/ci-e2e/e2e-tests-${E2E_CHAIN}/start-coordinator.sh &
+    local coord_pid=$!
+    ./testing-infra/ci-e2e/e2e-tests-${E2E_CHAIN}/start-integrated-gmp.sh &
+    local gmp_pid=$!
+    wait "$coord_pid" || { log_and_echo "❌ Coordinator startup failed"; exit 1; }
+    wait "$gmp_pid" || { log_and_echo "❌ Integrated-GMP startup failed"; exit 1; }
 
     log_and_echo ""
     log_and_echo " Starting solver service..."

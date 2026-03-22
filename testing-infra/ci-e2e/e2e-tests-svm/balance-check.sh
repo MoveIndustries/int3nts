@@ -65,50 +65,38 @@ log_and_echo "      Requester: ${REQUESTER_SVM_SOL} SOL, ${REQUESTER_CHAIN_CONNE
 log_and_echo "      Solver:   ${SOLVER_SVM_SOL} SOL, ${SOLVER_CHAIN_CONNECTED_ACTUAL} 10e-6.USDsvm"
 
 if [ -n "$SOLVER_CHAIN_CONNECTED_EXPECTED" ] && [ "$SOLVER_CHAIN_CONNECTED_EXPECTED" != "-1" ]; then
+    log_balance_result "Solver on Connected SVM (instance $SVM_INSTANCE)" "$SOLVER_CHAIN_CONNECTED_ACTUAL" "$SOLVER_CHAIN_CONNECTED_EXPECTED" "10e-6.USDsvm"
     if [ "$SOLVER_CHAIN_CONNECTED_ACTUAL" != "$SOLVER_CHAIN_CONNECTED_EXPECTED" ]; then
-        log_and_echo "❌ ERROR: Solver balance mismatch on Connected SVM (instance $SVM_INSTANCE)!"
-        log_and_echo "   Actual:   $SOLVER_CHAIN_CONNECTED_ACTUAL"
-        log_and_echo "   Expected: $SOLVER_CHAIN_CONNECTED_EXPECTED"
         display_service_logs "Solver balance mismatch on Connected SVM"
         exit 1
     fi
-    log_and_echo "✅ Solver balance validated on Connected SVM (instance $SVM_INSTANCE): $SOLVER_CHAIN_CONNECTED_ACTUAL"
 fi
 
 if [ -n "$REQUESTER_CHAIN_CONNECTED_EXPECTED" ] && [ "$REQUESTER_CHAIN_CONNECTED_EXPECTED" != "-1" ]; then
+    log_balance_result "Requester on Connected SVM (instance $SVM_INSTANCE)" "$REQUESTER_CHAIN_CONNECTED_ACTUAL" "$REQUESTER_CHAIN_CONNECTED_EXPECTED" "10e-6.USDsvm"
     if [ "$REQUESTER_CHAIN_CONNECTED_ACTUAL" != "$REQUESTER_CHAIN_CONNECTED_EXPECTED" ]; then
-        log_and_echo "❌ ERROR: Requester balance mismatch on Connected SVM (instance $SVM_INSTANCE)!"
-        log_and_echo "   Actual:   $REQUESTER_CHAIN_CONNECTED_ACTUAL"
-        log_and_echo "   Expected: $REQUESTER_CHAIN_CONNECTED_EXPECTED"
         display_service_logs "Requester balance mismatch on Connected SVM"
         exit 1
     fi
-    log_and_echo "✅ Requester balance validated on Connected SVM (instance $SVM_INSTANCE): $REQUESTER_CHAIN_CONNECTED_ACTUAL"
 fi
 
 # Hub checks (optional)
 if [ -n "$SOLVER_CHAIN_HUB_EXPECTED" ] && [ "$SOLVER_CHAIN_HUB_EXPECTED" != "-1" ] && [ -n "$TEST_TOKENS_HUB" ]; then
     SOLVER_CHAIN_HUB_ACTUAL=$(get_usdxyz_balance "solver-chain1" "1" "0x$TEST_TOKENS_HUB" 2>/dev/null || echo "0")
+    log_balance_result "Solver on Hub" "$SOLVER_CHAIN_HUB_ACTUAL" "$SOLVER_CHAIN_HUB_EXPECTED" "10e-6.USDhub"
     if [ "$SOLVER_CHAIN_HUB_ACTUAL" != "$SOLVER_CHAIN_HUB_EXPECTED" ]; then
-        log_and_echo "❌ ERROR: Solver balance mismatch on Hub!"
-        log_and_echo "   Actual:   $SOLVER_CHAIN_HUB_ACTUAL"
-        log_and_echo "   Expected: $SOLVER_CHAIN_HUB_EXPECTED"
         display_service_logs "Solver balance mismatch on Hub"
         exit 1
     fi
-    log_and_echo "✅ Solver balance validated on Hub: $SOLVER_CHAIN_HUB_ACTUAL"
 fi
 
 if [ -n "$REQUESTER_CHAIN_HUB_EXPECTED" ] && [ "$REQUESTER_CHAIN_HUB_EXPECTED" != "-1" ] && [ -n "$TEST_TOKENS_HUB" ]; then
     REQUESTER_CHAIN_HUB_ACTUAL=$(get_usdxyz_balance "requester-chain1" "1" "0x$TEST_TOKENS_HUB" 2>/dev/null || echo "0")
+    log_balance_result "Requester on Hub" "$REQUESTER_CHAIN_HUB_ACTUAL" "$REQUESTER_CHAIN_HUB_EXPECTED" "10e-6.USDhub"
     if [ "$REQUESTER_CHAIN_HUB_ACTUAL" != "$REQUESTER_CHAIN_HUB_EXPECTED" ]; then
-        log_and_echo "❌ ERROR: Requester balance mismatch on Hub!"
-        log_and_echo "   Actual:   $REQUESTER_CHAIN_HUB_ACTUAL"
-        log_and_echo "   Expected: $REQUESTER_CHAIN_HUB_EXPECTED"
         display_service_logs "Requester balance mismatch on Hub"
         exit 1
     fi
-    log_and_echo "✅ Requester balance validated on Hub: $REQUESTER_CHAIN_HUB_ACTUAL"
 fi
 
 exit 0

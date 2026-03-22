@@ -150,6 +150,7 @@ Ask if the user wants to:
 
 ## Important Notes
 
+- **Verify CI is current**: Compare the local HEAD commit with the commit on the remote branch (`git log --oneline -1` vs `git log --oneline -1 origin/<branch>`). If they match, the CI results correspond to the current code. If they differ, note that the CI ran against a different commit and state which one.
 - Parse job IDs from the check URLs automatically
 - Truncate very long logs - show most relevant parts
 - For "All failing checks", summarize each briefly first, then offer deep dives

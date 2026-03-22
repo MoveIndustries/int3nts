@@ -51,15 +51,11 @@ if [ -n "$SOLVER_CHAIN_HUB_EXPECTED" ] && [ "$SOLVER_CHAIN_HUB_EXPECTED" != "-1"
     SOLVER_CHAIN_HUB_ADDR=$(get_profile_address "solver-chain1" 2>/dev/null || echo "")
     if [ -n "$SOLVER_CHAIN_HUB_ADDR" ]; then
         SOLVER_CHAIN_HUB_ACTUAL=$(get_usdxyz_balance "solver-chain1" "1" "0x$TEST_TOKENS_HUB" 2>/dev/null || echo "0")
-
+        log_balance_result "Solver on Hub" "$SOLVER_CHAIN_HUB_ACTUAL" "$SOLVER_CHAIN_HUB_EXPECTED" "10e-6.USDhub"
         if [ "$SOLVER_CHAIN_HUB_ACTUAL" != "$SOLVER_CHAIN_HUB_EXPECTED" ]; then
-            log_and_echo "❌ ERROR: Solver balance mismatch on Hub!"
-            log_and_echo "   Actual:   $SOLVER_CHAIN_HUB_ACTUAL 10e-6.USDhub"
-            log_and_echo "   Expected: $SOLVER_CHAIN_HUB_EXPECTED 10e-6.USDhub"
             display_service_logs "Solver balance mismatch on Hub"
             exit 1
         fi
-        log_and_echo "✅ Solver balance validated on Hub: $SOLVER_CHAIN_HUB_ACTUAL 10e-6.USDhub"
     fi
 fi
 
@@ -68,15 +64,11 @@ if [ -n "$REQUESTER_CHAIN_HUB_EXPECTED" ] && [ "$REQUESTER_CHAIN_HUB_EXPECTED" !
     REQUESTER_CHAIN_HUB_ADDR=$(get_profile_address "requester-chain1" 2>/dev/null || echo "")
     if [ -n "$REQUESTER_CHAIN_HUB_ADDR" ]; then
         REQUESTER_CHAIN_HUB_ACTUAL=$(get_usdxyz_balance "requester-chain1" "1" "0x$TEST_TOKENS_HUB" 2>/dev/null || echo "0")
-
+        log_balance_result "Requester on Hub" "$REQUESTER_CHAIN_HUB_ACTUAL" "$REQUESTER_CHAIN_HUB_EXPECTED" "10e-6.USDhub"
         if [ "$REQUESTER_CHAIN_HUB_ACTUAL" != "$REQUESTER_CHAIN_HUB_EXPECTED" ]; then
-            log_and_echo "❌ ERROR: Requester balance mismatch on Hub!"
-            log_and_echo "   Actual:   $REQUESTER_CHAIN_HUB_ACTUAL 10e-6.USDhub"
-            log_and_echo "   Expected: $REQUESTER_CHAIN_HUB_EXPECTED 10e-6.USDhub"
             display_service_logs "Requester balance mismatch on Hub"
             exit 1
         fi
-        log_and_echo "✅ Requester balance validated on Hub: $REQUESTER_CHAIN_HUB_ACTUAL 10e-6.USDhub"
     fi
 fi
 
@@ -86,15 +78,11 @@ if [ -n "$SOLVER_CHAIN_CONNECTED_EXPECTED" ] && [ "$SOLVER_CHAIN_CONNECTED_EXPEC
 
     if [ -n "$SOLVER_EVM_ADDR" ]; then
         SOLVER_CHAIN_CONNECTED_ACTUAL=$(get_usdcon_balance_evm "$SOLVER_EVM_ADDR" "$USD_EVM_ADDR")
-
+        log_balance_result "Solver on Connected EVM (instance $EVM_INSTANCE)" "$SOLVER_CHAIN_CONNECTED_ACTUAL" "$SOLVER_CHAIN_CONNECTED_EXPECTED" "10e-6.USDcon"
         if [ "$SOLVER_CHAIN_CONNECTED_ACTUAL" != "$SOLVER_CHAIN_CONNECTED_EXPECTED" ]; then
-            log_and_echo "❌ ERROR: Solver balance mismatch on Connected EVM (instance $EVM_INSTANCE)!"
-            log_and_echo "   Actual:   $SOLVER_CHAIN_CONNECTED_ACTUAL 10e-6.USDcon"
-            log_and_echo "   Expected: $SOLVER_CHAIN_CONNECTED_EXPECTED 10e-6.USDcon"
             display_service_logs "Solver balance mismatch on Connected EVM"
             exit 1
         fi
-        log_and_echo "✅ Solver balance validated on Connected EVM (instance $EVM_INSTANCE): $SOLVER_CHAIN_CONNECTED_ACTUAL 10e-6.USDcon"
     fi
 fi
 
@@ -104,15 +92,11 @@ if [ -n "$REQUESTER_CHAIN_CONNECTED_EXPECTED" ] && [ "$REQUESTER_CHAIN_CONNECTED
 
     if [ -n "$REQUESTER_EVM_ADDR" ]; then
         REQUESTER_CHAIN_CONNECTED_ACTUAL=$(get_usdcon_balance_evm "$REQUESTER_EVM_ADDR" "$USD_EVM_ADDR")
-
+        log_balance_result "Requester on Connected EVM (instance $EVM_INSTANCE)" "$REQUESTER_CHAIN_CONNECTED_ACTUAL" "$REQUESTER_CHAIN_CONNECTED_EXPECTED" "10e-6.USDcon"
         if [ "$REQUESTER_CHAIN_CONNECTED_ACTUAL" != "$REQUESTER_CHAIN_CONNECTED_EXPECTED" ]; then
-            log_and_echo "❌ ERROR: Requester balance mismatch on Connected EVM (instance $EVM_INSTANCE)!"
-            log_and_echo "   Actual:   $REQUESTER_CHAIN_CONNECTED_ACTUAL 10e-6.USDcon"
-            log_and_echo "   Expected: $REQUESTER_CHAIN_CONNECTED_EXPECTED 10e-6.USDcon"
             display_service_logs "Requester balance mismatch on Connected EVM"
             exit 1
         fi
-        log_and_echo "✅ Requester balance validated on Connected EVM (instance $EVM_INSTANCE): $REQUESTER_CHAIN_CONNECTED_ACTUAL 10e-6.USDcon"
     fi
 fi
 
