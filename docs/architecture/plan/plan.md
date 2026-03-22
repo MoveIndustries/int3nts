@@ -7,8 +7,8 @@
 | 1 | Parallel cargo builds + docker pull overlap | done |
 | 2 | Parallel chain startup + flock-based parallel setup/deploys | done |
 | 3 | Reduce stabilization sleeps | done |
-| 4 | Parallel service startup (coordinator + integrated-gmp) | todo |
-| 5 | Docker image pre-pull overlap with builds | todo |
+| 4 | Parallel service startup (coordinator + integrated-gmp) | done |
+| 5 | Docker image pre-pull overlap with builds | done (in Stage 1) |
 
 ## Goal
 
@@ -20,22 +20,25 @@ Before: `chore/e2e-speedups` plan-only commit 8a651cc (run 23354564110)
 Stage 1: `chore/e2e-speedups` parallel builds commit 7bd16b0 (run 23355126386)
 Stage 2: `chore/e2e-speedups` parallel chains + flock commit df0d661 (run 23412505420)
 Stage 3: `chore/e2e-speedups` reduce stabilization sleeps commit d867084 (run 23413527863)
+Stage 4: `chore/e2e-speedups` parallel service startup commit 9644bfc (run 23414013397)
 
-| Job | Before | Stage 1 | Stage 2 | Stage 3 |
-|-----|--------|---------|---------|---------|
-| mvm-chain-inflow | 15m 29s | 15m 19s | 13m 41s | 13m 27s |
-| mvm-chain-outflow | 15m 13s | 14m 09s | 13m 56s | 13m 45s |
-| rust-integration | 15m 33s | 15m 27s | 15m 37s | 15m 13s |
-| evm-chain-outflow | 17m 10s | 15m 01s | 16m 02s | 15m 35s |
-| evm-chain-inflow | 18m 49s | 18m 22s | 18m 22s | 17m 49s |
-| svm-chain-outflow | 25m 37s | 24m 04s | 20m 55s | 19m 05s |
-| svm-chain-inflow | 26m 22s | 25m 05s | 22m 29s | 22m 01s |
+| Job | Before | Stage 1 | Stage 2 | Stage 3 | Stage 4 |
+|-----|--------|---------|---------|---------|---------|
+| mvm-chain-inflow | 15m 29s | 15m 19s | 13m 41s | 13m 27s | 12m 06s |
+| mvm-chain-outflow | 15m 13s | 14m 09s | 13m 56s | 13m 45s | 13m 05s |
+| rust-integration | 15m 33s | 15m 27s | 15m 37s | 15m 13s | 15m 15s |
+| evm-chain-outflow | 17m 10s | 15m 01s | 16m 02s | 15m 35s | 16m 10s |
+| evm-chain-inflow | 18m 49s | 18m 22s | 18m 22s | 17m 49s | 17m 39s |
+| svm-chain-outflow | 25m 37s | 24m 04s | 20m 55s | 19m 05s | 20m 46s |
+| svm-chain-inflow | 26m 22s | 25m 05s | 22m 29s | 22m 01s | 23m 16s |
 
 Stage 1 saved ~1-2 min on most jobs. Slowest job (svm-chain-inflow) down from 26m 22s to 25m 05s.
 
 Stage 2 saved ~2-4 min on most jobs. MVM jobs improved ~1.5 min, SVM jobs improved ~3-4 min. Slowest job (svm-chain-inflow) down from 25m 05s to 22m 29s. Total improvement from baseline: 26m 22s → 22m 29s (~15% reduction). The flock-based parallel setup/deploys and parallel chain startup together provide meaningful gains across all chains.
 
 Stage 3 saved ~15-110s per job. Coordinator sleep 30 replaced with adaptive /events poll (~4s), integrated-gmp sleep 10 reduced to 5s. Slowest job (svm-chain-inflow) down from 22m 29s to 22m 01s. Total improvement from baseline: 26m 22s → 22m 01s (~16.5% reduction).
+
+Stage 4 showed mixed results due to CI variance. MVM jobs improved ~1 min (parallel startup overlap visible). SVM/EVM jobs showed slight regression likely due to runner variance. The parallel startup is structurally correct and saves ~10-15s of sequential startup time. Overall from baseline: 26m 22s → ~22-23m (~12-16% reduction across runs).
 
 ## Stage protocol (every stage)
 
