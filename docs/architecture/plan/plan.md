@@ -5,7 +5,7 @@
 | Stage | Description | Status |
 |-------|-------------|--------|
 | 1 | Parallel cargo builds + docker pull overlap | done |
-| 2 | Parallel chain startup | in progress |
+| 2 | Parallel chain startup + flock-based parallel setup/deploys | in progress |
 | 3 | Reduce stabilization sleeps | todo |
 | 4 | Parallel service startup (coordinator + integrated-gmp) | todo |
 | 5 | Docker image pre-pull overlap with builds | todo |
@@ -19,17 +19,19 @@ Reduce E2E test wall time (~18 min) by eliminating unnecessary sequential operat
 Before: `chore/e2e-speedups` plan-only commit 8a651cc (run 23354564110)
 Stage 1: `chore/e2e-speedups` parallel builds commit 7bd16b0 (run 23355126386)
 
-| Job | Before | Stage 1 |
-|-----|--------|---------|
-| mvm-chain-inflow | 15m 29s | 15m 19s |
-| mvm-chain-outflow | 15m 13s | 14m 09s |
-| rust-integration | 15m 33s | 15m 27s |
-| evm-chain-outflow | 17m 10s | 15m 01s |
-| evm-chain-inflow | 18m 49s | 18m 22s |
-| svm-chain-outflow | 25m 37s | 24m 04s |
-| svm-chain-inflow | 26m 22s | 25m 05s |
+| Job | Before | Stage 1 | Stage 2 |
+|-----|--------|---------|---------|
+| mvm-chain-inflow | 15m 29s | 15m 19s | 14m 47s |
+| mvm-chain-outflow | 15m 13s | 14m 09s | 14m 13s |
+| rust-integration | 15m 33s | 15m 27s | 15m 48s |
+| evm-chain-outflow | 17m 10s | 15m 01s | 17m 02s |
+| evm-chain-inflow | 18m 49s | 18m 22s | 18m 07s |
+| svm-chain-outflow | 25m 37s | 24m 04s | 24m 18s |
+| svm-chain-inflow | 26m 22s | 25m 05s | 25m 37s |
 
 Stage 1 saved ~1-2 min on most jobs. Slowest job (svm-chain-inflow) down from 26m 22s to 25m 05s.
+
+Stage 2 shows minimal change — parallel chain startup saves time but sequential account setup and deploys (required due to shared Aptos CLI config) offset the gains. The parallelization of chain startup is still worthwhile as a foundation for future stages.
 
 ## Stage protocol (every stage)
 
@@ -66,22 +68,35 @@ nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inf
 
 ---
 
-## Stage 2 — Parallel chain startup
+## Stage 2 — Parallel chain startup + flock-based parallel setup/deploys
 
-**Why**: `e2e_setup_chains` starts hub chain, then connected instance 2, then instance 3 sequentially. Each waits independently for its chain to become ready (up to 150s for MVM, 180s for EVM). These chains have zero startup dependencies on each other.
+**Why**: `e2e_setup_chains` starts hub chain, then connected instance 2, then instance 3 sequentially. Each waits independently for its chain to become ready (up to 150s for MVM, 180s for EVM). These chains have zero startup dependencies on each other. Account setup and contract deployments also run sequentially but can overlap if config file access is serialized.
 
-**Scope**: `testing-infra/ci-e2e/e2e-common.sh` (`e2e_setup_chains`)
+**Scope**: `testing-infra/ci-e2e/e2e-common.sh`, `testing-infra/ci-e2e/util_mvm.sh`, deploy scripts
 
-**Constraint**: Account setup (`setup-requester-solver.sh`) must remain **sequential** because all instances write profiles to the same `~/.aptos/config.yaml` via the Aptos CLI. Parallel writes corrupt the file (confirmed by CI run 23357830574: `jq: parse error`, `Could not extract address for profile`).
+**Problem**: All Aptos CLI commands share `~/.aptos/config.yaml`. Parallel writes corrupt the file (confirmed by CI run 23357830574: `jq: parse error`, `Could not extract address for profile`).
 
-**Files to change**:
+**Solution**: `flock` on a shared lock file (`$PROJECT_ROOT/.tmp/aptos-config.lock`). Exclusive locks for writes (`aptos init`, `aptos config delete-profile`), shared locks for reads (`aptos move run/publish`, `aptos config show-profiles`). Multiple readers proceed in parallel; writers block everything.
 
+**Files changed**:
+
+- `testing-infra/ci-e2e/util_mvm.sh`
+  - `APTOS_CONFIG_LOCK` variable for lock file path
+  - `aptos_read_locked` helper: wraps any aptos CLI call with a shared read lock
+  - `init_aptos_profile`: exclusive flock around `aptos init`
+  - `get_profile_address`: shared flock around `aptos config show-profiles`
+  - `cleanup_aptos_profile`: exclusive flock around `aptos config delete-profile`
+  - All `aptos move run` calls in utility functions replaced with `aptos_read_locked`
 - `testing-infra/ci-e2e/e2e-common.sh`
   - `e2e_setup_chains()`: The sequencing becomes:
     1. **Parallel**: Start hub chain, connected instance 2, connected instance 3 (`setup-chain.sh` x3 via `&` + `wait`)
-    2. **Sequential**: Generate shared solver keys, then account setup for hub, chain 2, chain 3 (`setup-requester-solver.sh` — must be sequential, shared Aptos CLI config)
+    2. **Parallel**: Generate shared solver keys, then account setup for hub, chain 2, chain 3 in parallel (flock serializes config writes)
     3. **Sequential**: Hub contract deployment (`deploy-contracts.sh` — produces `HUB_MODULE_ADDR`)
-    4. **Sequential**: Connected contract deployments for chain 2 and 3 (also write to shared `~/.aptos/config.yaml`)
+    4. **Parallel**: Connected contract deployments for chain 2 and 3 (flock serializes config access)
+- `testing-infra/ci-e2e/chain-hub/deploy-contracts.sh` — bare `aptos move` calls replaced with `aptos_read_locked`
+- `testing-infra/ci-e2e/chain-connected-mvm/deploy-contracts.sh` — same
+- `testing-infra/ci-e2e/chain-connected-evm/deploy-contracts.sh` — same
+- `testing-infra/ci-e2e/chain-connected-svm/deploy-contracts.sh` — same
 
 **Test command**:
 ```bash

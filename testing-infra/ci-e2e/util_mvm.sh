@@ -8,25 +8,39 @@
 #
 # Note: This file depends on functions from util.sh (log, log_and_echo, setup_project_root, etc.)
 
+# Lock file for serializing Aptos CLI config access across parallel scripts.
+# Requires flock (available on Linux/CI). Not available on macOS — E2E tests only run on Linux CI.
+# Function instead of variable because PROJECT_ROOT is set after this file is sourced.
+_aptos_config_lock() {
+    local lock="${PROJECT_ROOT:-.}/.tmp/aptos-config.lock"
+    mkdir -p "$(dirname "$lock")"
+    echo "$lock"
+}
+
 # Get address from aptos profile
 # Usage: get_profile_address <profile_name>
 # Returns the account address for the given profile
 # Standardizes the pattern: aptos config show-profiles | jq -r '.["Result"]["<profile>"].account'
 get_profile_address() {
     local profile="$1"
-    
+
     if [ -z "$profile" ]; then
         echo "❌ ERROR: get_profile_address() requires a profile name" >&2
         return 1
     fi
-    
-    local address=$(aptos config show-profiles | jq -r ".[\"Result\"][\"$profile\"].account" 2>/dev/null)
-    
+
+    local address
+    address=$(
+        exec 9>"$(_aptos_config_lock)"
+        flock --shared 9
+        aptos config show-profiles | jq -r ".[\"Result\"][\"$profile\"].account"
+    ) 2>/dev/null
+
     if [ -z "$address" ] || [ "$address" = "null" ]; then
         echo "❌ ERROR: Could not extract address for profile: $profile" >&2
         return 1
     fi
-    
+
     echo "$address"
 }
 
@@ -155,7 +169,11 @@ init_aptos_profile() {
     fi
 
     if [ -n "$log_file" ]; then
-        if eval "$aptos_cmd >> \"$log_file\" 2>&1"; then
+        if (
+            exec 9>"$(_aptos_config_lock)"
+            flock --exclusive 9
+            eval "$aptos_cmd >> \"$log_file\" 2>&1"
+        ); then
             log "✅ Profile $profile created successfully on Chain $chain_num"
             return 0
         else
@@ -163,7 +181,11 @@ init_aptos_profile() {
             exit 1
         fi
     else
-        if eval "$aptos_cmd"; then
+        if (
+            exec 9>"$(_aptos_config_lock)"
+            flock --exclusive 9
+            eval "$aptos_cmd"
+        ); then
             log "✅ Profile $profile created successfully on Chain $chain_num"
             return 0
         else
@@ -190,10 +212,29 @@ cleanup_aptos_profile() {
     fi
     
     if [ -n "$log_file" ]; then
-        aptos config delete-profile --profile "$profile" >> "$log_file" 2>&1 || true
+        (
+            exec 9>"$(_aptos_config_lock)"
+            flock --exclusive 9
+            aptos config delete-profile --profile "$profile" >> "$log_file" 2>&1
+        ) || true
     else
-        aptos config delete-profile --profile "$profile" 2>&1 || true
+        (
+            exec 9>"$(_aptos_config_lock)"
+            flock --exclusive 9
+            aptos config delete-profile --profile "$profile" 2>&1
+        ) || true
     fi
+}
+
+# Run an aptos CLI command under a shared (read) lock on the config file.
+# Use for aptos move publish/run and other commands that read --profile from config.yaml.
+# Usage: aptos_read_locked move publish --profile foo ...
+aptos_read_locked() {
+    (
+        exec 9>"$(_aptos_config_lock)"
+        flock --shared 9
+        aptos "$@"
+    )
 }
 
 # Wait for MVM chain to be ready
@@ -346,7 +387,7 @@ extract_apt_metadata() {
     fi
     
     # Run aptos move command to get APT metadata
-    local aptos_cmd="aptos move run --profile $profile --assume-yes --function-id \"0x${chain_addr}::utils::get_apt_metadata_address\""
+    local aptos_cmd="aptos_read_locked move run --profile $profile --assume-yes --function-id \"0x${chain_addr}::utils::get_apt_metadata_address\""
     
     if [ -n "$log_file" ]; then
         if ! eval "$aptos_cmd >> \"$log_file\" 2>&1"; then
@@ -513,11 +554,11 @@ initialize_solver_registry() {
     local init_output
     local init_status
     if [ -n "$log_file" ]; then
-        init_output=$(aptos move run --profile "$profile" --assume-yes \
+        init_output=$(aptos_read_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::solver_registry::initialize" 2>&1 | tee -a "$log_file")
         init_status=${PIPESTATUS[0]}
     else
-        init_output=$(aptos move run --profile "$profile" --assume-yes \
+        init_output=$(aptos_read_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::solver_registry::initialize" 2>&1)
         init_status=$?
     fi
@@ -550,11 +591,11 @@ initialize_intent_registry() {
     local init_output
     local init_status
     if [ -n "$log_file" ]; then
-        init_output=$(aptos move run --profile "$profile" --assume-yes \
+        init_output=$(aptos_read_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::intent_registry::initialize" 2>&1 | tee -a "$log_file")
         init_status=${PIPESTATUS[0]}
     else
-        init_output=$(aptos move run --profile "$profile" --assume-yes \
+        init_output=$(aptos_read_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::intent_registry::initialize" 2>&1)
         init_status=$?
     fi
@@ -733,12 +774,12 @@ display_balances_connected_mvm() {
     local sol_profile="solver-chain${chain_num}"
 
     # Check if chain profiles exist
-    if ! aptos config show-profiles 2>/dev/null | jq -r ".[\"Result\"][\"$req_profile\"]" 2>/dev/null | grep -q "."; then
+    if ! (exec 9>"$(_aptos_config_lock)"; flock --shared 9; aptos config show-profiles) 2>/dev/null | jq -r ".[\"Result\"][\"$req_profile\"]" 2>/dev/null | grep -q "."; then
         return 0  # Silently skip if profiles don't exist
     fi
 
-    local requester_bal=$(aptos account balance --profile "$req_profile" 2>/dev/null | jq -r '.Result[0].balance // 0' || echo "0")
-    local solver_bal=$(aptos account balance --profile "$sol_profile" 2>/dev/null | jq -r '.Result[0].balance // 0' || echo "0")
+    local requester_bal=$(aptos_read_locked account balance --profile "$req_profile" 2>/dev/null | jq -r '.Result[0].balance // 0' || echo "0")
+    local solver_bal=$(aptos_read_locked account balance --profile "$sol_profile" 2>/dev/null | jq -r '.Result[0].balance // 0' || echo "0")
 
     log_and_echo "   Chain $chain_num (Connected MVM):"
 
@@ -820,11 +861,11 @@ register_solver() {
     log "         --args \"hex:${public_key_hex}\" \"$mvm_arg\" \"$evm_arg\""
     
     if [ -n "$log_file" ]; then
-        aptos move run --profile "$profile" --assume-yes \
+        aptos_read_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::solver_registry::register_solver" \
             --args "hex:${public_key_hex}" "$mvm_arg" "$evm_arg" >> "$log_file" 2>&1
     else
-        aptos move run --profile "$profile" --assume-yes \
+        aptos_read_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::solver_registry::register_solver" \
             --args "hex:${public_key_hex}" "$mvm_arg" "$evm_arg"
     fi

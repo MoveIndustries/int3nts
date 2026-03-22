@@ -188,7 +188,7 @@ GMP_ENDPOINT_ADDR_CLEAN=$(echo "$GMP_ENDPOINT_ADDR" | sed 's/^0x//')
 GMP_ENDPOINT_ADDR_PADDED=$(printf "%064s" "$GMP_ENDPOINT_ADDR_CLEAN" | tr ' ' '0')
 
 # Set remote GMP endpoint on hub for connected EVM chain
-if aptos move run --profile intent-account-chain1 --assume-yes \
+if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
     --function-id ${HUB_MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr \
     --args u32:$EVM_CHAIN_ID "hex:${GMP_ENDPOINT_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
     log "   ✅ Hub now trusts EVM connected chain (chain_id=$EVM_CHAIN_ID, addr=$GMP_ENDPOINT_ADDR)"
@@ -197,7 +197,7 @@ else
 fi
 
 # Also set remote GMP endpoint in intent_gmp_hub for EVM chain
-if aptos move run --profile intent-account-chain1 --assume-yes \
+if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
     --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_remote_gmp_endpoint_addr \
     --args u32:$EVM_CHAIN_ID "hex:${GMP_ENDPOINT_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
     log "   ✅ Hub intent_gmp_hub now trusts EVM connected chain"
