@@ -1366,7 +1366,19 @@ build_draft_data() {
     local intent_id="$8"
     local issuer="$9"
     local fee_in_offered_token="${10}"
-    local extra_fields="${11:-{}}"
+    # Do NOT write this as: local extra_fields="${11:-{}}"
+    # Bash closes parameter expansions at the first unmatched "}". So ${11:-{}}
+    # is parsed as ${11:-{} (default = "{") followed by a literal "}". When $11
+    # IS set, the expansion yields "$11" + "}" — silently appending a stray "}"
+    # that breaks JSON. The if/else avoids putting {} inside a ${...} default.
+    # This is only an E2E test issue — production and Rust integration tests
+    # build draft JSON via serde_json, not bash string interpolation.
+    local extra_fields
+    if [ $# -ge 11 ]; then
+        extra_fields="$11"
+    else
+        extra_fields="{}"
+    fi
 
     # Validate extra_fields is valid JSON — fail hard if invalid
     local validated_extra
