@@ -772,9 +772,23 @@ start_coordinator() {
         if check_coordinator_health; then
             log "   ✅ Coordinator is ready!"
 
-            # Give coordinator time to start polling and collect initial events
-            log "   - Waiting for coordinator to poll and collect events (30 seconds)..."
-            sleep 30
+            # Wait for coordinator to complete first poll cycle by checking /events endpoint
+            log "   - Waiting for coordinator /events endpoint..."
+            local EVENTS_READY=0
+            for i in $(seq 1 15); do
+                if curl -s -f "http://127.0.0.1:3333/events" > /dev/null 2>&1; then
+                    EVENTS_READY=1
+                    break
+                fi
+                sleep 2
+            done
+            if [ "$EVENTS_READY" -ne 1 ]; then
+                log_and_echo "   ❌ Coordinator /events endpoint not ready after 30s"
+                exit 1
+            fi
+            # One extra polling interval to ensure first cycle completes
+            sleep 2
+            log "   - Coordinator events endpoint ready"
 
             COORDINATOR_LOG="$log_file"
             export COORDINATOR_PID COORDINATOR_LOG
@@ -1045,9 +1059,9 @@ start_integrated_gmp() {
         if check_integrated_gmp_health; then
             log "   ✅ Integrated-GMP is ready!"
 
-            # Give integrated-gmp time to start polling and collect initial events
-            log "   - Waiting for integrated-gmp to poll and collect events (10 seconds)..."
-            sleep 10
+            # Brief stabilization wait after initialization confirmed
+            log "   - Waiting for integrated-gmp to start polling (5 seconds)..."
+            sleep 5
 
             return 0
         fi
