@@ -1375,7 +1375,7 @@ build_draft_data() {
     # build draft JSON via serde_json, not bash string interpolation.
     local extra_fields
     if [ $# -ge 11 ]; then
-        extra_fields="$11"
+        extra_fields="${11}"
     else
         extra_fields="{}"
     fi
