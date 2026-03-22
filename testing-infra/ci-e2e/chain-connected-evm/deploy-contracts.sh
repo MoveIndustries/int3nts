@@ -3,6 +3,7 @@
 # Source common utilities
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$SCRIPT_DIR/../util.sh"
+source "$SCRIPT_DIR/../util_mvm.sh"
 source "$SCRIPT_DIR/../util_evm.sh"
 source "$SCRIPT_DIR/utils.sh"
 
@@ -193,7 +194,8 @@ if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
     --args u32:$EVM_CHAIN_ID "hex:${GMP_ENDPOINT_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
     log "   ✅ Hub now trusts EVM connected chain (chain_id=$EVM_CHAIN_ID, addr=$GMP_ENDPOINT_ADDR)"
 else
-    log "   ️ Could not set remote GMP endpoint on hub (ignoring)"
+    log_and_echo "   ❌ Failed to set remote GMP endpoint on hub for EVM chain (chain_id=$EVM_CHAIN_ID)"
+    exit 1
 fi
 
 # Also set remote GMP endpoint in intent_gmp_hub for EVM chain
@@ -202,7 +204,8 @@ if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
     --args u32:$EVM_CHAIN_ID "hex:${GMP_ENDPOINT_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
     log "   ✅ Hub intent_gmp_hub now trusts EVM connected chain"
 else
-    log "   ️ Could not set remote GMP endpoint in intent_gmp_hub (ignoring)"
+    log_and_echo "   ❌ Failed to set remote GMP endpoint in intent_gmp_hub for EVM chain (chain_id=$EVM_CHAIN_ID)"
+    exit 1
 fi
 
 # Display balances (ETH + USDcon)

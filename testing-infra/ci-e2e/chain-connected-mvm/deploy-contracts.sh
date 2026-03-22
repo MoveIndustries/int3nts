@@ -279,7 +279,8 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
         --args u32:${MVM_CHAIN_ID} "hex:${CHAIN_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub now trusts connected chain (chain_id=$MVM_CHAIN_ID)"
     else
-        log "   ️ Could not set remote GMP endpoint on hub (ignoring)"
+        log_and_echo "   ❌ Failed to set remote GMP endpoint on hub for MVM chain (chain_id=$MVM_CHAIN_ID)"
+        exit 1
     fi
 
     # Also set remote GMP endpoint in intent_gmp_hub
@@ -288,7 +289,8 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
         --args u32:${MVM_CHAIN_ID} "hex:${CHAIN_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub intent_gmp_hub now trusts connected chain"
     else
-        log "   ️ Could not set remote GMP endpoint in intent_gmp_hub (ignoring)"
+        log_and_echo "   ❌ Failed to set remote GMP endpoint in intent_gmp_hub for MVM chain (chain_id=$MVM_CHAIN_ID)"
+        exit 1
     fi
 else
     log "   ️ WARNING: HUB_MODULE_ADDR not found, skipping hub trust config"
