@@ -341,7 +341,7 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     log "   SVM GMP endpoint address (hex): $SVM_GMP_ENDPOINT_HEX"
 
     # Set remote GMP endpoint on hub's intent_gmp for SVM GMP endpoint
-    if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
+    if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr \
         --args u32:$SVM_CHAIN_ID "hex:${SVM_GMP_ENDPOINT_HEX}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub intent_gmp now trusts SVM GMP endpoint (chain $SVM_CHAIN_ID)"
@@ -350,7 +350,7 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     fi
 
     # Set remote GMP endpoint on hub's intent_gmp_hub for SVM GMP endpoint
-    if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
+    if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_remote_gmp_endpoint_addr \
         --args u32:$SVM_CHAIN_ID "hex:${SVM_GMP_ENDPOINT_HEX}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub intent_gmp_hub now trusts SVM GMP endpoint (chain $SVM_CHAIN_ID)"

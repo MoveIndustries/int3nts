@@ -46,7 +46,7 @@ CHAIN_ADDR=$(get_profile_address "$PROFILE")
 # Deploy intent-gmp package first (base layer)
 log "   - Deploying intent-gmp to Chain $MVM_INSTANCE with address: $CHAIN_ADDR"
 cd intent-frameworks/mvm/intent-gmp
-if aptos_read_locked move publish --dev --profile "$PROFILE" --named-addresses mvmt_intent=$CHAIN_ADDR --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
+if aptos_write_locked move publish --dev --profile "$PROFILE" --named-addresses mvmt_intent=$CHAIN_ADDR --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
     log "   ✅ intent-gmp deployment successful!"
 else
     log_and_echo "   ❌ intent-gmp deployment failed!"
@@ -60,7 +60,7 @@ fi
 # Deploy intent-connected package (depends on intent-gmp)
 log "   - Deploying intent-connected to Chain $MVM_INSTANCE with address: $CHAIN_ADDR"
 cd ../intent-connected
-if aptos_read_locked move publish --dev --profile "$PROFILE" --named-addresses mvmt_intent=$CHAIN_ADDR --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
+if aptos_write_locked move publish --dev --profile "$PROFILE" --named-addresses mvmt_intent=$CHAIN_ADDR --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
     log "   ✅ intent-connected deployment successful!"
     log_and_echo "✅ Connected chain $MVM_INSTANCE contracts deployed"
 else
@@ -77,7 +77,7 @@ cd "$PROJECT_ROOT"
 # Initialize fa_intent chain info (required for cross-chain intent detection)
 log ""
 log " Initializing fa_intent chain info (chain_id=$MVM_CHAIN_ID)..."
-if aptos_read_locked move run --profile "$PROFILE" --assume-yes \
+if aptos_write_locked move run --profile "$PROFILE" --assume-yes \
     --function-id ${CHAIN_ADDR}::fa_intent::initialize \
     --args u64:${MVM_CHAIN_ID} >> "$LOG_FILE" 2>&1; then
     log "   ✅ fa_intent chain info initialized (chain_id=$MVM_CHAIN_ID)"
@@ -98,7 +98,7 @@ initialize_intent_registry "$PROFILE" "$CHAIN_ADDR" "$LOG_FILE"
 # Initialize integrated GMP endpoint for cross-chain messaging
 log ""
 log " Initializing integrated GMP endpoint..."
-if aptos_read_locked move run --profile "$PROFILE" --assume-yes \
+if aptos_write_locked move run --profile "$PROFILE" --assume-yes \
     --function-id ${CHAIN_ADDR}::intent_gmp::initialize >> "$LOG_FILE" 2>&1; then
     log "   ✅ Integrated GMP endpoint initialized"
 else
@@ -108,7 +108,7 @@ fi
 # Initialize GMP intent state for cross-chain intent tracking
 log ""
 log " Initializing GMP intent state..."
-if aptos_read_locked move run --profile "$PROFILE" --assume-yes \
+if aptos_write_locked move run --profile "$PROFILE" --assume-yes \
     --function-id ${CHAIN_ADDR}::gmp_intent_state::initialize >> "$LOG_FILE" 2>&1; then
     log "   ✅ GMP intent state initialized"
 else
@@ -118,7 +118,7 @@ fi
 # Initialize GMP sender for outbound cross-chain messaging
 log ""
 log " Initializing GMP sender..."
-if aptos_read_locked move run --profile "$PROFILE" --assume-yes \
+if aptos_write_locked move run --profile "$PROFILE" --assume-yes \
     --function-id ${CHAIN_ADDR}::gmp_sender::initialize >> "$LOG_FILE" 2>&1; then
     log "   ✅ GMP sender initialized"
 else
@@ -137,7 +137,7 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     # Initialize outflow_validator with hub chain config
     log ""
     log " Initializing outflow validator with hub config..."
-    if aptos_read_locked move run --profile "$PROFILE" --assume-yes \
+    if aptos_write_locked move run --profile "$PROFILE" --assume-yes \
         --function-id ${CHAIN_ADDR}::intent_outflow_validator_impl::initialize \
         --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Outflow validator initialized (hub_chain_id=1)"
@@ -148,7 +148,7 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     # Initialize inflow_escrow with hub chain config
     log ""
     log " Initializing inflow escrow GMP with hub config..."
-    if aptos_read_locked move run --profile "$PROFILE" --assume-yes \
+    if aptos_write_locked move run --profile "$PROFILE" --assume-yes \
         --function-id ${CHAIN_ADDR}::intent_inflow_escrow::initialize \
         --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Inflow escrow GMP initialized (hub_chain_id=1)"
@@ -159,7 +159,7 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     # Set remote GMP endpoint in intent_gmp (trust hub chain)
     log ""
     log " Setting remote GMP endpoint for hub chain..."
-    if aptos_read_locked move run --profile "$PROFILE" --assume-yes \
+    if aptos_write_locked move run --profile "$PROFILE" --assume-yes \
         --function-id ${CHAIN_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr \
         --args u32:1 "hex:${HUB_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Remote GMP endpoint set for hub chain"
@@ -191,7 +191,7 @@ if [ -n "$E2E_INTEGRATED_GMP_MOVE_ADDRESS" ]; then
 
     # Add relay as authorized relay in intent_gmp
     log "   - Adding relay as authorized in intent_gmp..."
-    if aptos_read_locked move run --profile "$PROFILE" --assume-yes \
+    if aptos_write_locked move run --profile "$PROFILE" --assume-yes \
         --function-id ${CHAIN_ADDR}::intent_gmp::add_relay \
         --args address:${RELAY_ADDRESS} >> "$LOG_FILE" 2>&1; then
         log "   ✅ Relay added as authorized"
@@ -212,7 +212,7 @@ USD_MVMCON_MODULE_ADDR=$(get_profile_address "$TOKEN_PROFILE")
 
 log "   - Deploying USDcon with address: $USD_MVMCON_MODULE_ADDR"
 cd "$PROJECT_ROOT/testing-infra/ci-e2e/test-tokens"
-if aptos_read_locked move publish --profile "$TOKEN_PROFILE" --named-addresses test_tokens=$USD_MVMCON_MODULE_ADDR --assume-yes >> "$LOG_FILE" 2>&1; then
+if aptos_write_locked move publish --profile "$TOKEN_PROFILE" --named-addresses test_tokens=$USD_MVMCON_MODULE_ADDR --assume-yes >> "$LOG_FILE" 2>&1; then
     log "   ✅ USDcon deployment successful on Chain $MVM_INSTANCE!"
     log_and_echo "✅ USDcon test token deployed on connected chain $MVM_INSTANCE"
 else
@@ -235,7 +235,7 @@ SOLVER_MVMCON_ADDR=$(get_profile_address "solver-chain${MVM_INSTANCE}")
 USDCON_MINT_AMOUNT="2000000"  # 2 USDcon (6 decimals = 2_000_000)
 
 log "   - Minting $USDCON_MINT_AMOUNT 10e-6.USDcon to Requester ($REQUESTER_MVMCON_ADDR)..."
-if aptos_read_locked move run --profile "$TOKEN_PROFILE" --assume-yes \
+if aptos_write_locked move run --profile "$TOKEN_PROFILE" --assume-yes \
     --function-id ${USD_MVMCON_MODULE_ADDR}::usdxyz::mint \
     --args address:$REQUESTER_MVMCON_ADDR u64:$USDCON_MINT_AMOUNT >> "$LOG_FILE" 2>&1; then
     log "   ✅ Minted USDcon to Requester"
@@ -245,7 +245,7 @@ else
 fi
 
 log "   - Minting $USDCON_MINT_AMOUNT 10e-6.USDcon to Solver ($SOLVER_MVMCON_ADDR)..."
-if aptos_read_locked move run --profile "$TOKEN_PROFILE" --assume-yes \
+if aptos_write_locked move run --profile "$TOKEN_PROFILE" --assume-yes \
     --function-id ${USD_MVMCON_MODULE_ADDR}::usdxyz::mint \
     --args address:$SOLVER_MVMCON_ADDR u64:$USDCON_MINT_AMOUNT >> "$LOG_FILE" 2>&1; then
     log "   ✅ Minted USDcon to Solver"
@@ -274,7 +274,7 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     CHAIN_ADDR_PADDED=$(printf "%064s" "$CHAIN_ADDR_CLEAN" | tr ' ' '0')
 
     # Set remote GMP endpoint on hub for connected chain
-    if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
+    if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::intent_gmp::set_remote_gmp_endpoint_addr \
         --args u32:${MVM_CHAIN_ID} "hex:${CHAIN_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub now trusts connected chain (chain_id=$MVM_CHAIN_ID)"
@@ -283,7 +283,7 @@ if [ -n "$HUB_MODULE_ADDR" ]; then
     fi
 
     # Also set remote GMP endpoint in intent_gmp_hub
-    if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
+    if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::set_remote_gmp_endpoint_addr \
         --args u32:${MVM_CHAIN_ID} "hex:${CHAIN_ADDR_PADDED}" >> "$LOG_FILE" 2>&1; then
         log "   ✅ Hub intent_gmp_hub now trusts connected chain"

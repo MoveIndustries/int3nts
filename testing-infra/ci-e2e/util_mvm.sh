@@ -227,12 +227,26 @@ cleanup_aptos_profile() {
 }
 
 # Run an aptos CLI command under a shared (read) lock on the config file.
-# Use for aptos move publish/run and other commands that read --profile from config.yaml.
-# Usage: aptos_read_locked move publish --profile foo ...
+# Use for read-only commands (account balance, config show-profiles) that only
+# read ~/.aptos/config.yaml and don't submit transactions.
+# Usage: aptos_read_locked account balance --profile foo ...
 aptos_read_locked() {
     (
         exec 9>"$(_aptos_config_lock)"
         flock --shared 9
+        aptos "$@"
+    )
+}
+
+# Run an aptos CLI command under an exclusive (write) lock on the config file.
+# Use for commands that submit transactions (move run, move publish) to prevent
+# two parallel processes from reading the same on-chain sequence number for the
+# same account on the same node and racing to submit.
+# Usage: aptos_write_locked move run --profile foo ...
+aptos_write_locked() {
+    (
+        exec 9>"$(_aptos_config_lock)"
+        flock --exclusive 9
         aptos "$@"
     )
 }
@@ -387,7 +401,7 @@ extract_apt_metadata() {
     fi
     
     # Run aptos move command to get APT metadata
-    local aptos_cmd="aptos_read_locked move run --profile $profile --assume-yes --function-id \"0x${chain_addr}::utils::get_apt_metadata_address\""
+    local aptos_cmd="aptos_write_locked move run --profile $profile --assume-yes --function-id \"0x${chain_addr}::utils::get_apt_metadata_address\""
     
     if [ -n "$log_file" ]; then
         if ! eval "$aptos_cmd >> \"$log_file\" 2>&1"; then
@@ -554,11 +568,11 @@ initialize_solver_registry() {
     local init_output
     local init_status
     if [ -n "$log_file" ]; then
-        init_output=$(aptos_read_locked move run --profile "$profile" --assume-yes \
+        init_output=$(aptos_write_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::solver_registry::initialize" 2>&1 | tee -a "$log_file")
         init_status=${PIPESTATUS[0]}
     else
-        init_output=$(aptos_read_locked move run --profile "$profile" --assume-yes \
+        init_output=$(aptos_write_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::solver_registry::initialize" 2>&1)
         init_status=$?
     fi
@@ -591,11 +605,11 @@ initialize_intent_registry() {
     local init_output
     local init_status
     if [ -n "$log_file" ]; then
-        init_output=$(aptos_read_locked move run --profile "$profile" --assume-yes \
+        init_output=$(aptos_write_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::intent_registry::initialize" 2>&1 | tee -a "$log_file")
         init_status=${PIPESTATUS[0]}
     else
-        init_output=$(aptos_read_locked move run --profile "$profile" --assume-yes \
+        init_output=$(aptos_write_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::intent_registry::initialize" 2>&1)
         init_status=$?
     fi
@@ -861,11 +875,11 @@ register_solver() {
     log "         --args \"hex:${public_key_hex}\" \"$mvm_arg\" \"$evm_arg\""
     
     if [ -n "$log_file" ]; then
-        aptos_read_locked move run --profile "$profile" --assume-yes \
+        aptos_write_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::solver_registry::register_solver" \
             --args "hex:${public_key_hex}" "$mvm_arg" "$evm_arg" >> "$log_file" 2>&1
     else
-        aptos_read_locked move run --profile "$profile" --assume-yes \
+        aptos_write_locked move run --profile "$profile" --assume-yes \
             --function-id "0x${chain_addr}::solver_registry::register_solver" \
             --args "hex:${public_key_hex}" "$mvm_arg" "$evm_arg"
     fi

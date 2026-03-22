@@ -39,7 +39,7 @@ HUB_MODULE_ADDR=$(get_profile_address "intent-account-chain1")
 # Deploy intent-gmp package first (base layer)
 log "   - Deploying intent-gmp to Hub with address: $HUB_MODULE_ADDR"
 cd intent-frameworks/mvm/intent-gmp
-if aptos_read_locked move publish --dev --profile intent-account-chain1 --named-addresses mvmt_intent=$HUB_MODULE_ADDR --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
+if aptos_write_locked move publish --dev --profile intent-account-chain1 --named-addresses mvmt_intent=$HUB_MODULE_ADDR --assume-yes --included-artifacts none --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
     log "   ✅ intent-gmp deployment successful!"
 else
     log_and_echo "   ❌ intent-gmp deployment failed!"
@@ -54,7 +54,7 @@ fi
 # Using --included-artifacts none avoids chunked publish and linker issues
 log "   - Deploying intent-hub to Hub with address: $HUB_MODULE_ADDR"
 cd ../intent-hub
-if aptos_read_locked move publish --dev --profile intent-account-chain1 --named-addresses mvmt_intent=$HUB_MODULE_ADDR --assume-yes --included-artifacts none --override-size-check --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
+if aptos_write_locked move publish --dev --profile intent-account-chain1 --named-addresses mvmt_intent=$HUB_MODULE_ADDR --assume-yes --included-artifacts none --override-size-check --max-gas 500000 --gas-unit-price 100 >> "$LOG_FILE" 2>&1; then
     log "   ✅ intent-hub deployment successful!"
     log_and_echo "✅ Hub chain contracts deployed"
     # Save hub module address for connected chain to reference
@@ -74,7 +74,7 @@ cd "$PROJECT_ROOT"
 # Initialize fa_intent chain info (required for cross-chain intent detection)
 log ""
 log " Initializing fa_intent chain info (chain_id=1)..."
-if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
+if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
     --function-id ${HUB_MODULE_ADDR}::fa_intent::initialize \
     --args u64:1 >> "$LOG_FILE" 2>&1; then
     log "   ✅ fa_intent chain info initialized (chain_id=1)"
@@ -95,7 +95,7 @@ initialize_intent_registry "intent-account-chain1" "$HUB_MODULE_ADDR" "$LOG_FILE
 # Initialize integrated GMP endpoint for cross-chain messaging
 log ""
 log " Initializing integrated GMP endpoint..."
-if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
+if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
     --function-id ${HUB_MODULE_ADDR}::intent_gmp::initialize >> "$LOG_FILE" 2>&1; then
     log "   ✅ Integrated GMP endpoint initialized"
 else
@@ -105,7 +105,7 @@ fi
 # Initialize intent GMP hub for cross-chain intent messaging
 log ""
 log " Initializing intent GMP hub..."
-if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
+if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
     --function-id ${HUB_MODULE_ADDR}::intent_gmp_hub::initialize >> "$LOG_FILE" 2>&1; then
     log "   ✅ Intent GMP hub initialized"
 else
@@ -115,7 +115,7 @@ fi
 # Initialize GMP intent state for cross-chain intent tracking
 log ""
 log " Initializing GMP intent state..."
-if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
+if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
     --function-id ${HUB_MODULE_ADDR}::gmp_intent_state::initialize >> "$LOG_FILE" 2>&1; then
     log "   ✅ GMP intent state initialized"
 else
@@ -125,7 +125,7 @@ fi
 # Initialize GMP sender for outbound cross-chain messaging
 log ""
 log " Initializing GMP sender..."
-if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
+if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
     --function-id ${HUB_MODULE_ADDR}::gmp_sender::initialize >> "$LOG_FILE" 2>&1; then
     log "   ✅ GMP sender initialized"
 else
@@ -155,7 +155,7 @@ if [ -n "$E2E_INTEGRATED_GMP_MOVE_ADDRESS" ]; then
 
     # Add relay as authorized relay in intent_gmp
     log "   - Adding relay as authorized in intent_gmp..."
-    if aptos_read_locked move run --profile intent-account-chain1 --assume-yes \
+    if aptos_write_locked move run --profile intent-account-chain1 --assume-yes \
         --function-id ${HUB_MODULE_ADDR}::intent_gmp::add_relay \
         --args address:${RELAY_ADDRESS} >> "$LOG_FILE" 2>&1; then
         log "   ✅ Relay added as authorized"
@@ -175,7 +175,7 @@ TEST_TOKENS_HUB_ADDR=$(get_profile_address "test-tokens-chain1")
 
 log "   - Deploying USDhub with address: $TEST_TOKENS_HUB_ADDR"
 cd "$PROJECT_ROOT/testing-infra/ci-e2e/test-tokens"
-if aptos_read_locked move publish --profile test-tokens-chain1 --named-addresses test_tokens=$TEST_TOKENS_HUB_ADDR --assume-yes >> "$LOG_FILE" 2>&1; then
+if aptos_write_locked move publish --profile test-tokens-chain1 --named-addresses test_tokens=$TEST_TOKENS_HUB_ADDR --assume-yes >> "$LOG_FILE" 2>&1; then
     log "   ✅ USDhub deployment successful on Hub!"
     log_and_echo "✅ USDhub test token deployed on hub chain"
 else
@@ -198,7 +198,7 @@ SOLVER_HUB_ADDR=$(get_profile_address "solver-chain1")
 USDHUB_MINT_AMOUNT="2000000"  # 2 USDhub (6 decimals = 2_000_000)
 
 log "   - Minting $USDHUB_MINT_AMOUNT 10e-6.USDhub to Requester ($REQUESTER_HUB_ADDR)..."
-if aptos_read_locked move run --profile test-tokens-chain1 --assume-yes \
+if aptos_write_locked move run --profile test-tokens-chain1 --assume-yes \
     --function-id ${TEST_TOKENS_HUB_ADDR}::usdxyz::mint \
     --args address:$REQUESTER_HUB_ADDR u64:$USDHUB_MINT_AMOUNT >> "$LOG_FILE" 2>&1; then
     log "   ✅ Minted USDhub to Requester"
@@ -208,7 +208,7 @@ else
 fi
 
 log "   - Minting $USDHUB_MINT_AMOUNT 10e-6.USDhub to Solver ($SOLVER_HUB_ADDR)..."
-if aptos_read_locked move run --profile test-tokens-chain1 --assume-yes \
+if aptos_write_locked move run --profile test-tokens-chain1 --assume-yes \
     --function-id ${TEST_TOKENS_HUB_ADDR}::usdxyz::mint \
     --args address:$SOLVER_HUB_ADDR u64:$USDHUB_MINT_AMOUNT >> "$LOG_FILE" 2>&1; then
     log "   ✅ Minted USDhub to Solver"
