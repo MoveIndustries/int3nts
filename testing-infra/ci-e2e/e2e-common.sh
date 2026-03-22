@@ -335,10 +335,14 @@ e2e_setup_chains() {
 # ------------------------------------------------------------------------------
 e2e_start_services() {
     log_and_echo ""
-    log_and_echo " Starting coordinator and integrated-gmp..."
+    log_and_echo " Starting coordinator and integrated-gmp in parallel..."
     log_and_echo "=========================================================================="
-    ./testing-infra/ci-e2e/e2e-tests-${E2E_CHAIN}/start-coordinator.sh
-    ./testing-infra/ci-e2e/e2e-tests-${E2E_CHAIN}/start-integrated-gmp.sh
+    ./testing-infra/ci-e2e/e2e-tests-${E2E_CHAIN}/start-coordinator.sh &
+    local coord_pid=$!
+    ./testing-infra/ci-e2e/e2e-tests-${E2E_CHAIN}/start-integrated-gmp.sh &
+    local gmp_pid=$!
+    wait "$coord_pid" || { log_and_echo "❌ Coordinator startup failed"; exit 1; }
+    wait "$gmp_pid" || { log_and_echo "❌ Integrated-GMP startup failed"; exit 1; }
 
     log_and_echo ""
     log_and_echo " Starting solver service..."
