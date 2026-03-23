@@ -181,31 +181,13 @@ API keys in code will leak. Not maybe. Will.
 
 ### Requirements
 
-- [ ] **Environment Variables**: Use `.env` files
-  - Never commit secrets to git
-  - Use `.env.example` for documentation
-  - Different secrets per environment
+- [x] **Environment Variables**: Secrets loaded from env vars, not files. Integrated-GMP keys via `INTEGRATED_GMP_PRIVATE_KEY`/`INTEGRATED_GMP_PUBLIC_KEY`. Solver EVM/SVM keys via configurable `private_key_env` fields. No root `.env` file — each component manages its own env.
 
-- [ ] **Proper .gitignore**: Exclude sensitive files
+- [x] **Proper .gitignore**: `.env`, `.env.*`, testnet/CI TOML configs, and integrated-GMP key files all gitignored.
 
-  ```text
-  .env
-  .env.local
-  .env.*.local
-  *.pem
-  *.key
-  config/secrets/
-  ```
+- [x] **Server-Side Only**: No secrets in frontend code. Frontend is read-only (wallet signing happens in browser extensions, not with server keys). Coordinator has no private keys at all.
 
-- [ ] **Server-Side Only**: Never expose secrets to client
-  - No API keys in frontend code
-  - No private keys in browser
-  - No secrets in client-side config
-
-- [ ] **Key Rotation Procedures**: Document and practice
-  - How to rotate each key type
-  - Automation where possible
-  - Zero-downtime rotation
+- [x] **Key Rotation Procedures**: Documented in `docs/operations/key-rotation.md`. Covers integrated-GMP relay keypair (with on-chain re-registration), solver EVM/SVM/MVM keys, and RPC API keys. Zero-downtime procedure for relay rotation (register new before deauthorizing old).
 
 ### Secrets Inventory
 

@@ -68,8 +68,8 @@ After each task: `/review-me` → `/commit`.
 
 ### 6. Secrets Management (checklist §6)
 
-- [ ] **6a. .env.example files** — Create `.env.example` at repo root documenting all expected environment variables (with placeholder values). Reference from README.
-- [ ] **6b. Key rotation documentation** — Document rotation steps for integrated-gmp operator key, solver keys, and RPC API keys. Add to `docs/operations/` or similar.
+- [x] **6a. .env.example files** — Skipped. No component loads `.env` from repo root (no dotenv/dotenvy in Rust, no dotenv in JS). Existing `.env` files are component-specific (`evm/.env`, `frontend/.env.local`, `testing-infra/networks/`). A root `.env.example` wouldn't be consumed by anything.
+- [x] **6b. Key rotation documentation** — `docs/operations/key-rotation.md` covers integrated-GMP Ed25519 keypair (with on-chain relay re-registration), solver EVM/SVM private keys, solver MVM profile, and RPC API keys.
 
 `/review-me` → `/commit`
 
