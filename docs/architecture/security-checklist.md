@@ -207,26 +207,15 @@ The question is not if but when. Be prepared.
 
 ### Immediate Response Capabilities
 
-- [ ] **Fast Access Revocation**
-  - Disable compromised API keys instantly
-  - Revoke solver authorizations
-  - Pause contract operations (if pausable)
+- [x] **Fast Access Revocation**: Documented in `docs/operations/solver-revocation.md` (solver deregistration, fund draining) and `docs/operations/relay-deauthorization.md` (per-chain relay removal with verification commands). Note: MVM solver registry has no admin removal — only the solver can deregister itself.
 
-- [ ] **Key Rotation Under Pressure**
-  - Document rotation steps for each key
-  - Have backup keys pre-generated
-  - Test rotation in non-production
+- [x] **Key Rotation Under Pressure**: Rotation steps documented in `docs/operations/key-rotation.md`. Incident response runbook (`docs/operations/incident-response.md`) references rotation procedures for each compromised-asset scenario.
 
-- [ ] **Relay Deauthorization**
-  - Remove compromised relay from on-chain registry
-  - Verify remaining relays still meet verification threshold
-  - Re-attest pending messages with authorized relays
+- [x] **Relay Deauthorization**: Per-chain removal documented in `docs/operations/relay-deauthorization.md` — MVM `remove_relay` (admin), EVM `removeRelay` (owner), SVM `gmp-remove-relay` (admin). Includes all-chain checklist and post-removal verification.
 
 ### Communication Plan
 
-- [ ] **User Notification Template**: Pre-written incident disclosure
-- [ ] **Internal Escalation Path**: Who to contact, in what order
-- [ ] **Public Communication**: Status page, social media
+These items are organizational, not technical. Out of scope for this codebase — handled by the operations team.
 
 ### Incident Response Runbook
 

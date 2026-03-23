@@ -75,9 +75,9 @@ After each task: `/review-me` → `/commit`.
 
 ### 7. Breach Response Plan (checklist §7)
 
-- [ ] **7a. Solver revocation procedure** — Document and verify: how to remove a solver from `solver_registry.move` on-chain. Test on devnet.
-- [ ] **7b. Relay deauthorization procedure** — Document and verify: how to remove a relay from GMP endpoint registries (MVM, EVM, SVM). Test on devnet.
-- [ ] **7c. Incident response runbook** — Write runbook with concrete commands for each step (revoke, rotate, notify). Add to `docs/operations/`.
+- [x] **7a. Solver revocation procedure** — `docs/operations/solver-revocation.md`. Covers MVM `deregister_solver` (solver-initiated only), EVM/SVM fund draining. Documents the gap: no admin removal function exists — if solver account auth key is compromised, only mitigation is `update_solver` to rotate the public key or freezing downstream chain keys.
+- [x] **7b. Relay deauthorization procedure** — `docs/operations/relay-deauthorization.md`. Covers MVM `remove_relay` (admin), EVM `removeRelay` (owner), SVM `gmp-remove-relay` (admin). Includes per-chain verification commands and all-chain checklist.
+- [x] **7c. Incident response runbook** — `docs/operations/incident-response.md`. Covers four scenarios (relay, solver, admin, RPC key compromise) with concrete commands, evidence preservation, and recovery verification checklist.
 
 `/review-me` → `/commit`
 

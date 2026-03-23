@@ -23,3 +23,6 @@ A framework for creating programmable intents. Supports single-chain intents (un
 ## Operations
 
 - **[Key Rotation](operations/key-rotation.md)** - Procedures for rotating relay keys, solver keys, and RPC API keys
+- **[Solver Revocation](operations/solver-revocation.md)** - Removing a solver from the on-chain registry
+- **[Relay Deauthorization](operations/relay-deauthorization.md)** - Removing a relay from GMP endpoint registries
+- **[Incident Response](operations/incident-response.md)** - Security incident response runbook
