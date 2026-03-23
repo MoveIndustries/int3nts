@@ -968,12 +968,34 @@ impl NativeGmpRelay {
         };
 
         if from_block > current_block {
+            debug!(
+                chain_id = evm_chain_id,
+                current_block = current_block,
+                "EVM chain idle (caught up to head)"
+            );
             return Ok(());
         }
 
         let to_block = from_block.saturating_add(max_range - 1).min(current_block);
 
         let messages = client.poll_message_sent_events(from_block, to_block).await?;
+
+        if messages.is_empty() {
+            debug!(
+                chain_id = evm_chain_id,
+                from_block = from_block,
+                to_block = to_block,
+                "EVM poll: no new messages"
+            );
+        } else {
+            info!(
+                chain_id = evm_chain_id,
+                from_block = from_block,
+                to_block = to_block,
+                message_count = messages.len(),
+                "EVM poll: processing messages"
+            );
+        }
 
         for message in &messages {
             info!(
@@ -985,6 +1007,11 @@ impl NativeGmpRelay {
                 let state = self.state.read().await;
                 if let Some(processed) = state.processed_nonces.get(&evm_chain_id) {
                     if processed.contains(&message.nonce) {
+                        debug!(
+                            chain_id = evm_chain_id,
+                            nonce = message.nonce,
+                            "EVM: skipping already-processed nonce"
+                        );
                         continue;
                     }
                 }

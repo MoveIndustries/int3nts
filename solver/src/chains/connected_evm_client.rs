@@ -8,6 +8,7 @@
 use anyhow::{Context, Result};
 use sha3::{Digest, Keccak256};
 use std::process::Command;
+use tracing::{error, info};
 
 use super::tx_hash::extract_tx_hash;
 
@@ -118,6 +119,16 @@ impl ConnectedEvmClient {
             format!("0x{}", intent_id)
         };
 
+        info!(
+            action = "evm_transfer",
+            intent_id = %intent_id,
+            token_addr = %token_addr,
+            recipient = %recipient,
+            amount = amount,
+            network = %self.network_name,
+            "Executing EVM transfer with intent_id"
+        );
+
         let solver_private_key = std::env::var(&self.private_key_env)
             .with_context(|| format!("Missing required env var {} for EVM private key", self.private_key_env))?;
         let nix_dir = project_root.join("nix");
@@ -146,6 +157,12 @@ impl ConnectedEvmClient {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
+            error!(
+                action = "evm_transfer_failed",
+                intent_id = %intent_id,
+                network = %self.network_name,
+                "Hardhat transfer-with-intent-id script failed"
+            );
             anyhow::bail!(
                 "Hardhat transfer-with-intent-id script failed:\nstderr: {}\nstdout: {}",
                 stderr,
@@ -154,7 +171,14 @@ impl ConnectedEvmClient {
         }
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        extract_tx_hash(&output_str, "transfer-with-intent-id")
+        let tx_hash = extract_tx_hash(&output_str, "transfer-with-intent-id")?;
+        info!(
+            action = "evm_transfer_success",
+            intent_id = %intent_id,
+            tx_hash = %tx_hash,
+            "EVM transfer completed"
+        );
+        Ok(tx_hash)
     }
 
     /// Checks if an inflow escrow has been auto-released (via Hardhat script).
@@ -296,6 +320,15 @@ impl ConnectedEvmClient {
             format!("0x{}", intent_id)
         };
 
+        info!(
+            action = "evm_fulfill_outflow",
+            intent_id = %intent_id,
+            token_addr = %token_addr,
+            outflow_validator = %outflow_addr,
+            network = %self.network_name,
+            "Executing EVM outflow fulfillment via GMP"
+        );
+
         let project_root = std::env::current_dir().context("Failed to get current directory")?;
         let evm_framework_dir = project_root.join("intent-frameworks/evm");
         if !evm_framework_dir.exists() {
@@ -332,6 +365,12 @@ impl ConnectedEvmClient {
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
+            error!(
+                action = "evm_fulfill_outflow_failed",
+                intent_id = %intent_id,
+                network = %self.network_name,
+                "Hardhat fulfill-outflow-intent script failed"
+            );
             anyhow::bail!(
                 "Hardhat fulfill-outflow-intent script failed:\nstderr: {}\nstdout: {}",
                 stderr,
@@ -340,6 +379,13 @@ impl ConnectedEvmClient {
         }
 
         let output_str = String::from_utf8_lossy(&output.stdout);
-        extract_tx_hash(&output_str, "fulfill-outflow-intent")
+        let tx_hash = extract_tx_hash(&output_str, "fulfill-outflow-intent")?;
+        info!(
+            action = "evm_fulfill_outflow_success",
+            intent_id = %intent_id,
+            tx_hash = %tx_hash,
+            "EVM outflow fulfillment completed"
+        );
+        Ok(tx_hash)
     }
 }

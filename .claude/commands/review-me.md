@@ -38,62 +38,55 @@ If any test files were added, removed, or modified:
 
 This is not a question to ask the user — verify it yourself by reading the files.
 
-## Step 2: Ask Critical Questions
+## Step 2: Investigate (DO NOT ASK THE USER — READ THE CODE)
 
-Based on the changes, ask the user questions in these categories:
+For each category below, **read the relevant source files yourself** and report what you found. Only ask the user about things you genuinely cannot determine from the code (e.g., intent behind a design choice, external context).
 
 ### Completeness
 
-- Did you implement this across all relevant frameworks (MVM/EVM/SVM)?
-- Are there related files that should also be updated?
+- Check whether the change applies to all relevant frameworks (MVM/EVM/SVM). Read the equivalent files in sibling frameworks.
+- Identify related files that should also be updated but weren't.
 
 ### Testing
 
-- Did new functions or features in this commit receive sufficient tests?
-- Where are the tests for this change?
-- Did you test happy path, edge cases, and error conditions?
-- Do tests follow format rules (Rule 10-11 from codestyle-testing.md)?
-- Did you check for magic numbers and replace them with constants?
-- Are tests hard failures (no TODOs, no fallbacks)?
+- Check whether new functions or changed behavior have corresponding tests.
+- Verify tests cover happy path, edge cases, and error conditions.
+- Read the test files and verify they follow format rules (Rule 10-11 from codestyle-testing.md).
+- Check for magic numbers — grep the test files for hardcoded values that should be constants.
+- Verify tests are hard failures (no TODOs used as assertions, no fallbacks).
 
 ### Code Quality
 
-- Why did you make this change?
-- What edge cases does this handle?
-- What happens if [error condition X] occurs?
-- Did you check for code duplication?
-- Are variable names following conventions (_addr suffix, etc.)?
+- Read the changed code and surrounding context. Identify edge cases the code handles or misses.
+- Check for code duplication by reading related files.
+- Verify variable names follow conventions (_addr suffix, etc.).
+- If the change adds a check or validation, read the equivalent code in related components to verify consistency.
 
 ### Documentation
 
-- Did you update relevant README files?
-- Are public functions documented?
-- Did you update architecture diagrams if needed?
-- **If markdown files changed**: Do all code blocks have language specifiers? (MD040)
-  - Check for bare ` ``` ` without language like `json`, `bash`, `rust`, etc.
+- Check whether relevant README files need updates.
+- Check whether public functions are documented.
+- **If markdown files changed**: Read them and check that all code blocks have language specifiers (no bare ` ``` `).
 
 ### Symmetry (for framework changes)
 
-- If you added this to MVM, does EVM need it? Does SVM?
-- Are the implementations equivalent across frameworks?
-- Did you verify test numbering matches across frameworks?
+- Read the equivalent implementations across frameworks. Report whether they are consistent.
+- Verify test numbering matches across frameworks by reading the actual test files.
 
-## Step 3: Evaluate Answers
+## Step 3: Report Findings
 
-After each answer:
+Present your findings organized as:
 
-- Point out gaps or issues
-- Ask follow-up questions if answers are unclear
-- Challenge assumptions
-- Suggest improvements
+- **Issues**: Concrete problems found (with file paths and line numbers)
+- **Questions**: Things you genuinely could not determine from the code alone — ask these sparingly
+- **Observations**: Non-blocking notes worth mentioning
 
 ## Step 4: Pass/Fail Decision
 
 **Pass criteria:**
 
-- All questions answered satisfactorily
-- No obvious gaps in implementation
-- Tests are comprehensive
+- No issues found during investigation
+- Tests cover the changed behavior
 - Documentation is updated
 - Framework symmetry maintained (if applicable)
 
@@ -103,7 +96,7 @@ After each answer:
 - Missing tests for changed functionality
 - Incomplete implementation
 - Framework asymmetry not justified
-- Can't explain rationale for changes
+- Code inconsistency with related components
 
 ## Output Format
 
@@ -115,10 +108,10 @@ Start with:
 I found changes to:
 - [list key files/areas]
 
-Let me ask you some questions...
+Investigating...
 ```
 
-Then ask questions one category at a time, wait for answers.
+Then present findings (issues, questions, observations).
 
 End with either:
 
@@ -135,8 +128,8 @@ or:
 
 ## Important Notes
 
+- **Do the work yourself.** If a question can be answered by reading the code, read the code. Only ask the user about intent, external context, or design rationale that isn't in the codebase.
 - Be thorough but not pedantic
 - Focus on high-impact issues
-- Ask "why" not just "what"
 - Challenge but don't block unnecessarily
 - Consider project-specific patterns (No Fallbacks Policy, etc.)

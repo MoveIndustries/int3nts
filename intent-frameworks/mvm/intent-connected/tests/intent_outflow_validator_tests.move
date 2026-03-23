@@ -725,4 +725,14 @@ module mvmt_intent::intent_outflow_validator_tests {
     // Why: Ensures the updated config is used for GMP message validation.
     // TODO: Implement - MVM has update_hub_config in intent_outflow_validator_impl
     // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+
+    // ============================================================================
+    // GMP CALLER AUTHORIZATION
+    // ============================================================================
+
+    // 22. Test: GmpReceive rejects unsigned/unauthorized GMP caller
+    // Verifies that deliver_message_entry rejects calls from non-authorized relays.
+    // Why: Only authorized relays can deliver intent requirements.
+    // TODO: Implement - MVM has is_authorized_relay check in deliver_message_entry
+    // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
 }

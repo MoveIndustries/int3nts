@@ -387,6 +387,18 @@ describe("IntentOutflowValidator", function () {
   });
 
   // ============================================================================
+  // GMP Caller Authorization
+  // ============================================================================
+
+  describe("GMP Caller Authorization", function () {
+    /// 22. Test: test_gmp_receive_rejects_unsigned_gmp_caller: GmpReceive Rejects Unauthorized Caller
+    /// Verifies that receiveIntentRequirements rejects calls from non-GMP-endpoint addresses.
+    /// Why: Only the authorized GMP endpoint can deliver intent requirements.
+    /// TODO: Implement - EVM has onlyGmpEndpoint modifier on receiveIntentRequirements
+    /// SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+  });
+
+  // ============================================================================
   // Helper Functions
   // ============================================================================
 

@@ -1365,3 +1365,70 @@ async fn test_update_hub_config_then_gmp_receive() {
     assert_eq!(stored.amount_required, 1_000_000);
     assert!(!stored.fulfilled);
 }
+
+// ============================================================================
+// GMP Caller Authorization
+// ============================================================================
+
+/// 22. Test: GmpReceive rejects unsigned gmp_caller
+/// Verifies that the gmp_caller account must be a transaction signer.
+/// Why: Only trusted relays/endpoints (signers) can deliver intent requirements.
+#[tokio::test]
+async fn test_gmp_receive_rejects_unsigned_gmp_caller() {
+    let pt = program_test();
+    let mut context = pt.start_with_context().await;
+    let admin = context.payer.insecure_clone();
+    let program_id = outflow_program_id();
+
+    // Initialize
+    let init_ix = create_initialize_ix(
+        program_id,
+        admin.pubkey(),
+        gmp_endpoint_id(),
+        HUB_CHAIN_ID,
+        hub_gmp_endpoint_addr(),
+    );
+    send_tx(&mut context, &admin, &[init_ix], &[]).await.unwrap();
+
+    // Use a separate keypair for gmp_caller so Solana doesn't merge it with payer
+    let unsigned_caller = Keypair::new();
+
+    // Build GmpReceive instruction with gmp_caller.is_signer = false
+    let intent_id = test_intent_id();
+    let requirements = IntentRequirements {
+        intent_id,
+        requester_addr: admin.pubkey().to_bytes(),
+        amount_required: 1_000_000,
+        token_addr: Pubkey::new_unique().to_bytes(),
+        solver_addr: [0u8; 32],
+        expiry: FAR_FUTURE_EXPIRY,
+    };
+    let payload = requirements.encode().to_vec();
+
+    let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
+    let (requirements_pda, _) = Pubkey::find_program_address(
+        &[seeds::REQUIREMENTS_SEED, &intent_id],
+        &program_id,
+    );
+
+    let instruction_data = OutflowInstruction::GmpReceive {
+        src_chain_id: HUB_CHAIN_ID,
+        remote_gmp_endpoint_addr: hub_gmp_endpoint_addr(),
+        payload,
+    };
+
+    let gmp_receive_ix = solana_sdk::instruction::Instruction {
+        program_id,
+        accounts: vec![
+            solana_sdk::instruction::AccountMeta::new(requirements_pda, false),
+            solana_sdk::instruction::AccountMeta::new_readonly(config_pda, false),
+            solana_sdk::instruction::AccountMeta::new_readonly(unsigned_caller.pubkey(), false), // NOT a signer
+            solana_sdk::instruction::AccountMeta::new(admin.pubkey(), true),                     // payer (signer)
+            solana_sdk::instruction::AccountMeta::new_readonly(solana_sdk::system_program::id(), false),
+        ],
+        data: instruction_data.try_to_vec().unwrap(),
+    };
+
+    let result = send_tx(&mut context, &admin, &[gmp_receive_ix], &[]).await;
+    assert!(result.is_err(), "Unsigned gmp_caller must be rejected");
+}

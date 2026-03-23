@@ -19,3 +19,10 @@ A framework for creating programmable intents. Supports single-chain intents (un
 - **[Testing Infrastructure](testing-infra/README.md)** - Chain setup and testing infrastructure
 - **[Frontend](frontend/README.md)** - Next.js web interface for intent creation and tracking
 - **[SDK](sdk/README.md)** - TypeScript requester SDK for protocol integration
+
+## Operations
+
+- **[Key Rotation](operations/key-rotation.md)** - Procedures for rotating relay keys, solver keys, and RPC API keys
+- **[Solver Revocation](operations/solver-revocation.md)** - Removing a solver from the on-chain registry
+- **[Relay Deauthorization](operations/relay-deauthorization.md)** - Removing a relay from GMP endpoint registries
+- **[Incident Response](operations/incident-response.md)** - Security incident response runbook

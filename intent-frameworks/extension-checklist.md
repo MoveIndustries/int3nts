@@ -283,6 +283,8 @@ SVM: `intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_te
 | 19 | test_update_hub_config_succeeds | [ ] | [ ] | [x] |
 | 20 | test_update_hub_config_rejects_non_admin | [ ] | [ ] | [x] |
 | 21 | test_update_hub_config_then_gmp_receive | [ ] | [ ] | [x] |
+| | **GMP Caller Authorization** | | | |
+| 22 | test_gmp_receive_rejects_unsigned_gmp_caller | [ ] | [ ] | [x] |
 
 ---
 

@@ -137,6 +137,15 @@ impl IntentTracker {
         // Use the actual intent_id from draft data (not the draft UUID)
         let intent_id = draft_data.intent_id.clone();
 
+        tracing::info!(
+            action = "intent_tracking_started",
+            draft_id = %draft_id,
+            intent_id = %intent_id,
+            requester_addr = %requester_addr,
+            expiry_time = expiry_time,
+            "Adding signed intent to tracker"
+        );
+
         let tracked = TrackedIntent {
             draft_id: draft_id.clone(),
             intent_id,

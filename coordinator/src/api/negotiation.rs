@@ -6,10 +6,10 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use sha2::{Sha256, Digest};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
-use uuid::Uuid;
 use warp::{http::StatusCode, Filter};
 
 use crate::api::generic::ApiResponse;
@@ -114,12 +114,59 @@ pub async fn create_draftintent_handler(
     store: Arc<RwLock<DraftintentStore>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     info!(
-        "Received draft intent submission from requester: {}",
-        request.requester_addr
+        action = "draft_create",
+        requester_addr = %request.requester_addr,
+        expiry_time = request.expiry_time,
+        "Received draft intent submission"
     );
 
-    // Generate unique draft ID (UUID)
-    let draft_id = Uuid::new_v4().to_string();
+    // Validate requester_addr: must be valid hex, with or without 0x prefix
+    let hex_str = request.requester_addr.strip_prefix("0x").unwrap_or(&request.requester_addr);
+    if hex_str.is_empty() || hex::decode(hex_str).is_err() {
+        return Err(warp::reject::custom(
+            crate::api::generic::JsonDeserializeError(
+                "requester_addr must be a hex string (with or without 0x prefix)".to_string(),
+            ),
+        ));
+    }
+
+    // Validate expiry_time: must be in the future
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    if request.expiry_time <= now {
+        return Err(warp::reject::custom(
+            crate::api::generic::JsonDeserializeError(
+                "expiry_time must be in the future".to_string(),
+            ),
+        ));
+    }
+
+    // Derive draft ID deterministically from request fields.
+    // Same (requester_addr, draft_data, expiry_time) → same draft_id,
+    // providing natural idempotency for retried requests.
+    let mut hasher = Sha256::new();
+    hasher.update(request.requester_addr.as_bytes());
+    hasher.update(request.draft_data.to_string().as_bytes());
+    hasher.update(request.expiry_time.to_le_bytes());
+    let draft_id = hex::encode(hasher.finalize());
+
+    // Return existing draft if this ID was already submitted
+    {
+        let store_read = store.read().await;
+        if let Some(existing) = store_read.get_draft(&draft_id).await {
+            info!(action = "draft_create_idempotent", draft_id = %draft_id, "Returning existing draft intent");
+            return Ok(warp::reply::json(&ApiResponse {
+                success: true,
+                data: Some(DraftintentResponse {
+                    draft_id: existing.draft_id,
+                    status: format!("{:?}", existing.status).to_lowercase(),
+                }),
+                error: None,
+            }));
+        }
+    }
 
     // Add draft to store
     {
@@ -134,7 +181,7 @@ pub async fn create_draftintent_handler(
             .await;
     }
 
-    info!("Created draft intent: {}", draft_id);
+    info!(action = "draft_created", draft_id = %draft_id, "Created draft intent");
 
     Ok(warp::reply::json(&ApiResponse {
         success: true,
@@ -260,18 +307,21 @@ pub async fn submit_signature_handler(
     config: Arc<Config>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     info!(
-        "Received signature submission for draft {} from solver {}",
-        draft_id, request.solver_hub_addr
+        action = "signature_submit",
+        draft_id = %draft_id,
+        solver_addr = %request.solver_hub_addr,
+        "Received signature submission"
     );
 
-    // Validate solver address format: must have 0x prefix
-    if !request.solver_hub_addr.starts_with("0x") {
+    // Validate solver address format: must be valid hex (with or without 0x prefix)
+    let solver_hex = request.solver_hub_addr.strip_prefix("0x").unwrap_or(&request.solver_hub_addr);
+    if solver_hex.is_empty() || hex::decode(solver_hex).is_err() {
         return Ok(warp::reply::with_status(
             warp::reply::json(&ApiResponse::<SignatureSubmissionResponse> {
                 success: false,
                 data: None,
                 error: Some(format!(
-                    "Invalid solver address '{}': must start with 0x prefix",
+                    "Invalid solver address '{}': must be a hex string",
                     request.solver_hub_addr
                 )),
             }),
@@ -360,7 +410,7 @@ pub async fn submit_signature_handler(
 
     match result {
         Ok(()) => {
-            info!("Successfully added signature for draft {}", draft_id);
+            info!(action = "signature_accepted", draft_id = %draft_id, solver_addr = %solver_hub_addr, "Signature accepted (FCFS winner)");
             Ok(warp::reply::with_status(
                 warp::reply::json(&ApiResponse {
                     success: true,
@@ -376,7 +426,7 @@ pub async fn submit_signature_handler(
         Err(e) => {
             // Check if it's an FCFS conflict (already signed)
             if e.contains("already signed") {
-                warn!("Draft {} already signed - rejecting duplicate signature", draft_id);
+                warn!(action = "signature_rejected_conflict", draft_id = %draft_id, solver_addr = %solver_hub_addr, "Draft already signed - rejecting duplicate signature");
                 Ok(warp::reply::with_status(
                     warp::reply::json(&ApiResponse::<SignatureSubmissionResponse> {
                         success: false,
@@ -386,7 +436,7 @@ pub async fn submit_signature_handler(
                     StatusCode::CONFLICT, // 409 Conflict
                 ))
             } else {
-                warn!("Failed to add signature for draft {}: {}", draft_id, e);
+                warn!(action = "signature_rejected", draft_id = %draft_id, solver_addr = %solver_hub_addr, error = %e, "Failed to add signature");
                 Ok(warp::reply::with_status(
                     warp::reply::json(&ApiResponse::<SignatureSubmissionResponse> {
                         success: false,

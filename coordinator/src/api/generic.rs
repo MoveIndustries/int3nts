@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, info_span};
 use warp::{http::{Method, StatusCode}, Filter, Rejection, Reply};
 use warp::hyper::body::Bytes;
 
@@ -281,7 +281,7 @@ pub async fn handle_rejection(rej: Rejection) -> Result<impl Reply, std::convert
     } else if rej.find::<warp::reject::MethodNotAllowed>().is_some() {
         (StatusCode::METHOD_NOT_ALLOWED, "Method not allowed".to_string())
     } else {
-        error!("Unhandled rejection: {:?}", rej);
+        error!(action = "unhandled_rejection", "Unhandled rejection: {:?}", rej);
         (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string())
     };
 
@@ -512,6 +512,19 @@ impl ApiServer {
                 }
             });
 
+        // Per-request correlation ID: wraps every request in a tracing span
+        // containing a unique request_id (UUID v4). All log lines within the
+        // request automatically inherit this field, enabling cross-log correlation.
+        let correlation = warp::trace(|req: warp::trace::Info| {
+            let request_id = uuid::Uuid::new_v4().to_string();
+            info_span!(
+                "request",
+                request_id = %request_id,
+                method = %req.method(),
+                path = %req.path(),
+            )
+        });
+
         // Combine all routes and apply rejection handler
         health
             .or(events)
@@ -521,6 +534,7 @@ impl ApiServer {
             .or(submit_signature)
             .or(get_signature)
             .or(exchange_rate)
+            .with(correlation)
             .with(create_cors_filter(&self.config.api.cors_origins))
             .recover(handle_rejection)
     }
