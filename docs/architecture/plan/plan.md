@@ -42,12 +42,12 @@ After each task: `/review-me` → `/commit`.
 
 ### 3. Auth Hardening (checklist §3)
 
-- [ ] **3a. Signature replay test** — Write test: reuse a valid solver signature on a different draft. Must be rejected.
-- [ ] **3b. Expired draft signing test** — Write test: submit signature after draft expiry. Must be rejected.
-- [ ] **3c. Out-of-order call test** — Write test: submit signature for non-existent draft. Must return 404.
-- [ ] **3d. Concurrent FCFS test** — Write test: two solvers race to sign the same draft. Exactly one succeeds.
-- [ ] **3e. Forged signer test** — Write test: signature from unregistered key. Must be rejected.
-- [ ] **3f. GMP message auth audit** — Verify all GMP endpoints (MVM, EVM, SVM) check relay authorization, remote endpoint address, and message idempotency.
+- [x] **3a. Signature replay test** — N/A for coordinator. Coordinator is a mailbox: it stores signature bytes without cryptographic verification. Replay prevention is enforced on-chain (Move VM verifies signature against intent data). Adding crypto verification to the coordinator would change its architecture.
+- [x] **3b. Expired draft signing test** — `test_draft_creation_rejected_for_past_expiry` in `auth_hardening_tests.rs`. Coordinator rejects draft creation with past expiry_time. Storage-level expiry-on-sign tested in `storage_tests::test_signature_expired_draft`.
+- [x] **3c. Out-of-order call test** — `test_signature_rejected_for_nonexistent_draft` in `auth_hardening_tests.rs`. Handler returns error when draft doesn't exist.
+- [x] **3d. Concurrent FCFS test** — `test_fcfs_second_solver_rejected_via_http` in `auth_hardening_tests.rs`. First signature succeeds (200), second gets 409 Conflict.
+- [x] **3e. Forged signer test** — `test_signature_rejected_for_unregistered_solver` in `auth_hardening_tests.rs`. Mock MVM returns error for unregistered solver; handler rejects.
+- [x] **3f. GMP message auth audit** — All three chains verified: (1) Relay authorization: MVM `is_authorized_relay`, EVM `authorizedRelays[msg.sender]`, SVM `gmp_caller.is_signer`. (2) Remote endpoint address: all three check `src_chain_id` and `remote_gmp_endpoint_addr` against stored config. (3) Idempotency: MVM/EVM use dedup keys (intent_id + msg_type), SVM checks `data_len > 0` / `fulfilled` flag. No gaps.
 
 `/review-me` → `/commit`
 
