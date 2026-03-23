@@ -118,13 +118,12 @@ pub async fn create_draftintent_handler(
         request.requester_addr
     );
 
-    // Validate requester_addr: must be hex with 0x prefix
-    if !request.requester_addr.starts_with("0x")
-        || hex::decode(&request.requester_addr[2..]).is_err()
-    {
+    // Validate requester_addr: must be valid hex, with or without 0x prefix
+    let hex_str = request.requester_addr.strip_prefix("0x").unwrap_or(&request.requester_addr);
+    if hex_str.is_empty() || hex::decode(hex_str).is_err() {
         return Err(warp::reject::custom(
             crate::api::generic::JsonDeserializeError(
-                "requester_addr must be a 0x-prefixed hex string".to_string(),
+                "requester_addr must be a hex string (with or without 0x prefix)".to_string(),
             ),
         ));
     }
@@ -310,14 +309,15 @@ pub async fn submit_signature_handler(
         draft_id, request.solver_hub_addr
     );
 
-    // Validate solver address format: must have 0x prefix
-    if !request.solver_hub_addr.starts_with("0x") {
+    // Validate solver address format: must be valid hex (with or without 0x prefix)
+    let solver_hex = request.solver_hub_addr.strip_prefix("0x").unwrap_or(&request.solver_hub_addr);
+    if solver_hex.is_empty() || hex::decode(solver_hex).is_err() {
         return Ok(warp::reply::with_status(
             warp::reply::json(&ApiResponse::<SignatureSubmissionResponse> {
                 success: false,
                 data: None,
                 error: Some(format!(
-                    "Invalid solver address '{}': must start with 0x prefix",
+                    "Invalid solver address '{}': must be a hex string",
                     request.solver_hub_addr
                 )),
             }),
