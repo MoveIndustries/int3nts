@@ -75,6 +75,7 @@ Fill in every section of the template:
 - Remove sections that don't apply (e.g., "Breaking Changes" if none, "Related Issues" if none)
 - Be specific and factual — base content ONLY on the actual diff
 - Do NOT mention AI/Claude/LLM in the PR body
+- **Markdown lint**: Every heading (`#`, `##`, `###`, etc.) MUST have a blank line both above and below it (MD022). No exceptions.
 
 ## Step 5: Ask User to Review
 
