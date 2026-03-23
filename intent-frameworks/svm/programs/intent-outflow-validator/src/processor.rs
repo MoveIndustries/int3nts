@@ -137,9 +137,14 @@ fn process_gmp_receive(
     let account_info_iter = &mut accounts.iter();
     let requirements_account = next_account_info(account_info_iter)?;
     let config_account = next_account_info(account_info_iter)?;
-    let _authority = next_account_info(account_info_iter)?; // GMP endpoint or relay
+    let gmp_caller = next_account_info(account_info_iter)?;
     let payer = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
+
+    // GMP caller must be a signer (trusted relay or endpoint)
+    if !gmp_caller.is_signer {
+        return Err(OutflowError::UnauthorizedGmpSource.into());
+    }
 
     // Load and verify config
     let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], program_id);

@@ -33,6 +33,10 @@
    - Wrapping async in `block_on()` adds complexity with no functional benefit. Revisit if Solana SDK gains a stable async client
    - See: `solver/src/chains/connected_svm_client.rs` module doc comment
 
+## Negotiation Protocol
+
+- **Requester has no say in solver selection** — Current FCFS (first-come-first-served) design: requester posts a draft, first solver to sign wins. The requester cannot compare offers or reject an unfavorable exchange rate. Consider adding a negotiation phase where multiple solvers submit bids and the requester (or the coordinator on the requester's behalf) selects the best offer before the intent is created on-chain.
+
 ## Coordinator & Integrated-GMP
 
 1. **Performance Testing**

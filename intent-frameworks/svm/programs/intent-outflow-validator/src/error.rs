@@ -37,6 +37,9 @@ pub enum OutflowError {
 
     #[error("Invalid PDA")]
     InvalidPda,
+
+    #[error("Unauthorized GMP source")]
+    UnauthorizedGmpSource,
 }
 
 impl From<OutflowError> for ProgramError {

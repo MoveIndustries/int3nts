@@ -33,10 +33,10 @@ After each task: `/review-me` → `/commit`.
 
 ### 2. Client Trust Elimination (checklist §2)
 
-- [ ] **2a. Audit MVM contracts** — Review `signer` checks in `fa_intent_inflow.move`, `fa_intent_outflow.move`, `intent_gmp.move` (hub + connected). Verify every public entry function checks caller authorization.
-- [ ] **2b. Audit EVM contracts** — Review `IntentInflowEscrow.sol`, `IntentOutflowValidator.sol`, `IntentGmp.sol`. Verify `msg.sender` / `onlyRelay` checks on all state-changing functions.
-- [ ] **2c. Audit SVM programs** — Review `intent_inflow_escrow`, `intent-outflow-validator`, `intent-gmp`. Verify signer constraints on all instructions.
-- [ ] **2d. Audit solver** — Verify solver only processes intents it is authorized for. Check that transaction signing uses keys from config, not from request data.
+- [x] **2a. Audit MVM contracts** — No gaps. All 35+ public entry functions have proper signer checks (admin `@mvmt_intent`, solver Ed25519 signatures, token withdrawal, relay authorization).
+- [x] **2b. Audit EVM contracts** — No gaps in production contracts. All state-changing functions have `onlyOwner`/`onlyGmpEndpoint`/`msg.sender` checks. `MockERC20.mint()` is unrestricted (test-only, intentional).
+- [x] **2c. Audit SVM programs** — Fixed: `process_gmp_receive` in `intent-outflow-validator` was missing `is_signer` check on `gmp_caller`. Added check + `UnauthorizedGmpSource` error variant, matching inflow escrow's pattern.
+- [x] **2d. Audit solver** — Signing keys correct (always from config/env, never request data). No runtime solver-authorization filter on drafts (FCFS design — not a bug, see coordinator `Draftintent` doc: "open to any solver, first to sign wins").
 
 `/review-me` → `/commit`
 
