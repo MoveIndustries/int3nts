@@ -50,6 +50,12 @@ Assume every endpoint will be abused. Attackers don't follow happy paths.
 | Coordinator API | `coordinator/src/api/` | Rate limits, input validation |
 | Draft Intent Endpoint | `POST /draftintent` | Idempotency, rate limiting |
 | Signature Endpoint | `POST /draftintent/:id/signature` | FCFS protection, replay prevention |
+| EVM Inflow Escrow | `intent-frameworks/evm/contracts/IntentInflowEscrow.sol` | Input validation, deposit bounds |
+| EVM Outflow Validator | `intent-frameworks/evm/contracts/IntentOutflowValidator.sol` | Input validation, fulfillment replay |
+| EVM GMP Endpoint | `intent-frameworks/evm/contracts/IntentGmp.sol` | Message validation |
+| SVM Inflow Escrow | `intent-frameworks/svm/programs/intent_inflow_escrow/` | Input validation, deposit bounds |
+| SVM Outflow Validator | `intent-frameworks/svm/programs/intent-outflow-validator/` | Input validation, fulfillment replay |
+| SVM GMP Endpoint | `intent-frameworks/svm/programs/intent-gmp/` | Message validation |
 
 ---
 
@@ -81,11 +87,17 @@ Frontend checks are for UX, not security. All security checks must be server-sid
 
 ### Components to Review
 
-| Component | Checks |
-|-----------|--------|
-| Move Contracts | `signer` verification, ownership checks |
-| GMP Endpoint Contracts | Relay authorization, remote endpoint verification |
-| Solver | Transaction signing, permission checks |
+| Component | File | Checks |
+| --------- | ---- | ------ |
+| MVM Hub Contracts | `intent-frameworks/mvm/intent-hub/sources/` | `signer` verification, ownership checks |
+| MVM Connected Contracts | `intent-frameworks/mvm/intent-connected/sources/` | `signer` verification, ownership checks |
+| EVM Inflow Escrow | `intent-frameworks/evm/contracts/IntentInflowEscrow.sol` | Escrow ownership, claim authorization |
+| EVM Outflow Validator | `intent-frameworks/evm/contracts/IntentOutflowValidator.sol` | Fulfillment authorization |
+| EVM GMP Endpoint | `intent-frameworks/evm/contracts/IntentGmp.sol` | Relay authorization, remote endpoint verification |
+| SVM Inflow Escrow | `intent-frameworks/svm/programs/intent_inflow_escrow/` | Escrow ownership, claim authorization |
+| SVM Outflow Validator | `intent-frameworks/svm/programs/intent-outflow-validator/` | Fulfillment authorization |
+| SVM GMP Endpoint | `intent-frameworks/svm/programs/intent-gmp/` | Relay authorization, remote endpoint verification |
+| Solver | `solver/` | Transaction signing, permission checks |
 
 ---
 
@@ -97,12 +109,11 @@ Auth working once doesn't mean auth is safe. Test edge cases.
 
 ### Test Scenarios
 
-- [ ] **Concurrent Sessions**: Login twice quickly
-- [ ] **Token Refresh**: Refresh mid-request
-- [ ] **Token Reuse**: Attempt to reuse old/expired tokens
-- [ ] **Out-of-Order Calls**: Call endpoints in unexpected order
-- [ ] **Multi-Tab Behavior**: Multiple browser tabs with different states
-- [ ] **Session Expiry**: Actions during session timeout
+- [ ] **Signature Replay**: Reuse a valid solver signature on a different draft
+- [ ] **Expired Draft Signing**: Submit a signature after draft expiry
+- [ ] **Out-of-Order Calls**: Call endpoints in unexpected order (e.g., signature before draft exists)
+- [ ] **Concurrent FCFS**: Two solvers submit signatures for the same draft simultaneously
+- [ ] **Forged Signer**: Submit a signature that doesn't match the solver's registered public key
 
 ### GMP Message Authentication Hardening
 
@@ -116,8 +127,11 @@ Auth working once doesn't mean auth is safe. Test edge cases.
 | Component | File | Checks |
 |-----------|------|--------|
 | Solver Registry | `intent-frameworks/mvm/intent-hub/sources/solver_registry.move` | Public key management |
-| GMP Endpoint | `intent-frameworks/mvm/intent-gmp/sources/gmp/intent_gmp.move` | Relay authorization, remote endpoint verification |
-| Intent Creation | `create_inflow_intent`, `create_outflow_intent` | Solver signature verification |
+| GMP Endpoint (Hub) | `intent-frameworks/mvm/intent-hub/sources/gmp/intent_gmp.move` | Relay authorization, remote endpoint verification |
+| GMP Endpoint (Connected) | `intent-frameworks/mvm/intent-connected/sources/gmp/intent_gmp.move` | Relay authorization, remote endpoint verification |
+| Intent Creation | `fa_intent_inflow.move`, `fa_intent_outflow.move` | Solver signature verification |
+| EVM GMP Endpoint | `intent-frameworks/evm/contracts/IntentGmp.sol` | Relay authorization, remote endpoint verification |
+| SVM GMP Endpoint | `intent-frameworks/svm/programs/intent-gmp/` | Relay authorization, remote endpoint verification |
 
 ---
 
@@ -182,15 +196,14 @@ Third-party services will fail. Design for it.
   Backoff factor: 2x
   ```
 
-- [ ] **Graceful Fallbacks**: Handle service unavailability
+- [ ] **Redundant Providers**: Eliminate single points of failure
   - Multiple RPC endpoints per chain
-  - Fallback verification methods
-  - Cached state for read operations
+  - If one provider is down, fail over to the next — no silent degradation
 
-- [ ] **No Single-Request-Does-Everything**: Break complex flows
+- [ ] **Resumable Flows**: Break complex operations into checkpoint steps
   - Avoid atomic multi-chain operations
-  - Use checkpoints and resumable flows
-  - Handle partial failures gracefully
+  - Use checkpoints so flows can resume after transient failures
+  - Each step either succeeds or fails explicitly
 
 ### Failure Scenarios to Handle
 
@@ -264,10 +277,10 @@ The question is not if but when. Be prepared.
   - Have backup keys pre-generated
   - Test rotation in non-production
 
-- [ ] **Session Invalidation**
-  - Force logout all sessions
-  - Invalidate all tokens
-  - Require re-authentication
+- [ ] **Relay Deauthorization**
+  - Remove compromised relay from on-chain registry
+  - Verify remaining relays still meet verification threshold
+  - Re-attest pending messages with authorized relays
 
 ### Communication Plan
 

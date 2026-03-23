@@ -6,10 +6,10 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use sha2::{Sha256, Digest};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
-use uuid::Uuid;
 use warp::{http::StatusCode, Filter};
 
 use crate::api::generic::ApiResponse;
@@ -118,8 +118,54 @@ pub async fn create_draftintent_handler(
         request.requester_addr
     );
 
-    // Generate unique draft ID (UUID)
-    let draft_id = Uuid::new_v4().to_string();
+    // Validate requester_addr: must be hex with 0x prefix
+    if !request.requester_addr.starts_with("0x")
+        || hex::decode(&request.requester_addr[2..]).is_err()
+    {
+        return Err(warp::reject::custom(
+            crate::api::generic::JsonDeserializeError(
+                "requester_addr must be a 0x-prefixed hex string".to_string(),
+            ),
+        ));
+    }
+
+    // Validate expiry_time: must be in the future
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    if request.expiry_time <= now {
+        return Err(warp::reject::custom(
+            crate::api::generic::JsonDeserializeError(
+                "expiry_time must be in the future".to_string(),
+            ),
+        ));
+    }
+
+    // Derive draft ID deterministically from request fields.
+    // Same (requester_addr, draft_data, expiry_time) → same draft_id,
+    // providing natural idempotency for retried requests.
+    let mut hasher = Sha256::new();
+    hasher.update(request.requester_addr.as_bytes());
+    hasher.update(request.draft_data.to_string().as_bytes());
+    hasher.update(request.expiry_time.to_le_bytes());
+    let draft_id = hex::encode(hasher.finalize());
+
+    // Return existing draft if this ID was already submitted
+    {
+        let store_read = store.read().await;
+        if let Some(existing) = store_read.get_draft(&draft_id).await {
+            info!("Returning existing draft intent: {}", draft_id);
+            return Ok(warp::reply::json(&ApiResponse {
+                success: true,
+                data: Some(DraftintentResponse {
+                    draft_id: existing.draft_id,
+                    status: format!("{:?}", existing.status).to_lowercase(),
+                }),
+                error: None,
+            }));
+        }
+    }
 
     // Add draft to store
     {

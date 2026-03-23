@@ -153,6 +153,132 @@ async fn test_draftintent_valid_request() {
     assert!(body.data.is_some());
 }
 
+/// Test that submitting the same draft twice returns the same draft_id
+/// What is tested: Deterministic draft ID from (requester_addr, draft_data, expiry_time)
+/// Why: Prevents duplicate drafts on retried requests, avoids solver locking liquidity twice
+#[tokio::test]
+async fn test_draftintent_idempotent_submission() {
+    let api_server = create_test_api_server().await;
+    let routes = api_server.test_routes();
+
+    let draft_request = valid_draft_request();
+
+    let response1 = request()
+        .method("POST")
+        .path("/draftintent")
+        .json(&draft_request)
+        .reply(&routes)
+        .await;
+
+    let response2 = request()
+        .method("POST")
+        .path("/draftintent")
+        .json(&draft_request)
+        .reply(&routes)
+        .await;
+
+    assert!(response1.status().is_success());
+    assert!(response2.status().is_success());
+
+    let body1: ApiResponse<serde_json::Value> = serde_json::from_slice(response1.body()).unwrap();
+    let body2: ApiResponse<serde_json::Value> = serde_json::from_slice(response2.body()).unwrap();
+
+    let id1 = body1.data.as_ref().unwrap()["draft_id"].as_str().unwrap();
+    let id2 = body2.data.as_ref().unwrap()["draft_id"].as_str().unwrap();
+
+    assert_eq!(id1, id2, "Same request must produce the same draft_id");
+}
+
+/// Test that different requests produce different draft_ids
+/// What is tested: Deterministic draft ID varies when inputs differ
+/// Why: Ensures distinct intents are not accidentally deduplicated
+#[tokio::test]
+async fn test_draftintent_different_inputs_different_ids() {
+    let api_server = create_test_api_server().await;
+    let routes = api_server.test_routes();
+
+    let request1 = valid_draft_request();
+    let request2 = json!({
+        "requester_addr": DUMMY_REQUESTER_ADDR_HUB,
+        "draft_data": { "offered_metadata": "0x1::test::Token", "offered_amount": 100 },
+        "expiry_time": DUMMY_EXPIRY + 1
+    });
+
+    let response1 = request()
+        .method("POST")
+        .path("/draftintent")
+        .json(&request1)
+        .reply(&routes)
+        .await;
+
+    let response2 = request()
+        .method("POST")
+        .path("/draftintent")
+        .json(&request2)
+        .reply(&routes)
+        .await;
+
+    let body1: ApiResponse<serde_json::Value> = serde_json::from_slice(response1.body()).unwrap();
+    let body2: ApiResponse<serde_json::Value> = serde_json::from_slice(response2.body()).unwrap();
+
+    let id1 = body1.data.as_ref().unwrap()["draft_id"].as_str().unwrap();
+    let id2 = body2.data.as_ref().unwrap()["draft_id"].as_str().unwrap();
+
+    assert_ne!(id1, id2, "Different requests must produce different draft_ids");
+}
+
+/// Test that invalid requester_addr is rejected
+/// What is tested: requester_addr must be 0x-prefixed hex
+/// Why: Prevents garbage data from entering the draft store
+#[tokio::test]
+async fn test_draftintent_invalid_requester_addr() {
+    let api_server = create_test_api_server().await;
+    let routes = api_server.test_routes();
+
+    let bad_request = json!({
+        "requester_addr": "not-hex",
+        "draft_data": { "offered_metadata": "0x1::test::Token", "offered_amount": 100 },
+        "expiry_time": DUMMY_EXPIRY
+    });
+
+    let response = request()
+        .method("POST")
+        .path("/draftintent")
+        .json(&bad_request)
+        .reply(&routes)
+        .await;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body: ApiResponse<()> = serde_json::from_slice(response.body()).unwrap();
+    assert!(body.error.unwrap().contains("requester_addr"));
+}
+
+/// Test that past expiry_time is rejected
+/// What is tested: expiry_time must be in the future
+/// Why: Expired drafts waste solver resources
+#[tokio::test]
+async fn test_draftintent_past_expiry() {
+    let api_server = create_test_api_server().await;
+    let routes = api_server.test_routes();
+
+    let bad_request = json!({
+        "requester_addr": DUMMY_REQUESTER_ADDR_HUB,
+        "draft_data": { "offered_metadata": "0x1::test::Token", "offered_amount": 100 },
+        "expiry_time": 1000000000
+    });
+
+    let response = request()
+        .method("POST")
+        .path("/draftintent")
+        .json(&bad_request)
+        .reply(&routes)
+        .await;
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body: ApiResponse<()> = serde_json::from_slice(response.body()).unwrap();
+    assert!(body.error.unwrap().contains("expiry_time"));
+}
+
 /// Test that empty body returns proper error
 /// What is tested: Error handling for empty request body
 /// Why: Ensures clients get clear error messages for empty requests
