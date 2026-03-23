@@ -46,8 +46,8 @@ async fn main() -> Result<()> {
     // Parse command line arguments first (before initializing logging)
     let args = Args::parse();
 
-    // Initialize structured logging
-    tracing_subscriber::fmt::init();
+    // Initialize structured JSON logging for production log aggregation
+    tracing_subscriber::fmt().json().init();
 
     info!("Starting Solver Service");
 

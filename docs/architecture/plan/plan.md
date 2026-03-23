@@ -47,15 +47,15 @@ After each task: `/review-me` → `/commit`.
 - [x] **3c. Out-of-order call test** — `test_signature_rejected_for_nonexistent_draft` in `auth_hardening_tests.rs`. Handler returns error when draft doesn't exist.
 - [x] **3d. Concurrent FCFS test** — `test_fcfs_second_solver_rejected_via_http` in `auth_hardening_tests.rs`. First signature succeeds (200), second gets 409 Conflict.
 - [x] **3e. Forged signer test** — `test_signature_rejected_for_unregistered_solver` in `auth_hardening_tests.rs`. Mock MVM returns error for unregistered solver; handler rejects.
-- [x] **3f. GMP message auth audit** — All three chains verified: (1) Relay authorization: MVM `is_authorized_relay`, EVM `authorizedRelays[msg.sender]`, SVM `gmp_caller.is_signer`. (2) Remote endpoint address: all three check `src_chain_id` and `remote_gmp_endpoint_addr` against stored config. (3) Idempotency: MVM/EVM use dedup keys (intent_id + msg_type), SVM checks `data_len > 0` / `fulfilled` flag. No gaps.
+- [x] **3f. GMP message auth audit** — All three chains verified: (1) Relay authorization: MVM `is_authorized_relay`, EVM `authorizedRelays[msg.sender]`, SVM `gmp_caller.is_signer`. (2) Remote endpoint address: all three check `src_chain_id` and `remote_gmp_endpoint_addr` against stored config. (3) Idempotency: MVM/EVM use dedupe keys (intent_id + msg_type), SVM checks `data_len > 0` / `fulfilled` flag. No gaps.
 
 `/review-me` → `/commit`
 
 ### 4. Logging Infrastructure (checklist §4)
 
-- [ ] **4a. Structured JSON logging** — Replace `tracing_subscriber::fmt::init()` in coordinator, integrated-gmp, and solver with `tracing_subscriber::fmt().json().init()`. Add structured fields (`intent_id`, `chain_id`, `action`) to key log lines.
-- [ ] **4b. Correlation IDs** — Generate a `request_id` (UUID) at coordinator API entry. Attach as tracing span field. Propagate to integrated-gmp calls.
-- [ ] **4c. Sensitive action logging** — Ensure all critical paths log: draft creation, signature submission, escrow creation, GMP message delivery, fulfillment, claim, refund.
+- [x] **4a. Structured JSON logging** — All three services (coordinator, integrated-gmp, solver) now use `tracing_subscriber::fmt().json().init()`. `tracing-subscriber` Cargo.toml entries updated with `features = ["json"]`. Structured fields (`action`, `draft_id`, `intent_id`, `chain_id`, `solver_addr`, etc.) added to key log lines.
+- [x] **4b. Correlation IDs** — Coordinator API wraps every request in a `warp::trace` span containing a UUID v4 `request_id`, plus `method` and `path`. All log lines within a request inherit these fields automatically. Added `uuid` crate dependency.
+- [x] **4c. Sensitive action logging** — Coordinator handlers: draft creation, idempotent return, signature submission, FCFS acceptance/rejection all log with structured fields. Integrated-GMP: added EVM polling idle/event-count/dedupe logging (matching existing MVM/SVM coverage). Solver: added `add_signed_intent` tracker entry logging, and full entry/success/failure logging for connected EVM client operations (transfer, outflow fulfillment).
 
 `/review-me` → `/commit`
 

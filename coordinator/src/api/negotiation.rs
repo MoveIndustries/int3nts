@@ -114,8 +114,10 @@ pub async fn create_draftintent_handler(
     store: Arc<RwLock<DraftintentStore>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     info!(
-        "Received draft intent submission from requester: {}",
-        request.requester_addr
+        action = "draft_create",
+        requester_addr = %request.requester_addr,
+        expiry_time = request.expiry_time,
+        "Received draft intent submission"
     );
 
     // Validate requester_addr: must be valid hex, with or without 0x prefix
@@ -154,7 +156,7 @@ pub async fn create_draftintent_handler(
     {
         let store_read = store.read().await;
         if let Some(existing) = store_read.get_draft(&draft_id).await {
-            info!("Returning existing draft intent: {}", draft_id);
+            info!(action = "draft_create_idempotent", draft_id = %draft_id, "Returning existing draft intent");
             return Ok(warp::reply::json(&ApiResponse {
                 success: true,
                 data: Some(DraftintentResponse {
@@ -179,7 +181,7 @@ pub async fn create_draftintent_handler(
             .await;
     }
 
-    info!("Created draft intent: {}", draft_id);
+    info!(action = "draft_created", draft_id = %draft_id, "Created draft intent");
 
     Ok(warp::reply::json(&ApiResponse {
         success: true,
@@ -305,8 +307,10 @@ pub async fn submit_signature_handler(
     config: Arc<Config>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     info!(
-        "Received signature submission for draft {} from solver {}",
-        draft_id, request.solver_hub_addr
+        action = "signature_submit",
+        draft_id = %draft_id,
+        solver_addr = %request.solver_hub_addr,
+        "Received signature submission"
     );
 
     // Validate solver address format: must be valid hex (with or without 0x prefix)
@@ -406,7 +410,7 @@ pub async fn submit_signature_handler(
 
     match result {
         Ok(()) => {
-            info!("Successfully added signature for draft {}", draft_id);
+            info!(action = "signature_accepted", draft_id = %draft_id, solver_addr = %solver_hub_addr, "Signature accepted (FCFS winner)");
             Ok(warp::reply::with_status(
                 warp::reply::json(&ApiResponse {
                     success: true,
@@ -422,7 +426,7 @@ pub async fn submit_signature_handler(
         Err(e) => {
             // Check if it's an FCFS conflict (already signed)
             if e.contains("already signed") {
-                warn!("Draft {} already signed - rejecting duplicate signature", draft_id);
+                warn!(action = "signature_rejected_conflict", draft_id = %draft_id, solver_addr = %solver_hub_addr, "Draft already signed - rejecting duplicate signature");
                 Ok(warp::reply::with_status(
                     warp::reply::json(&ApiResponse::<SignatureSubmissionResponse> {
                         success: false,
@@ -432,7 +436,7 @@ pub async fn submit_signature_handler(
                     StatusCode::CONFLICT, // 409 Conflict
                 ))
             } else {
-                warn!("Failed to add signature for draft {}: {}", draft_id, e);
+                warn!(action = "signature_rejected", draft_id = %draft_id, solver_addr = %solver_hub_addr, error = %e, "Failed to add signature");
                 Ok(warp::reply::with_status(
                     warp::reply::json(&ApiResponse::<SignatureSubmissionResponse> {
                         success: false,

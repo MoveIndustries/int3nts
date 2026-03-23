@@ -41,8 +41,8 @@ use config::Config;
 /// 5. Runs the service until shutdown
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize structured logging for debugging and monitoring
-    tracing_subscriber::fmt::init();
+    // Initialize structured JSON logging for production log aggregation
+    tracing_subscriber::fmt().json().init();
 
     info!("Starting Coordinator Service");
 
