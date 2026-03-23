@@ -16,8 +16,8 @@ After each task: `/review-me` → `/commit`.
 | Input validation | Partial (signature format only) |
 | Structured JSON logging | Missing (plaintext tracing only) |
 | Correlation IDs | Missing |
-| Retry/backoff | Missing |
-| Multiple RPC endpoints | Missing (single endpoint per chain) |
+| Retry/backoff | Done (integrated-gmp + solver) |
+| Multiple RPC endpoints | Skipped (infra-level concern) |
 | .gitignore | Done |
 | Hardcoded secrets | None found |
 
@@ -61,8 +61,8 @@ After each task: `/review-me` → `/commit`.
 
 ### 5. 3rd Party Resilience (checklist §5)
 
-- [ ] **5a. Retry with backoff** — Add exponential backoff to all RPC calls in integrated-gmp chain pollers and solver outflow submissions. Use `backoff` crate. Max 3 retries, 100ms initial, 10s max, 2x factor.
-- [ ] **5b. Multiple RPC endpoints** — Extend `ChainConfig`, `EvmChainConfig`, `SvmChainConfig` to accept `rpc_urls: Vec<String>`. Fail over to next URL on connection error.
+- [x] **5a. Retry with backoff** — Already implemented. Integrated-GMP: `DeliveryAttempt` with 3 retries, 5s initial exponential backoff, permanent-error detection (`should_attempt_delivery` / `record_delivery_failure`). Solver: `record_outflow_failure` with 3 retries, exponential backoff, `Failed` state transition. Polling loops naturally re-read on each iteration so transient RPC blips just waste one 2-second cycle.
+- [x] **5b. Multiple RPC endpoints** — Skipped. Overkill for current stage. Single endpoint per chain is sufficient; multi-endpoint failover is infrastructure-level concern.
 
 `/review-me` → `/commit`
 
@@ -83,6 +83,6 @@ After each task: `/review-me` → `/commit`.
 
 ### 8. Cleanup
 
-- [ ] **8a. Delete this plan** — Remove `docs/architecture/plan/security-hardening.md`.
+- [ ] **8a. Delete plan and checklist** — Remove `docs/architecture/plan/plan.md`, `docs/architecture/security-checklist.md`, and their references in `docs/architecture/README.md`.
 
 `/review-me` → `/commit`
