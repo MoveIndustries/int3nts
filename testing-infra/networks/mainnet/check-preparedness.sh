@@ -25,6 +25,9 @@ export PROJECT_ROOT
 source "$PROJECT_ROOT/testing-infra/ci-e2e/util.sh" 2>/dev/null || true
 
 echo " Checking Mainnet Preparedness"
+# Track overall pass/fail - set to false on any ❌
+all_ok=true
+
 echo "================================="
 echo ""
 
@@ -170,7 +173,7 @@ for role_var in MOVEMENT_DEPLOYER_ADDR MOVEMENT_REQUESTER_ADDR MOVEMENT_SOLVER_A
     label="${role_var#MOVEMENT_}"
     label="${label#INTEGRATED_GMP_}"
     label="${label%_ADDR}"
-    label=$(echo "$label" | tr '[:upper:]' '[:lower:]' | sed 's/^./\U&/')
+    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
 
     if [ "$role_var" = "INTEGRATED_GMP_MVM_ADDR" ]; then
         label="Relay"
@@ -178,6 +181,7 @@ for role_var in MOVEMENT_DEPLOYER_ADDR MOVEMENT_REQUESTER_ADDR MOVEMENT_SOLVER_A
 
     if [ -z "$addr" ]; then
         echo "   ${role_var} not set in .env.mainnet"
+        all_ok=false
     else
         balance=$(get_movement_balance "$addr")
         formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS" "MOVE")
@@ -210,10 +214,11 @@ for role_var in BASE_DEPLOYER_ADDR BASE_REQUESTER_ADDR BASE_SOLVER_ADDR; do
     addr="${!role_var}"
     label="${role_var#BASE_}"
     label="${label%_ADDR}"
-    label=$(echo "$label" | tr '[:upper:]' '[:lower:]' | sed 's/^./\U&/')
+    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
 
     if [ -z "$addr" ]; then
         echo "   ${role_var} not set in .env.mainnet"
+        all_ok=false
     else
         eth_balance=$(get_evm_eth_balance "$addr" "$BASE_RPC_URL")
         eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS" "ETH")
@@ -224,6 +229,7 @@ done
 
 if [ -z "$GMP_RELAY_EVM_ADDR" ]; then
     echo "   INTEGRATED_GMP_EVM_PUBKEY_HASH not set in .env.mainnet"
+    all_ok=false
 else
     eth_balance=$(get_evm_eth_balance "$GMP_RELAY_EVM_ADDR" "$BASE_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS" "ETH")
@@ -246,10 +252,11 @@ for role_var in HYPERLIQUID_DEPLOYER_ADDR HYPERLIQUID_REQUESTER_ADDR HYPERLIQUID
     addr="${!role_var}"
     label="${role_var#HYPERLIQUID_}"
     label="${label%_ADDR}"
-    label=$(echo "$label" | tr '[:upper:]' '[:lower:]' | sed 's/^./\U&/')
+    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
 
     if [ -z "$addr" ]; then
         echo "   ${role_var} not set in .env.mainnet"
+        all_ok=false
     else
         eth_balance=$(get_evm_eth_balance "$addr" "$HYPERLIQUID_RPC_URL")
         eth_formatted=$(format_balance "$eth_balance" "$HYPERLIQUID_NATIVE_DECIMALS" "HYPE")
@@ -516,8 +523,6 @@ BLUE='\033[1;34m'
 GREY='\033[90m'
 NC='\033[0m'
 
-# Track overall pass/fail - set to false on any ❌
-all_ok=true
 mark() { [[ "$1" != ✅* ]] && all_ok=false; }
 
 # Format 32-byte hex result as EVM address (last 20 bytes)

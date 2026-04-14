@@ -154,7 +154,7 @@ for role_var in MOVEMENT_DEPLOYER_ADDR MOVEMENT_REQUESTER_ADDR MOVEMENT_SOLVER_A
     addr="${!role_var}"
     label="${role_var#MOVEMENT_}"
     label="${label%_ADDR}"
-    label=$(echo "$label" | tr '[:upper:]' '[:lower:]' | sed 's/^./\U&/')
+    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
 
     if [ -z "$addr" ]; then
         echo "   ${role_var} not set in .env.mainnet"
@@ -179,7 +179,7 @@ for role_var in BASE_DEPLOYER_ADDR BASE_REQUESTER_ADDR BASE_SOLVER_ADDR; do
     addr="${!role_var}"
     label="${role_var#BASE_}"
     label="${label%_ADDR}"
-    label=$(echo "$label" | tr '[:upper:]' '[:lower:]' | sed 's/^./\U&/')
+    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
 
     if [ -z "$addr" ]; then
         echo "   ${role_var} not set in .env.mainnet"
@@ -204,7 +204,7 @@ for role_var in HYPERLIQUID_DEPLOYER_ADDR HYPERLIQUID_REQUESTER_ADDR HYPERLIQUID
     addr="${!role_var}"
     label="${role_var#HYPERLIQUID_}"
     label="${label%_ADDR}"
-    label=$(echo "$label" | tr '[:upper:]' '[:lower:]' | sed 's/^./\U&/')
+    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
 
     if [ -z "$addr" ]; then
         echo "   ${role_var} not set in .env.mainnet"

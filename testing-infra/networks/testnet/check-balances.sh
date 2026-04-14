@@ -5,7 +5,6 @@
 # Supports:
 #   - Movement Bardock Testnet (MOVE, USDC.e, USDC, USDT, WETH)
 #   - Base Sepolia (ETH, USDC)
-#   - Ethereum Sepolia (ETH, USDC)
 # 
 # Asset addresses are read from testing-infra/networks/testnet/config/testnet-assets.toml
 
@@ -55,18 +54,6 @@ elif [ -z "$BASE_USDC_DECIMALS" ]; then
     exit 1
 fi
 
-# Extract Ethereum Sepolia USDC address and decimals
-SEPOLIA_USDC_ADDR=$(grep -A 20 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
-SEPOLIA_USDC_DECIMALS=$(grep -A 20 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
-if [ -z "$SEPOLIA_USDC_ADDR" ]; then
-    echo "️  WARNING: Ethereum Sepolia USDC address not found in testnet-assets.toml"
-    echo "   Ethereum Sepolia USDC balance checks will be skipped"
-elif [ -z "$SEPOLIA_USDC_DECIMALS" ]; then
-    echo "❌ ERROR: Ethereum Sepolia USDC decimals not found in testnet-assets.toml"
-    echo "   Add usdc_decimals = 6 to [ethereum_sepolia] section"
-    exit 1
-fi
-
 # Extract Movement USDC.e address and decimals
 MOVEMENT_USDC_E_ADDR=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_e = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 MOVEMENT_USDC_E_DECIMALS=$(grep -A 20 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_e_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
@@ -104,13 +91,6 @@ if [ -z "$BASE_NATIVE_DECIMALS" ]; then
     exit 1
 fi
 
-SEPOLIA_NATIVE_DECIMALS=$(grep -A 10 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^native_token_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
-if [ -z "$SEPOLIA_NATIVE_DECIMALS" ]; then
-    echo "❌ ERROR: Ethereum Sepolia native token decimals not found in testnet-assets.toml"
-    echo "   Add native_token_decimals = 18 to [ethereum_sepolia] section"
-    exit 1
-fi
-
 # Extract RPC URLs
 MOVEMENT_RPC_URL=$(grep -A 5 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 if [ -z "$MOVEMENT_RPC_URL" ]; then
@@ -123,22 +103,6 @@ if [ -z "$ALCHEMY_BASE_SEPOLIA_API_KEY" ]; then
     echo "   Base Sepolia balance checks will fail"
 fi
 BASE_RPC_URL="https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_BASE_SEPOLIA_API_KEY}"
-
-SEPOLIA_RPC_URL=$(grep -A 5 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
-if [ -z "$SEPOLIA_RPC_URL" ]; then
-    echo "️  WARNING: Ethereum Sepolia RPC URL not found in testnet-assets.toml"
-    echo "   Ethereum Sepolia balance checks will fail"
-fi
-
-# Substitute API key in Sepolia RPC URL if placeholder is present
-if [[ "$SEPOLIA_RPC_URL" == *"ALCHEMY_API_KEY"* ]]; then
-    if [ -n "$ALCHEMY_ETH_SEPOLIA_API_KEY" ]; then
-        SEPOLIA_RPC_URL="${SEPOLIA_RPC_URL/ALCHEMY_API_KEY/$ALCHEMY_ETH_SEPOLIA_API_KEY}"
-    else
-        echo "️  WARNING: ALCHEMY_ETH_SEPOLIA_API_KEY not set in .env.testnet"
-        echo "   Ethereum Sepolia balance checks will fail"
-    fi
-fi
 
 # Function to get Movement balance (MOVE tokens)
 # Uses the view function API to get balance (works with both CoinStore and FA systems)
@@ -545,58 +509,6 @@ fi
 
 echo ""
 
-# Check Ethereum Sepolia balances (using same addresses as Base - EVM addresses work across chains)
-echo " Ethereum Sepolia"
-echo "-------------------"
-echo "   RPC: $SEPOLIA_RPC_URL"
-echo "   (Using same addresses as Base Sepolia)"
-
-if [ -z "$BASE_DEPLOYER_ADDR" ]; then
-    echo "️  BASE_DEPLOYER_ADDR not set in .env.testnet"
-else
-    eth_balance=$(get_evm_eth_balance "$BASE_DEPLOYER_ADDR" "$SEPOLIA_RPC_URL")
-    eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
-    echo "   Deployer  ($BASE_DEPLOYER_ADDR)"
-    if [ -n "$SEPOLIA_USDC_ADDR" ]; then
-        usdc_balance=$(get_evm_token_balance "$BASE_DEPLOYER_ADDR" "$SEPOLIA_USDC_ADDR" "$SEPOLIA_RPC_URL")
-        usdc_formatted=$(format_balance "$usdc_balance" "$SEPOLIA_USDC_DECIMALS" "USDC")
-        echo "             $eth_formatted, $usdc_formatted"
-    else
-        echo "             $eth_formatted (USDC n/a)"
-    fi
-fi
-
-if [ -z "$BASE_REQUESTER_ADDR" ]; then
-    echo "️  BASE_REQUESTER_ADDR not set in .env.testnet"
-else
-    eth_balance=$(get_evm_eth_balance "$BASE_REQUESTER_ADDR" "$SEPOLIA_RPC_URL")
-    eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
-    echo "   Requester ($BASE_REQUESTER_ADDR)"
-    if [ -n "$SEPOLIA_USDC_ADDR" ]; then
-        usdc_balance=$(get_evm_token_balance "$BASE_REQUESTER_ADDR" "$SEPOLIA_USDC_ADDR" "$SEPOLIA_RPC_URL")
-        usdc_formatted=$(format_balance "$usdc_balance" "$SEPOLIA_USDC_DECIMALS" "USDC")
-        echo "             $eth_formatted, $usdc_formatted"
-    else
-        echo "             $eth_formatted (USDC n/a)"
-    fi
-fi
-
-if [ -z "$BASE_SOLVER_ADDR" ]; then
-    echo "️  BASE_SOLVER_ADDR not set in .env.testnet"
-else
-    eth_balance=$(get_evm_eth_balance "$BASE_SOLVER_ADDR" "$SEPOLIA_RPC_URL")
-    eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
-    echo "   Solver    ($BASE_SOLVER_ADDR)"
-    if [ -n "$SEPOLIA_USDC_ADDR" ]; then
-        usdc_balance=$(get_evm_token_balance "$BASE_SOLVER_ADDR" "$SEPOLIA_USDC_ADDR" "$SEPOLIA_RPC_URL")
-        usdc_formatted=$(format_balance "$usdc_balance" "$SEPOLIA_USDC_DECIMALS" "USDC")
-        echo "             $eth_formatted, $usdc_formatted"
-    else
-        echo "             $eth_formatted (USDC n/a)"
-    fi
-fi
-
-echo ""
 if [ -z "$MOVEMENT_USDC_E_ADDR" ] || [ "$MOVEMENT_USDC_E_ADDR" = "" ]; then
     echo " Note: Movement USDC.e address not configured in testnet-assets.toml"
     echo "   Add usdc_e deployment address to check Movement USDC.e balances"
