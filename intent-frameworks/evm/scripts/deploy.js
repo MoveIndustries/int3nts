@@ -44,12 +44,16 @@ async function main() {
   console.log("  Movement Intent Module:", movementModuleAddr);
   console.log("  Relay Address:", relayAddress);
 
+  // IMPORTANT: .wait(N) waits for N blocks to be mined after the tx block.
+  // Hardhat automine only mines on new transactions, so .wait(>1) hangs forever.
+  // Keep .wait(1) for all transactions — do NOT increase for "reliability".
+
   // Deploy IntentGmp
   console.log("\n1. Deploying IntentGmp...");
   const IntentGmp = await hre.ethers.getContractFactory("IntentGmp");
   const gmpEndpoint = await IntentGmp.deploy(deployer.address);
   await gmpEndpoint.waitForDeployment();
-  await gmpEndpoint.deploymentTransaction().wait(5);
+  await gmpEndpoint.deploymentTransaction().wait(1);
   const gmpEndpointAddress = await gmpEndpoint.getAddress();
   console.log("   IntentGmp deployed to:", gmpEndpointAddress);
 
@@ -63,7 +67,7 @@ async function main() {
     movementModuleAddr
   );
   await escrowGmp.waitForDeployment();
-  await escrowGmp.deploymentTransaction().wait(5);
+  await escrowGmp.deploymentTransaction().wait(1);
   const escrowGmpAddress = await escrowGmp.getAddress();
   console.log("   IntentInflowEscrow deployed to:", escrowGmpAddress);
 
@@ -77,7 +81,7 @@ async function main() {
     movementModuleAddr
   );
   await outflowValidator.waitForDeployment();
-  await outflowValidator.deploymentTransaction().wait(5);
+  await outflowValidator.deploymentTransaction().wait(1);
   const outflowValidatorAddress = await outflowValidator.getAddress();
   console.log("   IntentOutflowValidator deployed to:", outflowValidatorAddress);
 
@@ -87,26 +91,26 @@ async function main() {
   // Set escrow handler
   console.log("   Setting escrow handler...");
   const escrowTx = await gmpEndpoint.setEscrowHandler(escrowGmpAddress);
-  await escrowTx.wait(5);
+  await escrowTx.wait(1);
   console.log("   Escrow handler set to:", escrowGmpAddress);
 
   // Set outflow handler
   console.log("   Setting outflow handler...");
   const outflowTx = await gmpEndpoint.setOutflowHandler(outflowValidatorAddress);
-  await outflowTx.wait(5);
+  await outflowTx.wait(1);
   console.log("   Outflow handler set to:", outflowValidatorAddress);
 
   // Set remote GMP endpoint address for hub chain
   console.log("   Setting remote GMP endpoint address for hub chain...");
   const remoteTx = await gmpEndpoint.setRemoteGmpEndpointAddr(hubChainId, movementModuleAddr);
-  await remoteTx.wait(5);
+  await remoteTx.wait(1);
   console.log("   Remote GMP endpoint address set for chain", hubChainId);
 
   // Add relay if different from deployer
   if (relayAddress.toLowerCase() !== deployer.address.toLowerCase()) {
     console.log("   Adding authorized relay...");
     const relayTx = await gmpEndpoint.addRelay(relayAddress);
-    await relayTx.wait(5);
+    await relayTx.wait(1);
     console.log("   Relay added:", relayAddress);
   } else {
     console.log("   Deployer is already authorized as relay");
