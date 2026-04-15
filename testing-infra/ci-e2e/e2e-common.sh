@@ -262,19 +262,28 @@ e2e_setup_chains() {
     log_and_echo " Setting up chains and deploying contracts..."
     log_and_echo "======================================================"
 
-    # Phase 1: Start all chains in parallel (no dependencies between them)
+    # Phase 1: Start chains
+    # Hub always runs in parallel with connected chains.
+    # EVM: sequential — concurrent npm install / Hardhat in the shared project directory conflicts
+    # MVM/SVM: parallel (no shared mutable state)
     ./testing-infra/ci-e2e/chain-hub/setup-chain.sh &
     local hub_chain_pid=$!
 
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 2 &
-    local connected2_chain_pid=$!
+    if [ "$E2E_CHAIN" = "evm" ]; then
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 2
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 3
+    else
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 2 &
+        local connected2_chain_pid=$!
 
-    ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 3 &
-    local connected3_chain_pid=$!
+        ./testing-infra/ci-e2e/chain-connected-${E2E_CHAIN}/setup-chain.sh 3 &
+        local connected3_chain_pid=$!
+
+        wait "$connected2_chain_pid"
+        wait "$connected3_chain_pid"
+    fi
 
     wait "$hub_chain_pid"
-    wait "$connected2_chain_pid"
-    wait "$connected3_chain_pid"
 
     # Phase 2: Account setup
     # Hub runs in parallel with connected chains. Connected chains run sequentially
