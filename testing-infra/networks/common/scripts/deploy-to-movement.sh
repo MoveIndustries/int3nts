@@ -145,11 +145,11 @@ echo ""
 
 # Step 4: Deploy intent-gmp package
 echo " Step 4: Deploying intent-gmp package..."
-cd "$PROJECT_ROOT/intent-frameworks/mvm/intent-gmp"
 
 # shellcheck disable=SC2086
 movement move publish \
   $MVM_PUBLISH_FLAGS \
+  --package-dir "$PROJECT_ROOT/intent-frameworks/mvm/intent-gmp" \
   --profile "$TEMP_PROFILE" \
   --named-addresses mvmt_intent="$DEPLOY_ADDR_FULL" \
   --assume-yes \
@@ -166,11 +166,11 @@ sleep 10
 
 # Step 5: Deploy intent-hub package
 echo " Step 5: Deploying intent-hub package..."
-cd "$PROJECT_ROOT/intent-frameworks/mvm/intent-hub"
 
 # shellcheck disable=SC2086
 movement move publish \
   $MVM_PUBLISH_FLAGS \
+  --package-dir "$PROJECT_ROOT/intent-frameworks/mvm/intent-hub" \
   --profile "$TEMP_PROFILE" \
   --named-addresses mvmt_intent="$DEPLOY_ADDR_FULL" \
   --assume-yes \

@@ -34,6 +34,6 @@ native_token_decimals = 18
 
 [hyperliquid_mainnet]
 chain_id = 999
-rpc_url = "https://api.hyperliquid.xyz/evm"
+rpc_url = "https://rpc.hyperliquid.xyz/evm"
 native_token = "HYPE"
 native_token_decimals = 18

@@ -19,10 +19,10 @@ source "$SCRIPT_DIR/../lib/env-utils.sh"
 # Load .env.testnet
 load_env_file "$SCRIPT_DIR/../.env.testnet"
 
-require_var "ALCHEMY_BASE_SEPOLIA_API_KEY" "$ALCHEMY_BASE_SEPOLIA_API_KEY" "Get your free API key at: https://www.alchemy.com/"
+require_var "BASE_RPC_URL" "$BASE_RPC_URL"
 
 EVM_CHAIN_PREFIX="BASE"
-EVM_RPC_URL="https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_BASE_SEPOLIA_API_KEY}"
+EVM_RPC_URL="$BASE_RPC_URL"
 export BASE_SEPOLIA_RPC_URL="$EVM_RPC_URL"
 EVM_HARDHAT_NETWORK="baseSepolia"
 EVM_DISPLAY_NAME="Base Sepolia Testnet"

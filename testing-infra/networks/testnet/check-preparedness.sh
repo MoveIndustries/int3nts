@@ -108,12 +108,11 @@ if [ -z "$MOVEMENT_RPC_URL" ]; then
     all_ok=false
 fi
 
-if [ -z "$ALCHEMY_BASE_SEPOLIA_API_KEY" ]; then
-    echo "❌ ALCHEMY_BASE_SEPOLIA_API_KEY not set in .env.testnet"
+if [ -z "$BASE_RPC_URL" ]; then
+    echo "❌ BASE_RPC_URL not set in .env.testnet"
     echo "   Base Sepolia checks will fail"
     all_ok=false
 fi
-BASE_RPC_URL="https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_BASE_SEPOLIA_API_KEY}"
 
 # Extract chain IDs for remote GMP endpoint checks
 MOVEMENT_CHAIN_ID=$(grep -A 5 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^chain_id = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")

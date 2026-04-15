@@ -98,11 +98,10 @@ if [ -z "$MOVEMENT_RPC_URL" ]; then
     echo "   Movement balance checks will fail"
 fi
 
-if [ -z "$ALCHEMY_BASE_SEPOLIA_API_KEY" ]; then
-    echo "️  WARNING: ALCHEMY_BASE_SEPOLIA_API_KEY not set in .env.testnet"
+if [ -z "$BASE_RPC_URL" ]; then
+    echo "️  WARNING: BASE_RPC_URL not set in .env.testnet"
     echo "   Base Sepolia balance checks will fail"
 fi
-BASE_RPC_URL="https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_BASE_SEPOLIA_API_KEY}"
 
 # Function to get Movement balance (MOVE tokens)
 # Uses the view function API to get balance (works with both CoinStore and FA systems)

@@ -82,8 +82,11 @@ echo "   RPC OK"
 echo ""
 
 # Deploy contracts
-echo " Deploying all 3 contracts..."
-echo "   (Run this script from within 'nix develop ./nix' shell)"
+echo ""
+echo " + + + + + + + + + + + + + + + + + + + + + + + + + + +"
+echo " !!!  DEPLOYING — NO OUTPUT UNTIL DONE             !!!"
+echo " !!!  This is normal. Please wait.                  !!!"
+echo " + + + + + + + + + + + + + + + + + + + + + + + + + + +"
 echo ""
 set +e
 DEPLOY_OUTPUT=$(npx hardhat run scripts/deploy.js --network "$EVM_HARDHAT_NETWORK" 2>&1)

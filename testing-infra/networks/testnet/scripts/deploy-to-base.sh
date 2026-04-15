@@ -26,10 +26,10 @@ if [ ! -f "$ASSETS_CONFIG_FILE" ]; then
     exit 1
 fi
 
-require_var "ALCHEMY_BASE_SEPOLIA_API_KEY" "$ALCHEMY_BASE_SEPOLIA_API_KEY" "Get your free API key at: https://www.alchemy.com/"
+require_var "BASE_RPC_URL" "$BASE_RPC_URL"
 
 EVM_CHAIN_PREFIX="BASE"
-EVM_RPC_URL="https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_BASE_SEPOLIA_API_KEY}"
+EVM_RPC_URL="$BASE_RPC_URL"
 export BASE_SEPOLIA_RPC_URL="$EVM_RPC_URL"
 EVM_DEPLOYER_ADDR="$BASE_DEPLOYER_ADDR"
 EVM_HARDHAT_NETWORK="baseSepolia"
