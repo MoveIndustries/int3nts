@@ -22,3 +22,4 @@ Thumbs.db
 # Configuration files with secrets
 config/integrated-gmp.toml
 config/integrated-gmp_testnet.toml
+config/integrated-gmp_mainnet.toml

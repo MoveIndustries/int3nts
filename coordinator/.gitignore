@@ -22,3 +22,4 @@ Thumbs.db
 # Configuration files with secrets
 config/coordinator.toml
 config/coordinator_testnet.toml
+config/coordinator_mainnet.toml

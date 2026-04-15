@@ -37,10 +37,18 @@ source "$SCRIPT_DIR/.env.mainnet"
 set +a
 export DEPLOY_ENV_SOURCED=1
 
+LOG_DIR="$SCRIPT_DIR/logs"
+mkdir -p "$LOG_DIR"
+LOG_FILE="$LOG_DIR/configure-mainnet-$(date +%Y%m%d-%H%M%S).log"
+
 echo "=========================================="
 echo " Mainnet Configure Cross-Chain"
 echo "=========================================="
 echo ""
+echo " Log file: $LOG_FILE"
+echo ""
+
+{
 
 echo "--------------------------------------------"
 echo " Step 1: Configure Movement"
@@ -64,3 +72,5 @@ echo "=========================================="
 echo " Configuration Complete!"
 echo "=========================================="
 echo ""
+
+} 2>&1 | tee "$LOG_FILE"
