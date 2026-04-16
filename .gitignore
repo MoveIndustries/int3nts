@@ -24,6 +24,10 @@ dev-debug.log
 !.env.*.example
 testing-infra/networks/testnet/.env.testnet
 
+# EC2 deploy state and logs
+testing-infra/networks/mainnet/.ec2-state.env
+testing-infra/networks/mainnet/logs/
+
 # Testnet, mainnet, and CI config files (contain sensitive keys)
 solver/config/solver_testnet.toml
 solver/config/solver_mainnet.toml

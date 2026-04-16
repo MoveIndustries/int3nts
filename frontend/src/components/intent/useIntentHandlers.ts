@@ -64,7 +64,7 @@ interface IntentHandlerDeps {
   svmPublicKey: PublicKey | null;
   svmWallet: object;
   mvmAccount: { address: string } | null | undefined;
-  directNightlyAddress: string;
+  directNightlyAddress: string | null;
   chainId: number;
   switchChain: (params: { chainId: number }) => void;
   savedDraftData: DraftData | null;
