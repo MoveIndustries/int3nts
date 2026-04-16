@@ -260,7 +260,7 @@ export function useIntentHandlers(deps: IntentHandlerDeps) {
         sender: senderAddress as `0x${string}`,
         data: {
           function: functionName as `${string}::${string}::${string}`,
-          functionArguments: functionArguments,
+          functionArguments: functionArguments as any[],
         },
       });
       console.log('Raw transaction built:', rawTxn);
