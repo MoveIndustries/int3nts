@@ -428,6 +428,23 @@ cmd_build() {
     ssh_to coordinator "cd $REMOTE_DIR/src/packages/sdk && npm install && npm run build"
     ssh_to coordinator "cd $REMOTE_DIR/src/frontend && npm install --legacy-peer-deps"
     ssh_to coordinator "rm -rf $REMOTE_DIR/src/frontend/node_modules/@int3nts/sdk && cp -r $REMOTE_DIR/src/packages/sdk $REMOTE_DIR/src/frontend/node_modules/@int3nts/sdk"
+    # Generate frontend .env.production from backend .env.mainnet vars
+    echo " Generating frontend .env.production..."
+    scp_to coordinator "$SCRIPT_DIR/.env.mainnet"
+    ssh_to coordinator "bash -c '
+        source ~/.env.mainnet
+        cat > $REMOTE_DIR/src/frontend/.env.production << ENVEOF
+NEXT_PUBLIC_COORDINATOR_URL=http://localhost:3333
+NEXT_PUBLIC_MOVEMENT_MAINNET_RPC_URL=https://mainnet.movementnetwork.xyz/v1
+NEXT_PUBLIC_MOVEMENT_MAINNET_INTENT_CONTRACT_ADDRESS=\$MOVEMENT_INTENT_MODULE_ADDR
+NEXT_PUBLIC_BASE_MAINNET_RPC_URL=\$BASE_RPC_URL
+NEXT_PUBLIC_BASE_MAINNET_ESCROW_CONTRACT_ADDRESS=\$BASE_INFLOW_ESCROW_ADDR
+NEXT_PUBLIC_BASE_MAINNET_OUTFLOW_VALIDATOR_ADDRESS=\$BASE_OUTFLOW_VALIDATOR_ADDR
+NEXT_PUBLIC_HYPERLIQUID_MAINNET_RPC_URL=\$HYPERLIQUID_RPC_URL
+NEXT_PUBLIC_HYPERLIQUID_MAINNET_ESCROW_CONTRACT_ADDRESS=\$HYPERLIQUID_INFLOW_ESCROW_ADDR
+NEXT_PUBLIC_HYPERLIQUID_MAINNET_OUTFLOW_VALIDATOR_ADDRESS=\$HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR
+ENVEOF
+    '"
     ssh_to coordinator "cd $REMOTE_DIR/src/frontend && npm run build"
 
     echo ""
