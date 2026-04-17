@@ -234,6 +234,15 @@ else
     fi
 fi
 
+if [ -z "$INTEGRATED_GMP_MVM_ADDR" ]; then
+    echo "️  INTEGRATED_GMP_MVM_ADDR not set in .env.testnet"
+else
+    echo "   Relay     ($INTEGRATED_GMP_MVM_ADDR)"
+    balance=$(get_movement_balance "$INTEGRATED_GMP_MVM_ADDR")
+    formatted=$(format_balance "$balance" "$MOVEMENT_NATIVE_DECIMALS")
+    echo "             MOVE: $formatted"
+fi
+
 echo ""
 
 # Check Base Sepolia balances
@@ -286,6 +295,15 @@ else
     fi
 fi
 
+if [ -z "$INTEGRATED_GMP_EVM_PUBKEY_HASH" ]; then
+    echo "️  INTEGRATED_GMP_EVM_PUBKEY_HASH not set in .env.testnet"
+else
+    eth_balance=$(get_evm_eth_balance "$INTEGRATED_GMP_EVM_PUBKEY_HASH" "$BASE_RPC_URL")
+    eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
+    echo "   Relay     ($INTEGRATED_GMP_EVM_PUBKEY_HASH)"
+    echo "             $eth_formatted"
+fi
+
 echo ""
 
 # Solana Devnet
@@ -293,11 +311,10 @@ echo " Solana Devnet"
 echo "----------------"
 echo "   RPC: $SOLANA_RPC_URL"
 
-for role_var in SOLANA_DEPLOYER_ADDR SOLANA_REQUESTER_ADDR SOLANA_SOLVER_ADDR; do
+for entry in "SOLANA_DEPLOYER_ADDR:Deployer" "SOLANA_REQUESTER_ADDR:Requester" "SOLANA_SOLVER_ADDR:Solver" "INTEGRATED_GMP_SVM_ADDR:Relay"; do
+    role_var="${entry%%:*}"
+    label="${entry##*:}"
     addr="${!role_var}"
-    label="${role_var#SOLANA_}"
-    label="${label%_ADDR}"
-    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
 
     if [ -z "$addr" ]; then
         echo "   ${role_var} not set in .env.testnet"

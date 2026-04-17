@@ -454,7 +454,7 @@ cmd_build() {
     ssh_to coordinator "bash -c '
         source ~/.env.mainnet
         cat > $REMOTE_DIR/src/frontend/.env.production << ENVEOF
-NEXT_PUBLIC_COORDINATOR_URL=http://localhost:3333
+NEXT_PUBLIC_COORDINATOR_URL=https://$FRONTEND_DOMAIN/api
 NEXT_PUBLIC_MOVEMENT_MAINNET_RPC_URL=https://mainnet.movementnetwork.xyz/v1
 NEXT_PUBLIC_MOVEMENT_MAINNET_INTENT_CONTRACT_ADDRESS=\$MOVEMENT_INTENT_MODULE_ADDR
 NEXT_PUBLIC_BASE_MAINNET_RPC_URL=\$BASE_RPC_URL
@@ -643,7 +643,7 @@ UNIT
 
     ssh_to coordinator "sudo tee /etc/caddy/Caddyfile > /dev/null" << CADDY
 $FRONTEND_DOMAIN {
-    handle /api/* {
+    handle_path /api/* {
         reverse_proxy localhost:3333
     }
     handle {

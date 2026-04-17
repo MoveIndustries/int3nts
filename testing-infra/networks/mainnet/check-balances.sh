@@ -98,11 +98,10 @@ echo " Movement Mainnet"
 echo "----------------------------"
 echo "   RPC: $MOVEMENT_RPC_URL"
 
-for role_var in MOVEMENT_DEPLOYER_ADDR MOVEMENT_REQUESTER_ADDR MOVEMENT_SOLVER_ADDR; do
+for entry in "MOVEMENT_DEPLOYER_ADDR:Deployer" "MOVEMENT_REQUESTER_ADDR:Requester" "MOVEMENT_SOLVER_ADDR:Solver" "INTEGRATED_GMP_MVM_ADDR:Relay"; do
+    role_var="${entry%%:*}"
+    label="${entry##*:}"
     addr="${!role_var}"
-    label="${role_var#MOVEMENT_}"
-    label="${label%_ADDR}"
-    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
 
     if [ -z "$addr" ]; then
         echo "   ${role_var} not set in .env.mainnet"
@@ -130,11 +129,10 @@ echo " Base Mainnet"
 echo "---------------"
 echo "   RPC: $BASE_RPC_URL"
 
-for role_var in BASE_DEPLOYER_ADDR BASE_REQUESTER_ADDR BASE_SOLVER_ADDR; do
+for entry in "BASE_DEPLOYER_ADDR:Deployer" "BASE_REQUESTER_ADDR:Requester" "BASE_SOLVER_ADDR:Solver" "INTEGRATED_GMP_EVM_PUBKEY_HASH:Relay"; do
+    role_var="${entry%%:*}"
+    label="${entry##*:}"
     addr="${!role_var}"
-    label="${role_var#BASE_}"
-    label="${label%_ADDR}"
-    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
 
     if [ -z "$addr" ]; then
         echo "   ${role_var} not set in .env.mainnet"
@@ -158,11 +156,10 @@ echo " HyperEVM Mainnet"
 echo "-------------------"
 echo "   RPC: $HYPERLIQUID_RPC_URL"
 
-for role_var in HYPERLIQUID_DEPLOYER_ADDR HYPERLIQUID_REQUESTER_ADDR HYPERLIQUID_SOLVER_ADDR; do
+for entry in "HYPERLIQUID_DEPLOYER_ADDR:Deployer" "HYPERLIQUID_REQUESTER_ADDR:Requester" "HYPERLIQUID_SOLVER_ADDR:Solver" "INTEGRATED_GMP_EVM_PUBKEY_HASH:Relay"; do
+    role_var="${entry%%:*}"
+    label="${entry##*:}"
     addr="${!role_var}"
-    label="${role_var#HYPERLIQUID_}"
-    label="${label%_ADDR}"
-    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
 
     if [ -z "$addr" ]; then
         echo "   ${role_var} not set in .env.mainnet"
