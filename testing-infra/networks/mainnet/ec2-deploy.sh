@@ -34,7 +34,7 @@
 #   Use BUILD_BRANCH=<branch> to build from a specific branch (default: main)
 #
 #   Debugging (list int3nts-tagged instances in eu-central-1 via AWS CLI):
-#     aws --profile movement:devnet --region eu-central-1 ec2 describe-instances --filters "Name=tag:Name,Values=int3nts-*" "Name=instance-state-name,Values=running" --query 'Reservations[].Instances[].{ID:InstanceId,Name:Tags[?Key==`Name`].Value|[0],State:State.Name,IP:PublicIpAddress,Type:InstanceType}' --output table
+#     aws --profile $AWS_PROFILE --region $AWS_REGION ec2 describe-instances --filters "Name=tag:Name,Values=int3nts-*" "Name=instance-state-name,Values=running" --query 'Reservations[].Instances[].{ID:InstanceId,Name:Tags[?Key==`Name`].Value|[0],State:State.Name,IP:PublicIpAddress,Type:InstanceType}' --output table
 
 set -e
 
@@ -50,10 +50,13 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 # ---------------------------------------------------------------------------
 # Configuration — edit these
 # ---------------------------------------------------------------------------
-AWS_PROFILE="movement:devnet"
-AWS_REGION="eu-central-1"
-KEY_NAME="int3nts-ec2"
-SSH_KEY="$HOME/.ssh/int3nts-ec2.pem"
+# Load from .ec2-config (gitignored) — copy from ec2-config.example
+EC2_CONFIG="$SCRIPT_DIR/.ec2-config"
+if [ ! -f "$EC2_CONFIG" ]; then
+    echo "ERROR: $EC2_CONFIG not found. Copy from ec2-config.example and fill in values."
+    exit 1
+fi
+source "$EC2_CONFIG"
 
 # Instance sizes (all t3.medium: 2 vCPU, 4 GB RAM, ~$30/month each)
 COORDINATOR_INSTANCE_TYPE="t3.medium"
@@ -119,6 +122,15 @@ get_ip() {
         coordinator)    echo "$COORDINATOR_IP" ;;
         integrated-gmp) echo "$GMP_IP" ;;
         solver)         echo "$SOLVER_IP" ;;
+        *) echo "ERROR: Unknown service $1" >&2; exit 1 ;;
+    esac
+}
+
+get_unit() {
+    case "$1" in
+        coordinator)    echo "int3nts-coordinator" ;;
+        integrated-gmp) echo "int3nts-gmp" ;;
+        solver)         echo "int3nts-solver" ;;
         *) echo "ERROR: Unknown service $1" >&2; exit 1 ;;
     esac
 }
@@ -211,7 +223,7 @@ cmd_provision() {
     # Verify AWS access
     echo " Verifying AWS access..."
     CALLER=$(aws_cmd sts get-caller-identity --query 'Arn' --output text 2>/dev/null) || {
-        echo "ERROR: AWS auth failed. Run: aws sso login --sso-session Movement"
+        echo "ERROR: AWS auth failed. Run: aws sso login --profile $AWS_PROFILE"
         exit 1
     }
     echo "   Authenticated as: $CALLER"
@@ -350,9 +362,12 @@ cmd_setup() {
         ssh_to "$svc" "sudo mkdir -p $REMOTE_DIR/{bin,config,env} && sudo chown -R $REMOTE_USER:$REMOTE_USER $REMOTE_DIR"
     done
 
-    # Install Rust only on solver (build machine)
+    # Install nix + Rust on solver (provides Movement CLI, Node.js, Hardhat — same as CI)
     echo ""
-    echo " [solver] Installing Rust (build machine)..."
+    echo " [solver] Installing nix..."
+    ssh_to solver "sh <(curl -L https://nixos.org/nix/install) --daemon --yes"
+    ssh_to solver "sudo mkdir -p /etc/nix && echo 'experimental-features = nix-command flakes' | sudo tee /etc/nix/nix.conf"
+    echo " [solver] Installing Rust..."
     ssh_to solver "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
     echo " [solver] Cloning repository..."
     ssh_to solver "git clone https://github.com/MoveIndustries/int3nts.git $REMOTE_DIR/src"
@@ -397,6 +412,11 @@ cmd_build() {
     # Pull latest code on solver
     echo " Pulling latest code (branch: $BUILD_BRANCH)..."
     ssh_to solver "cd $REMOTE_DIR/src && git fetch origin && git checkout $BUILD_BRANCH && git pull origin $BUILD_BRANCH"
+
+    # Install EVM dependencies on solver (Hardhat scripts used at runtime)
+    echo ""
+    echo " Installing EVM dependencies on solver..."
+    ssh_to solver ". /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh && cd $REMOTE_DIR/src/intent-frameworks/evm && nix develop $REMOTE_DIR/src/nix -c npm install"
 
     echo ""
     echo " Building release binaries (first build may take several minutes)..."
@@ -531,7 +551,7 @@ cmd_deploy() {
     echo " Installing systemd units..."
 
     # Coordinator
-    ssh_to coordinator "sudo tee /etc/systemd/system/int3nts.service > /dev/null" << 'UNIT'
+    ssh_to coordinator "sudo tee /etc/systemd/system/int3nts-coordinator.service > /dev/null" << 'UNIT'
 [Unit]
 Description=int3nts coordinator (mainnet)
 After=network-online.target
@@ -574,7 +594,7 @@ WantedBy=multi-user.target
 UNIT
 
     # Integrated-GMP
-    ssh_to integrated-gmp "sudo tee /etc/systemd/system/int3nts.service > /dev/null" << 'UNIT'
+    ssh_to integrated-gmp "sudo tee /etc/systemd/system/int3nts-gmp.service > /dev/null" << 'UNIT'
 [Unit]
 Description=int3nts integrated-gmp (mainnet)
 After=network-online.target
@@ -595,7 +615,7 @@ WantedBy=multi-user.target
 UNIT
 
     # Solver
-    ssh_to solver "sudo tee /etc/systemd/system/int3nts.service > /dev/null" << 'UNIT'
+    ssh_to solver "sudo tee /etc/systemd/system/int3nts-solver.service > /dev/null" << 'UNIT'
 [Unit]
 Description=int3nts solver (mainnet)
 After=network-online.target
@@ -607,7 +627,8 @@ User=ec2-user
 EnvironmentFile=/opt/int3nts/env/.env.mainnet
 Environment=SOLVER_CONFIG_PATH=/opt/int3nts/config/solver_mainnet.toml
 Environment=RUST_LOG=info,solver::service::tracker=debug,solver::chains::hub=debug
-ExecStart=/opt/int3nts/bin/solver
+WorkingDirectory=/opt/int3nts/src
+ExecStart=/bin/bash -c '. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh && nix develop /opt/int3nts/src/nix -c /opt/int3nts/bin/solver'
 Restart=on-failure
 RestartSec=10
 
@@ -651,15 +672,15 @@ CADDY
     echo " Starting services..."
 
     # Start coordinator first (solver depends on it)
-    ssh_to coordinator "sudo systemctl daemon-reload && sudo systemctl enable int3nts int3nts-frontend caddy && sudo systemctl restart int3nts int3nts-frontend caddy"
+    ssh_to coordinator "sudo systemctl daemon-reload && sudo systemctl enable int3nts-coordinator int3nts-frontend caddy && sudo systemctl restart int3nts-coordinator int3nts-frontend caddy"
     echo "   coordinator + frontend started"
     sleep 2
 
-    ssh_to integrated-gmp "sudo systemctl daemon-reload && sudo systemctl enable int3nts caddy && sudo systemctl restart int3nts caddy"
+    ssh_to integrated-gmp "sudo systemctl daemon-reload && sudo systemctl enable int3nts-gmp caddy && sudo systemctl restart int3nts-gmp caddy"
     echo "   integrated-gmp started"
     sleep 2
 
-    ssh_to solver "sudo systemctl daemon-reload && sudo systemctl enable int3nts && sudo systemctl restart int3nts"
+    ssh_to solver "sudo systemctl daemon-reload && sudo systemctl enable int3nts-solver && sudo systemctl restart int3nts-solver"
     echo "   solver started"
 
     echo ""
@@ -670,7 +691,7 @@ CADDY
     echo " Service status:"
     for svc in "${SERVICES[@]}"; do
         local status
-        status=$(ssh_to "$svc" "sudo systemctl is-active int3nts" 2>/dev/null || echo "unknown")
+        status=$(ssh_to "$svc" "sudo systemctl is-active $(get_unit "$svc")" 2>/dev/null || echo "unknown")
         printf "   %-16s %s (%s)\n" "$svc" "$status" "$(get_ip "$svc")"
     done
     echo ""
@@ -694,7 +715,7 @@ cmd_status() {
     for svc in "${SERVICES[@]}"; do
         local ip=$(get_ip "$svc")
         echo " [$svc] $ip"
-        ssh_to "$svc" "sudo systemctl status int3nts --no-pager -l 2>/dev/null" || echo "   (not running)"
+        ssh_to "$svc" "sudo systemctl status $(get_unit "$svc") --no-pager -l 2>/dev/null" || echo "   (not running)"
         echo ""
     done
 }
@@ -714,7 +735,7 @@ cmd_logs() {
 
     # Validate service name
     get_ip "$svc" > /dev/null
-    ssh_to "$svc" "sudo journalctl -u int3nts -f"
+    ssh_to "$svc" "sudo journalctl -u $(get_unit "$svc") -f"
 }
 
 # ---------------------------------------------------------------------------
@@ -745,7 +766,61 @@ cmd_ssh() {
 # deploy / redeploy / start / stop
 # ---------------------------------------------------------------------------
 
+cmd_validate_env() {
+    echo "=========================================="
+    echo " Validating .env.mainnet"
+    echo "=========================================="
+    echo ""
+
+    local env_file="$SCRIPT_DIR/.env.mainnet"
+    if [ ! -f "$env_file" ]; then
+        echo "ERROR: $env_file not found"
+        exit 1
+    fi
+
+    source "$env_file"
+
+    local missing=0
+    for var in \
+        MOVEMENT_DEPLOYER_PRIVATE_KEY MOVEMENT_SOLVER_PRIVATE_KEY MOVEMENT_INTENT_MODULE_ADDR \
+        BASE_DEPLOYER_PRIVATE_KEY BASE_SOLVER_EVM_PRIVATE_KEY BASE_RPC_URL \
+        BASE_GMP_ENDPOINT_ADDR BASE_INFLOW_ESCROW_ADDR BASE_OUTFLOW_VALIDATOR_ADDR \
+        HYPERLIQUID_DEPLOYER_PRIVATE_KEY HYPERLIQUID_SOLVER_EVM_PRIVATE_KEY HYPERLIQUID_RPC_URL \
+        HYPERLIQUID_GMP_ENDPOINT_ADDR HYPERLIQUID_INFLOW_ESCROW_ADDR HYPERLIQUID_OUTFLOW_VALIDATOR_ADDR \
+        SOLVER_EVM_ADDR \
+        INTEGRATED_GMP_PRIVATE_KEY INTEGRATED_GMP_PUBLIC_KEY; do
+        local val="${!var}"
+        if [ -z "$val" ]; then
+            echo "   MISSING: $var"
+            missing=1
+        fi
+    done
+
+    # Validate key formats
+    local hex_64_vars="MOVEMENT_DEPLOYER_PRIVATE_KEY MOVEMENT_SOLVER_PRIVATE_KEY BASE_DEPLOYER_PRIVATE_KEY BASE_SOLVER_EVM_PRIVATE_KEY HYPERLIQUID_DEPLOYER_PRIVATE_KEY HYPERLIQUID_SOLVER_EVM_PRIVATE_KEY"
+    for var in $hex_64_vars; do
+        local val="${!var}"
+        if [ -n "$val" ]; then
+            local clean="${val#0x}"
+            if [ ${#clean} -ne 64 ]; then
+                echo "   INVALID: $var must be 64 hex chars (got ${#clean})"
+                missing=1
+            fi
+        fi
+    done
+
+    if [ $missing -eq 1 ]; then
+        echo ""
+        echo "ERROR: Fix the above issues in $env_file before deploying."
+        exit 1
+    fi
+
+    echo " All required env vars present and valid."
+    echo ""
+}
+
 cmd_deploy_all() {
+    cmd_validate_env
     cmd_setup
     cmd_deploy
 }
@@ -758,13 +833,13 @@ cmd_redeploy() {
 
 cmd_start() {
     require_state
-    ssh_to coordinator "sudo systemctl start int3nts int3nts-frontend"
+    ssh_to coordinator "sudo systemctl start int3nts-coordinator int3nts-frontend"
     echo " coordinator + frontend started"
     sleep 2
-    ssh_to integrated-gmp "sudo systemctl start int3nts"
+    ssh_to integrated-gmp "sudo systemctl start int3nts-gmp"
     echo " integrated-gmp started"
     sleep 2
-    ssh_to solver "sudo systemctl start int3nts"
+    ssh_to solver "sudo systemctl start int3nts-solver"
     echo " solver started"
 }
 
@@ -772,7 +847,7 @@ cmd_stop() {
     require_state
     for svc in solver integrated-gmp coordinator; do
         echo " Stopping $svc..."
-        ssh_to "$svc" "sudo systemctl stop int3nts" 2>/dev/null || true
+        ssh_to "$svc" "sudo systemctl stop $(get_unit "$svc")" 2>/dev/null || true
     done
     ssh_to coordinator "sudo systemctl stop int3nts-frontend" 2>/dev/null || true
     echo " All services stopped"

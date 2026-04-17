@@ -24,7 +24,8 @@ dev-debug.log
 !.env.*.example
 testing-infra/networks/testnet/.env.testnet
 
-# EC2 deploy state and logs
+# EC2 deploy state, config, and logs
+testing-infra/networks/mainnet/.ec2-config
 testing-infra/networks/mainnet/.ec2-state.env
 testing-infra/networks/mainnet/logs/
 

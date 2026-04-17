@@ -15,6 +15,7 @@ export PROJECT_ROOT
 
 # Source utilities (for error handling only, not logging)
 source "$PROJECT_ROOT/testing-infra/ci-e2e/util.sh" 2>/dev/null || true
+source "$PROJECT_ROOT/testing-infra/networks/common/lib/balance-utils.sh"
 
 echo " Checking Testnet Balances"
 echo "============================"
@@ -103,231 +104,10 @@ if [ -z "$BASE_RPC_URL" ]; then
     echo "   Base Sepolia balance checks will fail"
 fi
 
-# Function to get Movement balance (MOVE tokens)
-# Uses the view function API to get balance (works with both CoinStore and FA systems)
-get_movement_balance() {
-    local address="$1"
-    # Ensure address has 0x prefix
-    if [[ ! "$address" =~ ^0x ]]; then
-        address="0x${address}"
-    fi
-    
-    # Query balance via view function API (with 10 second timeout)
-    local balance=$(curl -s --max-time 10 -X POST "${MOVEMENT_RPC_URL}/view" \
-        -H "Content-Type: application/json" \
-        -d "{\"function\":\"0x1::coin::balance\",\"type_arguments\":[\"0x1::aptos_coin::AptosCoin\"],\"arguments\":[\"$address\"]}" \
-        | jq -r '.[0] // "0"' 2>/dev/null)
-    
-    if [ -z "$balance" ] || [ "$balance" = "null" ]; then
-        echo "0"
-    else
-        echo "$balance"
-    fi
-}
-
-# Function to get Movement USDC.e balance (Fungible Asset)
-get_movement_usdc_e_balance() {
-    local address="$1"
-    # Ensure address has 0x prefix
-    if [[ ! "$address" =~ ^0x ]]; then
-        address="0x${address}"
-    fi
-    
-    # If USDC.e address is not configured, return 0
-    if [ -z "$MOVEMENT_USDC_E_ADDR" ] || [ "$MOVEMENT_USDC_E_ADDR" = "" ]; then
-        echo "0"
-        return
-    fi
-    
-    # Query USDC.e balance via view function API (Fungible Asset)
-    # USDC.e is deployed as a Fungible Asset, use primary_fungible_store::balance
-    local balance=$(curl -s --max-time 10 -X POST "${MOVEMENT_RPC_URL}/view" \
-        -H "Content-Type: application/json" \
-        -d "{\"function\":\"0x1::primary_fungible_store::balance\",\"type_arguments\":[\"0x1::fungible_asset::Metadata\"],\"arguments\":[\"$address\",\"${MOVEMENT_USDC_E_ADDR}\"]}" \
-        | jq -r '.[0] // "0"' 2>/dev/null)
-    
-    if [ -z "$balance" ] || [ "$balance" = "null" ]; then
-        echo "0"
-    else
-        echo "$balance"
-    fi
-}
-
-# Function to get Movement token FA balance (primary_fungible_store)
-get_movement_fa_balance() {
-    local address="$1"
-    local metadata_addr="$2"  # FA metadata address
-    # Ensure address has 0x prefix
-    if [[ ! "$address" =~ ^0x ]]; then
-        address="0x${address}"
-    fi
-    
-    if [ -z "$metadata_addr" ] || [ "$metadata_addr" = "" ]; then
-        echo "0"
-        return
-    fi
-    
-    local balance=$(curl -s --max-time 10 -X POST "${MOVEMENT_RPC_URL}/view" \
-        -H "Content-Type: application/json" \
-        -d "{\"function\":\"0x1::primary_fungible_store::balance\",\"type_arguments\":[\"0x1::fungible_asset::Metadata\"],\"arguments\":[\"$address\",\"${metadata_addr}\"]}" \
-        | jq -r '.[0] // "0"' 2>/dev/null)
-    
-    if [ -z "$balance" ] || [ "$balance" = "null" ]; then
-        echo "0"
-    else
-        echo "$balance"
-    fi
-}
-
-# Function to get Movement token Coin balance (CoinStore)
-# This checks if CoinStore resource actually exists, not using coin::balance
-# which falls back to FA after migration
-get_movement_coin_balance() {
-    local address="$1"
-    local coin_type="$2"  # Coin type, e.g., "0xa6cc...::tokens::USDC"
-    # Ensure address has 0x prefix
-    if [[ ! "$address" =~ ^0x ]]; then
-        address="0x${address}"
-    fi
-    
-    if [ -z "$coin_type" ] || [ "$coin_type" = "" ]; then
-        echo "0"
-        return
-    fi
-    
-    # Check if CoinStore resource exists by querying the resource directly
-    # If CoinStore was destroyed (after migration), this will return null/error
-    # URL-encode the < and > characters
-    local coin_store_type="0x1::coin::CoinStore%3C${coin_type}%3E"
-    local resource=$(curl -s --max-time 10 "${MOVEMENT_RPC_URL}/accounts/${address}/resource/${coin_store_type}" 2>/dev/null)
-    
-    # Check if we got a valid response with coin value
-    local balance=$(echo "$resource" | jq -r '.data.coin.value // "0"' 2>/dev/null)
-    
-    if [ -z "$balance" ] || [ "$balance" = "null" ] || [ "$balance" = "0" ]; then
-        # CoinStore doesn't exist or is empty
-        echo "0"
-    else
-        echo "$balance"
-    fi
-}
-
-# Function to get EVM ETH balance (works for any EVM chain)
-get_evm_eth_balance() {
-    local address="$1"
-    local rpc_url="$2"
-    
-    # Ensure address has 0x prefix
-    if [[ ! "$address" =~ ^0x ]]; then
-        address="0x${address}"
-    fi
-    
-    # Query balance via JSON-RPC (with 10 second timeout)
-    local balance_hex=$(curl -s --max-time 10 -X POST "$rpc_url" \
-        -H "Content-Type: application/json" \
-        -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_getBalance\",\"params\":[\"$address\",\"latest\"],\"id\":1}" \
-        | jq -r '.result // "0x0"' 2>/dev/null)
-    
-    if [ -z "$balance_hex" ] || [ "$balance_hex" = "null" ] || [ "$balance_hex" = "0x0" ]; then
-        echo "0"
-    else
-        # Convert hex to decimal (remove 0x, uppercase, use bc for large numbers)
-        local hex_no_prefix="${balance_hex#0x}"
-        local hex_upper=$(echo "$hex_no_prefix" | tr '[:lower:]' '[:upper:]')
-        echo "obase=10; ibase=16; $hex_upper" | bc 2>/dev/null || echo "0"
-    fi
-}
-
-# Function to get ERC20 token balance (works for any EVM chain)
-get_evm_token_balance() {
-    local address="$1"
-    local token_addr="$2"
-    local rpc_url="$3"
-    
-    # Ensure addresses have 0x prefix
-    if [[ ! "$address" =~ ^0x ]]; then
-        address="0x${address}"
-    fi
-    if [[ ! "$token_addr" =~ ^0x ]]; then
-        token_addr="0x${token_addr}"
-    fi
-    
-    # ERC20 balanceOf(address) - function selector: 0x70a08231
-    # Pad address to 64 hex characters (32 bytes) with leading zeros
-    local addr_no_prefix="${address#0x}"
-    local addr_padded=$(printf "%064s" "$addr_no_prefix" | sed 's/ /0/g')
-    local data="0x70a08231$addr_padded"
-    
-    local balance_hex=$(curl -s --max-time 10 -X POST "$rpc_url" \
-        -H "Content-Type: application/json" \
-        -d "{\"jsonrpc\":\"2.0\",\"method\":\"eth_call\",\"params\":[{\"to\":\"$token_addr\",\"data\":\"$data\"},\"latest\"],\"id\":1}" \
-        | jq -r '.result // "0x0"' 2>/dev/null)
-    
-    if [ -z "$balance_hex" ] || [ "$balance_hex" = "null" ] || [ "$balance_hex" = "0x0" ]; then
-        echo "0"
-    else
-        # Convert hex to decimal (remove 0x, uppercase, use bc for large numbers)
-        local hex_no_prefix="${balance_hex#0x}"
-        local hex_upper=$(echo "$hex_no_prefix" | tr '[:lower:]' '[:upper:]')
-        echo "obase=10; ibase=16; $hex_upper" | bc 2>/dev/null || echo "0"
-    fi
-}
-
-# Wrapper functions for backwards compatibility
-get_base_eth_balance() {
-    get_evm_eth_balance "$1" "$BASE_RPC_URL"
-}
-
-get_base_token_balance() {
-    get_evm_token_balance "$1" "$2" "$BASE_RPC_URL"
-}
-
-# Format balance for display (number only, no symbol)
-format_balance_number() {
-    local balance="$1"
-    local decimals="$2"
-    
-    local divisor
-    case "$decimals" in
-        18) divisor="1000000000000000000" ;;
-        8)  divisor="100000000" ;;
-        6)  divisor="1000000" ;;
-        *)  divisor="1" ;;
-    esac
-    
-    local formatted=$(echo "scale=6; $balance / $divisor" | bc 2>/dev/null || echo "0")
-    printf "%.6f" "$formatted"
-}
-
-# Format balance for display (with optional symbol)
-format_balance() {
-    local balance="$1"
-    local decimals="$2"
-    local symbol="${3:-}"
-    
-    # Convert from smallest unit to human-readable
-    # Decimals must be provided (read from testnet-assets.toml config)
-    local divisor
-    case "$decimals" in
-        18) divisor="1000000000000000000" ;;
-        8)  divisor="100000000" ;;
-        6)  divisor="1000000" ;;
-        *)  divisor="1" ;;
-    esac
-    
-    local formatted=$(echo "scale=6; $balance / $divisor" | bc 2>/dev/null || echo "0")
-    
-    if [ -n "$symbol" ]; then
-        printf "%.6f %s" "$formatted" "$symbol"
-    else
-        case "$decimals" in
-            18) printf "%.6f ETH" "$formatted" ;;
-            8)  printf "%.6f MOVE" "$formatted" ;;
-            6)  printf "%.6f USDC" "$formatted" ;;
-            *)  printf "%s" "$balance" ;;
-        esac
-    fi
-}
+# Solana devnet config
+SOLANA_RPC_URL=$(grep -A 5 "^\[solana_devnet\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+SOLANA_USDC=$(grep -A 10 "^\[solana_devnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
+SOLANA_USDC_DECIMALS=$(grep -A 10 "^\[solana_devnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "6")
 
 # Check Movement balances
 echo " Movement Bardock Testnet"
@@ -344,7 +124,7 @@ else
     echo "             MOVE: $formatted"
     # USDC.e (FA only)
     if [ -n "$MOVEMENT_USDC_E_ADDR" ]; then
-        usdc_e_balance=$(get_movement_usdc_e_balance "$MOVEMENT_DEPLOYER_ADDR")
+        usdc_e_balance=$(get_movement_fa_balance "$MOVEMENT_DEPLOYER_ADDR" "$MOVEMENT_USDC_E_ADDR")
         usdc_e_formatted=$(format_balance_number "$usdc_e_balance" "$MOVEMENT_USDC_E_DECIMALS")
         echo "             USDC.e: $usdc_e_formatted"
     fi
@@ -384,7 +164,7 @@ else
     echo "             MOVE: $formatted"
     # USDC.e (FA only)
     if [ -n "$MOVEMENT_USDC_E_ADDR" ]; then
-        usdc_e_balance=$(get_movement_usdc_e_balance "$MOVEMENT_REQUESTER_ADDR")
+        usdc_e_balance=$(get_movement_fa_balance "$MOVEMENT_REQUESTER_ADDR" "$MOVEMENT_USDC_E_ADDR")
         usdc_e_formatted=$(format_balance_number "$usdc_e_balance" "$MOVEMENT_USDC_E_DECIMALS")
         echo "             USDC.e: $usdc_e_formatted"
     fi
@@ -424,7 +204,7 @@ else
     echo "             MOVE: $formatted"
     # USDC.e (FA only)
     if [ -n "$MOVEMENT_USDC_E_ADDR" ]; then
-        usdc_e_balance=$(get_movement_usdc_e_balance "$MOVEMENT_SOLVER_ADDR")
+        usdc_e_balance=$(get_movement_fa_balance "$MOVEMENT_SOLVER_ADDR" "$MOVEMENT_USDC_E_ADDR")
         usdc_e_formatted=$(format_balance_number "$usdc_e_balance" "$MOVEMENT_USDC_E_DECIMALS")
         echo "             USDC.e: $usdc_e_formatted"
     fi
@@ -464,11 +244,11 @@ echo "   RPC: $BASE_RPC_URL"
 if [ -z "$BASE_DEPLOYER_ADDR" ]; then
     echo "️  BASE_DEPLOYER_ADDR not set in .env.testnet"
 else
-    eth_balance=$(get_base_eth_balance "$BASE_DEPLOYER_ADDR")
+    eth_balance=$(get_evm_eth_balance "$BASE_DEPLOYER_ADDR" "$BASE_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
     echo "   Deployer  ($BASE_DEPLOYER_ADDR)"
     if [ -n "$BASE_USDC_ADDR" ]; then
-        usdc_balance=$(get_base_token_balance "$BASE_DEPLOYER_ADDR" "$BASE_USDC_ADDR")
+        usdc_balance=$(get_evm_token_balance "$BASE_DEPLOYER_ADDR" "$BASE_USDC_ADDR" "$BASE_RPC_URL")
         usdc_formatted=$(format_balance "$usdc_balance" "$BASE_USDC_DECIMALS" "USDC")
         echo "             $eth_formatted, $usdc_formatted"
     else
@@ -479,11 +259,11 @@ fi
 if [ -z "$BASE_REQUESTER_ADDR" ]; then
     echo "️  BASE_REQUESTER_ADDR not set in .env.testnet"
 else
-    eth_balance=$(get_base_eth_balance "$BASE_REQUESTER_ADDR")
+    eth_balance=$(get_evm_eth_balance "$BASE_REQUESTER_ADDR" "$BASE_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
     echo "   Requester ($BASE_REQUESTER_ADDR)"
     if [ -n "$BASE_USDC_ADDR" ]; then
-        usdc_balance=$(get_base_token_balance "$BASE_REQUESTER_ADDR" "$BASE_USDC_ADDR")
+        usdc_balance=$(get_evm_token_balance "$BASE_REQUESTER_ADDR" "$BASE_USDC_ADDR" "$BASE_RPC_URL")
         usdc_formatted=$(format_balance "$usdc_balance" "$BASE_USDC_DECIMALS" "USDC")
         echo "             $eth_formatted, $usdc_formatted"
     else
@@ -494,17 +274,43 @@ fi
 if [ -z "$BASE_SOLVER_ADDR" ]; then
     echo "️  BASE_SOLVER_ADDR not set in .env.testnet"
 else
-    eth_balance=$(get_base_eth_balance "$BASE_SOLVER_ADDR")
+    eth_balance=$(get_evm_eth_balance "$BASE_SOLVER_ADDR" "$BASE_RPC_URL")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
     echo "   Solver    ($BASE_SOLVER_ADDR)"
     if [ -n "$BASE_USDC_ADDR" ]; then
-        usdc_balance=$(get_base_token_balance "$BASE_SOLVER_ADDR" "$BASE_USDC_ADDR")
+        usdc_balance=$(get_evm_token_balance "$BASE_SOLVER_ADDR" "$BASE_USDC_ADDR" "$BASE_RPC_URL")
         usdc_formatted=$(format_balance "$usdc_balance" "$BASE_USDC_DECIMALS" "USDC")
         echo "             $eth_formatted, $usdc_formatted"
     else
         echo "             $eth_formatted (USDC n/a)"
     fi
 fi
+
+echo ""
+
+# Solana Devnet
+echo " Solana Devnet"
+echo "----------------"
+echo "   RPC: $SOLANA_RPC_URL"
+
+for role_var in SOLANA_DEPLOYER_ADDR SOLANA_REQUESTER_ADDR SOLANA_SOLVER_ADDR; do
+    addr="${!role_var}"
+    label="${role_var#SOLANA_}"
+    label="${label%_ADDR}"
+    label=$(echo "$label" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
+
+    if [ -z "$addr" ]; then
+        echo "   ${role_var} not set in .env.testnet"
+    else
+        printf "   %-10s (%s)\n" "$label" "$addr"
+        sol_balance=$(get_solana_sol_balance "$addr" "$SOLANA_RPC_URL")
+        echo "             $(format_balance "$sol_balance" "9" "SOL")"
+        if [ -n "$SOLANA_USDC" ]; then
+            usdc_balance=$(get_solana_token_balance "$addr" "$SOLANA_USDC" "$SOLANA_RPC_URL")
+            echo "             $(format_balance "$usdc_balance" "$SOLANA_USDC_DECIMALS" "USDC")"
+        fi
+    fi
+done
 
 echo ""
 
