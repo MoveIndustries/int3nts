@@ -78,7 +78,7 @@ const chainType = getChainType(chainConfigs, 'base-sepolia');
 const rpcUrl = getRpcUrl(chainConfigs, 'base-sepolia');
 
 // Chain queries take explicit RPC/address params
-const balance = await fetchTokenBalance(rpcUrl, walletAddr, token);
+const balance = await fetchTokenBalance(rpcUrl, walletAddr, token, chainType);
 const hasEscrow = await checkHasRequirements(rpcUrl, escrowAddr, intentId);
 ```
 
