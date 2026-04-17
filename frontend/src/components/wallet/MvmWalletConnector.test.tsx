@@ -48,13 +48,14 @@ describe('MvmWalletConnector', () => {
 
   /**
    * Test: Connected state rendering
-   * Why: Users should be able to disconnect when connected.
+   * Why: Users should see the truncated MVM address and be able to disconnect.
    */
-  it('should show disconnect when connected', async () => {
+  it('should show truncated MVM address when connected', async () => {
     mockState.connected = true;
-    mockState.account = { address: '0xabc' };
+    mockState.account = { address: '0xabcdef1234567890abcdef1234567890abcdef12' };
     render(<MvmWalletConnector />);
-    const button = await screen.findByText('Disconnect MVM');
+    const button = await screen.findByText(/^MVM 0xabcd\.\.\.ef12$/);
     expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute('title', 'Disconnect MVM');
   });
 });

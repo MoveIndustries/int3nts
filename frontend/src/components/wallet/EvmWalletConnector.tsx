@@ -30,12 +30,17 @@ export function EvmWalletConnector() {
   }
 
   if (isConnected) {
+    if (!address) {
+      throw new Error('Connected but no EVM address available');
+    }
+    const short = `${address.slice(0, 6)}...${address.slice(-4)}`;
     return (
       <button
         onClick={() => disconnect()}
         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+        title="Disconnect EVM"
       >
-        Disconnect EVM
+        EVM {short}
       </button>
     );
   }
