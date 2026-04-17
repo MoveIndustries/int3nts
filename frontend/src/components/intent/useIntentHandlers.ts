@@ -184,6 +184,36 @@ export function useIntentHandlers(deps: IntentHandlerDeps) {
 
     setLoading(true);
     try {
+      // Pre-flight: check GMP relay is funded on the chains this transfer touches.
+      // Relevant chains = hub (always) + offered chain + desired chain. Other chains
+      // (e.g. a Solana relay when the transfer is MVM↔EVM) are irrelevant.
+      try {
+        const health = await coordinator.getRelayHealth();
+        if (health.success && health.data) {
+          const hubChainId = getHubChainConfig(CHAIN_CONFIGS).chainId;
+          const offeredChainId = CHAIN_CONFIGS[offeredToken.chain].chainId;
+          const desiredChainId = CHAIN_CONFIGS[desiredToken.chain].chainId;
+          const relevantChainIds = new Set([hubChainId, offeredChainId, desiredChainId]);
+
+          const unhealthy = health.data.filter(
+            (e) => relevantChainIds.has(e.chain_id) && !e.healthy,
+          );
+          if (unhealthy.length > 0) {
+            const details = unhealthy
+              .map((e) => `${e.chain_name} (relay ${e.relay_address})`)
+              .join(', ');
+            setError(
+              `GMP relay is under-funded on: ${details}. ` +
+              `Transfer would fail before the relay can deliver. Fund the relay and retry.`
+            );
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (healthErr) {
+        console.warn('Relay health check failed (non-fatal):', healthErr);
+      }
+
       const { draftId: newDraftId, draftData } = await createDraft({
         coordinator,
         requesterAddr,

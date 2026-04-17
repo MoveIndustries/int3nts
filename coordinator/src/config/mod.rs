@@ -58,6 +58,9 @@ pub struct ChainConfig {
     pub intent_module_addr: String,
     /// Address of the escrow module (optional for hub chain)
     pub escrow_module_addr: Option<String>,
+    /// GMP relay address on this chain (used for health checks)
+    #[serde(default)]
+    pub relay_address: Option<String>,
 }
 
 /// Configuration for an EVM-compatible chain (Ethereum, Hardhat, etc.)
@@ -79,6 +82,9 @@ pub struct EvmChainConfig {
     /// Number of blocks to query for events (default: 1000, max depends on RPC provider)
     #[serde(default = "default_event_block_range")]
     pub event_block_range: u64,
+    /// GMP relay address on this chain (used for health checks; pre-flight balance warning)
+    #[serde(default)]
+    pub relay_address: Option<String>,
 }
 
 fn default_event_block_range() -> u64 {
@@ -100,6 +106,9 @@ pub struct SvmChainConfig {
     pub chain_id: u64,
     /// Program ID of the intent escrow program
     pub escrow_program_id: String,
+    /// GMP relay address (Pubkey as base58) on this chain (used for health checks)
+    #[serde(default)]
+    pub relay_address: Option<String>,
 }
 
 /// Coordinator-specific configuration for timing parameters.
@@ -361,6 +370,7 @@ impl Config {
                 chain_id: 1,
                 intent_module_addr: "0x123".to_string(),
                 escrow_module_addr: None,
+                relay_address: None,
             },
             connected_chain_mvm: vec![], // No connected MVM chains by default
             coordinator: CoordinatorConfig {
