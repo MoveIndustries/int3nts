@@ -642,21 +642,19 @@ UNIT
     echo " Configuring Caddy reverse proxy..."
 
     ssh_to coordinator "sudo tee /etc/caddy/Caddyfile > /dev/null" << CADDY
-:443 {
+$FRONTEND_DOMAIN {
     handle /api/* {
         reverse_proxy localhost:3333
     }
     handle {
         reverse_proxy localhost:3000
     }
-    tls internal
 }
 CADDY
 
     ssh_to integrated-gmp "sudo tee /etc/caddy/Caddyfile > /dev/null" << CADDY
-:443 {
+:80 {
     reverse_proxy localhost:3334
-    tls internal
 }
 CADDY
 
@@ -696,9 +694,9 @@ CADDY
     done
     echo ""
     echo " Endpoints:"
-    echo "   Frontend:    https://$COORDINATOR_IP"
-    echo "   Coordinator: https://$COORDINATOR_IP/api"
-    echo "   GMP:         https://$GMP_IP:443"
+    echo "   Frontend:    https://$FRONTEND_DOMAIN"
+    echo "   Coordinator: https://$FRONTEND_DOMAIN/api"
+    echo "   GMP:         http://$GMP_IP"
     echo "   Solver:      internal ($SOLVER_PRIVATE_IP:4444)"
     echo ""
     echo " Logs:    $0 logs <service>"

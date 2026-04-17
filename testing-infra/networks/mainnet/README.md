@@ -38,4 +38,37 @@ docker run --rm -v "$(pwd)/../../..":/src:ro -w /build node:22 bash -c "\
 - AWS CLI configured with SSO (see `.ec2-config` for profile name)
 - SSH key pair: see ec2-deploy.sh header for creation instructions
 - `.env.mainnet` populated (copy from `env.mainnet.example`)
+- `.ec2-config` populated (copy from `ec2-config.example`)
 - Service config files: `coordinator_mainnet.toml`, `solver_mainnet.toml`, `integrated-gmp_mainnet.toml`
+
+## Custom Domain + HTTPS
+
+The frontend is served over HTTPS via Caddy with automatic Let's Encrypt certificates. Browser wallet extensions (Nightly, Phantom) require a secure context — HTTPS is mandatory.
+
+### One-time domain setup
+
+1. **Buy a domain** (e.g. `example.xyz`).
+2. **Point DNS to the coordinator IP**: add an `A` record at your DNS provider:
+   - Type: `A`, Name: `@`, Value: `<coordinator public IP>`, TTL: 30 min
+   - Remove any other `A` records on `@` (e.g. the provider's default parking page) — extra records cause round-robin that breaks Let's Encrypt validation.
+3. **Set `FRONTEND_DOMAIN`** in `.ec2-config` to your domain.
+4. **Wait for DNS propagation**: `dig <domain> +short` should return only the coordinator IP.
+5. **Deploy** (`./ec2-deploy.sh deploy`). Caddy auto-fetches the cert on first start.
+
+### If you need to update the Caddyfile on a running instance
+
+Without a full redeploy:
+
+```bash
+ssh -i ~/.ssh/int3nts-ec2.pem ec2-user@<coordinator-ip> "sudo tee /etc/caddy/Caddyfile > /dev/null" << 'CADDY'
+<your-domain> {
+    handle /api/* {
+        reverse_proxy localhost:3333
+    }
+    handle {
+        reverse_proxy localhost:3000
+    }
+}
+CADDY
+ssh -i ~/.ssh/int3nts-ec2.pem ec2-user@<coordinator-ip> "sudo systemctl reload caddy"
+```
