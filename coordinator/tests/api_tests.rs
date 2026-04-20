@@ -39,9 +39,9 @@ fn valid_draft_request() -> serde_json::Value {
 // HEALTH ENDPOINT TESTS
 // ============================================================================
 
-/// Test that health endpoint returns success
-/// What is tested: Basic health check endpoint
-/// Why: Ensures service is running and responsive
+// 1. Test: Health endpoint returns success
+// Verifies that GET /health returns 200 OK with a successful ApiResponse.
+// Why: Ensures the service is running and responsive.
 #[tokio::test]
 async fn test_health_endpoint() {
     let api_server = create_test_api_server().await;
@@ -63,9 +63,9 @@ async fn test_health_endpoint() {
 // EVENTS ENDPOINT TESTS
 // ============================================================================
 
-/// Test that events endpoint returns success
-/// What is tested: Events retrieval endpoint
-/// Why: Ensures monitored events can be retrieved
+// 2. Test: Events endpoint returns success
+// Verifies that GET /events returns 200 OK with a successful ApiResponse.
+// Why: Ensures monitored events can be retrieved by clients.
 #[tokio::test]
 async fn test_events_endpoint() {
     let api_server = create_test_api_server().await;
@@ -86,9 +86,9 @@ async fn test_events_endpoint() {
 // DRAFT INTENT ENDPOINT TESTS
 // ============================================================================
 
-/// Test that invalid JSON in POST /draftintent returns proper error
-/// What is tested: Error handling for malformed JSON in draft intent submission
-/// Why: Ensures clients get clear error messages when sending invalid JSON
+// 3. Test: POST /draftintent rejects malformed JSON
+// Verifies that an invalid JSON body returns 400 Bad Request with an "Invalid JSON" error.
+// Why: Ensures clients get clear error messages when sending invalid JSON.
 #[tokio::test]
 async fn test_draftintent_invalid_json() {
     let api_server = create_test_api_server().await;
@@ -107,9 +107,9 @@ async fn test_draftintent_invalid_json() {
     assert!(body.error.unwrap().contains("Invalid JSON"));
 }
 
-/// Test that missing required fields return proper error
-/// What is tested: Error handling for missing fields in draft intent request
-/// Why: Ensures clients get clear error messages about required fields
+// 4. Test: POST /draftintent rejects missing required fields
+// Verifies that a request missing draft_data and expiry_time returns 400 Bad Request.
+// Why: Ensures clients get clear error messages about missing required fields.
 #[tokio::test]
 async fn test_draftintent_missing_fields() {
     let api_server = create_test_api_server().await;
@@ -132,9 +132,9 @@ async fn test_draftintent_missing_fields() {
     assert!(!body.success);
 }
 
-/// Test that valid draft intent request succeeds
-/// What is tested: Valid requests still work after adding error handling
-/// Why: Ensures error handling doesn't break normal functionality
+// 5. Test: POST /draftintent accepts a valid request
+// Verifies that a well-formed draft intent request returns a successful ApiResponse carrying a draft_id.
+// Why: Ensures error handling does not break normal functionality.
 #[tokio::test]
 async fn test_draftintent_valid_request() {
     let api_server = create_test_api_server().await;
@@ -153,9 +153,9 @@ async fn test_draftintent_valid_request() {
     assert!(body.data.is_some());
 }
 
-/// Test that submitting the same draft twice returns the same draft_id
-/// What is tested: Deterministic draft ID from (requester_addr, draft_data, expiry_time)
-/// Why: Prevents duplicate drafts on retried requests, avoids solver locking liquidity twice
+// 6. Test: POST /draftintent is idempotent on identical requests
+// Verifies that submitting the same (requester_addr, draft_data, expiry_time) twice returns the same draft_id.
+// Why: Prevents duplicate drafts on retried requests and avoids solvers locking liquidity twice.
 #[tokio::test]
 async fn test_draftintent_idempotent_submission() {
     let api_server = create_test_api_server().await;
@@ -189,9 +189,9 @@ async fn test_draftintent_idempotent_submission() {
     assert_eq!(id1, id2, "Same request must produce the same draft_id");
 }
 
-/// Test that different requests produce different draft_ids
-/// What is tested: Deterministic draft ID varies when inputs differ
-/// Why: Ensures distinct intents are not accidentally deduplicated
+// 7. Test: POST /draftintent produces distinct ids for distinct inputs
+// Verifies that two requests differing only in expiry_time produce different draft_ids.
+// Why: Ensures distinct intents are not accidentally deduplicated.
 #[tokio::test]
 async fn test_draftintent_different_inputs_different_ids() {
     let api_server = create_test_api_server().await;
@@ -227,9 +227,9 @@ async fn test_draftintent_different_inputs_different_ids() {
     assert_ne!(id1, id2, "Different requests must produce different draft_ids");
 }
 
-/// Test that invalid requester_addr is rejected
-/// What is tested: requester_addr must be 0x-prefixed hex
-/// Why: Prevents garbage data from entering the draft store
+// 8. Test: POST /draftintent rejects non-hex requester_addr
+// Verifies that a requester_addr that is not 0x-prefixed hex returns 400 Bad Request with an error naming requester_addr.
+// Why: Prevents garbage data from entering the draft store.
 #[tokio::test]
 async fn test_draftintent_invalid_requester_addr() {
     let api_server = create_test_api_server().await;
@@ -253,9 +253,9 @@ async fn test_draftintent_invalid_requester_addr() {
     assert!(body.error.unwrap().contains("requester_addr"));
 }
 
-/// Test that past expiry_time is rejected
-/// What is tested: expiry_time must be in the future
-/// Why: Expired drafts waste solver resources
+// 9. Test: POST /draftintent rejects past expiry_time
+// Verifies that an expiry_time in the past returns 400 Bad Request with an error naming expiry_time.
+// Why: Expired drafts waste solver resources and cannot be executed.
 #[tokio::test]
 async fn test_draftintent_past_expiry() {
     let api_server = create_test_api_server().await;
@@ -279,9 +279,9 @@ async fn test_draftintent_past_expiry() {
     assert!(body.error.unwrap().contains("expiry_time"));
 }
 
-/// Test that empty body returns proper error
-/// What is tested: Error handling for empty request body
-/// Why: Ensures clients get clear error messages for empty requests
+// 10. Test: POST /draftintent rejects empty body
+// Verifies that an empty request body returns 400 Bad Request with an unsuccessful ApiResponse.
+// Why: Ensures clients get clear error messages for empty requests.
 #[tokio::test]
 async fn test_draftintent_empty_body() {
     let api_server = create_test_api_server().await;
@@ -303,9 +303,9 @@ async fn test_draftintent_empty_body() {
 // SIGNATURE SUBMISSION ENDPOINT TESTS
 // ============================================================================
 
-/// Test that invalid JSON in POST /draftintent/:id/signature returns proper error
-/// What is tested: Error handling for malformed JSON in signature submission
-/// Why: Ensures clients get clear error messages when sending invalid JSON
+// 11. Test: POST /draftintent/:id/signature rejects malformed JSON
+// Verifies that an invalid JSON body on the signature endpoint returns 400 Bad Request with an "Invalid JSON" error.
+// Why: Ensures clients get clear error messages when sending invalid JSON to the signature endpoint.
 #[tokio::test]
 async fn test_signature_submission_invalid_json() {
     let api_server = create_test_api_server().await;
@@ -338,9 +338,9 @@ async fn test_signature_submission_invalid_json() {
     assert!(body.error.unwrap().contains("Invalid JSON"));
 }
 
-/// Test that missing required fields in signature submission return proper error
-/// What is tested: Error handling for missing fields in signature submission
-/// Why: Ensures clients get clear error messages about required fields
+// 12. Test: POST /draftintent/:id/signature rejects missing required fields
+// Verifies that a signature submission missing signature and public_key returns 400 Bad Request.
+// Why: Ensures clients get clear error messages about required signature fields.
 #[tokio::test]
 async fn test_signature_submission_missing_fields() {
     let api_server = create_test_api_server().await;
@@ -378,9 +378,9 @@ async fn test_signature_submission_missing_fields() {
     assert!(!body.success);
 }
 
-/// Test that signature submission route doesn't match draft intent route
-/// What is tested: Route matching - /draftintent/:id/signature vs /draftintent
-/// Why: Prevents regression where sub-paths incorrectly match parent route
+// 13. Test: Signature route is distinct from draft intent route
+// Verifies that POST /draftintent/:id/signature does not match the /draftintent route (no "requester_addr" error in the response).
+// Why: Prevents regression where sub-paths incorrectly match a parent route in the router.
 #[tokio::test]
 async fn test_signature_route_not_confused_with_draft_route() {
     let api_server = create_test_api_server().await;
