@@ -27,8 +27,9 @@ module mvmt_intent::fa_intent_with_oracle_tests {
         offerer = @0xcafe,
         solver = @0xdead
     )]
-    /// What is tested: an oracle-guarded FA limit order settles only with a valid signature witness
-    /// Why: Enforce that settlement requires approval from the configured oracle key
+    // 1. Test: an oracle-guarded FA limit order settles only with a valid signature witness
+    // Verifies that an oracle-guarded FA limit order settles only with a valid signature witness.
+    // Why: Enforce that settlement requires approval from the configured oracle key.
     fun test_fa_limit_order_with_oracle_signature(
         aptos_framework: &signer,
         offerer: &signer,
@@ -66,8 +67,9 @@ module mvmt_intent::fa_intent_with_oracle_tests {
         solver = @0xdead
     )]
     #[expected_failure(abort_code = 65538, location = fa_intent_with_oracle)] // error::invalid_argument(ESIGNATURE_REQUIRED)
-    /// What is tested: settlement aborts when the solver omits the oracle witness
-    /// Why: Require an explicit oracle signature for any guarded settlement
+    // 2. Test: settlement aborts when the solver omits the oracle witness
+    // Verifies that settlement aborts when the solver omits the oracle witness.
+    // Why: Require an explicit oracle signature for any guarded settlement.
     fun test_fa_limit_order_missing_oracle_signature(
         aptos_framework: &signer,
         offerer: &signer,
@@ -91,8 +93,9 @@ module mvmt_intent::fa_intent_with_oracle_tests {
         solver = @0xdead
     )]
     #[expected_failure(abort_code = 65539, location = fa_intent_with_oracle)] // error::invalid_argument(EINVALID_SIGNATURE)
-    /// What is tested: settlement aborts when the oracle signature is invalid for the configured key
-    /// Why: Prevent a solver from settling using forged or mismatched oracle signatures
+    // 3. Test: settlement aborts when the oracle signature is invalid for the configured key
+    // Verifies that settlement aborts when the oracle signature is invalid for the configured key.
+    // Why: Prevent a solver from settling using forged or mismatched oracle signatures.
     fun test_fa_limit_order_with_invalid_oracle_signature(
         aptos_framework: &signer,
         offerer: &signer,

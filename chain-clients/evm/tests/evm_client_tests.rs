@@ -25,8 +25,9 @@ const DUMMY_TX_HASH: &str =
 // #1: client_new
 // ============================================================================
 
-/// 1. Test: EvmClient initialization
-/// Verifies that EvmClient::new() creates a client with correct config.
+// 1. Test: EvmClient initialization
+// Verifies that EvmClient::new() creates a client with correct config.
+// Why: Constructor is the entry point; a broken config would cause every call to fail.
 #[test]
 fn test_client_new() {
     let client = EvmClient::new("http://127.0.0.1:8545", DUMMY_ESCROW_CONTRACT_ADDR).unwrap();
@@ -40,8 +41,9 @@ fn test_client_new() {
 // #3-5: is_escrow_released
 // ============================================================================
 
-/// 3. Test: is_escrow_released returns true when escrow is released
-/// Verifies eth_call to isReleased(bytes32) parses ABI bool correctly.
+// 3. Test: is_escrow_released returns true when escrow is released
+// Verifies that is_escrow_released returns true when escrow is released.
+// Why: Release state drives the solver's claim-detection logic; a false negative would block fulfillment.
 #[tokio::test]
 async fn test_is_escrow_released_success() {
     let mock_server = MockServer::start().await;
@@ -62,7 +64,9 @@ async fn test_is_escrow_released_success() {
     assert!(released);
 }
 
-/// 4. Test: is_escrow_released returns false when escrow is not released
+// 4. Test: is_escrow_released returns false when escrow is not released
+// Verifies that is_escrow_released returns false when the contract reports the escrow is not released..
+// Why: Must distinguish released from unreleased reliably — both states drive different solver actions.
 #[tokio::test]
 async fn test_is_escrow_released_false() {
     let mock_server = MockServer::start().await;
@@ -83,7 +87,9 @@ async fn test_is_escrow_released_false() {
     assert!(!released);
 }
 
-/// 5. Test: is_escrow_released propagates RPC errors
+// 5. Test: is_escrow_released propagates RPC errors
+// Verifies that is_escrow_released returns an error when the RPC endpoint returns a JSON-RPC error..
+// Why: Silent failure would let the solver treat errors as "not released" and retry indefinitely.
 #[tokio::test]
 async fn test_is_escrow_released_error() {
     let mock_server = MockServer::start().await;
@@ -109,7 +115,9 @@ async fn test_is_escrow_released_error() {
 // #6-13: balance queries
 // ============================================================================
 
-/// 6. Test: get_token_balance returns correct ERC20 balance
+// 6. Test: get_token_balance returns correct ERC20 balance
+// Verifies that get_token_balance returns correct ERC20 balance.
+// Why: Balance drives liquidity gating; incorrect parsing would let the solver over-commit.
 #[tokio::test]
 async fn test_get_token_balance_success() {
     let mock_server = MockServer::start().await;
@@ -134,7 +142,9 @@ async fn test_get_token_balance_success() {
     assert_eq!(balance, 1_000_000);
 }
 
-/// 7. Test: get_token_balance propagates RPC errors
+// 7. Test: get_token_balance propagates RPC errors
+// Verifies that get_token_balance returns an error when the RPC endpoint returns a JSON-RPC error..
+// Why: Must not silently return zero on RPC error; the solver would then misgate liquidity.
 #[tokio::test]
 async fn test_get_token_balance_error() {
     let mock_server = MockServer::start().await;
@@ -156,7 +166,9 @@ async fn test_get_token_balance_error() {
     assert!(result.is_err());
 }
 
-/// 8. Test: get_token_balance returns zero for "0x0" result
+// 8. Test: get_token_balance returns zero for "0x0" result
+// Verifies that get_token_balance returns 0 when the contract returns the short-form "0x0" encoding..
+// Why: Empty-slot encoding is "0x0" not "0x0000…"; the parser must handle the short form.
 #[tokio::test]
 async fn test_get_token_balance_zero() {
     let mock_server = MockServer::start().await;
@@ -179,7 +191,9 @@ async fn test_get_token_balance_zero() {
     assert_eq!(balance, 0);
 }
 
-/// 9. Test: get_native_balance returns correct ETH balance
+// 9. Test: get_native_balance returns correct ETH balance
+// Verifies that get_native_balance returns the correct ETH balance in wei..
+// Why: Gas token balance gates transaction submission; wrong parse fails submissions.
 #[tokio::test]
 async fn test_get_native_balance_success() {
     let mock_server = MockServer::start().await;
@@ -202,7 +216,9 @@ async fn test_get_native_balance_success() {
     assert_eq!(balance, 10_000_000_000_000_000);
 }
 
-/// 10. Test: get_native_balance propagates RPC errors
+// 10. Test: get_native_balance propagates RPC errors
+// Verifies that get_native_balance returns an error when the RPC endpoint returns a JSON-RPC error..
+// Why: Silent failure on native balance would let the solver submit txs it cannot pay for.
 #[tokio::test]
 async fn test_get_native_balance_error() {
     let mock_server = MockServer::start().await;
@@ -222,7 +238,9 @@ async fn test_get_native_balance_error() {
     assert!(result.is_err());
 }
 
-/// 11. Test: get_native_balance returns exact u128 for large ETH balances exceeding u64
+// 11. Test: get_native_balance returns exact u128 for large ETH balances exceeding u64
+// Verifies that get_native_balance returns the exact u128 value for balances exceeding u64::MAX..
+// Why: Balances exceeding u64 (10k+ ETH) must not be silently truncated; u128 preserves full range.
 #[tokio::test]
 async fn test_get_native_balance_exceeds_u64() {
     let mock_server = MockServer::start().await;
@@ -243,7 +261,9 @@ async fn test_get_native_balance_exceeds_u64() {
     assert_eq!(balance, 10_000_000_000_000_000_000_000u128);
 }
 
-/// 12. Test: get_token_balance succeeds with 32-byte padded token address
+// 12. Test: get_token_balance succeeds with 32-byte padded token address
+// Verifies that get_token_balance succeeds when given a 32-byte zero-padded token address..
+// Why: Solver config stores padded 32-byte addresses for Move parity; the EVM client must accept them.
 #[tokio::test]
 async fn test_get_token_balance_with_padded_address() {
     let mock_server = MockServer::start().await;
@@ -271,7 +291,9 @@ async fn test_get_token_balance_with_padded_address() {
     assert_eq!(balance, 500_000);
 }
 
-/// 13. Test: get_native_balance succeeds with 32-byte padded account address
+// 13. Test: get_native_balance succeeds with 32-byte padded account address
+// Verifies that get_native_balance succeeds when given a 32-byte zero-padded account address..
+// Why: See test 12 — padded addresses also apply to native balance queries.
 #[tokio::test]
 async fn test_get_native_balance_with_padded_address() {
     let mock_server = MockServer::start().await;
@@ -299,7 +321,9 @@ async fn test_get_native_balance_with_padded_address() {
 // #14-16: escrow event parsing
 // ============================================================================
 
-/// 14. Test: get_escrow_created_events parses EscrowCreated events correctly
+// 14. Test: get_escrow_created_events parses EscrowCreated events correctly
+// Verifies that get_escrow_created_events parses EscrowCreated logs into EscrowEvent structs correctly..
+// Why: The solver monitors this event to discover new escrows; parse errors would miss intents.
 #[tokio::test]
 async fn test_get_escrow_events_success() {
     let mock_server = MockServer::start().await;
@@ -354,7 +378,9 @@ async fn test_get_escrow_events_success() {
     assert_eq!(events[0].expiry, 0);
 }
 
-/// 15. Test: get_escrow_created_events handles empty log list correctly
+// 15. Test: get_escrow_created_events handles empty log list correctly
+// Verifies that get_escrow_created_events returns an empty Vec when the RPC returns an empty result array..
+// Why: Empty log must return empty Vec, not error, to support the steady-state polling loop.
 #[tokio::test]
 async fn test_get_escrow_events_empty() {
     let mock_server = MockServer::start().await;
@@ -377,7 +403,9 @@ async fn test_get_escrow_events_empty() {
     assert_eq!(events.len(), 0);
 }
 
-/// 16. Test: get_escrow_created_events propagates JSON-RPC errors
+// 16. Test: get_escrow_created_events propagates JSON-RPC errors
+// Verifies that get_escrow_created_events propagates JSON-RPC errors from eth_getLogs..
+// Why: RPC errors (e.g., invalid filter) must fail loudly so the monitor can alert instead of silently missing events.
 #[tokio::test]
 async fn test_get_escrow_events_error() {
     let mock_server = MockServer::start().await;
@@ -410,7 +438,9 @@ async fn test_get_escrow_events_error() {
 // #22-24: EVM address normalization
 // ============================================================================
 
-/// 22. Test: normalize_evm_address extracts 20 bytes from 32-byte padded address
+// 22. Test: normalize_evm_address extracts 20 bytes from 32-byte padded address
+// Verifies that normalize_evm_address extracts the low 20 bytes from a 32-byte zero-padded address..
+// Why: Solver config uses 32-byte form; EVM calls need 20 bytes. Normalization bridges the formats.
 #[test]
 fn test_normalize_evm_address_padded() {
     let padded = "0x000000000000000000000000a513e6e4b8f2a923d98304ec87f64353c4d5c853";
@@ -418,7 +448,9 @@ fn test_normalize_evm_address_padded() {
     assert_eq!(result, "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853");
 }
 
-/// 23. Test: normalize_evm_address passes through 20-byte addresses unchanged
+// 23. Test: normalize_evm_address passes through 20-byte addresses unchanged
+// Verifies that normalize_evm_address returns a 20-byte address unchanged when given a 20-byte address..
+// Why: Already-normalized addresses must not be corrupted by re-normalization.
 #[test]
 fn test_normalize_evm_address_passthrough() {
     let normal = "0xa513e6e4b8f2a923d98304ec87f64353c4d5c853";
@@ -426,7 +458,9 @@ fn test_normalize_evm_address_passthrough() {
     assert_eq!(result, normal);
 }
 
-/// 24. Test: normalize_evm_address rejects 32-byte address with non-zero high bytes
+// 24. Test: normalize_evm_address rejects 32-byte address with non-zero high bytes
+// Verifies that normalize_evm_address returns an error for a 32-byte address that has non-zero bytes in the high 12 bytes..
+// Why: Non-zero high bytes on a 32-byte EVM address indicate corruption or a programming error; must fail loud.
 #[test]
 fn test_normalize_evm_address_rejects_non_zero_high_bytes() {
     let bad = "0x0000000000000000000000010000000000000000000000000000000000000001";

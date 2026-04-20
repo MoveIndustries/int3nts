@@ -19,9 +19,9 @@ use integrated_gmp::MAX_DELIVERY_RETRIES;
 // ADDRESS PARSING TESTS
 // ============================================================================
 
-/// 1. Test: Parse Full-Length 64-Character Hex Address
-/// Verifies that parse_32_byte_address correctly parses a full 64-character hex address using DUMMY_SOLVER_ADDR_HUB.
-/// Why: This is the standard Move VM address format used throughout the codebase.
+// 1. Test: Parse Full-Length 64-Character Hex Address
+// Verifies that parse_32_byte_address correctly parses a full 64-character hex address using DUMMY_SOLVER_ADDR_HUB.
+// Why: This is the standard Move VM address format used throughout the codebase.
 #[test]
 fn test_parse_32_byte_address_full_length() {
     let result = parse_32_byte_address(DUMMY_SOLVER_ADDR_HUB).unwrap();
@@ -33,9 +33,9 @@ fn test_parse_32_byte_address_full_length() {
     assert_eq!(result[31], 0x07, "Last byte should match constant (0x07)");
 }
 
-/// 2. Test: Parse Intent ID Address
-/// Verifies that parse_32_byte_address correctly parses DUMMY_INTENT_ID which has a different last byte.
-/// Why: Verify consistent behavior across different test constants.
+// 2. Test: Parse Intent ID Address
+// Verifies that parse_32_byte_address correctly parses DUMMY_INTENT_ID which has a different last byte.
+// Why: Verify consistent behavior across different test constants.
 #[test]
 fn test_parse_32_byte_address_intent_id() {
     let result = parse_32_byte_address(DUMMY_INTENT_ID).unwrap();
@@ -46,9 +46,9 @@ fn test_parse_32_byte_address_intent_id() {
     assert_eq!(result[31], 0x01, "Last byte should match constant (0x01)");
 }
 
-/// 3. Test: Parse Short Address With Leading Zero Restoration
-/// Verifies that parse_32_byte_address correctly left-pads a short address to 32 bytes.
-/// Why: Move VM may strip leading zeros; we must restore them for 32-byte SVM pubkeys.
+// 3. Test: Parse Short Address With Leading Zero Restoration
+// Verifies that parse_32_byte_address correctly left-pads a short address to 32 bytes.
+// Why: Move VM may strip leading zeros; we must restore them for 32-byte SVM pubkeys.
 #[test]
 fn test_parse_32_byte_address_restores_leading_zeros() {
     // Simulate a Move address with stripped leading zeros (just "1" = 1 hex char)
@@ -63,9 +63,9 @@ fn test_parse_32_byte_address_restores_leading_zeros() {
     assert_eq!(result[31], 0x01, "Last byte should be 0x01");
 }
 
-/// 4. Test: Parse Two-Byte Address With Significant Padding
-/// Verifies that parse_32_byte_address correctly pads a 4-hex-char (2 byte) address to 32 bytes.
-/// Why: Verify significant padding works correctly.
+// 4. Test: Parse Two-Byte Address With Significant Padding
+// Verifies that parse_32_byte_address correctly pads a 4-hex-char (2 byte) address to 32 bytes.
+// Why: Verify significant padding works correctly.
 #[test]
 fn test_parse_32_byte_address_two_bytes_input() {
     // 4 hex chars = 2 bytes
@@ -85,9 +85,9 @@ fn test_parse_32_byte_address_two_bytes_input() {
 // ED25519 KEYPAIR CONVERSION TESTS
 // ============================================================================
 
-/// 5. Test: Ed25519 Seed To Keypair Bytes Produces Valid Keypair
-/// Verifies that ed25519_seed_to_keypair_bytes converts a 32-byte seed into a valid 64-byte Solana keypair.
-/// Why: integrated-gmp uses Ed25519 keys; Solana SDK expects 64-byte keypairs.
+// 5. Test: Ed25519 Seed To Keypair Bytes Produces Valid Keypair
+// Verifies that ed25519_seed_to_keypair_bytes converts a 32-byte seed into a valid 64-byte Solana keypair.
+// Why: integrated-gmp uses Ed25519 keys; Solana SDK expects 64-byte keypairs.
 #[test]
 fn test_ed25519_seed_to_keypair_bytes_produces_valid_keypair() {
     // Use a deterministic seed for reproducible tests
@@ -111,9 +111,9 @@ fn test_ed25519_seed_to_keypair_bytes_produces_valid_keypair() {
     assert_eq!(keypair.to_bytes(), keypair_bytes);
 }
 
-/// 6. Test: Ed25519 Seed To Keypair Bytes Rejects Invalid Length
-/// Verifies that ed25519_seed_to_keypair_bytes returns an error for seeds that are not exactly 32 bytes.
-/// Why: Ed25519 seeds must be exactly 32 bytes.
+// 6. Test: Ed25519 Seed To Keypair Bytes Rejects Invalid Length
+// Verifies that ed25519_seed_to_keypair_bytes returns an error for seeds that are not exactly 32 bytes.
+// Why: Ed25519 seeds must be exactly 32 bytes.
 #[test]
 fn test_ed25519_seed_to_keypair_bytes_rejects_invalid_length() {
     let short_seed = [1u8; 16]; // Only 16 bytes, should fail
@@ -126,9 +126,9 @@ fn test_ed25519_seed_to_keypair_bytes_rejects_invalid_length() {
 // HEX TO BYTES TESTS
 // ============================================================================
 
-/// 7. Test: Hex To Bytes With 0x Prefix
-/// Verifies that hex_to_bytes correctly decodes a hex string with 0x prefix into bytes.
-/// Why: Most addresses and payloads use 0x prefix.
+// 7. Test: Hex To Bytes With 0x Prefix
+// Verifies that hex_to_bytes correctly decodes a hex string with 0x prefix into bytes.
+// Why: Most addresses and payloads use 0x prefix.
 #[test]
 fn test_hex_to_bytes_with_prefix() {
     let bytes = hex_to_bytes("0x0102ff").unwrap();
@@ -136,9 +136,9 @@ fn test_hex_to_bytes_with_prefix() {
     assert_eq!(bytes, vec![1, 2, 255]);
 }
 
-/// 8. Test: Hex To Bytes Without Prefix
-/// Verifies that hex_to_bytes correctly decodes a hex string without 0x prefix into bytes.
-/// Why: Some inputs may omit the prefix.
+// 8. Test: Hex To Bytes Without Prefix
+// Verifies that hex_to_bytes correctly decodes a hex string without 0x prefix into bytes.
+// Why: Some inputs may omit the prefix.
 #[test]
 fn test_hex_to_bytes_without_prefix() {
     let bytes = hex_to_bytes("0102ff").unwrap();
@@ -150,8 +150,9 @@ fn test_hex_to_bytes_without_prefix() {
 // DELIVERY RETRY TRACKING TESTS
 // ============================================================================
 
-/// 9. Test: DeliveryAttempt record_failure increments count and sets backoff
-/// Why: First failure must not be terminal — relay must retry with backoff
+// 9. Test: DeliveryAttempt record_failure increments count and sets backoff
+// Verifies that DeliveryAttempt record_failure increments count and sets backoff.
+// Why: First failure must not be terminal — relay must retry with backoff.
 #[test]
 fn test_delivery_attempt_first_failure_sets_backoff() {
     let mut attempt = DeliveryAttempt { count: 0, next_retry_after: 0 };
@@ -162,8 +163,9 @@ fn test_delivery_attempt_first_failure_sets_backoff() {
     assert!(attempt.next_retry_after > 0, "Backoff should be set");
 }
 
-/// 10. Test: DeliveryAttempt transitions to exhausted after MAX_DELIVERY_RETRIES
-/// Why: After max retries, message must be permanently skipped
+// 10. Test: DeliveryAttempt transitions to exhausted after MAX_DELIVERY_RETRIES
+// Verifies that DeliveryAttempt transitions to exhausted after MAX_DELIVERY_RETRIES.
+// Why: After max retries, message must be permanently skipped.
 #[test]
 fn test_delivery_attempt_exhausted_after_max_retries() {
     let mut attempt = DeliveryAttempt { count: 0, next_retry_after: 0 };
@@ -181,8 +183,9 @@ fn test_delivery_attempt_exhausted_after_max_retries() {
     assert!(attempt.is_exhausted());
 }
 
-/// 11. Test: DeliveryAttempt backoff increases with each retry
-/// Why: Backoff must increase to avoid hammering a failing chain
+// 11. Test: DeliveryAttempt backoff increases with each retry
+// Verifies that DeliveryAttempt backoff increases with each retry.
+// Why: Backoff must increase to avoid hammering a failing chain.
 #[test]
 fn test_delivery_attempt_backoff_increases() {
     let mut attempt = DeliveryAttempt { count: 0, next_retry_after: 0 };
@@ -196,8 +199,9 @@ fn test_delivery_attempt_backoff_increases() {
     assert!(second_retry_after > first_retry_after, "Backoff should increase with each retry");
 }
 
-/// 12. Test: DeliveryAttempt is_exhausted returns false when under limit
-/// Why: Should only be true after max retries
+// 12. Test: DeliveryAttempt is_exhausted returns false when under limit
+// Verifies that DeliveryAttempt is_exhausted returns false when under limit.
+// Why: Should only be true after max retries.
 #[test]
 fn test_delivery_attempt_not_exhausted_under_limit() {
     let attempt = DeliveryAttempt { count: MAX_DELIVERY_RETRIES - 1, next_retry_after: 0 };
