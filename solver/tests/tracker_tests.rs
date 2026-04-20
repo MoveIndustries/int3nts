@@ -2,7 +2,7 @@
 
 use solver::{
     acceptance::DraftintentData, service::tracker::IntentTracker,
-    IntentState, MAX_OUTFLOW_RETRIES,
+    IntentState, MAX_INFLOW_RETRIES, MAX_OUTFLOW_RETRIES,
 };
 
 #[path = "helpers.rs"]
@@ -588,6 +588,108 @@ async fn test_record_outflow_failure_not_found() {
     let result = tracker.record_outflow_failure("non-existent", "error").await;
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("not found"));
+}
+
+/// What is tested: record_inflow_failure() increments attempt count and sets backoff
+/// Why: First failure must not be terminal — solver must retry inflow fulfillment with backoff
+#[tokio::test]
+async fn test_record_inflow_failure_increments_count_and_sets_backoff() {
+    let config = create_default_solver_config();
+    let tracker = IntentTracker::new(&config).unwrap();
+
+    let draft_data = create_default_draft_data_inflow();
+    tracker
+        .add_signed_intent(
+            DUMMY_DRAFT_ID.to_string(),
+            draft_data,
+            DUMMY_REQUESTER_ADDR_EVM.to_string(),
+            DUMMY_EXPIRY,
+        )
+        .await
+        .unwrap();
+    tracker.set_intent_state(DUMMY_DRAFT_ID, IntentState::Created).await.unwrap();
+
+    // Record first failure
+    let state = tracker
+        .record_inflow_failure(DUMMY_INTENT_ID, "hub tx rejected")
+        .await
+        .unwrap();
+    assert_eq!(state, IntentState::Created);
+
+    let tracked = tracker.get_intent(DUMMY_DRAFT_ID).await.unwrap();
+    assert_eq!(tracked.inflow_attempt_count, 1);
+    assert!(tracked.next_inflow_retry_after > 0);
+}
+
+/// What is tested: record_inflow_failure() transitions to Failed after MAX_INFLOW_RETRIES
+/// Why: After max retries exhausted, inflow intent must reach a terminal Failed state
+#[tokio::test]
+async fn test_inflow_exhausted_retries_transition_to_failed() {
+    let config = create_default_solver_config();
+    let tracker = IntentTracker::new(&config).unwrap();
+
+    let draft_data = create_default_draft_data_inflow();
+    tracker
+        .add_signed_intent(
+            DUMMY_DRAFT_ID.to_string(),
+            draft_data,
+            DUMMY_REQUESTER_ADDR_EVM.to_string(),
+            DUMMY_EXPIRY,
+        )
+        .await
+        .unwrap();
+    tracker.set_intent_state(DUMMY_DRAFT_ID, IntentState::Created).await.unwrap();
+
+    // Exhaust all retries
+    for i in 0..MAX_INFLOW_RETRIES {
+        let state = tracker
+            .record_inflow_failure(DUMMY_INTENT_ID, &format!("failure {}", i + 1))
+            .await
+            .unwrap();
+
+        if i + 1 < MAX_INFLOW_RETRIES {
+            assert_eq!(state, IntentState::Created);
+        } else {
+            assert_eq!(state, IntentState::Failed);
+        }
+    }
+
+    let tracked = tracker.get_intent(DUMMY_DRAFT_ID).await.unwrap();
+    assert_eq!(tracked.state, IntentState::Failed);
+    assert_eq!(tracked.inflow_attempt_count, MAX_INFLOW_RETRIES);
+}
+
+/// What is tested: Exponential backoff doubles with each inflow retry
+/// Why: Inflow backoff must increase to avoid hammering a failing hub chain
+#[tokio::test]
+async fn test_inflow_failure_backoff_increases_exponentially() {
+    let config = create_default_solver_config();
+    let tracker = IntentTracker::new(&config).unwrap();
+
+    let draft_data = create_default_draft_data_inflow();
+    tracker
+        .add_signed_intent(
+            DUMMY_DRAFT_ID.to_string(),
+            draft_data,
+            DUMMY_REQUESTER_ADDR_EVM.to_string(),
+            DUMMY_EXPIRY,
+        )
+        .await
+        .unwrap();
+    tracker.set_intent_state(DUMMY_DRAFT_ID, IntentState::Created).await.unwrap();
+
+    // First failure — backoff = 5s
+    tracker.record_inflow_failure(DUMMY_INTENT_ID, "fail 1").await.unwrap();
+    let after_first = tracker.get_intent(DUMMY_DRAFT_ID).await.unwrap();
+    let first_retry_after = after_first.next_inflow_retry_after;
+
+    // Second failure — backoff = 10s (doubles)
+    tracker.record_inflow_failure(DUMMY_INTENT_ID, "fail 2").await.unwrap();
+    let after_second = tracker.get_intent(DUMMY_DRAFT_ID).await.unwrap();
+    let second_retry_after = after_second.next_inflow_retry_after;
+
+    // Second backoff should be further in the future than first
+    assert!(second_retry_after > first_retry_after);
 }
 
 /// What is tested: Exponential backoff doubles with each retry

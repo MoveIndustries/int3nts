@@ -5,6 +5,8 @@
 //! - Intent tracker: monitors hub chain for intent creation
 //! - Inflow service: monitors escrows and fulfills inflow intents
 //! - Outflow service: executes transfers and fulfills outflow intents
+//! - Reconciliation service: periodically cross-checks tracker against hub +
+//!   connected-chain state and surfaces mismatches
 //!
 //! ## Usage
 //!
@@ -25,7 +27,10 @@ use solver::{
     config::{ConnectedChainConfig, SolverConfig},
     crypto::{get_private_key_from_profile, sign_intent_hash},
     api::run_acceptance_server,
-    service::{InflowService, IntentTracker, LiquidityMonitor, OutflowService, SigningService},
+    service::{
+        InflowService, IntentTracker, LiquidityMonitor, OutflowService, ReconciliationService,
+        SigningService, RECONCILE_INTERVAL_SECS,
+    },
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -298,7 +303,11 @@ async fn main() -> Result<()> {
     let outflow_service = OutflowService::new(config.clone(), tracker.clone(), Arc::clone(&liquidity_monitor))?;
     info!("Outflow service initialized");
 
+    let reconciliation_service = ReconciliationService::new(config.clone(), tracker.clone())?;
+    info!("Reconciliation service initialized");
+
     let polling_interval = Duration::from_millis(config.service.polling_interval_ms);
+    let reconciliation_interval = Duration::from_secs(RECONCILE_INTERVAL_SECS);
 
     // Run all services concurrently with graceful shutdown
     info!("Starting all services...");
@@ -334,6 +343,9 @@ async fn main() -> Result<()> {
 
         // Outflow fulfillment service loop
         _ = outflow_service.run(polling_interval) => {}
+
+        // Reconciliation sweep (observation-only)
+        _ = reconciliation_service.run(reconciliation_interval) => {}
 
         // Acceptance API server for live ratio lookup
         _ = acceptance_server => {}

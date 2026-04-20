@@ -17,8 +17,12 @@ pub use config::{SolverConfig, SolverSigningConfig};
 pub use crypto::{get_intent_hash, get_private_key_from_profile, sign_intent_hash};
 pub use service::inflow::InflowService;
 pub use service::outflow::OutflowService;
+pub use service::reconciliation::{
+    classify_drift, ReconciliationService, TrackerDrift, TrackerSnapshot,
+    RECONCILE_INTERVAL_SECS,
+};
 pub use service::signing::SigningService;
-pub use service::tracker::{IntentState, IntentTracker, TrackedIntent, MAX_OUTFLOW_RETRIES};
+pub use service::tracker::{IntentState, IntentTracker, TrackedIntent, MAX_INFLOW_RETRIES, MAX_OUTFLOW_RETRIES};
 pub use coordinator_client::{
     ApiResponse, CoordinatorClient, PendingDraft, SignatureSubmission,
     SignatureSubmissionResponse,

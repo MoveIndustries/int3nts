@@ -24,6 +24,9 @@ use crate::config::{ChainConfig, SolverConfig};
 /// Maximum number of outflow fulfillment attempts before transitioning to Failed
 pub const MAX_OUTFLOW_RETRIES: u32 = 3;
 
+/// Maximum number of inflow fulfillment attempts before transitioning to Failed
+pub const MAX_INFLOW_RETRIES: u32 = 3;
+
 /// Initial backoff duration in seconds after first failure (doubles each retry)
 const INITIAL_BACKOFF_SECS: u64 = 5;
 
@@ -67,6 +70,10 @@ pub struct TrackedIntent {
     pub outflow_attempt_count: u32,
     /// Earliest time the next outflow retry is allowed (Unix timestamp, 0 = no backoff)
     pub next_retry_after: u64,
+    /// Number of failed inflow fulfillment attempts
+    pub inflow_attempt_count: u32,
+    /// Earliest time the next inflow retry is allowed (Unix timestamp, 0 = no backoff)
+    pub next_inflow_retry_after: u64,
 }
 
 /// Intent tracker that monitors signed intents and their on-chain creation
@@ -158,6 +165,8 @@ impl IntentTracker {
             outflow_attempted: false,
             outflow_attempt_count: 0,
             next_retry_after: 0,
+            inflow_attempt_count: 0,
+            next_inflow_retry_after: 0,
         };
 
         // Track requester address for event querying
@@ -454,6 +463,54 @@ impl IntentTracker {
         anyhow::bail!("Intent not found: {}", intent_id)
     }
 
+    /// Records an inflow fulfillment failure, incrementing retry count and setting backoff.
+    ///
+    /// If max retries are exhausted, transitions intent to `Failed` terminal state.
+    ///
+    /// # Arguments
+    ///
+    /// * `intent_id` - On-chain intent ID
+    /// * `error` - Error description from the failed attempt
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(IntentState)` - The intent's state after recording the failure
+    /// * `Err(anyhow::Error)` - Intent not found
+    pub async fn record_inflow_failure(&self, intent_id: &str, error: &str) -> Result<IntentState> {
+        let mut intents = self.intents.write().await;
+        for (_draft_id, intent) in intents.iter_mut() {
+            if intent.intent_id == intent_id {
+                intent.inflow_attempt_count += 1;
+
+                if intent.inflow_attempt_count >= MAX_INFLOW_RETRIES {
+                    tracing::error!(
+                        "Inflow intent {} permanently failed after {} attempts. Last error: {}",
+                        intent_id, intent.inflow_attempt_count, error
+                    );
+                    intent.state = IntentState::Failed;
+                    return Ok(IntentState::Failed);
+                }
+
+                // Exponential backoff: INITIAL_BACKOFF_SECS * 2^(attempt-1)
+                let backoff_secs = INITIAL_BACKOFF_SECS * 2u64.pow(intent.inflow_attempt_count - 1);
+                let current_time = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                intent.next_inflow_retry_after = current_time + backoff_secs;
+
+                tracing::warn!(
+                    "Inflow attempt {}/{} failed for intent {}. Next retry after {}s. Error: {}",
+                    intent.inflow_attempt_count, MAX_INFLOW_RETRIES,
+                    intent_id, backoff_secs, error
+                );
+
+                return Ok(intent.state.clone());
+            }
+        }
+        anyhow::bail!("Intent not found: {}", intent_id)
+    }
+
     /// Gets a tracked intent by draft ID
     ///
     /// # Note
@@ -461,6 +518,37 @@ impl IntentTracker {
     pub async fn get_intent(&self, draft_id: &str) -> Option<TrackedIntent> {
         let intents = self.intents.read().await;
         intents.get(draft_id).cloned()
+    }
+
+    /// Returns a snapshot of every currently tracked intent, regardless of state.
+    ///
+    /// Used by the reconciliation service to cross-check tracker state against
+    /// on-chain state for all non-terminal intents.
+    pub async fn get_all_tracked_intents(&self) -> Vec<TrackedIntent> {
+        let intents = self.intents.read().await;
+        intents.values().cloned().collect()
+    }
+
+    /// Overwrites the state of the tracked intent with the given on-chain intent_id.
+    ///
+    /// Used by the reconciliation sweep to correct drift between the in-memory
+    /// tracker and the hub's authoritative view. Unlike `mark_fulfilled`, this
+    /// does no side-effect cleanup (completed_intent_ids, requester pruning) —
+    /// it only overwrites `state`. The caller is responsible for picking a
+    /// healed state that does not strand the intent.
+    pub async fn heal_state_by_intent_id(
+        &self,
+        intent_id: &str,
+        new_state: IntentState,
+    ) -> Result<()> {
+        let mut intents = self.intents.write().await;
+        for (_draft_id, intent) in intents.iter_mut() {
+            if intent.intent_id == intent_id {
+                intent.state = new_state;
+                return Ok(());
+            }
+        }
+        anyhow::bail!("Intent not found: {}", intent_id)
     }
 
     /// Manually sets intent state

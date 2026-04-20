@@ -69,7 +69,6 @@ graph TD
 
 ### Stage 3 - Common Path
 
-
 6. `intent.move`
    - The internal `create_fa_to_fa_intent` (from `fa_intent.move`) uses the intent data to escrow assets, emits `LimitOrderEvent`, and delegates to `intent::create_intent`.
    - `intent::create_intent` persists the `Intent` object, storing the reservation data if it exists.
@@ -77,4 +76,3 @@ graph TD
    - A solver calls `start_fa_offering_session`, which wraps `intent::start_intent_session`.
    - If the intent is reserved, this function first calls `intent_reservation::ensure_solver_authorized`.
    - Settlement uses `finish_fa_receiving_session`, which validates payment before calling `intent::finish_intent_session`.
-

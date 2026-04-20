@@ -6,6 +6,7 @@
 pub mod inflow;
 pub mod liquidity;
 pub mod outflow;
+pub mod reconciliation;
 pub mod signing;
 pub mod tracker;
 
@@ -13,6 +14,10 @@ pub mod tracker;
 pub use inflow::InflowService;
 pub use liquidity::LiquidityMonitor;
 pub use outflow::OutflowService;
+pub use reconciliation::{
+    classify_drift, ReconciliationService, TrackerDrift, TrackerSnapshot,
+    RECONCILE_INTERVAL_SECS,
+};
 pub use signing::{parse_draft_data, SigningService};
 pub use tracker::{IntentState, IntentTracker, TrackedIntent};
 
