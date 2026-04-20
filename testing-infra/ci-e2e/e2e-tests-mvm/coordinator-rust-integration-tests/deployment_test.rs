@@ -5,8 +5,9 @@
 
 use chain_clients_mvm::MvmClient;
 
-/// Test that intent framework contracts are deployed on the chains
-/// Why: Coordinator needs contracts to be deployed before it can monitor events
+// 1. Test: intent module deployed on hub chain
+// Verifies that the intent framework module is present at the configured address on the hub chain by querying the node's modules endpoint.
+// Why: The coordinator cannot monitor intent events until the intent module is live on the hub.
 #[tokio::test]
 async fn test_contracts_deployed_on_chain1() {
     // Load the coordinator config to get the actual module addresses
@@ -53,8 +54,9 @@ async fn test_contracts_deployed_on_chain1() {
     assert!(has_intent_module, "mvmt_intent module should be deployed on Hub Chain at address {}", account_addr);
 }
 
-/// Test that intent framework contracts are deployed on the chains
-/// Why: Coordinator needs contracts to be deployed before it can monitor events
+// 2. Test: intent module deployed on connected chain
+// Verifies that the intent framework module is present at the configured address on the connected chain by querying the node's modules endpoint.
+// Why: The coordinator cannot monitor intent events until the intent module is live on each connected chain.
 #[tokio::test]
 async fn test_contracts_deployed_on_chain2() {
     // Load the coordinator config to get the actual module addresses

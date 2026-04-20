@@ -36,20 +36,18 @@ describe('MvmWalletConnector', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
-  /**
-   * Test: Missing wallet adapters
-   * Why: UI should disable when no MVM wallet is detected.
-   */
+  // 1. Test: Missing wallet adapters
+  // Verifies that MvmWalletConnector disables the connect action when the Aptos wallet adapter reports no available wallets.
+  // Why: Attempting to connect without a detected MVM wallet would fail, so the UI should block the action upfront.
   it('should disable when no wallet is detected', async () => {
     render(<MvmWalletConnector />);
     const button = await screen.findByText('MVM');
     expect(button).toBeDisabled();
   });
 
-  /**
-   * Test: Connected state rendering
-   * Why: Users should see the truncated MVM address and be able to disconnect.
-   */
+  // 2. Test: Connected state rendering
+  // Verifies that MvmWalletConnector displays the truncated connected account address and exposes a disconnect affordance when the wallet is connected.
+  // Why: Users need to confirm the active MVM account and have a way to disconnect from the same control.
   it('should show truncated MVM address when connected', async () => {
     mockState.connected = true;
     mockState.account = { address: '0xabcdef1234567890abcdef1234567890abcdef12' };

@@ -36,20 +36,18 @@ describe('EvmWalletConnector', () => {
     mockState.connectors = [{ id: 'metaMaskSDK' }];
   });
 
-  /**
-   * Test: Disconnected state rendering
-   * Why: Users should see a connect CTA when no wallet is connected.
-   */
+  // 1. Test: Disconnected state rendering
+  // Verifies that EvmWalletConnector renders the connect action when no wallet is connected.
+  // Why: Users need a clear call-to-action to initiate an EVM wallet connection.
   it('should show connect button when disconnected', async () => {
     render(<EvmWalletConnector />);
     const button = await screen.findByText('Connect EVM');
     expect(button).toBeInTheDocument();
   });
 
-  /**
-   * Test: Missing wallet adapter
-   * Why: UI should disable if MetaMask adapter is unavailable.
-   */
+  // 2. Test: Missing wallet adapter
+  // Verifies that EvmWalletConnector disables the connect action when no MetaMask connector is present in the wagmi connectors list.
+  // Why: Attempting to connect without an available adapter would fail, so the UI should prevent the action upfront.
   it('should disable when no MetaMask connector is available', async () => {
     mockState.connectors = [];
     render(<EvmWalletConnector />);
@@ -57,10 +55,9 @@ describe('EvmWalletConnector', () => {
     expect(button).toBeDisabled();
   });
 
-  /**
-   * Test: Connect action
-   * Why: Clicking connect should call wagmi connect handler.
-   */
+  // 3. Test: Connect action
+  // Verifies that EvmWalletConnector invokes the wagmi useConnect handler when the user clicks the connect action.
+  // Why: The button must be wired to the wallet connection side effect, otherwise users cannot connect.
   it('should call connect when clicking the connect button', async () => {
     render(<EvmWalletConnector />);
     const button = await screen.findByText('Connect EVM');
@@ -68,10 +65,9 @@ describe('EvmWalletConnector', () => {
     expect(connectMock).toHaveBeenCalledTimes(1);
   });
 
-  /**
-   * Test: Connected state rendering
-   * Why: Users should see the truncated EVM address and be able to disconnect.
-   */
+  // 4. Test: Connected state rendering
+  // Verifies that EvmWalletConnector displays the truncated connected address and exposes a disconnect affordance when the wallet is connected.
+  // Why: Users need to confirm the active account and have a way to disconnect from the same control.
   it('should show truncated EVM address when connected', async () => {
     mockState.isConnected = true;
     render(<EvmWalletConnector />);
