@@ -520,6 +520,15 @@ impl IntentTracker {
         intents.get(draft_id).cloned()
     }
 
+    /// Returns a snapshot of every currently tracked intent, regardless of state.
+    ///
+    /// Used by the reconciliation service to cross-check tracker state against
+    /// on-chain state for all non-terminal intents.
+    pub async fn get_all_tracked_intents(&self) -> Vec<TrackedIntent> {
+        let intents = self.intents.read().await;
+        intents.values().cloned().collect()
+    }
+
     /// Manually sets intent state
     ///
     /// # Note
