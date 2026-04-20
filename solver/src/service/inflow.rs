@@ -111,6 +111,26 @@ impl InflowService {
             .get_intents_ready_for_fulfillment(Some(true))
             .await;
 
+        // Skip intents still in inflow backoff after a recent failure
+        let current_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let pending_intents: Vec<TrackedIntent> = pending_intents
+            .into_iter()
+            .filter(|i| {
+                if i.next_inflow_retry_after > current_time {
+                    tracing::debug!(
+                        "Skipping inflow intent {}: in backoff (retry after {}, now {})",
+                        i.intent_id, i.next_inflow_retry_after, current_time
+                    );
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect();
+
         if pending_intents.is_empty() {
             // Debug: check if there are any Created intents at all
             let all_created = self.tracker.get_intents_ready_for_fulfillment(None).await;
@@ -328,7 +348,7 @@ impl InflowService {
                                 self.liquidity_monitor.release(&intent.draft_id).await;
                             }
                             Err(e) => {
-                                let msg = e.to_string();
+                                let msg = format!("{:#}", e);
                                 if msg.contains("E_ESCROW_NOT_CONFIRMED") {
                                     warn!(
                                         "Inflow intent {} not yet confirmed on hub (will retry): {}",
@@ -336,8 +356,22 @@ impl InflowService {
                                     );
                                 } else {
                                     error!(
-                                        "Failed to fulfill inflow intent {}: {}",
-                                        intent.intent_id, e
+                                        "Failed to fulfill inflow intent {} (attempt {}/{}): {}",
+                                        intent.intent_id,
+                                        intent.inflow_attempt_count + 1,
+                                        crate::service::tracker::MAX_INFLOW_RETRIES,
+                                        msg
+                                    );
+                                }
+                                // Record failure — increments retry count, sets backoff, or transitions to Failed
+                                if let Err(record_err) = self
+                                    .tracker
+                                    .record_inflow_failure(&intent.intent_id, &msg)
+                                    .await
+                                {
+                                    error!(
+                                        "Failed to record inflow failure for intent {}: {}",
+                                        intent.intent_id, record_err
                                     );
                                 }
                                 continue;

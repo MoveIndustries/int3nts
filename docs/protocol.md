@@ -97,11 +97,11 @@ sequenceDiagram
     Note over Requester,Solver: Phase 2: Escrow Creation on Connected Chain
     Requester->>Connected: Check requirements delivered<br/>(checkHasRequirements on connected chain)
     alt MVM Chain
-        Requester->>Connected: create_escrow_from_fa_gmp(<br/>intent_id, reserved_solver, expiry_time)
+        Requester->>Connected: create_escrow_with_validation(<br/>intent_id, asset, token_metadata)
     else EVM Chain
-        Requester->>Connected: createEscrow(intentId,<br/>reservedSolver)
+        Requester->>Connected: createEscrowWithValidation(intentId,<br/>token, amount)
     else SVM Chain
-        Requester->>Connected: create_escrow(intent_id,<br/>reserved_solver)
+        Requester->>Connected: CreateEscrow(intent_id,<br/>amount)
     end
     Connected->>Connected: Validate IntentRequirements on-chain<br/>(check stored requirements match)
     Connected->>Connected: Lock assets
@@ -144,7 +144,7 @@ sequenceDiagram
    - Stores the IntentRequirements on-chain
    - Emits `IntentRequirementsReceived` event
 
-4. **Escrow Creation on Connected Chain**: Requester (frontend) checks the connected chain directly for requirements delivery (e.g., `checkHasRequirements()` on EVM), then creates escrow using `create_escrow_from_fa_gmp()` (MVM), `createEscrow()` (EVM), or `create_escrow()` (SVM) with `intent_id` and **reserved solver address**. The escrow contract:
+4. **Escrow Creation on Connected Chain**: Requester (frontend) checks the connected chain directly for requirements delivery (e.g., `checkHasRequirements()` on EVM), then creates escrow using `create_escrow_with_validation()` (MVM), `createEscrowWithValidation()` (EVM), or `CreateEscrow` instruction (SVM) with `intent_id`. The escrow contract:
    - Validates that stored IntentRequirements match the intent_id
    - Locks assets in escrow
    - Emits `EscrowCreated` event
@@ -203,11 +203,11 @@ sequenceDiagram
     Note over Requester,Solver: Phase 2: Solver Calls Validation Contract on Connected Chain
     Solver->>Connected: Check requirements delivered<br/>(has_outflow_requirements on connected chain)
     alt MVM Chain
-        Solver->>Connected: validate_and_fulfill_outflow(<br/>intent_id, token, amount, recipient)
+        Solver->>Connected: fulfill_intent(<br/>intent_id, token, amount, recipient)
     else EVM Chain
-        Solver->>Connected: validateAndFulfill(intentId,<br/>token, amount, recipient)
+        Solver->>Connected: fulfillIntent(intentId,<br/>token, amount, recipient)
     else SVM Chain
-        Solver->>Connected: validate_and_fulfill(intent_id,<br/>amount, recipient)
+        Solver->>Connected: FulfillIntent(intent_id,<br/>amount, recipient)
     end
     Connected->>Connected: Validate stored IntentRequirements<br/>(check parameters match)
     Connected->>Connected: Pull tokens from solver
@@ -241,7 +241,7 @@ sequenceDiagram
    - Stores the IntentRequirements on-chain
    - Emits `IntentRequirementsReceived` event
 
-4. **Solver Calls Validation Contract**: Solver checks the connected chain directly for requirements delivery via `has_outflow_requirements(intent_id)`, then calls the validation contract on the connected chain (`validate_and_fulfill_outflow()` for MVM, `validateAndFulfill()` for EVM, `validate_and_fulfill()` for SVM). The validation contract:
+4. **Solver Calls Validation Contract**: Solver checks the connected chain directly for requirements delivery via `has_outflow_requirements(intent_id)`, then calls the validation contract on the connected chain (`fulfill_intent()` for MVM, `fulfillIntent()` for EVM, `FulfillIntent` instruction for SVM). The validation contract:
    - Validates that stored IntentRequirements match the parameters
    - Pulls tokens from the solver's account
    - Transfers tokens to `requester_addr_connected_chain`
@@ -322,6 +322,7 @@ The protocol uses three types of GMP messages to communicate cross-chain state:
 Sent from hub to connected chain when an intent is created. Contains all parameters needed for validation:
 
 **Fields:**
+
 - `intent_id`: Unique identifier linking hub intent to connected chain operations
 - `offered_metadata`: Token type on connected chain (for inflow) or hub (for outflow)
 - `offered_amount`: Amount to be locked
@@ -331,6 +332,7 @@ Sent from hub to connected chain when an intent is created. Contains all paramet
 - `expiry_time`: Intent expiration timestamp
 
 **Purpose:**
+
 - Inflow: Connected chain escrows validate these requirements before locking funds
 - Outflow: Connected chain validation contracts validate these requirements before executing transfers
 
@@ -339,11 +341,13 @@ Sent from hub to connected chain when an intent is created. Contains all paramet
 Sent from connected chain to hub when an escrow is successfully created (inflow only).
 
 **Fields:**
+
 - `intent_id`: Links to the hub intent
 - `escrow_id`: Connected chain escrow identifier
 - `reserved_solver`: Solver address that will receive funds
 
 **Purpose:**
+
 - Confirms to hub that escrow was created successfully
 - Enables hub-side tracking of escrow status
 
@@ -352,11 +356,13 @@ Sent from connected chain to hub when an escrow is successfully created (inflow 
 Sent from connected chain to hub (outflow) or from hub to connected chain (inflow) when fulfillment occurs.
 
 **Fields:**
+
 - `intent_id`: Links to the intent
 - `amount`: Amount fulfilled
 - `solver`: Solver address that fulfilled the intent
 
 **Purpose:**
+
 - Inflow: Proves to connected chain that hub intent was fulfilled → triggers escrow release
 - Outflow: Proves to hub that connected chain transfer occurred → triggers hub intent release
 
@@ -386,6 +392,7 @@ All validation happens on-chain using stored IntentRequirements. No off-chain si
 3. **Auto-Release**: If validation passes, automatically release funds to reserved solver
 
 **Key Properties:**
+
 - No signatures required - validation uses on-chain GMP messages
 - Trustless - all validation logic is on-chain
 - Atomic - escrow creation and validation happen in single transaction
@@ -407,6 +414,7 @@ All validation happens on-chain using stored IntentRequirements. No off-chain si
 5. **Hub Auto-Release**: Hub receives GMP message and auto-releases locked funds to solver
 
 **Key Properties:**
+
 - Atomic - validation, transfer, and GMP message sending happen in single transaction
 - No pre-funding required - solver provides tokens in the same transaction
 - Trustless - all validation logic is on-chain
@@ -415,18 +423,21 @@ All validation happens on-chain using stored IntentRequirements. No off-chain si
 ### Validation Contract Implementations
 
 **MVM (Movement)**:
+
 - Module: `intent_outflow_validator`
-- Function: `validate_and_fulfill_outflow()`
+- Function: `fulfill_intent()`
 - Location: `intent-frameworks/mvm/intent-connected/sources/gmp/intent_outflow_validator.move`
 
 **EVM (Ethereum)**:
+
 - Contract: `IntentOutflowValidator.sol`
-- Function: `validateAndFulfill()`
+- Function: `fulfillIntent()`
 - Location: `intent-frameworks/evm/contracts/IntentOutflowValidator.sol`
 
 **SVM (Solana)**:
+
 - Program: `intent-outflow-validator`
-- Instruction: `validate_and_fulfill`
+- Instruction: `FulfillIntent`
 - Location: `intent-frameworks/svm/programs/intent-outflow-validator/src/lib.rs`
 
 For detailed implementation, see [Intent Frameworks](../intent-frameworks/README.md).

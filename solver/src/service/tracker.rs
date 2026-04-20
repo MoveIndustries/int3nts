@@ -24,6 +24,9 @@ use crate::config::{ChainConfig, SolverConfig};
 /// Maximum number of outflow fulfillment attempts before transitioning to Failed
 pub const MAX_OUTFLOW_RETRIES: u32 = 3;
 
+/// Maximum number of inflow fulfillment attempts before transitioning to Failed
+pub const MAX_INFLOW_RETRIES: u32 = 3;
+
 /// Initial backoff duration in seconds after first failure (doubles each retry)
 const INITIAL_BACKOFF_SECS: u64 = 5;
 
@@ -67,6 +70,10 @@ pub struct TrackedIntent {
     pub outflow_attempt_count: u32,
     /// Earliest time the next outflow retry is allowed (Unix timestamp, 0 = no backoff)
     pub next_retry_after: u64,
+    /// Number of failed inflow fulfillment attempts
+    pub inflow_attempt_count: u32,
+    /// Earliest time the next inflow retry is allowed (Unix timestamp, 0 = no backoff)
+    pub next_inflow_retry_after: u64,
 }
 
 /// Intent tracker that monitors signed intents and their on-chain creation
@@ -158,6 +165,8 @@ impl IntentTracker {
             outflow_attempted: false,
             outflow_attempt_count: 0,
             next_retry_after: 0,
+            inflow_attempt_count: 0,
+            next_inflow_retry_after: 0,
         };
 
         // Track requester address for event querying
@@ -445,6 +454,54 @@ impl IntentTracker {
                 tracing::warn!(
                     "Outflow attempt {}/{} failed for intent {}. Next retry after {}s. Error: {}",
                     intent.outflow_attempt_count, MAX_OUTFLOW_RETRIES,
+                    intent_id, backoff_secs, error
+                );
+
+                return Ok(intent.state.clone());
+            }
+        }
+        anyhow::bail!("Intent not found: {}", intent_id)
+    }
+
+    /// Records an inflow fulfillment failure, incrementing retry count and setting backoff.
+    ///
+    /// If max retries are exhausted, transitions intent to `Failed` terminal state.
+    ///
+    /// # Arguments
+    ///
+    /// * `intent_id` - On-chain intent ID
+    /// * `error` - Error description from the failed attempt
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(IntentState)` - The intent's state after recording the failure
+    /// * `Err(anyhow::Error)` - Intent not found
+    pub async fn record_inflow_failure(&self, intent_id: &str, error: &str) -> Result<IntentState> {
+        let mut intents = self.intents.write().await;
+        for (_draft_id, intent) in intents.iter_mut() {
+            if intent.intent_id == intent_id {
+                intent.inflow_attempt_count += 1;
+
+                if intent.inflow_attempt_count >= MAX_INFLOW_RETRIES {
+                    tracing::error!(
+                        "Inflow intent {} permanently failed after {} attempts. Last error: {}",
+                        intent_id, intent.inflow_attempt_count, error
+                    );
+                    intent.state = IntentState::Failed;
+                    return Ok(IntentState::Failed);
+                }
+
+                // Exponential backoff: INITIAL_BACKOFF_SECS * 2^(attempt-1)
+                let backoff_secs = INITIAL_BACKOFF_SECS * 2u64.pow(intent.inflow_attempt_count - 1);
+                let current_time = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                intent.next_inflow_retry_after = current_time + backoff_secs;
+
+                tracing::warn!(
+                    "Inflow attempt {}/{} failed for intent {}. Next retry after {}s. Error: {}",
+                    intent.inflow_attempt_count, MAX_INFLOW_RETRIES,
                     intent_id, backoff_secs, error
                 );
 

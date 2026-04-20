@@ -37,12 +37,14 @@ All test functions must follow the documentation and section header rules define
    ```
 
    **CRITICAL: Use `git diff` output to identify ONLY the new/modified test functions.**
+
    - For **new files**: Review all test functions
    - For **modified files**: Extract and review ONLY the test functions that appear in the diff (marked with `+` lines)
    - DO NOT read entire test files and review all functions
    - ONLY review test functions that are new or have been modified
 
    Look for test files in:
+
    - `intent-frameworks/**/tests/**/*.rs`
    - `intent-frameworks/**/test/**/*.js`
    - `intent-frameworks/**/tests/**/*.move`
@@ -157,6 +159,7 @@ Check variable and parameter naming:
    ```
 
    **CRITICAL: Review ONLY the lines marked with `+` in the diff.**
+
    - For **new files**: Review all code
    - For **modified files**: Review ONLY the added/changed lines (marked with `+`)
    - DO NOT read entire test files

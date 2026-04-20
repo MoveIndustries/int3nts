@@ -107,6 +107,7 @@ Wait for the user's answer before proceeding. Only run the selected phase(s).
    ```
 
    The script accurately detects:
+
    - MD040: Code blocks without language specifiers (opening ``` without language)
    - MD012: Multiple consecutive blank lines (3+ blank lines in a row)
 

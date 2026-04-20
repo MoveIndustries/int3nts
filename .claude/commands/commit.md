@@ -28,6 +28,7 @@ git diff --cached
 ```
 
 **If markdown files are staged**, verify they follow markdown guidelines from `.claude/rules.md`:
+
 - Code blocks have language specifiers (MD040)
 - Blank lines around headings (MD022)
 - Blank lines around lists (MD032)
