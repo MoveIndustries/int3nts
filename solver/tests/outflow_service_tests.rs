@@ -23,8 +23,9 @@ fn create_test_liquidity_monitor(config: &solver::config::SolverConfig) -> Arc<L
 // OUTFLOW SERVICE TESTS
 // ============================================================================
 
-/// What is tested: OutflowService::new() creates a service successfully
-/// Why: Ensure service initialization works correctly
+// 1. Test: OutflowService::new() creates a service successfully
+// Verifies that OutflowService::new() creates a service successfully.
+// Why: Ensure service initialization works correctly.
 #[test]
 fn test_outflow_service_new() {
     let config = create_default_solver_config();
@@ -33,10 +34,9 @@ fn test_outflow_service_new() {
     let _service = OutflowService::new(config, tracker, monitor).unwrap();
 }
 
-/// What is tested: poll_and_execute_transfers() returns empty list when no pending outflow intents
-/// Why: Ensure the service correctly handles the case when there are no intents to process
-///
-/// Note: Uses explicit Runtime::block_on to avoid nested runtime issues from reqwest::Client
+// 2. Test: poll_and_execute_transfers() returns empty list when no pending outflow intents
+// Verifies that poll_and_execute_transfers() returns empty list when no pending outflow intents.
+// Why: Ensure the service correctly handles the case when there are no intents to process.
 #[test]
 fn test_poll_and_execute_transfers_empty() {
     // Create runtime in advance, then pass it into the service creation

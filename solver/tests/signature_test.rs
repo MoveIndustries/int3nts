@@ -6,8 +6,9 @@
 use ed25519_dalek::{Signer, SigningKey};
 use rand::Rng;
 
-/// Test that we can generate a valid Ed25519 signature
-/// This verifies the core signing logic used by sign_intent binary
+// 1. Test: we can generate a valid Ed25519 signature
+// Verifies that we can generate a valid Ed25519 signature.
+// Why: see test body.
 #[test]
 fn test_ed25519_signature_generation() {
     // Generate a random private key (32 bytes)
@@ -51,7 +52,9 @@ fn test_ed25519_signature_generation() {
     );
 }
 
-/// Test that signature verification fails with wrong message
+// 2. Test: signature verification fails with wrong message
+// Verifies that signature verification fails with wrong message.
+// Why: see test body.
 #[test]
 fn test_signature_verification_fails_wrong_message() {
     let mut rng = rand::thread_rng();
@@ -79,7 +82,9 @@ fn test_signature_verification_fails_wrong_message() {
     );
 }
 
-/// Test base64 private key parsing (as used in get_private_key_from_profile)
+// 3. Test: base64 private key parsing roundtrips
+// Verifies that base64-encoded Ed25519 private keys decode back to the original 32 bytes.
+// Why: get_private_key_from_profile relies on base64 encoding; a roundtrip bug would break signing.
 #[test]
 fn test_parse_private_key_base64() {
     use base64::{engine::general_purpose, Engine as _};
@@ -104,9 +109,9 @@ fn test_parse_private_key_base64() {
     );
 }
 
-/// Test that get_intent_hash rejects solver addresses without 0x prefix
-/// What is tested: Address validation in get_intent_hash requires 0x prefix
-/// Why: Addresses must have 0x prefix - missing prefix indicates a bug in calling code
+// 4. Test: get_intent_hash rejects solver addresses without 0x prefix
+// Verifies that get_intent_hash rejects solver addresses without 0x prefix.
+// Why: Addresses must have 0x prefix - missing prefix indicates a bug in calling code.
 #[test]
 fn test_get_intent_hash_rejects_address_without_prefix() {
     use solver::crypto::get_intent_hash;
@@ -146,8 +151,9 @@ fn test_get_intent_hash_rejects_address_without_prefix() {
     );
 }
 
-/// Test address normalization (strip 0x prefix) as used in get_intent_hash
-/// This verifies that solver addresses with 0x prefix are correctly normalized for REST API queries
+// 5. Test: solver address normalization strips 0x prefix
+// Verifies that addresses with a 0x prefix are correctly normalized by stripping the prefix for REST API queries.
+// Why: Move REST API expects addresses without the 0x prefix; normalization must be consistent.
 #[test]
 fn test_solver_address_normalization() {
     // Test case 1: Address with 0x prefix should have it removed

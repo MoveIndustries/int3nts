@@ -18,8 +18,9 @@ use test_helpers::{
 // JSON PARSING TESTS
 // ============================================================================
 
-/// What is tested: CoordinatorClient::new() creates a client with correct base URL
-/// Why: Ensure client initialization works correctly
+// 1. Test: CoordinatorClient::new() creates a client with correct base URL
+// Verifies that CoordinatorClient::new() creates a client with correct base URL.
+// Why: Ensure client initialization works correctly.
 #[test]
 fn test_coordinator_client_new() {
     let _client = CoordinatorClient::new("http://127.0.0.1:3333");
@@ -28,8 +29,9 @@ fn test_coordinator_client_new() {
     // Actual HTTP functionality tested in integration tests
 }
 
-/// What is tested: CoordinatorClient methods handle API response format correctly
-/// Why: Ensure we correctly parse the ApiResponse<T> wrapper from coordinator
+// 2. Test: CoordinatorClient methods handle API response format correctly
+// Verifies that CoordinatorClient methods handle API response format correctly.
+// Why: Ensure we correctly parse the ApiResponse<T> wrapper from coordinator.
 #[test]
 fn test_api_response_parsing() {
     // Test successful response
@@ -70,8 +72,9 @@ fn test_api_response_parsing() {
     );
 }
 
-/// What is tested: API error response parsing
-/// Why: Ensure we correctly handle error responses from coordinator
+// 3. Test: API error response parsing
+// Verifies that API error response parsing.
+// Why: Ensure we correctly handle error responses from coordinator.
 #[test]
 fn test_api_error_response_parsing() {
     let json = r#"{
@@ -90,8 +93,9 @@ fn test_api_error_response_parsing() {
     );
 }
 
-/// What is tested: SignatureSubmission serialization
-/// Why: Ensure request format matches coordinator API expectations
+// 4. Test: SignatureSubmission serialization
+// Verifies that SignatureSubmission serialization.
+// Why: Ensure request format matches coordinator API expectations.
 #[test]
 fn test_signature_submission_serialization() {
     let submission = SignatureSubmission {
@@ -108,8 +112,9 @@ fn test_signature_submission_serialization() {
     assert_eq!(parsed.public_key, submission.public_key);
 }
 
-/// What is tested: PendingDraft deserialization with various draft_data formats
-/// Why: Ensure we can handle different draft_data JSON structures from coordinator
+// 5. Test: PendingDraft deserialization with various draft_data formats
+// Verifies that PendingDraft deserialization with various draft_data formats.
+// Why: Ensure we can handle different draft_data JSON structures from coordinator.
 #[test]
 fn test_pending_draft_deserialization() {
     // Using test-specific timestamp (1000000) and expiry_time (2000000) for mock data
@@ -156,8 +161,9 @@ fn test_pending_draft_deserialization() {
 // poll_pending_drafts() tests
 // ----------------------------------------------------------------------------
 
-/// What is tested: poll_pending_drafts() successfully fetches pending drafts
-/// Why: Ensure HTTP GET request works correctly and parses response
+// 6. Test: poll_pending_drafts() successfully fetches pending drafts
+// Verifies that poll_pending_drafts() successfully fetches pending drafts.
+// Why: Ensure HTTP GET request works correctly and parses response.
 #[test]
 fn test_poll_pending_drafts_success() {
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -204,8 +210,9 @@ fn test_poll_pending_drafts_success() {
     );
 }
 
-/// What is tested: poll_pending_drafts() handles empty list
-/// Why: Ensure empty response is handled correctly
+// 7. Test: poll_pending_drafts() handles empty list
+// Verifies that poll_pending_drafts() handles empty list.
+// Why: Ensure empty response is handled correctly.
 #[test]
 fn test_poll_pending_drafts_empty() {
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -234,8 +241,9 @@ fn test_poll_pending_drafts_empty() {
     assert_eq!(drafts.len(), 0);
 }
 
-/// What is tested: poll_pending_drafts() handles API error response
-/// Why: Ensure error responses are properly converted to errors
+// 8. Test: poll_pending_drafts() handles API error response
+// Verifies that poll_pending_drafts() handles API error response.
+// Why: Ensure error responses are properly converted to errors.
 #[test]
 fn test_poll_pending_drafts_error() {
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -269,8 +277,9 @@ fn test_poll_pending_drafts_error() {
 // submit_signature() tests
 // ----------------------------------------------------------------------------
 
-/// What is tested: submit_signature() successfully submits signature
-/// Why: Ensure HTTP POST request works correctly and parses response
+// 9. Test: submit_signature() successfully submits signature
+// Verifies that submit_signature() successfully submits signature.
+// Why: Ensure HTTP POST request works correctly and parses response.
 #[test]
 fn test_submit_signature_success() {
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -311,9 +320,9 @@ fn test_submit_signature_success() {
     assert_eq!(result.status, "signed");
 }
 
-/// What is tested: submit_signature() handles FCFS conflict (409 Conflict)
-/// Why: Ensure FCFS logic is properly detected and returns appropriate error
-/// FCFS = First-Come, First-Served; only the first solver signature is accepted.
+// 10. Test: submit_signature() handles FCFS conflict (409 Conflict)
+// Verifies that submit_signature() handles FCFS conflict (409 Conflict).
+// Why: Ensure FCFS logic is properly detected and returns appropriate error.
 #[test]
 fn test_submit_signature_conflict() {
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -352,8 +361,9 @@ fn test_submit_signature_conflict() {
         .contains("Draft already signed by another solver (FCFS)"));
 }
 
-/// What is tested: submit_signature() handles other HTTP errors
-/// Why: Ensure non-409 errors are handled correctly
+// 11. Test: submit_signature() handles other HTTP errors
+// Verifies that submit_signature() handles other HTTP errors.
+// Why: Ensure non-409 errors are handled correctly.
 #[test]
 fn test_submit_signature_other_error() {
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -400,8 +410,9 @@ fn test_submit_signature_other_error() {
 // Error handling tests
 // ----------------------------------------------------------------------------
 
-/// What is tested: HTTP methods handle network errors (connection refused)
-/// Why: Ensure network errors are properly propagated
+// 12. Test: HTTP methods handle network errors (connection refused)
+// Verifies that HTTP methods handle network errors (connection refused).
+// Why: Ensure network errors are properly propagated.
 #[test]
 fn test_network_error() {
     // Use a port that's definitely not listening (test-specific invalid URL)
@@ -416,8 +427,9 @@ fn test_network_error() {
         .contains("Failed to send GET /draftintents/pending request"));
 }
 
-/// What is tested: HTTP methods handle invalid JSON responses
-/// Why: Ensure malformed JSON is handled gracefully
+// 13. Test: HTTP methods handle invalid JSON responses
+// Verifies that HTTP methods handle invalid JSON responses.
+// Why: Ensure malformed JSON is handled gracefully.
 #[test]
 fn test_invalid_json_response() {
     let rt = tokio::runtime::Runtime::new().unwrap();

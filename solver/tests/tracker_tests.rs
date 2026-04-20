@@ -51,16 +51,18 @@ fn create_default_draft_data_outflow() -> DraftintentData {
 // INTENT TRACKER TESTS
 // ============================================================================
 
-/// What is tested: IntentTracker::new() creates a tracker successfully
-/// Why: Ensure tracker initialization works correctly
+// 1. Test: IntentTracker::new() creates a tracker successfully
+// Verifies that IntentTracker::new() creates a tracker successfully.
+// Why: Ensure tracker initialization works correctly.
 #[test]
 fn test_intent_tracker_new() {
     let config = create_default_solver_config();
     let _tracker = IntentTracker::new(&config).unwrap();
 }
 
-/// What is tested: add_signed_intent() stores draftintent with Signed state
-/// Why: Ensure signed draftintents (not yet on-chain) are tracked correctly
+// 2. Test: add_signed_intent() stores draftintent with Signed state
+// Verifies that add_signed_intent() stores draftintent with Signed state.
+// Why: Ensure signed draftintents (not yet on-chain) are tracked correctly.
 #[tokio::test]
 async fn test_add_signed_intent() {
     let config = create_default_solver_config();
@@ -89,8 +91,9 @@ async fn test_add_signed_intent() {
     assert_eq!(tracked.draft_data.desired_chain_id, hub_chain_id);
 }
 
-/// What is tested: add_signed_intent() correctly identifies inflow vs outflow
-/// Why: Ensure intent type classification works correctly
+// 3. Test: add_signed_intent() correctly identifies inflow vs outflow
+// Verifies that add_signed_intent() correctly identifies inflow vs outflow.
+// Why: Ensure intent type classification works correctly.
 #[tokio::test]
 async fn test_add_signed_intent_inflow_outflow() {
     let config = create_default_solver_config();
@@ -129,8 +132,9 @@ async fn test_add_signed_intent_inflow_outflow() {
     assert_eq!(outflow.draft_data.offered_chain_id, hub_chain_id);
 }
 
-/// What is tested: get_intents_ready_for_fulfillment() returns only Created (on-chain) intents
-/// Why: Ensure filtering by state works correctly - only on-chain intents are returned, not draftintents
+// 4. Test: get_intents_ready_for_fulfillment() returns only Created (on-chain) intents
+// Verifies that get_intents_ready_for_fulfillment() returns only Created (on-chain) intents.
+// Why: Ensure filtering by state works correctly - only on-chain intents are returned, not draftintents.
 #[tokio::test]
 async fn test_get_intents_ready_for_fulfillment_state_filter() {
     let config = create_default_solver_config();
@@ -163,8 +167,9 @@ async fn test_get_intents_ready_for_fulfillment_state_filter() {
     assert_eq!(intents[0].draft_id, "draft-1");
 }
 
-/// What is tested: get_intents_ready_for_fulfillment() filters by inflow/outflow
-/// Why: Ensure intent type filtering works correctly
+// 5. Test: get_intents_ready_for_fulfillment() filters by inflow/outflow
+// Verifies that get_intents_ready_for_fulfillment() filters by inflow/outflow.
+// Why: Ensure intent type filtering works correctly.
 #[tokio::test]
 async fn test_get_intents_ready_for_fulfillment_inflow_outflow_filter() {
     let config = create_default_solver_config();
@@ -213,8 +218,9 @@ async fn test_get_intents_ready_for_fulfillment_inflow_outflow_filter() {
     assert_eq!(all_intents.len(), 2);
 }
 
-/// What is tested: mark_fulfilled() updates intent state
-/// Why: Ensure intent state transitions work correctly
+// 6. Test: mark_fulfilled() updates intent state
+// Verifies that mark_fulfilled() updates intent state.
+// Why: Ensure intent state transitions work correctly.
 #[tokio::test]
 async fn test_mark_fulfilled() {
     let config = create_default_solver_config();
@@ -238,8 +244,9 @@ async fn test_mark_fulfilled() {
     assert_eq!(tracked.state, IntentState::Fulfilled);
 }
 
-/// What is tested: mark_fulfilled() errors on non-existent intent
-/// Why: Ensure error handling works correctly
+// 7. Test: mark_fulfilled() errors on non-existent intent
+// Verifies that mark_fulfilled() errors on non-existent intent.
+// Why: Ensure error handling works correctly.
 #[tokio::test]
 async fn test_mark_fulfilled_not_found() {
     let config = create_default_solver_config();
@@ -250,8 +257,9 @@ async fn test_mark_fulfilled_not_found() {
     assert!(result.unwrap_err().to_string().contains("not found"));
 }
 
-/// What is tested: get_intent() returns None for non-existent intent
-/// Why: Ensure error handling works correctly
+// 8. Test: get_intent() returns None for non-existent intent
+// Verifies that get_intent() returns None for non-existent intent.
+// Why: Ensure error handling works correctly.
 #[tokio::test]
 async fn test_get_intent_not_found() {
     let config = create_default_solver_config();
@@ -261,8 +269,9 @@ async fn test_get_intent_not_found() {
     assert!(result.is_none());
 }
 
-/// What is tested: set_intent_state() errors on non-existent intent
-/// Why: Ensure error handling works correctly
+// 9. Test: set_intent_state() errors on non-existent intent
+// Verifies that set_intent_state() errors on non-existent intent.
+// Why: Ensure error handling works correctly.
 #[tokio::test]
 async fn test_set_intent_state_not_found() {
     let config = create_default_solver_config();
@@ -273,8 +282,9 @@ async fn test_set_intent_state_not_found() {
     assert!(result.unwrap_err().to_string().contains("not found"));
 }
 
-/// What is tested: poll_for_created_intents() returns 0 when no requester addresses tracked
-/// Why: Ensure early return works correctly when no intents are tracked
+// 10. Test: poll_for_created_intents() returns 0 when no requester addresses tracked
+// Verifies that poll_for_created_intents() returns 0 when no requester addresses tracked.
+// Why: Ensure early return works correctly when no intents are tracked.
 #[tokio::test]
 async fn test_poll_for_created_intents_empty_requester_addresses() {
     let config = create_default_solver_config();
@@ -285,8 +295,9 @@ async fn test_poll_for_created_intents_empty_requester_addresses() {
     assert_eq!(count, 0);
 }
 
-/// What is tested: get_intents_ready_for_fulfillment() excludes Fulfilled intents
-/// Why: Ensure only Created intents are returned, not Fulfilled ones
+// 11. Test: get_intents_ready_for_fulfillment() excludes Fulfilled intents
+// Verifies that get_intents_ready_for_fulfillment() excludes Fulfilled intents.
+// Why: Ensure only Created intents are returned, not Fulfilled ones.
 #[tokio::test]
 async fn test_get_intents_ready_for_fulfillment_excludes_fulfilled() {
     let config = create_default_solver_config();
@@ -332,9 +343,9 @@ async fn test_get_intents_ready_for_fulfillment_excludes_fulfilled() {
     assert_eq!(intents[0].draft_id, "draft-2");
 }
 
-/// What is tested: get_intents_ready_for_fulfillment() returns only Created intents
-/// Why: Ensure the function correctly selects intents that have been created on-chain and are ready for fulfillment,
-///      even when other intents in Signed state (draftintents not yet created on-chain) also exist
+// 12. Test: get_intents_ready_for_fulfillment() returns only Created intents
+// Verifies that get_intents_ready_for_fulfillment() returns only Created intents.
+// Why: Ensure the function correctly selects intents that have been created on-chain and are ready for fulfillment,.
 #[tokio::test]
 async fn test_get_intents_ready_for_fulfillment_returns_only_created() {
     let config = create_default_solver_config();
@@ -375,8 +386,9 @@ async fn test_get_intents_ready_for_fulfillment_returns_only_created() {
 // EXPIRY TESTS
 // ============================================================================
 
-/// What is tested: Created intents that have expired are transitioned to Expired state
-/// Why: Expired intents must not sit in memory forever — they need a terminal state
+// 13. Test: Created intents that have expired are transitioned to Expired state
+// Verifies that Created intents that have expired are transitioned to Expired state.
+// Why: Expired intents must not sit in memory forever — they need a terminal state.
 #[tokio::test]
 async fn test_expired_created_intent_transitions_to_expired_state() {
     let config = create_default_solver_config();
@@ -406,8 +418,9 @@ async fn test_expired_created_intent_transitions_to_expired_state() {
     assert_eq!(tracked.state, IntentState::Expired);
 }
 
-/// What is tested: Expired Created intents are excluded from fulfillment
-/// Why: Solver must not attempt to fulfill expired intents
+// 14. Test: Expired Created intents are excluded from fulfillment
+// Verifies that Expired Created intents are excluded from fulfillment.
+// Why: Solver must not attempt to fulfill expired intents.
 #[tokio::test]
 async fn test_expired_created_intent_excluded_from_fulfillment() {
     let config = create_default_solver_config();
@@ -446,8 +459,9 @@ async fn test_expired_created_intent_excluded_from_fulfillment() {
     assert_eq!(intents[0].draft_id, "draft-active");
 }
 
-/// What is tested: Expired Signed intents are removed from tracking entirely
-/// Why: Signed intents that expire never made it on-chain — no reason to keep them
+// 15. Test: Expired Signed intents are removed from tracking entirely
+// Verifies that Expired Signed intents are removed from tracking entirely.
+// Why: Signed intents that expire never made it on-chain — no reason to keep them.
 #[tokio::test]
 async fn test_expired_signed_intent_removed_from_tracking() {
     let config = create_default_solver_config();
@@ -478,8 +492,9 @@ async fn test_expired_signed_intent_removed_from_tracking() {
 // SOLVER FAILURE RECOVERY TESTS
 // ============================================================================
 
-/// What is tested: record_outflow_failure() increments attempt count and sets backoff
-/// Why: First failure must not be terminal — solver must retry with backoff
+// 16. Test: record_outflow_failure() increments attempt count and sets backoff
+// Verifies that record_outflow_failure() increments attempt count and sets backoff.
+// Why: First failure must not be terminal — solver must retry with backoff.
 #[tokio::test]
 async fn test_record_outflow_failure_increments_count_and_sets_backoff() {
     let config = create_default_solver_config();
@@ -509,8 +524,9 @@ async fn test_record_outflow_failure_increments_count_and_sets_backoff() {
     assert!(tracked.next_retry_after > 0);
 }
 
-/// What is tested: record_outflow_failure() transitions to Failed after MAX_OUTFLOW_RETRIES
-/// Why: After max retries exhausted, intent must reach a terminal Failed state
+// 17. Test: record_outflow_failure() transitions to Failed after MAX_OUTFLOW_RETRIES
+// Verifies that record_outflow_failure() transitions to Failed after MAX_OUTFLOW_RETRIES.
+// Why: After max retries exhausted, intent must reach a terminal Failed state.
 #[tokio::test]
 async fn test_record_outflow_failure_transitions_to_failed_after_max_retries() {
     let config = create_default_solver_config();
@@ -547,8 +563,9 @@ async fn test_record_outflow_failure_transitions_to_failed_after_max_retries() {
     assert_eq!(tracked.outflow_attempt_count, MAX_OUTFLOW_RETRIES);
 }
 
-/// What is tested: Failed intents are excluded from get_intents_ready_for_fulfillment()
-/// Why: Solver must not attempt to fulfill permanently failed intents
+// 18. Test: Failed intents are excluded from get_intents_ready_for_fulfillment()
+// Verifies that Failed intents are excluded from get_intents_ready_for_fulfillment().
+// Why: Solver must not attempt to fulfill permanently failed intents.
 #[tokio::test]
 async fn test_failed_intent_excluded_from_fulfillment() {
     let config = create_default_solver_config();
@@ -578,8 +595,9 @@ async fn test_failed_intent_excluded_from_fulfillment() {
     assert_eq!(intents.len(), 0);
 }
 
-/// What is tested: record_outflow_failure() errors on non-existent intent
-/// Why: Ensure error handling works correctly
+// 19. Test: record_outflow_failure() errors on non-existent intent
+// Verifies that record_outflow_failure() errors on non-existent intent.
+// Why: Ensure error handling works correctly.
 #[tokio::test]
 async fn test_record_outflow_failure_not_found() {
     let config = create_default_solver_config();
@@ -590,8 +608,9 @@ async fn test_record_outflow_failure_not_found() {
     assert!(result.unwrap_err().to_string().contains("not found"));
 }
 
-/// What is tested: record_inflow_failure() increments attempt count and sets backoff
-/// Why: First failure must not be terminal — solver must retry inflow fulfillment with backoff
+// 20. Test: record_inflow_failure() increments attempt count and sets backoff
+// Verifies that record_inflow_failure() increments attempt count and sets backoff.
+// Why: First failure must not be terminal — solver must retry inflow fulfillment with backoff.
 #[tokio::test]
 async fn test_record_inflow_failure_increments_count_and_sets_backoff() {
     let config = create_default_solver_config();
@@ -621,8 +640,9 @@ async fn test_record_inflow_failure_increments_count_and_sets_backoff() {
     assert!(tracked.next_inflow_retry_after > 0);
 }
 
-/// What is tested: record_inflow_failure() transitions to Failed after MAX_INFLOW_RETRIES
-/// Why: After max retries exhausted, inflow intent must reach a terminal Failed state
+// 21. Test: record_inflow_failure() transitions to Failed after MAX_INFLOW_RETRIES
+// Verifies that record_inflow_failure() transitions to Failed after MAX_INFLOW_RETRIES.
+// Why: After max retries exhausted, inflow intent must reach a terminal Failed state.
 #[tokio::test]
 async fn test_inflow_exhausted_retries_transition_to_failed() {
     let config = create_default_solver_config();
@@ -659,8 +679,9 @@ async fn test_inflow_exhausted_retries_transition_to_failed() {
     assert_eq!(tracked.inflow_attempt_count, MAX_INFLOW_RETRIES);
 }
 
-/// What is tested: Exponential backoff doubles with each inflow retry
-/// Why: Inflow backoff must increase to avoid hammering a failing hub chain
+// 22. Test: Exponential backoff doubles with each inflow retry
+// Verifies that Exponential backoff doubles with each inflow retry.
+// Why: Inflow backoff must increase to avoid hammering a failing hub chain.
 #[tokio::test]
 async fn test_inflow_failure_backoff_increases_exponentially() {
     let config = create_default_solver_config();
@@ -692,8 +713,9 @@ async fn test_inflow_failure_backoff_increases_exponentially() {
     assert!(second_retry_after > first_retry_after);
 }
 
-/// What is tested: Exponential backoff doubles with each retry
-/// Why: Backoff must increase to avoid hammering a failing chain
+// 23. Test: Exponential backoff doubles with each retry
+// Verifies that Exponential backoff doubles with each retry.
+// Why: Backoff must increase to avoid hammering a failing chain.
 #[tokio::test]
 async fn test_outflow_failure_backoff_increases_exponentially() {
     let config = create_default_solver_config();

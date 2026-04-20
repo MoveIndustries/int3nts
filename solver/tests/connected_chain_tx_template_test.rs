@@ -63,85 +63,95 @@ mod tests {
     // Address Normalization Tests
     // ============================================================================
 
+    // 1. Test: Address normalization when input already has 0x prefix
+    // Verifies that Address normalization when input already has 0x prefix.
+    // Why: Ensures addresses with prefix are handled correctly and remain valid.
     #[test]
     fn test_normalize_address_with_prefix() {
-        // What is tested: Address normalization when input already has 0x prefix
-        // Why: Ensures addresses with prefix are handled correctly and remain valid
         let result = normalize_address("0xaaaaaaaa").unwrap();
         assert_eq!(result, "0xaaaaaaaa");
     }
 
+    // 2. Test: Address normalization when input lacks 0x prefix
+    // Verifies that Address normalization when input lacks 0x prefix.
+    // Why: Users may provide addresses without prefix; we must normalize them consistently.
     #[test]
     fn test_normalize_address_without_prefix() {
-        // What is tested: Address normalization when input lacks 0x prefix
-        // Why: Users may provide addresses without prefix; we must normalize them consistently
         let result = normalize_address("bbbbbbbbbbbbbbbb").unwrap();
         assert_eq!(result, "0xbbbbbbbbbbbbbbbb");
     }
 
+    // 3. Test: Uppercase hex characters are converted to lowercase
+    // Verifies that Uppercase hex characters are converted to lowercase.
+    // Why: Ensures consistent address format regardless of input case.
     #[test]
     fn test_normalize_address_uppercase() {
-        // What is tested: Uppercase hex characters are converted to lowercase
-        // Why: Ensures consistent address format regardless of input case
         let result = normalize_address("0xAAAAAAAABBBBBBBB").unwrap();
         assert_eq!(result, "0xaaaaaaaabbbbbbbb");
     }
 
+    // 4. Test: Mixed case hex characters are normalized to lowercase
+    // Verifies that Mixed case hex characters are normalized to lowercase.
+    // Why: Handles real-world input variations and ensures consistent output.
     #[test]
     fn test_normalize_address_mixed_case() {
-        // What is tested: Mixed case hex characters are normalized to lowercase
-        // Why: Handles real-world input variations and ensures consistent output
         let result = normalize_address("0xAaBbCcDdEeFf1111").unwrap();
         assert_eq!(result, "0xaabbccddeeff1111");
     }
 
+    // 5. Test: Full 64-character Move VM address format is normalized correctly
+    // Verifies that Full 64-character Move VM address format is normalized correctly.
+    // Why: Move VM addresses are 64 hex chars; we must handle full-length addresses.
     #[test]
     fn test_normalize_address_mvm_format() {
-        // What is tested: Full 64-character Move VM address format is normalized correctly
-        // Why: Move VM addresses are 64 hex chars; we must handle full-length addresses
         let addr = DUMMY_TOKEN_ADDR_HUB;
         let result = normalize_address(addr).unwrap();
         assert_eq!(result, addr.to_lowercase());
     }
 
+    // 6. Test: Empty address strings are rejected with error
+    // Verifies that Empty address strings are rejected with error.
+    // Why: Empty addresses are invalid and should fail early with clear error.
     #[test]
     fn test_normalize_address_empty() {
-        // What is tested: Empty address strings are rejected with error
-        // Why: Empty addresses are invalid and should fail early with clear error
         let result = normalize_address("");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("empty"));
     }
 
+    // 7. Test: Non-hexadecimal characters are rejected
+    // Verifies that Non-hexadecimal characters are rejected.
+    // Why: Addresses must be valid hex; invalid characters indicate user error.
     #[test]
     fn test_normalize_address_invalid_hex() {
-        // What is tested: Non-hexadecimal characters are rejected
-        // Why: Addresses must be valid hex; invalid characters indicate user error
         let result = normalize_address("0xghijklmnop");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("must be hex"));
     }
 
+    // 8. Test: 0x prefix is correctly stripped from hex strings
+    // Verifies that 0x prefix is correctly stripped from hex strings.
+    // Why: Internal processing needs hex without prefix for formatting.
     #[test]
     fn test_strip_0x_with_prefix() {
-        // What is tested: 0x prefix is correctly stripped from hex strings
-        // Why: Internal processing needs hex without prefix for formatting
         let result = strip_0x("0xaaaaaa").unwrap();
         assert_eq!(result, "aaaaaa");
     }
 
+    // 9. Test: Hex strings without prefix remain unchanged
+    // Verifies that Hex strings without prefix remain unchanged.
+    // Why: Handles both prefixed and non-prefixed inputs gracefully.
     #[test]
     fn test_strip_0x_without_prefix() {
-        // What is tested: Hex strings without prefix remain unchanged
-        // Why: Handles both prefixed and non-prefixed inputs gracefully
         let result = strip_0x("bbbbbb").unwrap();
         assert_eq!(result, "bbbbbb");
     }
 
+    // 10. Test: Stripping "0x" alone results in empty string error
+    // Verifies that Stripping "0x" alone results in empty string error.
+    // Why: "0x" by itself is not a valid address; should fail validation.
     #[test]
     fn test_strip_0x_only_prefix() {
-        // What is tested: Stripping "0x" alone results in empty string error
-        // Why: "0x" by itself is not a valid address; should fail validation
         let result = strip_0x("0x");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("empty"));
@@ -167,10 +177,11 @@ mod tests {
         ))
     }
 
+    // 11. Test: Complete aptos move run command is generated with all required arguments
+    // Verifies that Complete aptos move run command is generated with all required arguments.
+    // Why: Solvers need a ready-to-use command; format must match Aptos CLI expectations.
     #[test]
     fn test_mvm_command_generation() {
-        // What is tested: Complete aptos move run command is generated with all required arguments
-        // Why: Solvers need a ready-to-use command; format must match Aptos CLI expectations
         // Use constants for addresses (64 hex chars = 32 bytes for Move)
         let result = generate_mvm_command(
             DUMMY_TOKEN_ADDR_HUB,
@@ -191,10 +202,11 @@ mod tests {
         assert!(result.contains("u64:25000000"));
     }
 
+    // 12. Test: All addresses in command are normalized to lowercase with 0x prefix
+    // Verifies that All addresses in command are normalized to lowercase with 0x prefix.
+    // Why: Aptos CLI requires consistent address format; normalization prevents errors (Move VM addresses).
     #[test]
     fn test_mvm_command_address_normalization() {
-        // What is tested: All addresses in command are normalized to lowercase with 0x prefix
-        // Why: Aptos CLI requires consistent address format; normalization prevents errors (Move VM addresses)
         let result = generate_mvm_command(
             "0xAAAA", // Uppercase
             "bbbbbbbbbbbbbbbb", // No prefix
@@ -208,10 +220,11 @@ mod tests {
         assert!(result.contains(&format!("address:{}", DUMMY_INTENT_ID)));
     }
 
+    // 13. Test: Zero amount is handled correctly in command generation
+    // Verifies that Zero amount is handled correctly in command generation.
+    // Why: Edge case that should work (though not practical for transfers).
     #[test]
     fn test_mvm_command_zero_amount() {
-        // What is tested: Zero amount is handled correctly in command generation
-        // Why: Edge case that should work (though not practical for transfers)
         let result = generate_mvm_command(
             DUMMY_REQUESTER_ADDR_MVMCON,
             DUMMY_TOKEN_ADDR_MVMCON,
@@ -223,10 +236,11 @@ mod tests {
         assert!(result.contains("u64:0"));
     }
 
+    // 14. Test: Maximum u64 value is handled correctly
+    // Verifies that Maximum u64 value is handled correctly.
+    // Why: Ensures large token amounts don't cause overflow or formatting issues.
     #[test]
     fn test_mvm_command_large_amount() {
-        // What is tested: Maximum u64 value is handled correctly
-        // Why: Ensures large token amounts don't cause overflow or formatting issues
         let result = generate_mvm_command(
             DUMMY_REQUESTER_ADDR_MVMCON,
             DUMMY_TOKEN_ADDR_MVMCON,
@@ -238,10 +252,11 @@ mod tests {
         assert!(result.contains(&format!("u64:{}", u64::MAX)));
     }
 
+    // 15. Test: Invalid recipient address is rejected with error
+    // Verifies that Invalid recipient address is rejected with error.
+    // Why: Invalid addresses should fail early before command generation.
     #[test]
     fn test_mvm_command_invalid_recipient() {
-        // What is tested: Invalid recipient address is rejected with error
-        // Why: Invalid addresses should fail early before command generation
         let result = generate_mvm_command(
             "0xinvalid", // Invalid hex characters to test error handling
             DUMMY_TOKEN_ADDR_MVMCON,
@@ -252,10 +267,11 @@ mod tests {
         assert!(result.unwrap_err().contains("must be hex"));
     }
 
+    // 16. Test: Invalid metadata address is rejected with error
+    // Verifies that Invalid metadata address is rejected with error.
+    // Why: Metadata is required for Move VM; invalid format should be caught.
     #[test]
     fn test_mvm_command_invalid_metadata() {
-        // What is tested: Invalid metadata address is rejected with error
-        // Why: Metadata is required for Move VM; invalid format should be caught
         let result = generate_mvm_command(
             DUMMY_REQUESTER_ADDR_MVMCON,
             "0xinvalid", // Invalid hex characters to test error handling
@@ -266,10 +282,11 @@ mod tests {
         assert!(result.unwrap_err().contains("must be hex"));
     }
 
+    // 17. Test: Invalid intent_id address is rejected with error
+    // Verifies that Invalid intent_id address is rejected with error.
+    // Why: Intent ID must be valid hex address for on-chain validation.
     #[test]
     fn test_mvm_command_invalid_intent_id() {
-        // What is tested: Invalid intent_id address is rejected with error
-        // Why: Intent ID must be valid hex address for on-chain validation
         let result = generate_mvm_command(
             DUMMY_REQUESTER_ADDR_MVMCON,
             DUMMY_TOKEN_ADDR_MVMCON,
@@ -280,10 +297,11 @@ mod tests {
         assert!(result.unwrap_err().contains("must be hex"));
     }
 
+    // 18. Test: Non-numeric amount string is rejected
+    // Verifies that Non-numeric amount string is rejected.
+    // Why: Amount must parse as u64; invalid strings should fail with clear error.
     #[test]
     fn test_mvm_command_invalid_amount_parsing() {
-        // What is tested: Non-numeric amount string is rejected
-        // Why: Amount must parse as u64; invalid strings should fail with clear error
         fn generate_mvm_command_with_string_amount(
             recipient_addr: &str,
             metadata_addr: &str,
@@ -318,10 +336,11 @@ mod tests {
     // EVM Calldata Generation Tests
     // ============================================================================
 
+    // 19. Test: Complete EVM calldata payload is generated with selector, recipient, amount, and intent_id
+    // Verifies that Complete EVM calldata payload is generated with selector, recipient, amount, and intent_id.
+    // Why: Solvers need correct calldata format for ERC20 transfer with embedded intent_id.
     #[test]
     fn test_evm_calldata_generation() {
-        // What is tested: Complete EVM calldata payload is generated with selector, recipient, amount, and intent_id
-        // Why: Solvers need correct calldata format for ERC20 transfer with embedded intent_id
         let result = generate_evm_calldata(
             DUMMY_REQUESTER_ADDR_EVM,
             "1000000000000000000", // 1 ETH in wei
@@ -344,10 +363,11 @@ mod tests {
         assert_eq!(result.len(), 202);
     }
 
+    // 20. Test: Short recipient addresses are padded to 32 bytes (64 hex chars)
+    // Verifies that Short recipient addresses are padded to 32 bytes (64 hex chars).
+    // Why: EVM calldata requires fixed 32-byte words; padding ensures correct format.
     #[test]
     fn test_evm_calldata_recipient_padding() {
-        // What is tested: Short recipient addresses are padded to 32 bytes (64 hex chars)
-        // Why: EVM calldata requires fixed 32-byte words; padding ensures correct format
         let recipient_addr = "0x1234"; // Requester address on connected chain (short address for padding test)
         let result = generate_evm_calldata(recipient_addr, "1000", DUMMY_INTENT_ID).unwrap();
 
@@ -359,10 +379,11 @@ mod tests {
             .starts_with("0000000000000000000000000000000000000000000000000000000000001234"));
     }
 
+    // 21. Test: Small amounts are padded to 32 bytes (64 hex chars)
+    // Verifies that Small amounts are padded to 32 bytes (64 hex chars).
+    // Why: EVM uint256 requires 32-byte representation; padding ensures correct encoding.
     #[test]
     fn test_evm_calldata_amount_padding() {
-        // What is tested: Small amounts are padded to 32 bytes (64 hex chars)
-        // Why: EVM uint256 requires 32-byte representation; padding ensures correct encoding
         let result = generate_evm_calldata(
             DUMMY_REQUESTER_ADDR_EVM,
             "1", // Small amount to test padding
@@ -377,10 +398,11 @@ mod tests {
             .starts_with("0000000000000000000000000000000000000000000000000000000000000001"));
     }
 
+    // 22. Test: Maximum U256 value is handled correctly
+    // Verifies that Maximum U256 value is handled correctly.
+    // Why: Ensures large token amounts (up to U256::MAX) don't cause overflow.
     #[test]
     fn test_evm_calldata_large_amount() {
-        // What is tested: Maximum U256 value is handled correctly
-        // Why: Ensures large token amounts (up to U256::MAX) don't cause overflow
         let amount = U256::MAX.to_string();
         let result = generate_evm_calldata(
             DUMMY_REQUESTER_ADDR_EVM,
@@ -396,10 +418,11 @@ mod tests {
         );
     }
 
+    // 23. Test: Non-numeric amount string is rejected with error
+    // Verifies that Non-numeric amount string is rejected with error.
+    // Why: Amount must parse as decimal number; invalid strings should fail early.
     #[test]
     fn test_evm_calldata_invalid_amount() {
-        // What is tested: Non-numeric amount string is rejected with error
-        // Why: Amount must parse as decimal number; invalid strings should fail early
         let result = generate_evm_calldata(
             DUMMY_REQUESTER_ADDR_EVM,
             "not_a_number", // Invalid amount to test error handling
@@ -409,10 +432,11 @@ mod tests {
         assert!(result.unwrap_err().contains("Invalid amount"));
     }
 
+    // 24. Test: Invalid recipient address is rejected with error
+    // Verifies that Invalid recipient address is rejected with error.
+    // Why: Invalid addresses should fail before calldata generation.
     #[test]
     fn test_evm_calldata_invalid_recipient() {
-        // What is tested: Invalid recipient address is rejected with error
-        // Why: Invalid addresses should fail before calldata generation
         let result = generate_evm_calldata(
             "0xinvalid", // Invalid hex characters to test error handling
             "1000",
@@ -422,10 +446,11 @@ mod tests {
         assert!(result.unwrap_err().contains("must be hex"));
     }
 
+    // 25. Test: Invalid intent_id address is rejected with error
+    // Verifies that Invalid intent_id address is rejected with error.
+    // Why: Intent ID must be valid hex for on-chain validation.
     #[test]
     fn test_evm_calldata_invalid_intent_id() {
-        // What is tested: Invalid intent_id address is rejected with error
-        // Why: Intent ID must be valid hex for on-chain validation
         let result = generate_evm_calldata(
             DUMMY_REQUESTER_ADDR_EVM,
             "1000",
@@ -435,10 +460,11 @@ mod tests {
         assert!(result.unwrap_err().contains("must be hex"));
     }
 
+    // 26. Test: Zero amount is encoded correctly as all zeros
+    // Verifies that Zero amount is encoded correctly as all zeros.
+    // Why: Edge case that should work (though not practical for transfers).
     #[test]
     fn test_evm_calldata_zero_amount() {
-        // What is tested: Zero amount is encoded correctly as all zeros
-        // Why: Edge case that should work (though not practical for transfers)
         let result = generate_evm_calldata(
             DUMMY_REQUESTER_ADDR_EVM,
             "0", // Zero amount edge case
@@ -449,10 +475,11 @@ mod tests {
         assert!(result.contains("0000000000000000000000000000000000000000000000000000000000000000"));
     }
 
+    // 27. Test: ERC20 transfer function selector is correct (0xa9059cbb)
+    // Verifies that ERC20 transfer function selector is correct (0xa9059cbb).
+    // Why: Selector must match transfer(address,uint256) signature for EVM to route call correctly.
     #[test]
     fn test_evm_calldata_selector_correct() {
-        // What is tested: ERC20 transfer function selector is correct (0xa9059cbb)
-        // Why: Selector must match transfer(address,uint256) signature for EVM to route call correctly
         let result = generate_evm_calldata(DUMMY_REQUESTER_ADDR_EVM, "1000", DUMMY_INTENT_ID).unwrap();
 
         // ERC20 transfer selector: transfer(address,uint256) = 0xa9059cbb
