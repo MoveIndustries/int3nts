@@ -28,7 +28,7 @@ module mvmt_intent::fa_intent_with_oracle_tests {
         solver = @0xdead
     )]
     // 1. Test: an oracle-guarded FA limit order settles only with a valid signature witness
-    // Verifies that an oracle-guarded FA limit order settles only with a valid signature witness.
+    // Verifies that fa_intent_with_oracle::finish_fa_receiving_session_with_oracle completes an OracleGuardedLimitOrder session when given an OracleSignatureWitness whose signature over the intent_id matches the OracleSignatureRequirement public key, transferring desired_fa to the offerer and offered_fa to the solver.
     // Why: Enforce that settlement requires approval from the configured oracle key.
     fun test_fa_limit_order_with_oracle_signature(
         aptos_framework: &signer,
@@ -68,7 +68,7 @@ module mvmt_intent::fa_intent_with_oracle_tests {
     )]
     #[expected_failure(abort_code = 65538, location = fa_intent_with_oracle)] // error::invalid_argument(ESIGNATURE_REQUIRED)
     // 2. Test: settlement aborts when the solver omits the oracle witness
-    // Verifies that settlement aborts when the solver omits the oracle witness.
+    // Verifies that fa_intent_with_oracle::finish_fa_receiving_session_with_oracle aborts with ESIGNATURE_REQUIRED when called with option::none() for the OracleSignatureWitness argument.
     // Why: Require an explicit oracle signature for any guarded settlement.
     fun test_fa_limit_order_missing_oracle_signature(
         aptos_framework: &signer,
@@ -94,7 +94,7 @@ module mvmt_intent::fa_intent_with_oracle_tests {
     )]
     #[expected_failure(abort_code = 65539, location = fa_intent_with_oracle)] // error::invalid_argument(EINVALID_SIGNATURE)
     // 3. Test: settlement aborts when the oracle signature is invalid for the configured key
-    // Verifies that settlement aborts when the oracle signature is invalid for the configured key.
+    // Verifies that fa_intent_with_oracle::finish_fa_receiving_session_with_oracle aborts with EINVALID_SIGNATURE when the OracleSignatureWitness carries a signature produced by a key other than the one bound in the OracleSignatureRequirement.
     // Why: Prevent a solver from settling using forged or mismatched oracle signatures.
     fun test_fa_limit_order_with_invalid_oracle_signature(
         aptos_framework: &signer,

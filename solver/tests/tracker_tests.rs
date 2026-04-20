@@ -52,7 +52,7 @@ fn create_default_draft_data_outflow() -> DraftintentData {
 // ============================================================================
 
 // 1. Test: IntentTracker::new() creates a tracker successfully
-// Verifies that IntentTracker::new() creates a tracker successfully.
+// Verifies that IntentTracker::new() returns Ok when given a valid SolverConfig.
 // Why: Ensure tracker initialization works correctly.
 #[test]
 fn test_intent_tracker_new() {
@@ -61,7 +61,7 @@ fn test_intent_tracker_new() {
 }
 
 // 2. Test: add_signed_intent() stores draftintent with Signed state
-// Verifies that add_signed_intent() stores draftintent with Signed state.
+// Verifies that after add_signed_intent(), get_intent() returns a tracked entry whose state is IntentState::Signed and whose draft_data matches the supplied DraftintentData.
 // Why: Ensure signed draftintents (not yet on-chain) are tracked correctly.
 #[tokio::test]
 async fn test_add_signed_intent() {
@@ -92,7 +92,7 @@ async fn test_add_signed_intent() {
 }
 
 // 3. Test: add_signed_intent() correctly identifies inflow vs outflow
-// Verifies that add_signed_intent() correctly identifies inflow vs outflow.
+// Verifies that add_signed_intent() preserves the chain IDs of the DraftintentData so that inflow intents retain desired_chain_id == hub_chain_id and outflow intents retain offered_chain_id == hub_chain_id.
 // Why: Ensure intent type classification works correctly.
 #[tokio::test]
 async fn test_add_signed_intent_inflow_outflow() {
@@ -133,7 +133,7 @@ async fn test_add_signed_intent_inflow_outflow() {
 }
 
 // 4. Test: get_intents_ready_for_fulfillment() returns only Created (on-chain) intents
-// Verifies that get_intents_ready_for_fulfillment() returns only Created (on-chain) intents.
+// Verifies that get_intents_ready_for_fulfillment() excludes intents in the Signed state and only includes them once set_intent_state() has transitioned them to IntentState::Created.
 // Why: Ensure filtering by state works correctly - only on-chain intents are returned, not draftintents.
 #[tokio::test]
 async fn test_get_intents_ready_for_fulfillment_state_filter() {
@@ -168,7 +168,7 @@ async fn test_get_intents_ready_for_fulfillment_state_filter() {
 }
 
 // 5. Test: get_intents_ready_for_fulfillment() filters by inflow/outflow
-// Verifies that get_intents_ready_for_fulfillment() filters by inflow/outflow.
+// Verifies that get_intents_ready_for_fulfillment(Some(true)) returns only inflow intents, Some(false) returns only outflow intents, and None returns both.
 // Why: Ensure intent type filtering works correctly.
 #[tokio::test]
 async fn test_get_intents_ready_for_fulfillment_inflow_outflow_filter() {
@@ -219,7 +219,7 @@ async fn test_get_intents_ready_for_fulfillment_inflow_outflow_filter() {
 }
 
 // 6. Test: mark_fulfilled() updates intent state
-// Verifies that mark_fulfilled() updates intent state.
+// Verifies that calling mark_fulfilled() on a tracked intent transitions its state to IntentState::Fulfilled.
 // Why: Ensure intent state transitions work correctly.
 #[tokio::test]
 async fn test_mark_fulfilled() {
@@ -245,7 +245,7 @@ async fn test_mark_fulfilled() {
 }
 
 // 7. Test: mark_fulfilled() errors on non-existent intent
-// Verifies that mark_fulfilled() errors on non-existent intent.
+// Verifies that mark_fulfilled() returns an Err whose message contains "not found" when called with a draft_id that is not tracked.
 // Why: Ensure error handling works correctly.
 #[tokio::test]
 async fn test_mark_fulfilled_not_found() {
@@ -258,7 +258,7 @@ async fn test_mark_fulfilled_not_found() {
 }
 
 // 8. Test: get_intent() returns None for non-existent intent
-// Verifies that get_intent() returns None for non-existent intent.
+// Verifies that get_intent() returns Option::None when queried for a draft_id that has never been added to the tracker.
 // Why: Ensure error handling works correctly.
 #[tokio::test]
 async fn test_get_intent_not_found() {
@@ -270,7 +270,7 @@ async fn test_get_intent_not_found() {
 }
 
 // 9. Test: set_intent_state() errors on non-existent intent
-// Verifies that set_intent_state() errors on non-existent intent.
+// Verifies that set_intent_state() returns an Err whose message contains "not found" when called with a draft_id that is not tracked.
 // Why: Ensure error handling works correctly.
 #[tokio::test]
 async fn test_set_intent_state_not_found() {
@@ -283,7 +283,7 @@ async fn test_set_intent_state_not_found() {
 }
 
 // 10. Test: poll_for_created_intents() returns 0 when no requester addresses tracked
-// Verifies that poll_for_created_intents() returns 0 when no requester addresses tracked.
+// Verifies that poll_for_created_intents() returns Ok with a zero poll count when the tracker holds no intents and therefore has no requester addresses to poll.
 // Why: Ensure early return works correctly when no intents are tracked.
 #[tokio::test]
 async fn test_poll_for_created_intents_empty_requester_addresses() {
@@ -296,7 +296,7 @@ async fn test_poll_for_created_intents_empty_requester_addresses() {
 }
 
 // 11. Test: get_intents_ready_for_fulfillment() excludes Fulfilled intents
-// Verifies that get_intents_ready_for_fulfillment() excludes Fulfilled intents.
+// Verifies that once mark_fulfilled() transitions an intent to IntentState::Fulfilled, subsequent calls to get_intents_ready_for_fulfillment() no longer include that intent.
 // Why: Ensure only Created intents are returned, not Fulfilled ones.
 #[tokio::test]
 async fn test_get_intents_ready_for_fulfillment_excludes_fulfilled() {
@@ -344,7 +344,7 @@ async fn test_get_intents_ready_for_fulfillment_excludes_fulfilled() {
 }
 
 // 12. Test: get_intents_ready_for_fulfillment() returns only Created intents
-// Verifies that get_intents_ready_for_fulfillment() returns only Created intents.
+// Verifies that when the tracker holds a mix of Signed and Created intents, get_intents_ready_for_fulfillment() returns exactly the ones in IntentState::Created and omits those still in IntentState::Signed.
 // Why: Ensure the function correctly selects intents that have been created on-chain and are ready for fulfillment,.
 #[tokio::test]
 async fn test_get_intents_ready_for_fulfillment_returns_only_created() {
@@ -387,7 +387,7 @@ async fn test_get_intents_ready_for_fulfillment_returns_only_created() {
 // ============================================================================
 
 // 13. Test: Created intents that have expired are transitioned to Expired state
-// Verifies that Created intents that have expired are transitioned to Expired state.
+// Verifies that poll_for_created_intents() runs cleanup_expired_intents() which transitions any Created intent whose expiry has passed into IntentState::Expired while keeping it in the tracker.
 // Why: Expired intents must not sit in memory forever — they need a terminal state.
 #[tokio::test]
 async fn test_expired_created_intent_transitions_to_expired_state() {
@@ -419,7 +419,7 @@ async fn test_expired_created_intent_transitions_to_expired_state() {
 }
 
 // 14. Test: Expired Created intents are excluded from fulfillment
-// Verifies that Expired Created intents are excluded from fulfillment.
+// Verifies that get_intents_ready_for_fulfillment() skips Created intents whose expiry timestamp has passed and only returns Created intents that are still within their expiry window.
 // Why: Solver must not attempt to fulfill expired intents.
 #[tokio::test]
 async fn test_expired_created_intent_excluded_from_fulfillment() {
@@ -460,7 +460,7 @@ async fn test_expired_created_intent_excluded_from_fulfillment() {
 }
 
 // 15. Test: Expired Signed intents are removed from tracking entirely
-// Verifies that Expired Signed intents are removed from tracking entirely.
+// Verifies that poll_for_created_intents() removes expired intents that are still in IntentState::Signed so that subsequent get_intent() calls return None rather than an Expired entry.
 // Why: Signed intents that expire never made it on-chain — no reason to keep them.
 #[tokio::test]
 async fn test_expired_signed_intent_removed_from_tracking() {
@@ -493,7 +493,7 @@ async fn test_expired_signed_intent_removed_from_tracking() {
 // ============================================================================
 
 // 16. Test: record_outflow_failure() increments attempt count and sets backoff
-// Verifies that record_outflow_failure() increments attempt count and sets backoff.
+// Verifies that the first call to record_outflow_failure() returns IntentState::Created, increments outflow_attempt_count, and sets next_retry_after to a positive backoff timestamp.
 // Why: First failure must not be terminal — solver must retry with backoff.
 #[tokio::test]
 async fn test_record_outflow_failure_increments_count_and_sets_backoff() {
@@ -525,7 +525,7 @@ async fn test_record_outflow_failure_increments_count_and_sets_backoff() {
 }
 
 // 17. Test: record_outflow_failure() transitions to Failed after MAX_OUTFLOW_RETRIES
-// Verifies that record_outflow_failure() transitions to Failed after MAX_OUTFLOW_RETRIES.
+// Verifies that record_outflow_failure() returns IntentState::Created for attempts below MAX_OUTFLOW_RETRIES and transitions the intent to IntentState::Failed with outflow_attempt_count == MAX_OUTFLOW_RETRIES on the final call.
 // Why: After max retries exhausted, intent must reach a terminal Failed state.
 #[tokio::test]
 async fn test_record_outflow_failure_transitions_to_failed_after_max_retries() {
@@ -564,7 +564,7 @@ async fn test_record_outflow_failure_transitions_to_failed_after_max_retries() {
 }
 
 // 18. Test: Failed intents are excluded from get_intents_ready_for_fulfillment()
-// Verifies that Failed intents are excluded from get_intents_ready_for_fulfillment().
+// Verifies that once set_intent_state() moves an intent into IntentState::Failed, get_intents_ready_for_fulfillment() no longer returns it even though it was returned while in IntentState::Created.
 // Why: Solver must not attempt to fulfill permanently failed intents.
 #[tokio::test]
 async fn test_failed_intent_excluded_from_fulfillment() {
@@ -596,7 +596,7 @@ async fn test_failed_intent_excluded_from_fulfillment() {
 }
 
 // 19. Test: record_outflow_failure() errors on non-existent intent
-// Verifies that record_outflow_failure() errors on non-existent intent.
+// Verifies that record_outflow_failure() returns an Err whose message contains "not found" when called with an intent_id that is not tracked.
 // Why: Ensure error handling works correctly.
 #[tokio::test]
 async fn test_record_outflow_failure_not_found() {
@@ -609,7 +609,7 @@ async fn test_record_outflow_failure_not_found() {
 }
 
 // 20. Test: record_inflow_failure() increments attempt count and sets backoff
-// Verifies that record_inflow_failure() increments attempt count and sets backoff.
+// Verifies that the first call to record_inflow_failure() returns IntentState::Created, increments inflow_attempt_count, and sets next_inflow_retry_after to a positive backoff timestamp.
 // Why: First failure must not be terminal — solver must retry inflow fulfillment with backoff.
 #[tokio::test]
 async fn test_record_inflow_failure_increments_count_and_sets_backoff() {
@@ -641,7 +641,7 @@ async fn test_record_inflow_failure_increments_count_and_sets_backoff() {
 }
 
 // 21. Test: record_inflow_failure() transitions to Failed after MAX_INFLOW_RETRIES
-// Verifies that record_inflow_failure() transitions to Failed after MAX_INFLOW_RETRIES.
+// Verifies that record_inflow_failure() returns IntentState::Created for attempts below MAX_INFLOW_RETRIES and transitions the intent to IntentState::Failed with inflow_attempt_count == MAX_INFLOW_RETRIES on the final call.
 // Why: After max retries exhausted, inflow intent must reach a terminal Failed state.
 #[tokio::test]
 async fn test_inflow_exhausted_retries_transition_to_failed() {
@@ -680,7 +680,7 @@ async fn test_inflow_exhausted_retries_transition_to_failed() {
 }
 
 // 22. Test: Exponential backoff doubles with each inflow retry
-// Verifies that Exponential backoff doubles with each inflow retry.
+// Verifies that each successive call to record_inflow_failure() sets next_inflow_retry_after to a larger timestamp than the previous failure.
 // Why: Inflow backoff must increase to avoid hammering a failing hub chain.
 #[tokio::test]
 async fn test_inflow_failure_backoff_increases_exponentially() {
@@ -714,7 +714,7 @@ async fn test_inflow_failure_backoff_increases_exponentially() {
 }
 
 // 23. Test: Exponential backoff doubles with each retry
-// Verifies that Exponential backoff doubles with each retry.
+// Verifies that each successive call to record_outflow_failure() sets next_retry_after to a larger timestamp than the previous failure.
 // Why: Backoff must increase to avoid hammering a failing chain.
 #[tokio::test]
 async fn test_outflow_failure_backoff_increases_exponentially() {

@@ -550,7 +550,7 @@ async fn test_get_solver_public_key_not_registered() {
 }
 
 // 16. Test: get_solver_public_key handles empty hex string
-// Verifies that Empty hex ("0x") treated as not registered.
+// Verifies that an empty hex response is treated as not registered.
 // Why: Aptos returns "0x" for empty vector<u8>.
 #[tokio::test]
 async fn test_get_solver_public_key_empty_hex_string() {

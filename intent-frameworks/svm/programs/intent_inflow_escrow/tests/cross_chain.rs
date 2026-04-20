@@ -11,9 +11,9 @@ use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 // CROSS-CHAIN INTENT ID CONVERSION TESTS
 // ============================================================================
 
-/// 1. Test: Hex Intent ID Conversion
-/// Verifies that intent IDs from hex format can be converted and used in escrow operations.
-/// Why: Cross-chain intents require intent ID conversion between different formats (hex to bytes32).
+// 1. Test: Hex Intent ID Conversion
+// Verifies that intent IDs from hex format can be converted and used in escrow operations.
+// Why: Cross-chain intents require intent ID conversion between different formats (hex to bytes32).
 #[tokio::test]
 async fn test_handle_hex_intent_id_conversion() {
     let program_test = program_test();
@@ -74,9 +74,9 @@ async fn test_handle_hex_intent_id_conversion() {
     assert_eq!(vault_balance, amount);
 }
 
-/// 2. Test: Intent ID Boundary Values
-/// Verifies that the program handles boundary intent ID values correctly.
-/// Why: Intent IDs from different chains may have different formats. Boundary testing ensures compatibility.
+// 2. Test: Intent ID Boundary Values
+// Verifies that the program handles boundary intent ID values correctly.
+// Why: Intent IDs from different chains may have different formats. Boundary testing ensures compatibility.
 #[tokio::test]
 async fn test_handle_intent_id_boundary_values() {
     let program_test = program_test();
@@ -212,9 +212,9 @@ async fn test_handle_intent_id_boundary_values() {
     assert!(edge_escrow_account.data.len() > 0);
 }
 
-/// 3. Test: Intent ID Zero Padding
-/// Verifies that shorter intent IDs are properly left-padded with zeros.
-/// Why: Intent IDs from other chains may be shorter than 32 bytes. Zero padding ensures correct bytes32 conversion.
+// 3. Test: Intent ID Zero Padding
+// Verifies that shorter intent IDs are properly left-padded with zeros.
+// Why: Intent IDs from other chains may be shorter than 32 bytes. Zero padding ensures correct bytes32 conversion.
 #[tokio::test]
 async fn test_handle_intent_id_zero_padding_correctly() {
     let program_test = program_test();
@@ -281,9 +281,9 @@ async fn test_handle_intent_id_zero_padding_correctly() {
     }
 }
 
-/// 4. Test: Multiple Intent IDs from Different Formats
-/// Verifies that multiple escrows can be created with intent IDs from different formats.
-/// Why: Real-world usage involves intent IDs in various formats. The program must handle all valid formats.
+// 4. Test: Multiple Intent IDs from Different Formats
+// Verifies that multiple escrows can be created with intent IDs from different formats.
+// Why: Real-world usage involves intent IDs in various formats. The program must handle all valid formats.
 #[tokio::test]
 async fn test_handle_multiple_intent_ids_from_different_formats() {
     let program_test = program_test();

@@ -117,7 +117,7 @@ module mvmt_intent::gmp_common_tests {
     // ============================================================================
 
     // 1. Test: IntentRequirements Encoded Size
-    // Verifies that the encoded buffer is exactly 145 bytes, matching the declared size constant.
+    // Verifies that the encoded buffer length equals the declared intent_requirements_size constant.
     // Why: A size mismatch between chains would cause the receiver to read beyond
     // the buffer or miss trailing fields, silently corrupting every message.
     #[test]
@@ -131,7 +131,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 2. Test: IntentRequirements Discriminator Byte
-    // Verifies that the first byte of an IntentRequirements-encoded buffer is the discriminator 0x01.
+    // Verifies that the first byte of an IntentRequirements-encoded buffer is the IntentRequirements discriminator.
     // Why: The receiver reads this byte first to decide which struct to decode into.
     // A wrong discriminator causes the message to be interpreted as the wrong type.
     #[test]
@@ -159,7 +159,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 4. Test: IntentRequirements Big-Endian Amount
-    // Verifies that amount_required is written in big-endian byte order at offset 65..73.
+    // Verifies that amount_required is written in big-endian byte order at its expected offset.
     // Why: Move is little-endian internally. If encode accidentally uses native
     // order, Solidity (big-endian) reads a different amount, causing wrong escrow values.
     #[test]
@@ -182,7 +182,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 5. Test: IntentRequirements Big-Endian Expiry
-    // Verifies that expiry is written in big-endian byte order at offset 137..145.
+    // Verifies that expiry is written in big-endian byte order at its expected offset.
     // Why: Wrong endianness on expiry could cause escrows to expire at the wrong time
     // or never expire, locking funds permanently.
     #[test]
@@ -236,7 +236,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 7. Test: IntentRequirements EVM Address Encoding
-    // Verifies that an EVM address (20 bytes) is left-padded with 12 zero bytes in the 32-byte slot.
+    // Verifies that an EVM address is left-padded with zero bytes to fill its bytes32 slot.
     // Why: EVM addresses are 20 bytes left-padded to 32. If padding bytes are corrupted,
     // the EVM contract won't recognize the address and funds go to a wrong account.
     #[test]
@@ -260,7 +260,7 @@ module mvmt_intent::gmp_common_tests {
     // ============================================================================
 
     // 8. Test: EscrowConfirmation Encoded Size
-    // Verifies that the encoded EscrowConfirmation buffer is exactly 137 bytes, matching the declared size constant.
+    // Verifies that the encoded EscrowConfirmation buffer length equals the declared escrow_confirmation_size constant.
     // Why: The hub decodes this message to confirm an escrow was created on the
     // connected chain. A wrong size means the hub reads garbage and may release
     // funds for an escrow that doesn't exist.
@@ -275,7 +275,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 9. Test: EscrowConfirmation Discriminator Byte
-    // Verifies that the first byte of an EscrowConfirmation-encoded buffer is the discriminator 0x02.
+    // Verifies that the first byte of an EscrowConfirmation-encoded buffer is the EscrowConfirmation discriminator.
     // Why: The hub uses this byte to route the message to the escrow confirmation
     // handler. A wrong value would route it to the wrong handler.
     #[test]
@@ -303,7 +303,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 11. Test: EscrowConfirmation Big-Endian Amount
-    // Verifies that amount_escrowed is written in big-endian byte order at offset 65..73.
+    // Verifies that amount_escrowed is written in big-endian byte order at its expected offset.
     // Why: The hub checks that escrow amount matches the intent requirement. Wrong
     // endianness means the amounts never match even when they should.
     #[test]
@@ -353,7 +353,7 @@ module mvmt_intent::gmp_common_tests {
     // ============================================================================
 
     // 13. Test: FulfillmentProof Encoded Size
-    // Verifies that the encoded FulfillmentProof buffer is exactly 81 bytes, matching the declared size constant.
+    // Verifies that the encoded FulfillmentProof buffer length equals the declared fulfillment_proof_size constant.
     // Why: The connected chain decodes this to release escrowed funds. A wrong size
     // means the escrow contract reads garbage and funds stay locked.
     #[test]
@@ -367,7 +367,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 14. Test: FulfillmentProof Discriminator Byte
-    // Verifies that the first byte of a FulfillmentProof-encoded buffer is the discriminator 0x03.
+    // Verifies that the first byte of a FulfillmentProof-encoded buffer is the FulfillmentProof discriminator.
     // Why: The connected chain uses this byte to route to the fulfillment handler.
     // A wrong value would route it to the wrong handler or reject the message entirely.
     #[test]
@@ -436,7 +436,7 @@ module mvmt_intent::gmp_common_tests {
     // ============================================================================
 
     // 18. Test: Peek IntentRequirements Type
-    // Verifies that peek_message_type returns 0x01 for an IntentRequirements-encoded buffer.
+    // Verifies that peek_message_type returns the IntentRequirements discriminator for a buffer encoded as IntentRequirements.
     // Why: The gmpReceive handler calls peek first to decide which decode path to take.
     // A wrong peek result routes the message to the wrong handler.
     #[test]
@@ -449,7 +449,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 19. Test: Peek EscrowConfirmation Type
-    // Verifies that peek_message_type returns 0x02 for an EscrowConfirmation-encoded buffer.
+    // Verifies that peek_message_type returns the EscrowConfirmation discriminator for a buffer encoded as EscrowConfirmation.
     // Why: Each discriminator value must map to the correct type.
     // Tests 18-20 together ensure all three types are correctly identified.
     #[test]
@@ -462,7 +462,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 20. Test: Peek FulfillmentProof Type
-    // Verifies that peek_message_type returns 0x03 for a FulfillmentProof-encoded buffer.
+    // Verifies that peek_message_type returns the FulfillmentProof discriminator for a buffer encoded as FulfillmentProof.
     // Why: Each discriminator value must map to the correct type.
     // Tests 18-20 together ensure all three types are correctly identified.
     #[test]
@@ -479,7 +479,7 @@ module mvmt_intent::gmp_common_tests {
     // ============================================================================
 
     // 21. Test: Reject Wrong Discriminator
-    // Verifies that decode_intent_requirements aborts when the discriminator byte does not match 0x01.
+    // Verifies that decode_intent_requirements aborts when the discriminator byte does not match the IntentRequirements discriminator.
     // Why: Without this check, a buffer encoded as EscrowConfirmation could be
     // decoded as IntentRequirements, silently producing garbage fields.
     #[test]
@@ -495,7 +495,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 22. Test: Reject Wrong Length
-    // Verifies that decode_intent_requirements aborts when given a buffer shorter than the expected 145 bytes.
+    // Verifies that decode_intent_requirements aborts when given a buffer shorter than the expected intent_requirements_size.
     // Why: A truncated buffer could cause out-of-bounds reads. A padded buffer could
     // contain trailing garbage. Both must be rejected to prevent silent corruption.
     #[test]
@@ -540,7 +540,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 26. Test: Reject Wrong Discriminator for EscrowConfirmation
-    // Verifies that decode_escrow_confirmation aborts when the discriminator byte does not match 0x02.
+    // Verifies that decode_escrow_confirmation aborts when the discriminator byte does not match the EscrowConfirmation discriminator.
     // Why: Each message type has its own decode function. If EscrowConfirmation accepts
     // a 0x01 buffer, it would silently misinterpret IntentRequirements fields.
     #[test]
@@ -552,7 +552,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 27. Test: Reject Wrong Discriminator for FulfillmentProof
-    // Verifies that decode_fulfillment_proof aborts when the discriminator byte does not match 0x03.
+    // Verifies that decode_fulfillment_proof aborts when the discriminator byte does not match the FulfillmentProof discriminator.
     // Why: Same reasoning as test 26 — each decode function must enforce its own
     // discriminator to prevent cross-type misinterpretation.
     #[test]
@@ -564,7 +564,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 28. Test: Reject Wrong Length for EscrowConfirmation
-    // Verifies that decode_escrow_confirmation aborts when given a buffer shorter than the expected 137 bytes.
+    // Verifies that decode_escrow_confirmation aborts when given a buffer shorter than the expected escrow_confirmation_size.
     // Why: Each message type has a different expected size. A bug in the
     // EscrowConfirmation length check is independent of the IntentRequirements one.
     #[test]
@@ -575,7 +575,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 29. Test: Reject Wrong Length for FulfillmentProof
-    // Verifies that decode_fulfillment_proof aborts when given a buffer shorter than the expected 81 bytes.
+    // Verifies that decode_fulfillment_proof aborts when given a buffer shorter than the expected fulfillment_proof_size.
     // Why: Each message type checks its own expected size independently. A bug in one
     // length check doesn't imply the others are correct.
     #[test]
@@ -586,7 +586,7 @@ module mvmt_intent::gmp_common_tests {
     }
 
     // 30. Test: Reject Off-By-One Length
-    // Verifies that decode_intent_requirements aborts on a 144-byte buffer (one less than the expected 145).
+    // Verifies that decode_intent_requirements aborts when given a buffer one byte shorter than the expected size.
     // Why: Off-by-one is the most likely length check bug. Testing exact_size-1
     // catches this where a wildly wrong size like 10 might not.
     #[test]

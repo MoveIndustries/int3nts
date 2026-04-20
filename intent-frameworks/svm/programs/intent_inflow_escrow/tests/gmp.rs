@@ -24,7 +24,7 @@ use solana_sdk::{pubkey::Pubkey, signature::{Keypair, Signer}, transaction::Tran
 // HELPER FUNCTIONS
 // ============================================================================
 
-/// Helper: Create IntentRequirements payload
+// Helper: Create IntentRequirements payload
 fn create_requirements_payload(
     intent_id: [u8; 32],
     requester: &Pubkey,
@@ -44,7 +44,7 @@ fn create_requirements_payload(
     requirements.encode().to_vec()
 }
 
-/// Helper: Create FulfillmentProof payload
+// Helper: Create FulfillmentProof payload
 fn create_fulfillment_proof_payload(
     intent_id: [u8; 32],
     solver: &Pubkey,
@@ -64,9 +64,9 @@ fn create_fulfillment_proof_payload(
 // GMP CONFIG TESTS
 // ============================================================================
 
-/// 1. Test: SetGmpConfig creates/updates GMP configuration
-/// Verifies that admin can set GMP config with hub chain ID, hub GMP endpoint address, and endpoint.
-/// Why: GMP config is required for source validation in all GMP message handlers.
+// 1. Test: SetGmpConfig creates/updates GMP configuration
+// Verifies that admin can set GMP config with hub chain ID, hub GMP endpoint address, and endpoint.
+// Why: GMP config is required for source validation in all GMP message handlers.
 #[tokio::test]
 async fn test_set_gmp_config() {
     let program_test = program_test();
@@ -114,9 +114,9 @@ async fn test_set_gmp_config() {
     assert!(config_account.data.len() > 0);
 }
 
-/// 2. Test: SetGmpConfig rejects unauthorized caller
-/// Verifies that only admin can update GMP config after initial setup.
-/// Why: GMP config controls remote GMP endpoint sources - must be admin-only.
+// 2. Test: SetGmpConfig rejects unauthorized caller
+// Verifies that only admin can update GMP config after initial setup.
+// Why: GMP config controls remote GMP endpoint sources - must be admin-only.
 #[tokio::test]
 async fn test_set_gmp_config_rejects_unauthorized() {
     let program_test = program_test();
@@ -165,9 +165,9 @@ async fn test_set_gmp_config_rejects_unauthorized() {
 // LZ RECEIVE REQUIREMENTS TESTS
 // ============================================================================
 
-/// 3. Test: ReceiveRequirements stores intent requirements
-/// Verifies that requirements from hub are stored correctly.
-/// Why: Requirements must be stored before escrow can be created with validation.
+// 3. Test: ReceiveRequirements stores intent requirements
+// Verifies that requirements from hub are stored correctly.
+// Why: Requirements must be stored before escrow can be created with validation.
 #[tokio::test]
 async fn test_receive_requirements_stores_requirements() {
     let program_test = program_test();
@@ -228,9 +228,9 @@ async fn test_receive_requirements_stores_requirements() {
     assert!(!requirements.fulfilled);
 }
 
-/// 4. Test: ReceiveRequirements is idempotent
-/// Verifies that duplicate requirements message succeeds without error.
-/// Why: Network retries may deliver the same message multiple times.
+// 4. Test: ReceiveRequirements is idempotent
+// Verifies that duplicate requirements message succeeds without error.
+// Why: Network retries may deliver the same message multiple times.
 #[tokio::test]
 async fn test_receive_requirements_idempotent() {
     let program_test = program_test();
@@ -302,9 +302,9 @@ async fn test_receive_requirements_idempotent() {
     context.banks_client.process_transaction(tx).await.unwrap();
 }
 
-/// 5. Test: ReceiveRequirements rejects unknown remote GMP endpoint
-/// Verifies that requirements from wrong chain/address are rejected.
-/// Why: Only hub should be able to send requirements.
+// 5. Test: ReceiveRequirements rejects unknown remote GMP endpoint
+// Verifies that requirements from wrong chain/address are rejected.
+// Why: Only hub should be able to send requirements.
 #[tokio::test]
 async fn test_receive_requirements_rejects_unknown_remote_gmp_endpoint() {
     let program_test = program_test();
@@ -384,9 +384,9 @@ async fn test_receive_requirements_rejects_unknown_remote_gmp_endpoint() {
 // LZ RECEIVE FULFILLMENT PROOF TESTS
 // ============================================================================
 
-/// 6. Test: ReceiveFulfillmentProof releases escrow
-/// Verifies that fulfillment proof auto-releases escrow to solver.
-/// Why: This is the core GMP release mechanism.
+// 6. Test: ReceiveFulfillmentProof releases escrow
+// Verifies that fulfillment proof auto-releases escrow to solver.
+// Why: This is the core GMP release mechanism.
 #[tokio::test]
 async fn test_receive_fulfillment_proof_releases_escrow() {
     let program_test = program_test();
@@ -503,9 +503,9 @@ async fn test_receive_fulfillment_proof_releases_escrow() {
     assert!(escrow.is_claimed);
 }
 
-/// 7. Test: ReceiveFulfillmentProof rejects unknown remote GMP endpoint
-/// Verifies that proof from wrong chain/address is rejected.
-/// Why: Only hub should be able to authorize release.
+// 7. Test: ReceiveFulfillmentProof rejects unknown remote GMP endpoint
+// Verifies that proof from wrong chain/address is rejected.
+// Why: Only hub should be able to authorize release.
 #[tokio::test]
 async fn test_receive_fulfillment_proof_rejects_unknown_remote_gmp_endpoint() {
     let program_test = program_test();
@@ -608,9 +608,9 @@ async fn test_receive_fulfillment_proof_rejects_unknown_remote_gmp_endpoint() {
     assert!(result.is_err(), "Should reject wrong chain ID");
 }
 
-/// 8. Test: ReceiveFulfillmentProof rejects already fulfilled
-/// Verifies that duplicate fulfillment proof is rejected.
-/// Why: Prevents double-spend attacks.
+// 8. Test: ReceiveFulfillmentProof rejects already fulfilled
+// Verifies that duplicate fulfillment proof is rejected.
+// Why: Prevents double-spend attacks.
 #[tokio::test]
 async fn test_receive_fulfillment_proof_rejects_already_fulfilled() {
     let program_test = program_test();
@@ -742,9 +742,9 @@ async fn test_receive_fulfillment_proof_rejects_already_fulfilled() {
 // CREATE ESCROW WITH REQUIREMENTS TESTS
 // ============================================================================
 
-/// 9. Test: CreateEscrow validates against requirements
-/// Verifies that escrow creation succeeds when matching requirements.
-/// Why: Ensures escrow parameters match what hub specified.
+// 9. Test: CreateEscrow validates against requirements
+// Verifies that escrow creation succeeds when matching requirements.
+// Why: Ensures escrow parameters match what hub specified.
 #[tokio::test]
 async fn test_create_escrow_validates_against_requirements() {
     let program_test = program_test();
@@ -821,9 +821,9 @@ async fn test_create_escrow_validates_against_requirements() {
     assert!(requirements.escrow_created);
 }
 
-/// 10. Test: CreateEscrow rejects amount mismatch
-/// Verifies that escrow creation fails if amount is less than required.
-/// Why: Prevents underfunded escrows.
+// 10. Test: CreateEscrow rejects amount mismatch
+// Verifies that escrow creation fails if amount is less than required.
+// Why: Prevents underfunded escrows.
 #[tokio::test]
 async fn test_create_escrow_rejects_amount_mismatch() {
     let program_test = program_test();
@@ -893,9 +893,9 @@ async fn test_create_escrow_rejects_amount_mismatch() {
     assert!(result.is_err(), "Should reject amount mismatch");
 }
 
-/// 11. Test: CreateEscrow rejects token mismatch
-/// Verifies that escrow creation fails if token doesn't match requirements.
-/// Why: Ensures correct token is escrowed.
+// 11. Test: CreateEscrow rejects token mismatch
+// Verifies that escrow creation fails if token doesn't match requirements.
+// Why: Ensures correct token is escrowed.
 #[tokio::test]
 async fn test_create_escrow_rejects_token_mismatch() {
     let program_test = program_test();
@@ -978,9 +978,9 @@ async fn test_create_escrow_rejects_token_mismatch() {
     assert!(result.is_err(), "Should reject token mismatch");
 }
 
-/// 12. Test: CreateEscrow sends EscrowConfirmation
-/// Verifies that EscrowConfirmation GMP message is sent to hub on escrow creation.
-/// Why: Hub needs confirmation to proceed with intent processing.
+// 12. Test: CreateEscrow sends EscrowConfirmation
+// Verifies that EscrowConfirmation GMP message is sent to hub on escrow creation.
+// Why: Hub needs confirmation to proceed with intent processing.
 #[tokio::test]
 async fn test_create_escrow_sends_escrow_confirmation() {
     // Note: This test verifies the code path executes without error.
@@ -1069,9 +1069,9 @@ async fn test_create_escrow_sends_escrow_confirmation() {
 // FULL WORKFLOW TEST
 // ============================================================================
 
-/// 19. Test: Full inflow GMP workflow
-/// Verifies complete flow: requirements → escrow → fulfillment proof → release.
-/// Why: Integration test for the entire inflow GMP flow.
+// 19. Test: Full inflow GMP workflow
+// Verifies complete flow: requirements → escrow → fulfillment proof → release.
+// Why: Integration test for the entire inflow GMP flow.
 #[tokio::test]
 async fn test_full_inflow_gmp_workflow() {
     let program_test = program_test();
@@ -1275,9 +1275,9 @@ async fn test_full_inflow_gmp_workflow() {
 // routes based on message type. This is used by the GMP endpoint's CPI which
 // always uses variant index 1 for destination programs.
 
-/// 25. Test: Generic GmpReceive routes IntentRequirements correctly
-/// Verifies that message type 0x01 routes to requirements handler.
-/// Why: GMP endpoint uses generic GmpReceive for all CPIs - must route correctly.
+// 25. Test: Generic GmpReceive routes IntentRequirements correctly
+// Verifies that the IntentRequirements message type routes to the requirements handler.
+// Why: GMP endpoint uses generic GmpReceive for all CPIs - must route correctly.
 #[tokio::test]
 async fn test_generic_gmp_receive_routes_requirements() {
     let program_test = program_test();
@@ -1339,9 +1339,9 @@ async fn test_generic_gmp_receive_routes_requirements() {
     assert!(!requirements.fulfilled);
 }
 
-/// 26. Test: Generic GmpReceive routes FulfillmentProof correctly
-/// Verifies that message type 0x03 routes to fulfillment proof handler.
-/// Why: GMP endpoint uses generic GmpReceive for all CPIs - must route correctly.
+// 26. Test: Generic GmpReceive routes FulfillmentProof correctly
+// Verifies that the FulfillmentProof message type routes to the fulfillment proof handler.
+// Why: GMP endpoint uses generic GmpReceive for all CPIs - must route correctly.
 #[tokio::test]
 async fn test_generic_gmp_receive_routes_fulfillment_proof() {
     let program_test = program_test();
@@ -1458,9 +1458,9 @@ async fn test_generic_gmp_receive_routes_fulfillment_proof() {
     assert!(escrow.is_claimed);
 }
 
-/// 27. Test: Generic GmpReceive rejects unknown message types
-/// Verifies that invalid message types (not 0x01 or 0x03) are rejected.
-/// Why: Unknown message types should fail explicitly, not silently.
+// 27. Test: Generic GmpReceive rejects unknown message types
+// Verifies that message types outside the known IntentRequirements and FulfillmentProof variants are rejected.
+// Why: Unknown message types should fail explicitly, not silently.
 #[tokio::test]
 async fn test_generic_gmp_receive_rejects_unknown_message_type() {
     let program_test = program_test();

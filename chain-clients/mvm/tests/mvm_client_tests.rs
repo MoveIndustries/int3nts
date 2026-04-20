@@ -145,7 +145,7 @@ async fn test_get_token_balance_error() {
 }
 
 // 8. Test: get_token_balance returns zero balance
-// Verifies that get_token_balance() correctly parses "0" from the view function.
+// Verifies that get_token_balance() correctly parses a zero balance from the view function.
 // Why: Zero balance is a valid state (empty wallet), not an error.
 #[tokio::test]
 async fn test_get_token_balance_zero() {
@@ -194,7 +194,7 @@ fn test_normalize_hex_to_address_full_length() {
 }
 
 // 19. Test: normalize_hex_to_address pads short addresses to 64 chars
-// Verifies that short addresses (e.g., "0x1") are zero-padded to 32 bytes.
+// Verifies that short addresses are zero-padded to the Move 32-byte address width.
 // Why: Move addresses are always 32 bytes. Short forms like "0x1" appear in framework.
 #[test]
 fn test_normalize_hex_to_address_short_address() {

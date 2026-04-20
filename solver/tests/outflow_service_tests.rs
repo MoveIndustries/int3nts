@@ -24,7 +24,7 @@ fn create_test_liquidity_monitor(config: &solver::config::SolverConfig) -> Arc<L
 // ============================================================================
 
 // 1. Test: OutflowService::new() creates a service successfully
-// Verifies that OutflowService::new() creates a service successfully.
+// Verifies that OutflowService::new returns Ok when wired with a SolverConfig, an IntentTracker, and a LiquidityMonitor built from create_default_solver_config.
 // Why: Ensure service initialization works correctly.
 #[test]
 fn test_outflow_service_new() {
@@ -35,7 +35,7 @@ fn test_outflow_service_new() {
 }
 
 // 2. Test: poll_and_execute_transfers() returns empty list when no pending outflow intents
-// Verifies that poll_and_execute_transfers() returns empty list when no pending outflow intents.
+// Verifies that OutflowService::poll_and_execute_transfers resolves to an empty Vec when the underlying IntentTracker holds no signed outflow intents.
 // Why: Ensure the service correctly handles the case when there are no intents to process.
 #[test]
 fn test_poll_and_execute_transfers_empty() {

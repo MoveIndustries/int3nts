@@ -89,7 +89,7 @@ fn connected_chain_token() -> ChainToken {
 // ============================================================================
 
 // 1. Test: available_budget with no in-flight commitments returns full balance
-// Verifies that available_budget with no in-flight commitments returns full balance.
+// Verifies that available_budget returns the full confirmed_balance when the in_flight list is empty.
 // Why: Core budget calculation must be correct when there are no reservations.
 #[test]
 fn test_available_budget_no_in_flight() {
@@ -102,7 +102,7 @@ fn test_available_budget_no_in_flight() {
 }
 
 // 2. Test: available_budget subtracts in-flight commitments
-// Verifies that available_budget subtracts in-flight commitments.
+// Verifies that available_budget returns confirmed_balance minus the sum of all in_flight commitment amounts.
 // Why: Must account for already-reserved funds.
 #[test]
 fn test_available_budget_with_in_flight() {
@@ -126,7 +126,7 @@ fn test_available_budget_with_in_flight() {
 }
 
 // 3. Test: available_budget saturates at zero (no underflow)
-// Verifies that available_budget saturates at zero (no underflow).
+// Verifies that available_budget uses saturating subtraction and returns zero when in-flight amounts exceed confirmed_balance.
 // Why: In-flight commitments may exceed balance temporarily (e.g., balance dropped).
 #[test]
 fn test_available_budget_saturating_sub() {
@@ -143,7 +143,7 @@ fn test_available_budget_saturating_sub() {
 }
 
 // 4. Test: available_budget with zero balance and no in-flight
-// Verifies that available_budget with zero balance and no in-flight.
+// Verifies that available_budget returns zero when confirmed_balance is zero and there are no in-flight commitments.
 // Why: Edge case for fresh state before first poll.
 #[test]
 fn test_available_budget_zero_balance() {
@@ -160,7 +160,7 @@ fn test_available_budget_zero_balance() {
 // ============================================================================
 
 // 5. Test: reserve reduces available budget
-// Verifies that reserve reduces available budget.
+// Verifies that reserve records an in-flight commitment that reduces subsequent has_sufficient_budget availability by the reserved amount.
 // Why: Core reservation behavior.
 #[tokio::test]
 async fn test_reserve_reduces_budget() {
@@ -183,7 +183,7 @@ async fn test_reserve_reduces_budget() {
 }
 
 // 6. Test: release deducts spent amount from confirmed_balance
-// Verifies that release deducts spent amount from confirmed_balance.
+// Verifies that release removes the in-flight commitment and debits its amount from confirmed_balance so availability reflects the spend before the next balance poll.
 // Why: Prevents stale cached balance from inflating available budget between polls.
 #[tokio::test]
 async fn test_release_deducts_spent_from_confirmed_balance() {
@@ -208,7 +208,7 @@ async fn test_release_deducts_spent_from_confirmed_balance() {
 }
 
 // 7. Test: release prevents stale balance from accepting a second draft
-// Verifies that release prevents stale balance from accepting a second draft.
+// Verifies that after release debits confirmed_balance for a spent reservation, has_budget_after_spend correctly rejects a follow-up draft that would violate the threshold.
 // Why: Reproduces the race condition where the solver signed a draft it couldn't cover.
 #[tokio::test]
 async fn test_release_prevents_stale_balance_over_commitment() {
@@ -235,7 +235,7 @@ async fn test_release_prevents_stale_balance_over_commitment() {
 }
 
 // 8. Test: release of unknown draft_id is a no-op
-// Verifies that release of unknown draft_id is a no-op.
+// Verifies that release with a draft_id that was never reserved leaves confirmed_balance and in-flight commitments unchanged.
 // Why: Idempotent release prevents double-release issues.
 #[tokio::test]
 async fn test_release_unknown_draft_is_noop() {
@@ -257,7 +257,7 @@ async fn test_release_unknown_draft_is_noop() {
 }
 
 // 9. Test: reserve fails when insufficient budget
-// Verifies that reserve fails when insufficient budget.
+// Verifies that reserve returns an "Insufficient budget" error when the requested amount exceeds available_budget.
 // Why: Must prevent over-commitment.
 #[tokio::test]
 async fn test_reserve_fails_when_insufficient() {
@@ -277,7 +277,7 @@ async fn test_reserve_fails_when_insufficient() {
 }
 
 // 10. Test: multiple reserves accumulate correctly
-// Verifies that multiple reserves accumulate correctly.
+// Verifies that successive reserve calls sum their amounts against available_budget and reject a new reservation that exceeds the remaining budget.
 // Why: Multiple in-flight intents must all be accounted for.
 #[tokio::test]
 async fn test_multiple_reserves_accumulate() {
@@ -308,7 +308,7 @@ async fn test_multiple_reserves_accumulate() {
 // ============================================================================
 
 // 11. Test: is_above_threshold returns true when budget exceeds configured minimum
-// Verifies that is_above_threshold returns true when budget exceeds configured minimum.
+// Verifies that is_above_threshold returns Ok(true) when available_budget is greater than the configured min_balance for the token.
 // Why: Solver should accept intents when above threshold.
 #[tokio::test]
 async fn test_above_threshold_returns_true() {
@@ -326,7 +326,7 @@ async fn test_above_threshold_returns_true() {
 }
 
 // 12. Test: is_above_threshold returns false when budget is below minimum
-// Verifies that is_above_threshold returns false when budget is below minimum.
+// Verifies that is_above_threshold returns Ok(false) when available_budget is less than the configured min_balance for the token.
 // Why: Solver should reject intents when critically low.
 #[tokio::test]
 async fn test_below_threshold_returns_false() {
@@ -344,7 +344,7 @@ async fn test_below_threshold_returns_false() {
 }
 
 // 13. Test: is_above_threshold returns error when no threshold is configured
-// Verifies that is_above_threshold returns error when no threshold is configured.
+// Verifies that is_above_threshold returns an error mentioning "No liquidity threshold" when the queried ChainToken has state but no matching threshold configuration.
 // Why: Every token the solver operates on must have an explicit threshold.
 #[tokio::test]
 async fn test_no_threshold_configured_returns_error() {
@@ -373,7 +373,7 @@ async fn test_no_threshold_configured_returns_error() {
 }
 
 // 14. Test: is_above_threshold accounts for in-flight reservations
-// Verifies that is_above_threshold accounts for in-flight reservations.
+// Verifies that is_above_threshold compares min_balance against available_budget (confirmed_balance minus in-flight), so an active reserve can flip the result from true to false.
 // Why: In-flight commitments reduce effective liquidity.
 #[tokio::test]
 async fn test_threshold_accounts_for_in_flight() {
@@ -401,7 +401,7 @@ async fn test_threshold_accounts_for_in_flight() {
 // ============================================================================
 
 // 15. Test: reservations on one chain don't affect another chain
-// Verifies that reservations on one chain don't affect another chain.
+// Verifies that reserve updates the budget only for the specified ChainToken and leaves the availability of other (chain_id, token) entries untouched.
 // Why: Cross-chain budgets must be independent.
 #[tokio::test]
 async fn test_chain_independence() {
@@ -434,7 +434,7 @@ async fn test_chain_independence() {
 // ============================================================================
 
 // 16. Test: has_sufficient_budget returns false for unknown chain+token
-// Verifies that has_sufficient_budget returns false for unknown chain+token.
+// Verifies that has_sufficient_budget returns false when the queried ChainToken is not tracked in the monitor's state.
 // Why: Must not silently accept intents for tokens we don't monitor.
 #[tokio::test]
 async fn test_has_sufficient_budget_unknown_token() {
@@ -449,7 +449,7 @@ async fn test_has_sufficient_budget_unknown_token() {
 }
 
 // 17. Test: has_sufficient_budget allows zero amount
-// Verifies that has_sufficient_budget allows zero amount.
+// Verifies that has_sufficient_budget returns true for a zero amount on a tracked ChainToken regardless of the current balance.
 // Why: Edge case.
 #[tokio::test]
 async fn test_has_sufficient_budget_zero_amount() {
@@ -465,7 +465,7 @@ async fn test_has_sufficient_budget_zero_amount() {
 // ============================================================================
 
 // 18. Test: config validation rejects zero balance_poll_interval_ms
-// Verifies that config validation rejects zero balance_poll_interval_ms.
+// Verifies that SolverConfig::validate returns an error when liquidity.balance_poll_interval_ms is zero.
 // Why: Zero interval would spin CPU.
 #[test]
 fn test_config_rejects_zero_poll_interval() {
@@ -475,7 +475,7 @@ fn test_config_rejects_zero_poll_interval() {
 }
 
 // 19. Test: config validation rejects zero in_flight_timeout_secs
-// Verifies that config validation rejects zero in_flight_timeout_secs.
+// Verifies that SolverConfig::validate returns an error when liquidity.in_flight_timeout_secs is zero.
 // Why: Zero timeout would immediately expire all commitments.
 #[test]
 fn test_config_rejects_zero_timeout() {
@@ -485,7 +485,7 @@ fn test_config_rejects_zero_timeout() {
 }
 
 // 20. Test: config validation rejects threshold with unknown chain_id
-// Verifies that config validation rejects threshold with unknown chain_id.
+// Verifies that SolverConfig::validate returns an error when a LiquidityThresholdConfig references a chain_id that is not present in the solver's chain configuration.
 // Why: Threshold for non-existent chain is a config error.
 #[test]
 fn test_config_rejects_unknown_threshold_chain_id() {
@@ -500,7 +500,7 @@ fn test_config_rejects_unknown_threshold_chain_id() {
 }
 
 // 21. Test: config validation rejects threshold with zero min_balance
-// Verifies that config validation rejects threshold with zero min_balance.
+// Verifies that SolverConfig::validate returns an error when any LiquidityThresholdConfig has min_balance set to zero.
 // Why: Zero threshold is meaningless.
 #[test]
 fn test_config_rejects_zero_min_balance() {
@@ -510,7 +510,7 @@ fn test_config_rejects_zero_min_balance() {
 }
 
 // 22. Test: config with acceptance pairs but no thresholds fails validation
-// Verifies that config with acceptance pairs but no thresholds fails validation.
+// Verifies that SolverConfig::validate returns a "no [[liquidity.threshold]]" error when acceptance token pairs reference target tokens that have no matching threshold entry.
 // Why: Solver must not operate without threshold guards for tokens it spends.
 #[test]
 fn test_config_rejects_missing_target_token_threshold() {
@@ -526,7 +526,7 @@ fn test_config_rejects_missing_target_token_threshold() {
 }
 
 // 23. Test: config with acceptance pairs but missing gas token threshold fails validation
-// Verifies that config with acceptance pairs but missing gas token threshold fails validation.
+// Verifies that SolverConfig::validate returns a "gas token" error when any chain the solver operates on lacks a threshold entry for its native gas token.
 // Why: Solver needs gas on every chain it operates on.
 #[test]
 fn test_config_rejects_missing_gas_token_threshold() {
@@ -543,7 +543,7 @@ fn test_config_rejects_missing_gas_token_threshold() {
 // ============================================================================
 
 // 24. Test: gas_token_for_chain returns MOVE sentinel for hub chain
-// Verifies that gas_token_for_chain returns MOVE sentinel for hub chain.
+// Verifies that gas_token_for_chain returns a ChainToken whose token field is the MOVE FA sentinel for a Movement hub chain_id.
 // Why: Movement native gas token is identified by FA metadata.
 #[test]
 fn test_gas_token_hub_chain() {
@@ -557,7 +557,7 @@ fn test_gas_token_hub_chain() {
 }
 
 // 25. Test: gas_token_for_chain returns MOVE sentinel for connected MVM chain
-// Verifies that gas_token_for_chain returns MOVE sentinel for connected MVM chain.
+// Verifies that gas_token_for_chain returns the MOVE FA sentinel as the gas token for a connected chain whose chain type is MVM.
 // Why: All Move VM chains use MOVE as gas.
 #[test]
 fn test_gas_token_connected_mvm() {
@@ -571,7 +571,7 @@ fn test_gas_token_connected_mvm() {
 }
 
 // 26. Test: gas_token_for_chain returns ETH zero address for EVM chain
-// Verifies that gas_token_for_chain returns ETH zero address for EVM chain.
+// Verifies that gas_token_for_chain returns the EVM zero address as the gas token for a connected chain whose chain type is EVM.
 // Why: Native ETH is identified by the zero address.
 #[test]
 fn test_gas_token_connected_evm() {
@@ -585,7 +585,7 @@ fn test_gas_token_connected_evm() {
 }
 
 // 27. Test: gas_token_for_chain returns SOL system program for SVM chain
-// Verifies that gas_token_for_chain returns SOL system program for SVM chain.
+// Verifies that gas_token_for_chain returns the Solana system program ID as the gas token for a connected chain whose chain type is SVM.
 // Why: Native SOL is identified by the system program ID.
 #[test]
 fn test_gas_token_connected_svm() {
@@ -599,7 +599,7 @@ fn test_gas_token_connected_svm() {
 }
 
 // 28. Test: gas_token_for_chain returns error for unknown chain
-// Verifies that gas_token_for_chain returns error for unknown chain.
+// Verifies that gas_token_for_chain returns an error mentioning "No chain config for chain_id" when called with a chain_id that has no configured chain entry.
 // Why: Missing chain config at runtime means startup validation has a bug.
 #[test]
 fn test_gas_token_unknown_chain_returns_error() {
@@ -617,7 +617,7 @@ fn test_gas_token_unknown_chain_returns_error() {
 // ============================================================================
 
 // 29. Test: has_budget_after_spend with threshold — must retain threshold after spend
-// Verifies that has_budget_after_spend with threshold — must retain threshold after spend.
+// Verifies that has_budget_after_spend returns Ok(true) only when available_budget minus the requested spend is greater than or equal to the configured min_balance.
 // Why: Spending should not bring balance below the safety threshold.
 #[tokio::test]
 async fn test_has_budget_after_spend_with_threshold() {
@@ -638,7 +638,7 @@ async fn test_has_budget_after_spend_with_threshold() {
 }
 
 // 30. Test: has_budget_after_spend returns error when no state exists
-// Verifies that has_budget_after_spend returns error when no state exists.
+// Verifies that has_budget_after_spend returns an error mentioning "No liquidity state" when the queried ChainToken is not tracked in the monitor's state map.
 // Why: Every token the solver spends must have an explicit threshold.
 #[tokio::test]
 async fn test_has_budget_after_spend_returns_error_without_state() {
@@ -657,7 +657,7 @@ async fn test_has_budget_after_spend_returns_error_without_state() {
 }
 
 // 31. Test: has_budget_after_spend accounts for in-flight commitments
-// Verifies that has_budget_after_spend accounts for in-flight commitments.
+// Verifies that has_budget_after_spend compares the spend against available_budget (confirmed_balance minus in-flight reservations) rather than confirmed_balance alone.
 // Why: Must consider already-reserved funds.
 #[tokio::test]
 async fn test_has_budget_after_spend_with_in_flight() {
@@ -681,7 +681,7 @@ async fn test_has_budget_after_spend_with_in_flight() {
 }
 
 // 32. Test: has_budget_after_spend returns error for unknown chain+token
-// Verifies that has_budget_after_spend returns error for unknown chain+token.
+// Verifies that has_budget_after_spend returns an error mentioning "No liquidity state" when the queried ChainToken references a chain_id or token the monitor does not track.
 // Why: Untracked tokens indicate startup validation missed something.
 #[tokio::test]
 async fn test_has_budget_after_spend_unknown_token_returns_error() {
@@ -703,7 +703,7 @@ async fn test_has_budget_after_spend_unknown_token_returns_error() {
 // ============================================================================
 
 // 33. Test: gas_token_for_chain_type returns error for unknown chain type
-// Verifies that gas_token_for_chain_type returns error for unknown chain type.
+// Verifies that config::gas_token_for_chain_type returns an error mentioning "Unknown chain type" when given a chain type string that is not recognized.
 // Why: Unknown chain types must propagate errors, not kill the runtime.
 #[test]
 fn test_gas_token_for_chain_type_returns_error_for_unknown() {
@@ -713,7 +713,7 @@ fn test_gas_token_for_chain_type_returns_error_for_unknown() {
 }
 
 // 34. Test: has_budget_after_spend returns error when token is in state but has no threshold
-// Verifies that has_budget_after_spend returns error when token is in state but has no threshold.
+// Verifies that has_budget_after_spend returns an error mentioning "No liquidity threshold" when the ChainToken has a state entry but no matching threshold configuration.
 // Why: Exercises the second lookup failure (threshold missing, not state missing).
 #[tokio::test]
 async fn test_has_budget_after_spend_missing_threshold_returns_error() {
@@ -740,7 +740,7 @@ async fn test_has_budget_after_spend_missing_threshold_returns_error() {
 }
 
 // 35. Test: config validation catches unknown chain type before runtime
-// Verifies that config validation catches unknown chain type before runtime.
+// Verifies that SolverConfig::validate rejects configurations whose acceptance token pairs reference a target_chain_id with no configured connected chain entry.
 // Why: Proves that startup validation prevents the runtime errors we fixed.
 #[test]
 fn test_config_validation_catches_unknown_chain_before_runtime() {

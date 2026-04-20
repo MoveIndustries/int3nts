@@ -68,7 +68,7 @@ fn create_default_draft_data() -> DraftintentData {
 }
 
 // 1. Test: token pair swaps are accepted when offered >= required amount at configured exchange rate
-// Verifies that token pair swaps are accepted when offered >= required amount at configured exchange rate.
+// Verifies that evaluate_draft_acceptance returns AcceptanceResult::Accept for a configured token pair whose offered_amount meets the pair's rate-derived requirement.
 // Why: Solver should accept swaps when offered amount meets the configured exchange rate for the token pair.
 #[test]
 fn test_token_pair_accept() {
@@ -78,7 +78,7 @@ fn test_token_pair_accept() {
 }
 
 // 2. Test: token pair swaps are rejected when offered < required amount at configured exchange rate
-// Verifies that token pair swaps are rejected when offered < required amount at configured exchange rate.
+// Verifies that evaluate_draft_acceptance returns AcceptanceResult::Reject when offered_amount falls short of the required amount implied by the token pair's configured rate.
 // Why: Solver should reject swaps when offered amount doesn't meet the configured exchange rate for the token pair.
 #[test]
 fn test_token_pair_reject_unfavorable() {
@@ -92,7 +92,7 @@ fn test_token_pair_reject_unfavorable() {
 }
 
 // 3. Test: token pair swaps with non-1:1 exchange rates are accepted when offered meets configured rate
-// Verifies that token pair swaps with non-1:1 exchange rates are accepted when offered meets configured rate.
+// Verifies that evaluate_draft_acceptance applies the TokenPairInfo.rate correctly so a non-1:1 pair accepts when offered_amount == desired_amount * rate.
 // Why: Solver should accept swaps when offered amount meets the configured exchange rate for the token pair.
 #[test]
 fn test_token_pair_with_exchange_rate_accept() {
@@ -106,7 +106,7 @@ fn test_token_pair_with_exchange_rate_accept() {
 }
 
 // 4. Test: unsupported token pairs are rejected
-// Verifies that unsupported token pairs are rejected.
+// Verifies that evaluate_draft_acceptance returns AcceptanceResult::Reject when the (offered_token, desired_token) pair is absent from AcceptanceConfig.token_pairs.
 // Why: Solver should only accept configured token pairs.
 #[test]
 fn test_unsupported_token_pair_rejected() {
@@ -134,7 +134,7 @@ fn test_config_with_fees() -> AcceptanceConfig {
 }
 
 // 5. Test: convert_base_fee_in_move_to_offered correctly converts MOVE base_fee_in_move to offered token
-// Verifies that convert_base_fee_in_move_to_offered correctly converts MOVE base_fee_in_move to offered token.
+// Verifies that convert_base_fee_in_move_to_offered multiplies the MOVE-denominated fee by move_rate using ceiling rounding and returns zero for a zero input.
 // Why: base_fee_in_move is denominated in MOVE; protocol must convert before fee validation.
 #[test]
 fn test_convert_base_fee_in_move_to_offered() {
@@ -153,7 +153,7 @@ fn test_convert_base_fee_in_move_to_offered() {
 }
 
 // 6. Test: calculate_required_fee computes correctly: min_fee_offered + ceil(amount * bps / 10000)
-// Verifies that calculate_required_fee computes correctly: min_fee_offered + ceil(amount * bps / 10000).
+// Verifies that calculate_required_fee returns min_fee_offered plus the ceiling-rounded basis-points fee on offered_amount across typical, zero-fee, min-only, bps-only, and exact-division cases.
 // Why: Ensure the fee formula matches the documented specification.
 #[test]
 fn test_calculate_required_fee() {
@@ -170,7 +170,7 @@ fn test_calculate_required_fee() {
 }
 
 // 7. Test: draft with sufficient fee_in_offered_token is accepted
-// Verifies that draft with sufficient fee_in_offered_token is accepted.
+// Verifies that evaluate_draft_acceptance returns AcceptanceResult::Accept when fee_in_offered_token exactly matches the fee computed from base_fee_in_move and fee_bps.
 // Why: Solver should accept drafts where fee_in_offered_token >= required fee.
 #[test]
 fn test_fee_sufficient_accepted() {
@@ -183,7 +183,7 @@ fn test_fee_sufficient_accepted() {
 }
 
 // 8. Test: draft with excess fee_in_offered_token is accepted
-// Verifies that draft with excess fee_in_offered_token is accepted.
+// Verifies that evaluate_draft_acceptance returns AcceptanceResult::Accept when fee_in_offered_token exceeds the fee required by AcceptanceConfig.
 // Why: Users may pay more than the minimum required fee.
 #[test]
 fn test_fee_excess_accepted() {
@@ -196,7 +196,7 @@ fn test_fee_excess_accepted() {
 }
 
 // 9. Test: draft with insufficient fee_in_offered_token is rejected
-// Verifies that draft with insufficient fee_in_offered_token is rejected.
+// Verifies that evaluate_draft_acceptance returns AcceptanceResult::Reject when fee_in_offered_token is below the fee required by AcceptanceConfig by any amount.
 // Why: Solver should reject drafts where fee_in_offered_token < required fee.
 #[test]
 fn test_fee_insufficient_rejected() {
@@ -209,7 +209,7 @@ fn test_fee_insufficient_rejected() {
 }
 
 // 10. Test: draft with zero fee_in_offered_token is rejected when fees are configured
-// Verifies that draft with zero fee_in_offered_token is rejected when fees are configured.
+// Verifies that evaluate_draft_acceptance returns AcceptanceResult::Reject when fee_in_offered_token is zero while base_fee_in_move and fee_bps imply a positive required fee.
 // Why: Solver must not accept free trades when fees are configured.
 #[test]
 fn test_fee_zero_rejected_when_configured() {
@@ -222,7 +222,7 @@ fn test_fee_zero_rejected_when_configured() {
 }
 
 // 11. Test: zero fee_in_offered_token is accepted when no fees are configured
-// Verifies that zero fee_in_offered_token is accepted when no fees are configured.
+// Verifies that evaluate_draft_acceptance returns AcceptanceResult::Accept when fee_in_offered_token is zero and the AcceptanceConfig has both base_fee_in_move and fee_bps set to zero.
 // Why: Backward compatibility - solvers with no fee config should accept zero-fee drafts.
 #[test]
 fn test_fee_zero_accepted_when_no_fees() {

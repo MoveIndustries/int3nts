@@ -125,7 +125,7 @@ module mvmt_intent::fa_intent_inflow_tests {
         solver = @0xdead
     )]
     // 1. Test: create_inflow_intent creates a FALimitOrder without locking hub tokens
-    // Verifies that create_inflow_intent creates a FALimitOrder without locking hub tokens.
+    // Verifies that fa_intent_inflow::create_inflow_intent returns an Intent<FungibleStoreManager, FALimitOrder> at a non-zero address while leaving the requester's primary_fungible_store balance for the offered metadata unchanged.
     // Why: Inflow intents should reference escrow on the connected chain, not lock assets on the hub.
     fun test_create_inflow_intent(
         aptos_framework: &signer,
@@ -231,7 +231,7 @@ module mvmt_intent::fa_intent_inflow_tests {
         solver = @0xdead
     )]
     // 2. Test: a solver can fulfill a cross-chain intent where the requester locks 0 tokens on hub
-    // Verifies that a solver can fulfill a cross-chain intent where the requester locks 0 tokens on hub.
+    // Verifies that fa_intent_inflow::fulfill_inflow_intent moves the solver's desired_fa to the requester for an Intent created via fa_intent::create_fa_to_fa_intent with zero locked offered_fa, once gmp_intent_state::register_inflow_intent and confirm_escrow have been called.
     // Why: Confirm the hub-side flow works when value is actually held in connected-chain escrow.
     fun test_fulfill_cross_chain_intent(
         aptos_framework: &signer,
@@ -360,7 +360,7 @@ module mvmt_intent::fa_intent_inflow_tests {
         solver = @0xdead
     )]
     // 3. Test: create_inflow_intent followed by fulfill_inflow_intent completes an inflow trade
-    // Verifies that create_inflow_intent followed by fulfill_inflow_intent completes an inflow trade.
+    // Verifies that after gmp_intent_state::confirm_escrow, fa_intent_inflow::fulfill_inflow_intent transfers the provided desired_fa from solver to requester and unregisters the intent from intent_registry, zeroing the requester's intent count.
     // Why: Exercise the full inflow intent lifecycle from creation to solver fulfillment.
     fun test_fulfill_inflow_intent(
         aptos_framework: &signer,
@@ -416,7 +416,7 @@ module mvmt_intent::fa_intent_inflow_tests {
     )]
     #[expected_failure(abort_code = 393223, location = aptos_framework::object)] // error::not_found(ERESOURCE_DOES_NOT_EXIST)
     // 4. Test: fulfilling an inflow intent with the outflow function aborts with ERESOURCE_DOES_NOT_EXIST
-    // Verifies that fulfilling an inflow intent with the outflow function aborts with ERESOURCE_DOES_NOT_EXIST.
+    // Verifies that object::address_to_object aborts with ERESOURCE_DOES_NOT_EXIST when an inflow intent address is reinterpreted as Intent<fa_intent_with_oracle::FungibleStoreManager, fa_intent_with_oracle::OracleGuardedLimitOrder>.
     // Why: Enforce type safety between FALimitOrder and OracleGuardedLimitOrder intents.
     fun test_cannot_fulfill_inflow_with_outflow_function(
         aptos_framework: &signer,
@@ -456,7 +456,7 @@ module mvmt_intent::fa_intent_inflow_tests {
     )]
     #[expected_failure(abort_code = 0x30006, location = mvmt_intent::fa_intent_inflow)] // error::invalid_state(E_ESCROW_NOT_CONFIRMED)
     // 5. Test: fulfillment is blocked when escrow confirmation has not been received
-    // Verifies that fulfillment is blocked when escrow confirmation has not been received.
+    // Verifies that fa_intent_inflow::fulfill_inflow_intent aborts with E_ESCROW_NOT_CONFIRMED when invoked before gmp_intent_state::confirm_escrow has been called for the intent_id.
     // Why: GMP integration requires escrow confirmation from connected chain before allowing fulfillment.
     fun test_fulfill_blocked_without_escrow_confirmation(
         aptos_framework: &signer,
@@ -498,7 +498,7 @@ module mvmt_intent::fa_intent_inflow_tests {
     )]
     #[expected_failure(abort_code = 65537, location = mvmt_intent::fa_intent)] // error::invalid_argument(EAMOUNT_NOT_MEET)
     // 6. Test: cross-chain inflow fulfillment aborts when provided_amount < desired_amount
-    // Verifies that cross-chain inflow fulfillment aborts when provided_amount < desired_amount.
+    // Verifies that fa_intent_inflow::fulfill_inflow_intent aborts with fa_intent's EAMOUNT_NOT_MEET when the provided_amount passed to it is below the intent's desired_amount.
     // Why: Reuse the EAMOUNT_NOT_MEET guard for insufficent payment in cross-chain inflow flows.
     fun test_fulfill_cross_chain_intent_insufficient_amount(
         aptos_framework: &signer,

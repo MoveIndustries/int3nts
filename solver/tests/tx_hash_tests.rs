@@ -10,7 +10,7 @@ use solver::chains::tx_hash::extract_tx_hash;
 // ============================================================================
 
 // 1. Test: extract_tx_hash parses aptos CLI JSON output
-// Verifies that JSON strategy extracts hash from {"Result": {"transaction_hash": "0x..."}}.
+// Verifies that the JSON strategy extracts the transaction hash from a Result-wrapped JSON object with a transaction_hash field.
 // Why: aptos CLI outputs this format; must parse correctly.
 #[test]
 fn test_extract_from_json() {
@@ -19,7 +19,7 @@ fn test_extract_from_json() {
 }
 
 // 2. Test: extract_tx_hash parses unquoted line-based output
-// Verifies that Line strategy extracts hash from "Transaction hash: 0x..." format.
+// Verifies that the Line strategy extracts the transaction hash from a labeled line of unquoted CLI output.
 // Why: Hardhat scripts output this format.
 #[test]
 fn test_extract_from_line_unquoted() {
@@ -28,7 +28,7 @@ fn test_extract_from_line_unquoted() {
 }
 
 // 3. Test: extract_tx_hash parses quoted JSON hash field
-// Verifies that Handles {"transaction_hash": "0x..."} (non-Result-wrapped JSON).
+// Verifies that extract_tx_hash handles a flat JSON object with a quoted transaction_hash field (not wrapped in Result).
 // Why: Some output formats use flat JSON with quoted hash values.
 #[test]
 fn test_extract_from_line_quoted() {
@@ -41,7 +41,7 @@ fn test_extract_from_line_quoted() {
 // ============================================================================
 
 // 4. Test: extract_tx_hash fails when no hash is present
-// Verifies that Returns error for output containing no transaction hash.
+// Verifies that extract_tx_hash returns an error when the output contains no transaction hash.
 // Why: Must fail explicitly rather than returning garbage.
 #[test]
 fn test_extract_no_hash_fails() {
@@ -54,7 +54,7 @@ fn test_extract_no_hash_fails() {
 // ============================================================================
 
 // 5. Test: extract_tx_hash parses multi-line Hardhat output
-// Verifies that Correctly finds hash line among other Hardhat output lines.
+// Verifies that extract_tx_hash finds the transaction hash line among unrelated Hardhat output lines.
 // Why: Real Hardhat output includes solver address, block number, etc.
 #[test]
 fn test_extract_hardhat_output() {

@@ -67,7 +67,7 @@ fn test_extract_transaction_hash_returns_none_when_missing() {
 // ============================================================================
 
 // 5. Test: Check VM Status Success With Result Wrapper
-// Verifies that check_vm_status_success parses success from {"Result":{"success":true}}.
+// Verifies that check_vm_status_success parses a successful VM status from the Result-wrapped JSON form.
 // Why: Standard aptos CLI format wraps output in a Result object.
 #[test]
 fn test_check_vm_status_success_result_wrapper() {
@@ -76,7 +76,7 @@ fn test_check_vm_status_success_result_wrapper() {
 }
 
 // 6. Test: Check VM Status Failure With Result Wrapper
-// Verifies that check_vm_status_success detects failure from {"Result":{"success":false}}.
+// Verifies that check_vm_status_success detects a failed VM status from the Result-wrapped JSON form.
 // Why: VM execution can fail even when CLI exits with code 0.
 #[test]
 fn test_check_vm_status_failure_result_wrapper() {
@@ -85,7 +85,7 @@ fn test_check_vm_status_failure_result_wrapper() {
 }
 
 // 7. Test: Check VM Status Success Top Level
-// Verifies that check_vm_status_success parses success from top-level {"success":true}.
+// Verifies that check_vm_status_success parses a successful VM status from the top-level JSON form.
 // Why: Some output formats don't wrap in Result.
 #[test]
 fn test_check_vm_status_success_top_level() {
@@ -98,7 +98,7 @@ fn test_check_vm_status_success_top_level() {
 // ============================================================================
 
 // 8. Test: Parse View Bytes Hex String
-// Verifies that parse_view_bytes handles hex string format ("0x3c44...").
+// Verifies that parse_view_bytes handles the hex-string form returned by Aptos view functions.
 // Why: Aptos view functions may return hex strings.
 #[test]
 fn test_parse_view_bytes_hex_string() {
@@ -118,7 +118,7 @@ fn test_parse_view_bytes_hex_string_no_prefix() {
 }
 
 // 10. Test: Parse View Bytes JSON Array
-// Verifies that parse_view_bytes handles JSON byte array format (["60", "68"]).
+// Verifies that parse_view_bytes handles the JSON byte-array form of Aptos view function output.
 // Why: Aptos view functions may return byte arrays as JSON arrays of decimal strings.
 #[test]
 fn test_parse_view_bytes_json_array() {

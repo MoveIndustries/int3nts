@@ -42,7 +42,7 @@ fn test_client_new() {
 // ============================================================================
 
 // 3. Test: is_escrow_released returns true when escrow is released
-// Verifies that is_escrow_released returns true when escrow is released.
+// Verifies that is_escrow_released returns true when the contract reports the escrow has been released.
 // Why: Release state drives the solver's claim-detection logic; a false negative would block fulfillment.
 #[tokio::test]
 async fn test_is_escrow_released_success() {
@@ -116,7 +116,7 @@ async fn test_is_escrow_released_error() {
 // ============================================================================
 
 // 6. Test: get_token_balance returns correct ERC20 balance
-// Verifies that get_token_balance returns correct ERC20 balance.
+// Verifies that get_token_balance issues an ERC20 `balanceOf(address)` eth_call and parses the uint256 result as a u128.
 // Why: Balance drives liquidity gating; incorrect parsing would let the solver over-commit.
 #[tokio::test]
 async fn test_get_token_balance_success() {
@@ -167,7 +167,7 @@ async fn test_get_token_balance_error() {
 }
 
 // 8. Test: get_token_balance returns zero for "0x0" result
-// Verifies that get_token_balance returns 0 when the contract returns the short-form "0x0" encoding..
+// Verifies that get_token_balance returns a zero balance when the contract returns the short-form zero encoding..
 // Why: Empty-slot encoding is "0x0" not "0x0000…"; the parser must handle the short form.
 #[tokio::test]
 async fn test_get_token_balance_zero() {
@@ -192,7 +192,7 @@ async fn test_get_token_balance_zero() {
 }
 
 // 9. Test: get_native_balance returns correct ETH balance
-// Verifies that get_native_balance returns the correct ETH balance in wei..
+// Verifies that get_native_balance returns the account's native-token balance in wei..
 // Why: Gas token balance gates transaction submission; wrong parse fails submissions.
 #[tokio::test]
 async fn test_get_native_balance_success() {
@@ -239,7 +239,7 @@ async fn test_get_native_balance_error() {
 }
 
 // 11. Test: get_native_balance returns exact u128 for large ETH balances exceeding u64
-// Verifies that get_native_balance returns the exact u128 value for balances exceeding u64::MAX..
+// Verifies that get_native_balance returns balances exceeding u64::MAX without truncation..
 // Why: Balances exceeding u64 (10k+ ETH) must not be silently truncated; u128 preserves full range.
 #[tokio::test]
 async fn test_get_native_balance_exceeds_u64() {
@@ -262,7 +262,7 @@ async fn test_get_native_balance_exceeds_u64() {
 }
 
 // 12. Test: get_token_balance succeeds with 32-byte padded token address
-// Verifies that get_token_balance succeeds when given a 32-byte zero-padded token address..
+// Verifies that get_token_balance succeeds when given a zero-padded 32-byte token address..
 // Why: Solver config stores padded 32-byte addresses for Move parity; the EVM client must accept them.
 #[tokio::test]
 async fn test_get_token_balance_with_padded_address() {
@@ -292,7 +292,7 @@ async fn test_get_token_balance_with_padded_address() {
 }
 
 // 13. Test: get_native_balance succeeds with 32-byte padded account address
-// Verifies that get_native_balance succeeds when given a 32-byte zero-padded account address..
+// Verifies that get_native_balance succeeds when given a zero-padded 32-byte account address..
 // Why: See test 12 — padded addresses also apply to native balance queries.
 #[tokio::test]
 async fn test_get_native_balance_with_padded_address() {
@@ -439,7 +439,7 @@ async fn test_get_escrow_events_error() {
 // ============================================================================
 
 // 22. Test: normalize_evm_address extracts 20 bytes from 32-byte padded address
-// Verifies that normalize_evm_address extracts the low 20 bytes from a 32-byte zero-padded address..
+// Verifies that normalize_evm_address extracts the trailing EVM address bytes from a zero-padded 32-byte input..
 // Why: Solver config uses 32-byte form; EVM calls need 20 bytes. Normalization bridges the formats.
 #[test]
 fn test_normalize_evm_address_padded() {
@@ -449,7 +449,7 @@ fn test_normalize_evm_address_padded() {
 }
 
 // 23. Test: normalize_evm_address passes through 20-byte addresses unchanged
-// Verifies that normalize_evm_address returns a 20-byte address unchanged when given a 20-byte address..
+// Verifies that normalize_evm_address returns an already-normalized EVM address unchanged..
 // Why: Already-normalized addresses must not be corrupted by re-normalization.
 #[test]
 fn test_normalize_evm_address_passthrough() {
@@ -459,7 +459,7 @@ fn test_normalize_evm_address_passthrough() {
 }
 
 // 24. Test: normalize_evm_address rejects 32-byte address with non-zero high bytes
-// Verifies that normalize_evm_address returns an error for a 32-byte address that has non-zero bytes in the high 12 bytes..
+// Verifies that normalize_evm_address returns an error when the padded input has non-zero bytes outside the trailing EVM address range..
 // Why: Non-zero high bytes on a 32-byte EVM address indicate corruption or a programming error; must fail loud.
 #[test]
 fn test_normalize_evm_address_rejects_non_zero_high_bytes() {

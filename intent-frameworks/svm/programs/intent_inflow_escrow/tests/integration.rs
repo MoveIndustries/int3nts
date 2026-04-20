@@ -22,9 +22,9 @@ use bincode::deserialize;
 // INTEGRATION TESTS
 // ============================================================================
 
-/// 1. Test: Complete Deposit to Claim Workflow (GMP Mode)
-/// Verifies the full GMP workflow from requirements → escrow → fulfillment proof.
-/// Why: Integration test ensures all components work together correctly in the happy path.
+// 1. Test: Complete Deposit to Claim Workflow (GMP Mode)
+// Verifies the full GMP workflow from requirements → escrow → fulfillment proof.
+// Why: Integration test ensures all components work together correctly in the happy path.
 #[tokio::test]
 async fn test_complete_full_deposit_to_claim_workflow() {
     let program_test = program_test();
@@ -148,9 +148,9 @@ async fn test_complete_full_deposit_to_claim_workflow() {
     assert!(escrow.is_claimed);
 }
 
-/// 2. Test: Multi-Token Scenarios
-/// Verifies that the escrow works with different SPL token types.
-/// Why: The escrow must support any SPL token, not just a single token type.
+// 2. Test: Multi-Token Scenarios
+// Verifies that the escrow works with different SPL token types.
+// Why: The escrow must support any SPL token, not just a single token type.
 #[tokio::test]
 async fn test_handle_multiple_different_spl_tokens() {
     let program_test = program_test();
@@ -330,24 +330,24 @@ async fn test_handle_multiple_different_spl_tokens() {
     assert_eq!(get_token_balance(&mut context, vault_pda3).await, amount3);
 }
 
-/// 3. Test: Comprehensive Log Emission
-/// Verifies that all program logs are emitted with correct parameters.
-/// Why: Logs are critical for off-chain monitoring and debugging. Incorrect logs break integrations.
-///
-/// NOTE: N/A for SVM - solana-program-test does not capture msg!() output in transaction metadata.
-/// The msg!() logs are emitted to stdout during test execution but cannot be programmatically
-/// asserted. On a real validator, these logs would be captured and queryable via RPC.
-/// The program DOES emit structured logs (visible in test output):
-///   - "Instruction: CreateEscrow"
-///   - "Escrow created: intent_id=..., amount=..., expiry=..."
-///   - "Instruction: Claim"
-///   - "Escrow claimed: intent_id=..., amount=..."
-///   - "Instruction: Cancel"
-///   - "Escrow cancelled: intent_id=..., amount=..."
+// 3. Test: Comprehensive Log Emission
+// Verifies that all program logs are emitted with correct parameters.
+// Why: Logs are critical for off-chain monitoring and debugging. Incorrect logs break integrations.
+//
+// NOTE: N/A for SVM - solana-program-test does not capture msg!() output in transaction metadata.
+// The msg!() logs are emitted to stdout during test execution but cannot be programmatically
+// asserted. On a real validator, these logs would be captured and queryable via RPC.
+// The program DOES emit structured logs (visible in test output):
+//   - "Instruction: CreateEscrow"
+//   - "Escrow created: intent_id=..., amount=..., expiry=..."
+//   - "Instruction: Claim"
+//   - "Escrow claimed: intent_id=..., amount=..."
+//   - "Instruction: Cancel"
+//   - "Escrow cancelled: intent_id=..., amount=..."
 
-/// 4. Test: Complete Cancellation Workflow
-/// Verifies the full workflow from escrow creation through cancellation after expiry.
-/// Why: Integration test ensures the cancellation flow works end-to-end after expiry.
+// 4. Test: Complete Cancellation Workflow
+// Verifies the full workflow from escrow creation through cancellation after expiry.
+// Why: Integration test ensures the cancellation flow works end-to-end after expiry.
 #[tokio::test]
 async fn test_complete_full_cancellation_workflow() {
     let program_test = program_test();

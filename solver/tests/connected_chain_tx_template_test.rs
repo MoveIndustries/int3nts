@@ -64,7 +64,7 @@ mod tests {
     // ============================================================================
 
     // 1. Test: Address normalization when input already has 0x prefix
-    // Verifies that Address normalization when input already has 0x prefix.
+    // Verifies that normalize_address preserves the 0x prefix and returns the address unchanged when already prefixed with 0x.
     // Why: Ensures addresses with prefix are handled correctly and remain valid.
     #[test]
     fn test_normalize_address_with_prefix() {
@@ -73,7 +73,7 @@ mod tests {
     }
 
     // 2. Test: Address normalization when input lacks 0x prefix
-    // Verifies that Address normalization when input lacks 0x prefix.
+    // Verifies that normalize_address prepends the 0x prefix when given a hex string without one.
     // Why: Users may provide addresses without prefix; we must normalize them consistently.
     #[test]
     fn test_normalize_address_without_prefix() {
@@ -82,7 +82,7 @@ mod tests {
     }
 
     // 3. Test: Uppercase hex characters are converted to lowercase
-    // Verifies that Uppercase hex characters are converted to lowercase.
+    // Verifies that normalize_address lowercases uppercase hex characters in the input.
     // Why: Ensures consistent address format regardless of input case.
     #[test]
     fn test_normalize_address_uppercase() {
@@ -91,7 +91,7 @@ mod tests {
     }
 
     // 4. Test: Mixed case hex characters are normalized to lowercase
-    // Verifies that Mixed case hex characters are normalized to lowercase.
+    // Verifies that normalize_address lowercases every hex character when input contains a mix of upper and lower case.
     // Why: Handles real-world input variations and ensures consistent output.
     #[test]
     fn test_normalize_address_mixed_case() {
@@ -100,7 +100,7 @@ mod tests {
     }
 
     // 5. Test: Full 64-character Move VM address format is normalized correctly
-    // Verifies that Full 64-character Move VM address format is normalized correctly.
+    // Verifies that normalize_address accepts full-length Move VM addresses and returns them in normalized (lowercase, 0x-prefixed) form.
     // Why: Move VM addresses are 64 hex chars; we must handle full-length addresses.
     #[test]
     fn test_normalize_address_mvm_format() {
@@ -110,7 +110,7 @@ mod tests {
     }
 
     // 6. Test: Empty address strings are rejected with error
-    // Verifies that Empty address strings are rejected with error.
+    // Verifies that normalize_address returns an error containing "empty" when given an empty string.
     // Why: Empty addresses are invalid and should fail early with clear error.
     #[test]
     fn test_normalize_address_empty() {
@@ -120,7 +120,7 @@ mod tests {
     }
 
     // 7. Test: Non-hexadecimal characters are rejected
-    // Verifies that Non-hexadecimal characters are rejected.
+    // Verifies that normalize_address returns an error containing "must be hex" when the input contains non-hex characters.
     // Why: Addresses must be valid hex; invalid characters indicate user error.
     #[test]
     fn test_normalize_address_invalid_hex() {
@@ -130,7 +130,7 @@ mod tests {
     }
 
     // 8. Test: 0x prefix is correctly stripped from hex strings
-    // Verifies that 0x prefix is correctly stripped from hex strings.
+    // Verifies that strip_0x removes the leading 0x prefix and returns only the hex body.
     // Why: Internal processing needs hex without prefix for formatting.
     #[test]
     fn test_strip_0x_with_prefix() {
@@ -139,7 +139,7 @@ mod tests {
     }
 
     // 9. Test: Hex strings without prefix remain unchanged
-    // Verifies that Hex strings without prefix remain unchanged.
+    // Verifies that strip_0x returns the input unchanged when no 0x prefix is present.
     // Why: Handles both prefixed and non-prefixed inputs gracefully.
     #[test]
     fn test_strip_0x_without_prefix() {
@@ -148,7 +148,7 @@ mod tests {
     }
 
     // 10. Test: Stripping "0x" alone results in empty string error
-    // Verifies that Stripping "0x" alone results in empty string error.
+    // Verifies that strip_0x returns an error containing "empty" when the input is only the 0x prefix with no hex body.
     // Why: "0x" by itself is not a valid address; should fail validation.
     #[test]
     fn test_strip_0x_only_prefix() {
@@ -178,7 +178,7 @@ mod tests {
     }
 
     // 11. Test: Complete aptos move run command is generated with all required arguments
-    // Verifies that Complete aptos move run command is generated with all required arguments.
+    // Verifies that generate_mvm_command produces an aptos move run invocation of transfer_with_intent_id containing recipient address, metadata address, u64 amount, and intent_id address arguments.
     // Why: Solvers need a ready-to-use command; format must match Aptos CLI expectations.
     #[test]
     fn test_mvm_command_generation() {
@@ -203,7 +203,7 @@ mod tests {
     }
 
     // 12. Test: All addresses in command are normalized to lowercase with 0x prefix
-    // Verifies that All addresses in command are normalized to lowercase with 0x prefix.
+    // Verifies that generate_mvm_command normalizes every address argument to lowercase, 0x-prefixed form regardless of input casing or prefix.
     // Why: Aptos CLI requires consistent address format; normalization prevents errors (Move VM addresses).
     #[test]
     fn test_mvm_command_address_normalization() {
@@ -221,7 +221,7 @@ mod tests {
     }
 
     // 13. Test: Zero amount is handled correctly in command generation
-    // Verifies that Zero amount is handled correctly in command generation.
+    // Verifies that generate_mvm_command accepts a zero amount and emits it as the u64 argument in the generated command.
     // Why: Edge case that should work (though not practical for transfers).
     #[test]
     fn test_mvm_command_zero_amount() {
@@ -237,7 +237,7 @@ mod tests {
     }
 
     // 14. Test: Maximum u64 value is handled correctly
-    // Verifies that Maximum u64 value is handled correctly.
+    // Verifies that generate_mvm_command accepts u64::MAX as the amount and formats it without overflow or truncation.
     // Why: Ensures large token amounts don't cause overflow or formatting issues.
     #[test]
     fn test_mvm_command_large_amount() {
@@ -253,7 +253,7 @@ mod tests {
     }
 
     // 15. Test: Invalid recipient address is rejected with error
-    // Verifies that Invalid recipient address is rejected with error.
+    // Verifies that generate_mvm_command returns a "must be hex" error when the recipient address contains non-hex characters.
     // Why: Invalid addresses should fail early before command generation.
     #[test]
     fn test_mvm_command_invalid_recipient() {
@@ -268,7 +268,7 @@ mod tests {
     }
 
     // 16. Test: Invalid metadata address is rejected with error
-    // Verifies that Invalid metadata address is rejected with error.
+    // Verifies that generate_mvm_command returns a "must be hex" error when the metadata address contains non-hex characters.
     // Why: Metadata is required for Move VM; invalid format should be caught.
     #[test]
     fn test_mvm_command_invalid_metadata() {
@@ -283,7 +283,7 @@ mod tests {
     }
 
     // 17. Test: Invalid intent_id address is rejected with error
-    // Verifies that Invalid intent_id address is rejected with error.
+    // Verifies that generate_mvm_command returns a "must be hex" error when the intent_id contains non-hex characters.
     // Why: Intent ID must be valid hex address for on-chain validation.
     #[test]
     fn test_mvm_command_invalid_intent_id() {
@@ -298,7 +298,7 @@ mod tests {
     }
 
     // 18. Test: Non-numeric amount string is rejected
-    // Verifies that Non-numeric amount string is rejected.
+    // Verifies that the MVM command generator returns an "Invalid amount" error when the amount string cannot be parsed as a u64.
     // Why: Amount must parse as u64; invalid strings should fail with clear error.
     #[test]
     fn test_mvm_command_invalid_amount_parsing() {
@@ -337,7 +337,7 @@ mod tests {
     // ============================================================================
 
     // 19. Test: Complete EVM calldata payload is generated with selector, recipient, amount, and intent_id
-    // Verifies that Complete EVM calldata payload is generated with selector, recipient, amount, and intent_id.
+    // Verifies that generate_evm_calldata produces a hex payload consisting of the ERC20 transfer selector followed by the 32-byte-padded recipient, amount, and intent_id fields.
     // Why: Solvers need correct calldata format for ERC20 transfer with embedded intent_id.
     #[test]
     fn test_evm_calldata_generation() {
@@ -364,7 +364,7 @@ mod tests {
     }
 
     // 20. Test: Short recipient addresses are padded to 32 bytes (64 hex chars)
-    // Verifies that Short recipient addresses are padded to 32 bytes (64 hex chars).
+    // Verifies that generate_evm_calldata left-pads the recipient field with zeros to a full 32-byte word.
     // Why: EVM calldata requires fixed 32-byte words; padding ensures correct format.
     #[test]
     fn test_evm_calldata_recipient_padding() {
@@ -380,7 +380,7 @@ mod tests {
     }
 
     // 21. Test: Small amounts are padded to 32 bytes (64 hex chars)
-    // Verifies that Small amounts are padded to 32 bytes (64 hex chars).
+    // Verifies that generate_evm_calldata left-pads the amount field with zeros to a full 32-byte uint256 word.
     // Why: EVM uint256 requires 32-byte representation; padding ensures correct encoding.
     #[test]
     fn test_evm_calldata_amount_padding() {
@@ -399,7 +399,7 @@ mod tests {
     }
 
     // 22. Test: Maximum U256 value is handled correctly
-    // Verifies that Maximum U256 value is handled correctly.
+    // Verifies that generate_evm_calldata accepts U256::MAX as the amount and encodes it without overflow or truncation.
     // Why: Ensures large token amounts (up to U256::MAX) don't cause overflow.
     #[test]
     fn test_evm_calldata_large_amount() {
@@ -419,7 +419,7 @@ mod tests {
     }
 
     // 23. Test: Non-numeric amount string is rejected with error
-    // Verifies that Non-numeric amount string is rejected with error.
+    // Verifies that generate_evm_calldata returns an "Invalid amount" error when the amount string cannot be parsed as a decimal U256.
     // Why: Amount must parse as decimal number; invalid strings should fail early.
     #[test]
     fn test_evm_calldata_invalid_amount() {
@@ -433,7 +433,7 @@ mod tests {
     }
 
     // 24. Test: Invalid recipient address is rejected with error
-    // Verifies that Invalid recipient address is rejected with error.
+    // Verifies that generate_evm_calldata returns a "must be hex" error when the recipient address contains non-hex characters.
     // Why: Invalid addresses should fail before calldata generation.
     #[test]
     fn test_evm_calldata_invalid_recipient() {
@@ -447,7 +447,7 @@ mod tests {
     }
 
     // 25. Test: Invalid intent_id address is rejected with error
-    // Verifies that Invalid intent_id address is rejected with error.
+    // Verifies that generate_evm_calldata returns a "must be hex" error when the intent_id contains non-hex characters.
     // Why: Intent ID must be valid hex for on-chain validation.
     #[test]
     fn test_evm_calldata_invalid_intent_id() {
@@ -461,7 +461,7 @@ mod tests {
     }
 
     // 26. Test: Zero amount is encoded correctly as all zeros
-    // Verifies that Zero amount is encoded correctly as all zeros.
+    // Verifies that generate_evm_calldata encodes a zero amount as a 32-byte all-zero uint256 word.
     // Why: Edge case that should work (though not practical for transfers).
     #[test]
     fn test_evm_calldata_zero_amount() {
@@ -476,7 +476,7 @@ mod tests {
     }
 
     // 27. Test: ERC20 transfer function selector is correct (0xa9059cbb)
-    // Verifies that ERC20 transfer function selector is correct (0xa9059cbb).
+    // Verifies that generate_evm_calldata emits the canonical ERC20 transfer(address,uint256) 4-byte selector as the first bytes of the payload.
     // Why: Selector must match transfer(address,uint256) signature for EVM to route call correctly.
     #[test]
     fn test_evm_calldata_selector_correct() {

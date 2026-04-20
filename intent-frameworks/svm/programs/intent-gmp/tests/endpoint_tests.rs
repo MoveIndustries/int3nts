@@ -45,9 +45,9 @@ fn dummy_payload() -> Vec<u8> {
 // INSTRUCTION SERIALIZATION TESTS
 // ============================================================================
 
-/// 1. Test: Send instruction serialization roundtrip
-/// Verifies that Send instruction can be serialized and deserialized correctly.
-/// Why: Instruction serialization is critical for on-chain processing. Incorrect serialization would cause instruction parsing failures.
+// 1. Test: Send instruction serialization roundtrip
+// Verifies that Send instruction can be serialized and deserialized correctly.
+// Why: Instruction serialization is critical for on-chain processing. Incorrect serialization would cause instruction parsing failures.
 #[test]
 fn test_send_instruction_serialization() {
     let original_dst_chain_id = DUMMY_CHAIN_ID_MVM;
@@ -81,9 +81,9 @@ fn test_send_instruction_serialization() {
     }
 }
 
-/// 2. Test: DeliverMessage instruction serialization roundtrip
-/// Verifies that DeliverMessage instruction can be serialized and deserialized correctly.
-/// Why: Relays must be able to construct valid DeliverMessage instructions. Serialization bugs would prevent message delivery.
+// 2. Test: DeliverMessage instruction serialization roundtrip
+// Verifies that DeliverMessage instruction can be serialized and deserialized correctly.
+// Why: Relays must be able to construct valid DeliverMessage instructions. Serialization bugs would prevent message delivery.
 #[test]
 fn test_deliver_message_instruction_serialization() {
     let original_src_chain_id = DUMMY_CHAIN_ID_MVM;
@@ -113,9 +113,9 @@ fn test_deliver_message_instruction_serialization() {
     }
 }
 
-/// 3. Test: Initialize instruction serialization roundtrip
-/// Verifies that Initialize instruction can be serialized and deserialized correctly.
-/// Why: Endpoint initialization requires correct chain_id. Serialization errors would misconfigure the endpoint.
+// 3. Test: Initialize instruction serialization roundtrip
+// Verifies that Initialize instruction can be serialized and deserialized correctly.
+// Why: Endpoint initialization requires correct chain_id. Serialization errors would misconfigure the endpoint.
 #[test]
 fn test_initialize_instruction_serialization() {
     let original_chain_id = DUMMY_CHAIN_ID_SVM;
@@ -135,9 +135,9 @@ fn test_initialize_instruction_serialization() {
     }
 }
 
-/// 4. Test: AddRelay instruction serialization roundtrip
-/// Verifies that AddRelay instruction can be serialized and deserialized correctly.
-/// Why: Admin must be able to authorize relays. Incorrect relay pubkey serialization would authorize wrong accounts.
+// 4. Test: AddRelay instruction serialization roundtrip
+// Verifies that AddRelay instruction can be serialized and deserialized correctly.
+// Why: Admin must be able to authorize relays. Incorrect relay pubkey serialization would authorize wrong accounts.
 #[test]
 fn test_add_relay_instruction_serialization() {
     let original_relay = Pubkey::new_from_array([0x11; 32]);
@@ -157,9 +157,9 @@ fn test_add_relay_instruction_serialization() {
     }
 }
 
-/// 5. Test: SetRemoteGmpEndpointAddr instruction serialization roundtrip
-/// Verifies that SetRemoteGmpEndpointAddr instruction can be serialized and deserialized correctly.
-/// Why: Remote GMP endpoint configuration is security-critical. Wrong chain_id or address would accept messages from unknown remote GMP endpoints.
+// 5. Test: SetRemoteGmpEndpointAddr instruction serialization roundtrip
+// Verifies that SetRemoteGmpEndpointAddr instruction can be serialized and deserialized correctly.
+// Why: Remote GMP endpoint configuration is security-critical. Wrong chain_id or address would accept messages from unknown remote GMP endpoints.
 #[test]
 fn test_set_remote_gmp_endpoint_addr_instruction_serialization() {
     let original_src_chain_id = DUMMY_CHAIN_ID_MVM;
@@ -185,9 +185,9 @@ fn test_set_remote_gmp_endpoint_addr_instruction_serialization() {
     }
 }
 
-/// 6. Test: SetRouting instruction serialization roundtrip
-/// Verifies that SetRouting instruction can be serialized and deserialized correctly.
-/// Why: Routing configuration enables multi-destination delivery. Incorrect pubkeys would route messages to wrong programs.
+// 6. Test: SetRouting instruction serialization roundtrip
+// Verifies that SetRouting instruction can be serialized and deserialized correctly.
+// Why: Routing configuration enables multi-destination delivery. Incorrect pubkeys would route messages to wrong programs.
 #[test]
 fn test_set_routing_instruction_serialization() {
     let original_outflow_validator = Pubkey::new_from_array([0x22; 32]);
@@ -213,9 +213,9 @@ fn test_set_routing_instruction_serialization() {
     }
 }
 
-/// 7. Test: RoutingConfig serialization roundtrip
-/// Verifies that RoutingConfig state can be serialized and deserialized correctly.
-/// Why: Routing config stores destination programs. Corruption would route messages to wrong programs.
+// 7. Test: RoutingConfig serialization roundtrip
+// Verifies that RoutingConfig state can be serialized and deserialized correctly.
+// Why: Routing config stores destination programs. Corruption would route messages to wrong programs.
 #[test]
 fn test_routing_config_serialization() {
     let original_outflow_validator = Pubkey::new_from_array([0x44; 32]);
@@ -239,9 +239,9 @@ fn test_routing_config_serialization() {
 // STATE SERIALIZATION TESTS
 // ============================================================================
 
-/// 8. Test: ConfigAccount serialization roundtrip
-/// Verifies that ConfigAccount state can be serialized and deserialized correctly.
-/// Why: Config stores admin and chain_id. Corruption would break authorization checks and message routing.
+// 8. Test: ConfigAccount serialization roundtrip
+// Verifies that ConfigAccount state can be serialized and deserialized correctly.
+// Why: Config stores admin and chain_id. Corruption would break authorization checks and message routing.
 #[test]
 fn test_config_account_serialization() {
     let original_admin = Pubkey::new_from_array([0x66; 32]);
@@ -259,9 +259,9 @@ fn test_config_account_serialization() {
     assert_eq!(decoded.bump, original_bump);
 }
 
-/// 9. Test: RelayAccount serialization roundtrip
-/// Verifies that RelayAccount state can be serialized and deserialized correctly.
-/// Why: Relay authorization state must persist correctly. Corruption could authorize/deauthorize wrong relays.
+// 9. Test: RelayAccount serialization roundtrip
+// Verifies that RelayAccount state can be serialized and deserialized correctly.
+// Why: Relay authorization state must persist correctly. Corruption could authorize/deauthorize wrong relays.
 #[test]
 fn test_relay_account_serialization() {
     let original_relay = Pubkey::new_from_array([0x77; 32]);
@@ -278,9 +278,9 @@ fn test_relay_account_serialization() {
     assert_eq!(decoded.bump, original_bump);
 }
 
-/// 10. Test: RemoteGmpEndpoint serialization roundtrip
-/// Verifies that RemoteGmpEndpoint state can be serialized and deserialized correctly.
-/// Why: Remote GMP endpoint config is security-critical. Corruption would accept messages from unknown remote GMP endpoints.
+// 10. Test: RemoteGmpEndpoint serialization roundtrip
+// Verifies that RemoteGmpEndpoint state can be serialized and deserialized correctly.
+// Why: Remote GMP endpoint config is security-critical. Corruption would accept messages from unknown remote GMP endpoints.
 #[test]
 fn test_remote_gmp_endpoint_account_serialization() {
     let original_src_chain_id = DUMMY_CHAIN_ID_MVM;
@@ -303,9 +303,9 @@ fn test_remote_gmp_endpoint_account_serialization() {
 // NONCE TRACKING TESTS
 // ============================================================================
 
-/// 11. Test: OutboundNonceAccount increment behavior
-/// Verifies that outbound nonce increments correctly and returns the pre-increment value.
-/// Why: Nonces must be unique per message. Incorrect increment logic would cause duplicate nonces or gaps.
+// 11. Test: OutboundNonceAccount increment behavior
+// Verifies that outbound nonce increments correctly and returns the pre-increment value.
+// Why: Nonces must be unique per message. Incorrect increment logic would cause duplicate nonces or gaps.
 #[test]
 fn test_outbound_nonce_account() {
     let mut nonce_account = OutboundNonceAccount::new(252);
@@ -321,9 +321,9 @@ fn test_outbound_nonce_account() {
     assert_eq!(nonce_account.nonce, 2);
 }
 
-/// 12. Test: DeliveredMessage serialization roundtrip
-/// Verifies that DeliveredMessage state can be serialized and deserialized correctly.
-/// Why: Delivered message markers prevent double-processing of messages. Serialization bugs could allow replay attacks.
+// 12. Test: DeliveredMessage serialization roundtrip
+// Verifies that DeliveredMessage state can be serialized and deserialized correctly.
+// Why: Delivered message markers prevent double-processing of messages. Serialization bugs could allow replay attacks.
 #[test]
 fn test_delivered_message_serialization() {
     let original_bump = 251u8;
@@ -343,9 +343,9 @@ fn test_delivered_message_serialization() {
 // ERROR CONVERSION TESTS
 // ============================================================================
 
-/// 13. Test: Error to ProgramError conversion
-/// Verifies that GmpError can be converted to ProgramError.
-/// Why: Errors must propagate correctly to clients. Incorrect conversion would hide error details.
+// 13. Test: Error to ProgramError conversion
+// Verifies that GmpError can be converted to ProgramError.
+// Why: Errors must propagate correctly to clients. Incorrect conversion would hide error details.
 #[test]
 fn test_error_conversion() {
     use solana_program::program_error::ProgramError;
@@ -359,9 +359,9 @@ fn test_error_conversion() {
     }
 }
 
-/// 14. Test: All error variants have unique codes
-/// Verifies that each error variant maps to a unique error code.
-/// Why: Unique error codes allow clients to identify specific failures. Duplicate codes would make debugging impossible.
+// 14. Test: All error variants have unique codes
+// Verifies that each error variant maps to a unique error code.
+// Why: Unique error codes allow clients to identify specific failures. Duplicate codes would make debugging impossible.
 #[test]
 fn test_error_codes_unique() {
     let errors = [
@@ -430,22 +430,22 @@ mod integration {
     const CHAIN_ID_SVM: u32 = 30168;
     const CHAIN_ID_MVM: u32 = 30325;
 
-    /// Fixed program ID for testing
+    // Fixed program ID for testing
     fn gmp_program_id() -> Pubkey {
         solana_sdk::pubkey!("GmpEnd1111111111111111111111111111111111111")
     }
 
-    /// Mock receiver program ID (simulates outflow_validator)
+    // Mock receiver program ID (simulates outflow_validator)
     fn mock_receiver_id() -> Pubkey {
         solana_sdk::pubkey!("MockRcv111111111111111111111111111111111111")
     }
 
-    /// Mock escrow receiver program ID (simulates intent_escrow)
+    // Mock escrow receiver program ID (simulates intent_escrow)
     fn mock_escrow_receiver_id() -> Pubkey {
         solana_sdk::pubkey!("MockEsc111111111111111111111111111111111111")
     }
 
-    /// Mock receiver processor - accepts any instruction
+    // Mock receiver processor - accepts any instruction
     fn mock_receiver_process(
         _program_id: &Pubkey,
         _accounts: &[solana_program::account_info::AccountInfo],
@@ -455,7 +455,7 @@ mod integration {
         Ok(())
     }
 
-    /// Mock escrow receiver processor - accepts any instruction
+    // Mock escrow receiver processor - accepts any instruction
     fn mock_escrow_receiver_process(
         _program_id: &Pubkey,
         _accounts: &[solana_program::account_info::AccountInfo],
@@ -465,7 +465,7 @@ mod integration {
         Ok(())
     }
 
-    /// Build ProgramTest with intent-gmp and mock receivers
+    // Build ProgramTest with intent-gmp and mock receivers
     fn program_test() -> ProgramTest {
         let mut pt = ProgramTest::new(
             "intent_gmp",
@@ -479,7 +479,7 @@ mod integration {
         pt
     }
 
-    /// Helper: send transaction
+    // Helper: send transaction
     async fn send_tx(
         context: &mut ProgramTestContext,
         payer: &Keypair,
@@ -502,7 +502,7 @@ mod integration {
         context.banks_client.process_transaction(tx).await
     }
 
-    /// Helper: create Initialize instruction
+    // Helper: create Initialize instruction
     fn create_initialize_ix(program_id: Pubkey, admin: Pubkey, payer: Pubkey, chain_id: u32) -> Instruction {
         let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
         Instruction {
@@ -517,7 +517,7 @@ mod integration {
         }
     }
 
-    /// Helper: create AddRelay instruction
+    // Helper: create AddRelay instruction
     fn create_add_relay_ix(program_id: Pubkey, admin: Pubkey, payer: Pubkey, relay: Pubkey) -> Instruction {
         let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
         let (relay_pda, _) = Pubkey::find_program_address(&[seeds::RELAY_SEED, relay.as_ref()], &program_id);
@@ -534,7 +534,7 @@ mod integration {
         }
     }
 
-    /// Helper: create RemoveRelay instruction
+    // Helper: create RemoveRelay instruction
     fn create_remove_relay_ix(program_id: Pubkey, admin: Pubkey, relay: Pubkey) -> Instruction {
         let (config_pda, _) = Pubkey::find_program_address(&[seeds::CONFIG_SEED], &program_id);
         let (relay_pda, _) = Pubkey::find_program_address(&[seeds::RELAY_SEED, relay.as_ref()], &program_id);
@@ -549,7 +549,7 @@ mod integration {
         }
     }
 
-    /// Helper: create SetRemoteGmpEndpointAddr instruction
+    // Helper: create SetRemoteGmpEndpointAddr instruction
     fn create_set_remote_gmp_endpoint_addr_ix(
         program_id: Pubkey,
         admin: Pubkey,
@@ -576,11 +576,11 @@ mod integration {
         }
     }
 
-    /// Helper: create Send instruction
-    ///
-    /// `current_nonce` is the current value in the OutboundNonceAccount (or 0 if
-    /// the account doesn't exist yet). The message PDA is derived from this nonce
-    /// because `increment()` returns the current value before advancing.
+    // Helper: create Send instruction
+    //
+    // `current_nonce` is the current value in the OutboundNonceAccount (or 0 if
+    // the account doesn't exist yet). The message PDA is derived from this nonce
+    // because `increment()` returns the current value before advancing.
     fn create_send_ix(
         program_id: Pubkey,
         sender: Pubkey,
@@ -615,10 +615,10 @@ mod integration {
         }
     }
 
-    /// Helper: create DeliverMessage instruction
-    ///
-    /// Payload must be >= 33 bytes: msg_type(1) + intent_id(32) + ...
-    /// The delivered_pda is derived from the payload's intent_id and msg_type.
+    // Helper: create DeliverMessage instruction
+    //
+    // Payload must be >= 33 bytes: msg_type(1) + intent_id(32) + ...
+    // The delivered_pda is derived from the payload's intent_id and msg_type.
     fn create_deliver_message_ix(
         program_id: Pubkey,
         relay: Pubkey,
@@ -665,7 +665,7 @@ mod integration {
         }
     }
 
-    /// Helper: create SetRouting instruction
+    // Helper: create SetRouting instruction
     fn create_set_routing_ix(
         program_id: Pubkey,
         admin: Pubkey,
@@ -688,7 +688,7 @@ mod integration {
         }
     }
 
-    /// Helper: create DeliverMessage instruction with two different destination programs (for routing tests)
+    // Helper: create DeliverMessage instruction with two different destination programs (for routing tests)
     fn create_deliver_message_with_routing_ix(
         program_id: Pubkey,
         relay: Pubkey,
@@ -735,7 +735,7 @@ mod integration {
         }
     }
 
-    /// Helper: read account and deserialize
+    // Helper: read account and deserialize
     async fn read_account<T: BorshDeserialize>(context: &mut ProgramTestContext, pubkey: Pubkey) -> T {
         let account = context.banks_client.get_account(pubkey).await.unwrap().unwrap();
         T::try_from_slice(&account.data).unwrap()
@@ -745,9 +745,9 @@ mod integration {
     // INTEGRATION TESTS
     // ========================================================================
 
-    /// 15. Test: Send instruction updates nonce state
-    /// Verifies that Send creates/updates outbound nonce account correctly.
-    /// Why: Nonce tracking is critical for message ordering. State must persist correctly.
+    // 15. Test: Send instruction updates nonce state
+    // Verifies that Send creates/updates outbound nonce account correctly.
+    // Why: Nonce tracking is critical for message ordering. State must persist correctly.
     #[tokio::test]
     async fn test_send_updates_nonce_state() {
         let pt = program_test();
@@ -800,9 +800,9 @@ mod integration {
     // #16: test_emit_message_sent — N/A for SVM (EVM-specific event emission)
     // #17: test_only_handlers_can_send — N/A for SVM (EVM-specific handler authorization)
 
-    /// 18. Test: DeliverMessage calls receiver's handler via CPI
-    /// Verifies that DeliverMessage successfully CPIs to destination program.
-    /// Why: CPI is the core mechanism for message delivery. Must succeed for cross-chain messaging to work.
+    // 18. Test: DeliverMessage calls receiver's handler via CPI
+    // Verifies that DeliverMessage successfully CPIs to destination program.
+    // Why: CPI is the core mechanism for message delivery. Must succeed for cross-chain messaging to work.
     #[tokio::test]
     async fn test_deliver_message_calls_receiver() {
         let pt = program_test();
@@ -882,9 +882,9 @@ mod integration {
         assert_eq!(delivered2.discriminator, DeliveredMessage::DISCRIMINATOR);
     }
 
-    /// 19. Test: DeliverMessage rejects replay (duplicate intent_id + msg_type)
-    /// Verifies that replay protection works correctly using (intent_id, msg_type) deduplication.
-    /// Why: Replay attacks would allow double-processing of messages, potentially causing fund loss.
+    // 19. Test: DeliverMessage rejects replay (duplicate intent_id + msg_type)
+    // Verifies that replay protection works correctly using (intent_id, msg_type) deduplication.
+    // Why: Replay attacks would allow double-processing of messages, potentially causing fund loss.
     #[tokio::test]
     async fn test_deliver_message_rejects_replay() {
         let pt = program_test();
@@ -937,9 +937,9 @@ mod integration {
         assert!(result.is_err(), "Replay should be rejected (same intent_id + msg_type)");
     }
 
-    /// 20. Test: Unauthorized relay rejected
-    /// Verifies that only authorized relays can deliver messages.
-    /// Why: Relay authorization prevents malicious actors from injecting fake messages.
+    // 20. Test: Unauthorized relay rejected
+    // Verifies that only authorized relays can deliver messages.
+    // Why: Relay authorization prevents malicious actors from injecting fake messages.
     #[tokio::test]
     async fn test_deliver_message_rejects_unauthorized_relay() {
         let pt = program_test();
@@ -974,9 +974,9 @@ mod integration {
         assert!(result.is_err(), "Unauthorized relay should be rejected");
     }
 
-    /// 21. Test: Authorized relay succeeds
-    /// Verifies that explicitly authorized relays can deliver messages.
-    /// Why: The relay authorization system must correctly grant access to approved relays.
+    // 21. Test: Authorized relay succeeds
+    // Verifies that explicitly authorized relays can deliver messages.
+    // Why: The relay authorization system must correctly grant access to approved relays.
     #[tokio::test]
     async fn test_deliver_message_authorized_relay() {
         let pt = program_test();
@@ -1021,9 +1021,9 @@ mod integration {
         assert_eq!(delivered.discriminator, DeliveredMessage::DISCRIMINATOR, "Message should have been delivered");
     }
 
-    /// 22. Test: Unknown remote GMP endpoint address rejected
-    /// Verifies that messages from unknown remote GMP endpoint addresses are rejected.
-    /// Why: Remote GMP endpoint verification prevents spoofed cross-chain messages.
+    // 22. Test: Unknown remote GMP endpoint address rejected
+    // Verifies that messages from unknown remote GMP endpoint addresses are rejected.
+    // Why: Remote GMP endpoint verification prevents spoofed cross-chain messages.
     #[tokio::test]
     async fn test_deliver_message_rejects_unknown_remote_gmp_endpoint() {
         let pt = program_test();
@@ -1060,9 +1060,9 @@ mod integration {
         assert!(result.is_err(), "Unknown remote GMP endpoint should be rejected");
     }
 
-    /// 23. Test: No remote GMP endpoint configured
-    /// Verifies that messages fail when no remote GMP endpoint is configured for the source chain.
-    /// Why: Missing configuration must be caught early to prevent security holes.
+    // 23. Test: No remote GMP endpoint configured
+    // Verifies that messages fail when no remote GMP endpoint is configured for the source chain.
+    // Why: Missing configuration must be caught early to prevent security holes.
     #[tokio::test]
     async fn test_deliver_message_rejects_no_remote_gmp_endpoint() {
         let pt = program_test();
@@ -1097,10 +1097,10 @@ mod integration {
         assert!(result.is_err(), "Message from chain with no remote GMP endpoint should be rejected");
     }
 
-    /// 24. Test: Same intent_id with different msg_type succeeds (not a duplicate)
-    /// Verifies that dedup is per (intent_id, msg_type) pair, not just intent_id.
-    /// Why: The same intent legitimately receives different message types (e.g., IntentRequirements
-    /// then FulfillmentProof). These must not be treated as duplicates.
+    // 24. Test: Same intent_id with different msg_type succeeds (not a duplicate)
+    // Verifies that dedup is per (intent_id, msg_type) pair, not just intent_id.
+    // Why: The same intent legitimately receives different message types (e.g., IntentRequirements
+    // then FulfillmentProof). These must not be treated as duplicates.
     #[tokio::test]
     async fn test_deliver_message_different_msg_type_succeeds() {
         let pt = program_test();
@@ -1172,9 +1172,9 @@ mod integration {
     // #25: test_emit_message_delivered — N/A for SVM (EVM-specific event emission)
     // #26: test_is_message_delivered — N/A for SVM (EVM-specific view function)
 
-    /// 27. Test: Non-admin cannot set remote GMP endpoint
-    /// Verifies that only the admin can configure remote GMP endpoint addresses.
-    /// Why: Admin-only access prevents unauthorized trust configuration changes.
+    // 27. Test: Non-admin cannot set remote GMP endpoint
+    // Verifies that only the admin can configure remote GMP endpoint addresses.
+    // Why: Admin-only access prevents unauthorized trust configuration changes.
     #[tokio::test]
     async fn test_set_remote_gmp_endpoint_addr_unauthorized() {
         let pt = program_test();
@@ -1207,9 +1207,9 @@ mod integration {
     // ADMIN TESTS
     // ========================================================================
 
-    /// 32. Test: Non-admin cannot add relay
-    /// Verifies that only the admin can add authorized relays.
-    /// Why: Relay management is security-critical; must be admin-only.
+    // 32. Test: Non-admin cannot add relay
+    // Verifies that only the admin can add authorized relays.
+    // Why: Relay management is security-critical; must be admin-only.
     #[tokio::test]
     async fn test_add_relay_rejects_non_admin() {
         let pt = program_test();
@@ -1233,9 +1233,9 @@ mod integration {
         assert!(result.is_err(), "Non-admin should not be able to add relay");
     }
 
-    /// 33. Test: Non-admin cannot remove relay
-    /// Verifies that only the admin can remove authorized relays.
-    /// Why: Relay management is security-critical; must be admin-only.
+    // 33. Test: Non-admin cannot remove relay
+    // Verifies that only the admin can remove authorized relays.
+    // Why: Relay management is security-critical; must be admin-only.
     #[tokio::test]
     async fn test_remove_relay_rejects_non_admin() {
         let pt = program_test();
@@ -1271,11 +1271,11 @@ mod integration {
     // FULFILLMENT PROOF ROUTING TESTS
     // ========================================================================
 
-    /// 40. Test: FulfillmentProof (0x03) routes to intent_escrow when routing is configured
-    /// Verifies that message type 0x03 is routed to destination_program_2 (intent_escrow).
-    /// Why: FulfillmentProof releases escrow funds on the connected chain. It must route to
-    /// intent_escrow, not outflow_validator. This test validates the MESSAGE_TYPE_FULFILLMENT_PROOF
-    /// routing logic added to the GMP endpoint.
+    // 40. Test: FulfillmentProof (0x03) routes to intent_escrow when routing is configured
+    // Verifies that MESSAGE_TYPE_FULFILLMENT_PROOF is routed to the intent_escrow destination program.
+    // Why: FulfillmentProof releases escrow funds on the connected chain. It must route to
+    // intent_escrow, not outflow_validator. This test validates the MESSAGE_TYPE_FULFILLMENT_PROOF
+    // routing logic added to the GMP endpoint.
     #[tokio::test]
     async fn test_fulfillment_proof_routes_to_intent_escrow() {
         let pt = program_test();
@@ -1353,10 +1353,10 @@ mod integration {
         assert_eq!(delivered.discriminator, DeliveredMessage::DISCRIMINATOR, "Message should have been delivered");
     }
 
-    /// 41. Test: FulfillmentProof fails with insufficient accounts
-    /// Verifies that FulfillmentProof routing fails when fewer than 7 remaining accounts provided.
-    /// Why: GmpReceiveFulfillmentProof requires 7 accounts for token transfer. The GMP endpoint
-    /// must validate account count before attempting CPI.
+    // 41. Test: FulfillmentProof fails with insufficient accounts
+    // Verifies that FulfillmentProof routing fails when fewer than the required number of remaining accounts are provided.
+    // Why: GmpReceiveFulfillmentProof requires 7 accounts for token transfer. The GMP endpoint
+    // must validate account count before attempting CPI.
     #[tokio::test]
     async fn test_fulfillment_proof_fails_with_insufficient_accounts() {
         let pt = program_test();

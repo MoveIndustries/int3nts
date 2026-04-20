@@ -57,7 +57,7 @@ module mvmt_intent::intent_tests {
         offerer = @0x123
     )]
     // 1. Test: starting and finishing an intent session with a valid witness succeeds
-    // Verifies that starting and finishing an intent session with a valid witness succeeds.
+    // Verifies that intent::start_intent_session returns the stored resource and a Session whose argument matches what was passed to intent::create_intent, and that intent::finish_intent_session accepts a matching witness to close the session.
     // Why: Ensure the core intent lifecycle works as expected.
     fun test_start_and_finish_intent_session(
         aptos_framework: &signer,
@@ -131,7 +131,7 @@ module mvmt_intent::intent_tests {
     )]
     #[expected_failure(abort_code = 327680, location = intent)] // error::permission_denied(EINTENT_EXPIRED)
     // 4. Test: starting an intent session after expiry aborts with EINTENT_EXPIRED
-    // Verifies that starting an intent session after expiry aborts with EINTENT_EXPIRED.
+    // Verifies that intent::start_intent_session aborts with EINTENT_EXPIRED when the current timestamp has advanced past the Intent's expiry_time.
     // Why: Prevent execution of expired intents.
     fun test_expired_intent_cannot_start_session(
         aptos_framework: &signer,

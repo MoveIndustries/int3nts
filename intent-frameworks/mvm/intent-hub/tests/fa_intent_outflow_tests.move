@@ -167,7 +167,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_signer = @0xdead
     )]
     // 1. Test: create_outflow_intent locks tokens on hub and stores the connected-chain requester address
-    // Verifies that create_outflow_intent locks tokens on hub and stores the connected-chain requester address.
+    // Verifies that fa_intent_outflow::create_outflow_intent withdraws the offered_amount from the requester's primary_fungible_store and returns an Intent<FungibleStoreManager, OracleGuardedLimitOrder> object at a non-zero address.
     // Why: Outflow intents must lock real funds on hub and carry the destination address for settlement.
     fun test_create_outflow_intent(
         aptos_framework: &signer,
@@ -219,7 +219,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_signer = @0xdead
     )]
     // 2. Test: OracleGuardedLimitOrder stores requester_addr_connected_chain correctly
-    // Verifies that OracleGuardedLimitOrder stores requester_addr_connected_chain correctly.
+    // Verifies that fa_intent_with_oracle::create_fa_to_fa_intent_with_oracle_requirement persists an optional requester_addr_connected_chain in the OracleGuardedLimitOrder args and still permits start_fa_offering_session and finish_fa_receiving_session_with_oracle to settle.
     // Why: Solver needs this address to know where to send tokens on the connected chain.
     fun test_outflow_intent_requester_address_storage(
         aptos_framework: &signer,
@@ -305,7 +305,7 @@ module mvmt_intent::fa_intent_outflow_tests {
     )]
     #[expected_failure(abort_code = 393223, location = aptos_framework::object)] // error::not_found(ERESOURCE_DOES_NOT_EXIST)
     // 3. Test: fulfilling an outflow intent with the inflow function aborts with ERESOURCE_DOES_NOT_EXIST
-    // Verifies that fulfilling an outflow intent with the inflow function aborts with ERESOURCE_DOES_NOT_EXIST.
+    // Verifies that object::address_to_object aborts with ERESOURCE_DOES_NOT_EXIST when an outflow intent address is reinterpreted as Intent<fa_intent::FungibleStoreManager, fa_intent::FALimitOrder>.
     // Why: Outflow intents use OracleGuardedLimitOrder type; inflow uses FALimitOrder — types are incompatible.
     fun test_cannot_fulfill_outflow_with_inflow_function(
         aptos_framework: &signer,
@@ -341,7 +341,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_signer = @0xdead
     )]
     // 4. Test: fulfill_outflow_intent releases locked tokens to solver after GMP FulfillmentProof
-    // Verifies that fulfill_outflow_intent releases locked tokens to solver after GMP FulfillmentProof.
+    // Verifies that after fa_intent_outflow::receive_fulfillment_proof records a gmp_common::FulfillmentProof, fa_intent_outflow::fulfill_outflow_intent transfers the locked offered_fa to the solver, unregisters the intent from intent_registry, and emits a LimitOrderFulfillmentEvent.
     // Why: Solver receives locked tokens only after fulfillment proof is received via GMP.
     fun test_fulfill_outflow_intent(
         aptos_framework: &signer,
@@ -425,7 +425,7 @@ module mvmt_intent::fa_intent_outflow_tests {
     )]
     #[expected_failure(abort_code = 0x30007, location = mvmt_intent::fa_intent_outflow)] // error::invalid_state(E_FULFILLMENT_PROOF_NOT_RECEIVED = 7)
     // 5. Test: fulfill_outflow_intent fails when no GMP proof received
-    // Verifies that fulfill_outflow_intent fails when no GMP proof received.
+    // Verifies that fa_intent_outflow::fulfill_outflow_intent aborts with E_FULFILLMENT_PROOF_NOT_RECEIVED when invoked before receive_fulfillment_proof has recorded a matching FulfillmentProof.
     // Why: Solver cannot claim tokens without GMP fulfillment proof.
     fun test_fulfill_fails_without_gmp_proof(
         aptos_framework: &signer,
@@ -470,7 +470,7 @@ module mvmt_intent::fa_intent_outflow_tests {
     )]
     #[expected_failure(abort_code = 0x10003, location = mvmt_intent::fa_intent_outflow)] // error::invalid_argument(EINVALID_REQUESTER_ADDR)
     // 6. Test: create_outflow_intent aborts when requester_addr_connected_chain is the zero address
-    // Verifies that create_outflow_intent aborts when requester_addr_connected_chain is the zero address.
+    // Verifies that fa_intent_outflow::create_outflow_intent aborts with EINVALID_REQUESTER_ADDR when requester_addr_connected_chain is the zero address.
     // Why: Outflow intents must target a valid connected-chain recipient address.
     fun test_create_outflow_intent_rejects_zero_requester_address(
         aptos_framework: &signer,
@@ -517,7 +517,7 @@ module mvmt_intent::fa_intent_outflow_tests {
     )]
     #[expected_failure(abort_code = 0x50005, location = mvmt_intent::intent)] // error::permission_denied(E_INTENT_NOT_EXPIRED = 5)
     // 7. Test: cancel_outflow_intent rejects cancellation before expiry
-    // Verifies that cancel_outflow_intent rejects cancellation before expiry.
+    // Verifies that fa_intent_outflow::cancel_outflow_intent aborts with E_INTENT_NOT_EXPIRED when the intent's expiry_time has not yet elapsed.
     // Why: Funds must remain locked until expiry to give solvers time to fulfill.
     fun test_cancel_outflow_rejects_before_expiry(
         aptos_framework: &signer,
@@ -543,7 +543,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_signer = @0xdead
     )]
     // 8. Test: cancel_outflow_intent returns funds to requester after expiry
-    // Verifies that cancel_outflow_intent returns funds to requester after expiry.
+    // Verifies that after advancing past expiry_time, fa_intent_outflow::cancel_outflow_intent restores the locked offered_fa to the requester's primary_fungible_store, unregisters the intent from intent_registry, and emits an OutflowIntentCancelled event.
     // Why: Admin needs a way to return funds if fulfillment doesn't occur before expiry.
     fun test_cancel_outflow_after_expiry_returns_funds(
         aptos_framework: &signer,
@@ -590,7 +590,7 @@ module mvmt_intent::fa_intent_outflow_tests {
     )]
     #[expected_failure(abort_code = 0x50008, location = mvmt_intent::fa_intent_outflow)] // error::permission_denied(E_UNAUTHORIZED_CALLER = 8)
     // 9. Test: cancel_outflow_intent rejects non-admin callers (including requester)
-    // Verifies that cancel_outflow_intent rejects non-admin callers (including requester).
+    // Verifies that fa_intent_outflow::cancel_outflow_intent aborts with E_UNAUTHORIZED_CALLER when the caller signer is not the @mvmt_intent admin, even after expiry.
     // Why: Only admin should be able to cancel expired intents.
     fun test_cancel_outflow_rejects_unauthorized_caller(
         aptos_framework: &signer,
@@ -620,7 +620,7 @@ module mvmt_intent::fa_intent_outflow_tests {
     )]
     #[expected_failure(abort_code = 0x3000a, location = mvmt_intent::fa_intent_outflow)] // error::invalid_state(E_ALREADY_FULFILLED = 10)
     // 10. Test: cancel_outflow_intent rejects cancellation after fulfillment proof received
-    // Verifies that cancel_outflow_intent rejects cancellation after fulfillment proof received.
+    // Verifies that fa_intent_outflow::cancel_outflow_intent aborts with E_ALREADY_FULFILLED when receive_fulfillment_proof has already recorded a FulfillmentProof for the intent.
     // Why: Once solver has fulfilled on the connected chain, funds must go to solver, not back to requester.
     fun test_cancel_outflow_rejects_after_fulfillment_proof(
         aptos_framework: &signer,
@@ -671,7 +671,7 @@ module mvmt_intent::fa_intent_outflow_tests {
         solver_signer = @0xdead
     )]
     // 11. Test: admin (@mvmt_intent) can cancel expired outflow intent, funds go to requester
-    // Verifies that admin (@mvmt_intent) can cancel expired outflow intent, funds go to requester.
+    // Verifies that when the @mvmt_intent admin signer calls fa_intent_outflow::cancel_outflow_intent on an expired intent, the locked offered_fa is credited back to the original requester (not the admin) and an OutflowIntentCancelled event is emitted.
     // Why: Admin acts as a helper to unstick expired intents; funds always go to the original requester.
     fun test_admin_cancel_outflow_after_expiry(
         aptos_framework: &signer,

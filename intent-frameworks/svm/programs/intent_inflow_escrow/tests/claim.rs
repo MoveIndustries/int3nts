@@ -17,7 +17,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 // 2. Escrow is created (validates against requirements)
 // 3. Fulfillment proof is received via GmpReceiveFulfillmentProof (auto-releases)
 
-/// Helper: Create IntentRequirements payload
+// Helper: Create IntentRequirements payload
 fn create_requirements_payload(
     intent_id: [u8; 32],
     requester: &Pubkey,
@@ -37,7 +37,7 @@ fn create_requirements_payload(
     requirements.encode().to_vec()
 }
 
-/// Helper: Create FulfillmentProof payload
+// Helper: Create FulfillmentProof payload
 fn create_fulfillment_proof_payload(
     intent_id: [u8; 32],
     solver: &Pubkey,
@@ -53,9 +53,9 @@ fn create_fulfillment_proof_payload(
     proof.encode().to_vec()
 }
 
-/// 1. Test: Valid Claim via GmpReceiveFulfillmentProof
-/// Verifies that escrow is auto-released when fulfillment proof is received via GMP.
-/// Why: In GMP mode, fulfillment proof from hub authorizes the release.
+// 1. Test: Valid Claim via GmpReceiveFulfillmentProof
+// Verifies that escrow is auto-released when fulfillment proof is received via GMP.
+// Why: In GMP mode, fulfillment proof from hub authorizes the release.
 #[tokio::test]
 async fn test_claim_with_valid_fulfillment_proof() {
     let program_test = program_test();
@@ -214,10 +214,10 @@ async fn test_claim_with_valid_fulfillment_proof() {
     assert!(requirements.fulfilled);
 }
 
-/// 2. Test: Escrow creation fails without requirements
-/// Verifies that CreateEscrow fails if the requirements PDA account doesn't exist.
-/// Since requirements are now mandatory, passing a derived PDA with no stored data
-/// must cause the transaction to fail.
+// 2. Test: Escrow creation fails without requirements
+// Verifies that CreateEscrow fails if the requirements PDA account doesn't exist.
+// Since requirements are now mandatory, passing a derived PDA with no stored data
+// must cause the transaction to fail.
 #[tokio::test]
 async fn test_revert_fulfillment_without_requirements() {
     let program_test = program_test();
@@ -255,8 +255,8 @@ async fn test_revert_fulfillment_without_requirements() {
     assert!(result.is_err(), "Should fail - requirements account does not exist");
 }
 
-/// 3. Test: Prevent double fulfillment
-/// Verifies that GmpReceiveFulfillmentProof fails if already fulfilled.
+// 3. Test: Prevent double fulfillment
+// Verifies that GmpReceiveFulfillmentProof fails if already fulfilled.
 #[tokio::test]
 async fn test_prevent_double_fulfillment() {
     let program_test = program_test();
@@ -383,8 +383,8 @@ async fn test_prevent_double_fulfillment() {
     assert!(result.is_err(), "Should fail - already fulfilled");
 }
 
-/// 4. Test: Escrow already claimed rejection
-/// Verifies that fulfillment fails if escrow was already claimed.
+// 4. Test: Escrow already claimed rejection
+// Verifies that fulfillment fails if escrow was already claimed.
 #[tokio::test]
 async fn test_revert_if_escrow_already_claimed() {
     // This is effectively the same as test_prevent_double_fulfillment
@@ -392,8 +392,8 @@ async fn test_revert_if_escrow_already_claimed() {
     // The test above covers this case.
 }
 
-/// 5. Test: Non-existent escrow rejection
-/// Verifies that GmpReceiveFulfillmentProof fails for non-existent escrow.
+// 5. Test: Non-existent escrow rejection
+// Verifies that GmpReceiveFulfillmentProof fails for non-existent escrow.
 #[tokio::test]
 async fn test_revert_if_escrow_does_not_exist() {
     let program_test = program_test();

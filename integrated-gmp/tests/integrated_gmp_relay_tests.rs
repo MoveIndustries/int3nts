@@ -64,7 +64,7 @@ fn test_parse_32_byte_address_restores_leading_zeros() {
 }
 
 // 4. Test: Parse Two-Byte Address With Significant Padding
-// Verifies that parse_32_byte_address correctly pads a 4-hex-char (2 byte) address to 32 bytes.
+// Verifies that parse_32_byte_address left-pads a short multi-byte address to the 32-byte target width.
 // Why: Verify significant padding works correctly.
 #[test]
 fn test_parse_32_byte_address_two_bytes_input() {
@@ -151,7 +151,7 @@ fn test_hex_to_bytes_without_prefix() {
 // ============================================================================
 
 // 9. Test: DeliveryAttempt record_failure increments count and sets backoff
-// Verifies that DeliveryAttempt record_failure increments count and sets backoff.
+// Verifies that DeliveryAttempt::record_failure increments `count` by one, sets `next_retry_after` to a non-zero deadline, and returns `false` while under the retry limit.
 // Why: First failure must not be terminal — relay must retry with backoff.
 #[test]
 fn test_delivery_attempt_first_failure_sets_backoff() {
@@ -164,7 +164,7 @@ fn test_delivery_attempt_first_failure_sets_backoff() {
 }
 
 // 10. Test: DeliveryAttempt transitions to exhausted after MAX_DELIVERY_RETRIES
-// Verifies that DeliveryAttempt transitions to exhausted after MAX_DELIVERY_RETRIES.
+// Verifies that DeliveryAttempt::record_failure returns `false` until `count` reaches MAX_DELIVERY_RETRIES and then returns `true`, with `is_exhausted` agreeing.
 // Why: After max retries, message must be permanently skipped.
 #[test]
 fn test_delivery_attempt_exhausted_after_max_retries() {
@@ -184,7 +184,7 @@ fn test_delivery_attempt_exhausted_after_max_retries() {
 }
 
 // 11. Test: DeliveryAttempt backoff increases with each retry
-// Verifies that DeliveryAttempt backoff increases with each retry.
+// Verifies that successive calls to DeliveryAttempt::record_failure produce strictly increasing `next_retry_after` deadlines.
 // Why: Backoff must increase to avoid hammering a failing chain.
 #[test]
 fn test_delivery_attempt_backoff_increases() {
@@ -200,7 +200,7 @@ fn test_delivery_attempt_backoff_increases() {
 }
 
 // 12. Test: DeliveryAttempt is_exhausted returns false when under limit
-// Verifies that DeliveryAttempt is_exhausted returns false when under limit.
+// Verifies that DeliveryAttempt::is_exhausted returns `false` whenever `count` is strictly less than MAX_DELIVERY_RETRIES.
 // Why: Should only be true after max retries.
 #[test]
 fn test_delivery_attempt_not_exhausted_under_limit() {

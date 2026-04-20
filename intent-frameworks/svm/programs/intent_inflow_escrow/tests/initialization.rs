@@ -11,9 +11,9 @@ use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 // APPROVER INITIALIZATION TESTS
 // ============================================================================
 
-/// 1. Test: Approver Address Initialization
-/// Verifies that the escrow is initialized with the correct approver address.
-/// Why: The approver address is critical for signature validation.
+// 1. Test: Approver Address Initialization
+// Verifies that the escrow is initialized with the correct approver address.
+// Why: The approver address is critical for signature validation.
 #[tokio::test]
 async fn test_initialize_approver_address() {
     let program_test = program_test();
@@ -43,9 +43,9 @@ async fn test_initialize_approver_address() {
 // ESCROW CREATION TESTS
 // ============================================================================
 
-/// 2. Test: Escrow Creation
-/// Verifies that requesters can create a new escrow with funds atomically.
-/// Why: Escrow creation must be atomic and set expiry correctly.
+// 2. Test: Escrow Creation
+// Verifies that requesters can create a new escrow with funds atomically.
+// Why: Escrow creation must be atomic and set expiry correctly.
 #[tokio::test]
 async fn test_allow_requester_to_create_escrow() {
     let program_test = program_test();
@@ -100,9 +100,9 @@ async fn test_allow_requester_to_create_escrow() {
     assert_eq!(vault_balance, amount);
 }
 
-/// 3. Test: Duplicate Creation Prevention
-/// Verifies that attempting to create an escrow with an existing intent ID reverts.
-/// Why: Each intent ID must map to a single escrow.
+// 3. Test: Duplicate Creation Prevention
+// Verifies that attempting to create an escrow with an existing intent ID reverts.
+// Why: Each intent ID must map to a single escrow.
 #[tokio::test]
 async fn test_revert_if_escrow_already_exists() {
     let program_test = program_test();
@@ -162,9 +162,9 @@ async fn test_revert_if_escrow_already_exists() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// 4. Test: Zero Amount Prevention
-/// Verifies that escrows cannot be created with zero amount.
-/// Why: Zero-amount escrows are invalid.
+// 4. Test: Zero Amount Prevention
+// Verifies that escrows cannot be created with zero amount.
+// Why: Zero-amount escrows are invalid.
 #[tokio::test]
 async fn test_revert_if_amount_is_zero() {
     let program_test = program_test();

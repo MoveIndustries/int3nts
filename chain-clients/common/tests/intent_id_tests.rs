@@ -42,7 +42,7 @@ fn test_normalize_intent_id_lowercases() {
 }
 
 // 3. Test: normalize_intent_id all zeros
-// Verifies that all-zero intent IDs are normalized to "0x0".
+// Verifies that all-zero intent IDs are normalized to the canonical zero form.
 // Why: Edge case where all hex digits are zero must produce a valid normalized result.
 #[test]
 fn test_normalize_intent_id_all_zeros() {
@@ -69,7 +69,7 @@ fn test_normalize_intent_id_no_prefix() {
 // ============================================================================
 
 // 5. Test: normalize_intent_id_to_64_chars pads
-// Verifies that short intent IDs are padded to 64 hex characters with leading zeros.
+// Verifies that short intent IDs are padded with leading zeros to the canonical 32-byte hex width.
 // Why: 32-byte hex representation is required for safe cross-chain parsing.
 #[test]
 fn test_normalize_intent_id_to_64_chars_pads() {

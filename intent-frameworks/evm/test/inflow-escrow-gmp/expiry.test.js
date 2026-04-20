@@ -33,9 +33,9 @@ describe("IntentInflowEscrow - Expiry Handling", function () {
     intentId = fixtures.intentId;
   });
 
-  /// 1. Test: test_cancel_expired_escrow: Expired Escrow Cancellation
-  /// Verifies that admin can cancel escrows after expiry and funds return to requester.
-  /// Why: Admin acts as operator to unstick expired escrows; funds always go to original requester.
+  // 1. Test: test_cancel_expired_escrow: Expired Escrow Cancellation
+  // Verifies that admin can cancel escrows after expiry and funds return to requester.
+  // Why: Admin acts as operator to unstick expired escrows; funds always go to original requester.
   it("Should allow admin to cancel expired escrow", async function () {
     const [admin] = await ethers.getSigners();
     const tokenAddr32 = addressToBytes32(token.target);
@@ -80,9 +80,9 @@ describe("IntentInflowEscrow - Expiry Handling", function () {
     expect(await escrow.isCancelled(intentId)).to.equal(true);
   });
 
-  /// 2. Test: test_expiry_timestamp_validation: Expiry Timestamp Validation
-  /// Verifies that expiry timestamp is correctly stored from requirements.
-  /// Why: Correct expiry from hub is critical for time-based cancellation logic.
+  // 2. Test: test_expiry_timestamp_validation: Expiry Timestamp Validation
+  // Verifies that expiry timestamp is correctly stored from requirements.
+  // Why: Correct expiry from hub is critical for time-based cancellation logic.
   it("Should verify expiry timestamp is stored correctly from requirements", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -118,9 +118,9 @@ describe("IntentInflowEscrow - Expiry Handling", function () {
     expect(escrowData.released).to.equal(false);
   });
 
-  /// 3. Test: test_gmp_fulfillment_after_local_expiry: GMP Fulfillment After Local Expiry
-  /// Verifies that GMP fulfillment proofs are honored regardless of local expiry.
-  /// Why: Hub is source of truth. If hub confirms fulfillment, escrow must release even after local expiry.
+  // 3. Test: test_gmp_fulfillment_after_local_expiry: GMP Fulfillment After Local Expiry
+  // Verifies that GMP fulfillment proofs are honored regardless of local expiry.
+  // Why: Hub is source of truth. If hub confirms fulfillment, escrow must release even after local expiry.
   it("Should allow GMP fulfillment after local expiry (hub is source of truth)", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);

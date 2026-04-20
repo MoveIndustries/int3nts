@@ -8,18 +8,18 @@ const { main: transferWithIntentId } = require("../scripts/transfer-with-intent-
 // TEST CONSTANTS
 // ============================================================================
 
-/// Dummy intent ID 1 for transfer tests
+// Dummy intent ID 1 for transfer tests
 const DUMMY_INTENT_ID_1 = "0x1111111111111111111111111111111111111111111111111111111111111111";
 
-/// Dummy intent ID 2 for transfer tests
+// Dummy intent ID 2 for transfer tests
 const DUMMY_INTENT_ID_2 = "0x2222222222222222222222222222222222222222222222222222222222222222";
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
-/// Helper to capture console output
-/// Captures console.log and console.error output during script execution for test verification.
+// Helper to capture console output
+// Captures console.log and console.error output during script execution for test verification.
 async function captureConsoleOutput(callback) {
   let output = "";
   const originalLog = console.log;
@@ -66,9 +66,9 @@ describe("EVM Scripts - Utility Functions", function () {
   // ============================================================================
 
   describe("Mint Token Script Functionality", function () {
-    /// Test: Basic Token Minting
-    /// Verifies that the mint-token.js script correctly mints tokens to a recipient address.
-    /// Why: Ensures the script properly interacts with MockERC20 contract and updates balances correctly.
+    // 1. Test: Basic Token Minting
+    // Verifies that the mint-token.js script correctly mints tokens to a recipient address.
+    // Why: Ensures the script properly interacts with MockERC20 contract and updates balances correctly.
     it("Should mint tokens to a recipient", async function () {
       const amount = ethers.parseEther("1000");
       
@@ -96,9 +96,9 @@ describe("EVM Scripts - Utility Functions", function () {
       delete process.env.AMOUNT;
     });
 
-    /// Test: Large Amount Minting
-    /// Verifies that the mint-token.js script handles large token amounts without overflow or precision issues.
-    /// Why: E2E tests use large amounts (1000 ETH), so the script must handle these correctly.
+    // 2. Test: Large Amount Minting
+    // Verifies that the mint-token.js script handles large token amounts without overflow or precision issues.
+    // Why: E2E tests use large amounts (1000 ETH), so the script must handle these correctly.
     it("Should mint large amounts correctly", async function () {
       const amount = ethers.parseEther("1000000");
       
@@ -120,9 +120,9 @@ describe("EVM Scripts - Utility Functions", function () {
       delete process.env.AMOUNT;
     });
 
-    /// Test: Multiple Recipient Minting
-    /// Verifies that the mint-token.js script can mint tokens to different recipients independently.
-    /// Why: E2E tests need to mint tokens to both solver and requester accounts separately.
+    // 3. Test: Multiple Recipient Minting
+    // Verifies that the mint-token.js script can mint tokens to different recipients independently.
+    // Why: E2E tests need to mint tokens to both solver and requester accounts separately.
     it("Should mint to multiple recipients", async function () {
       const amount1 = ethers.parseEther("100");
       const amount2 = ethers.parseEther("200");
@@ -152,9 +152,9 @@ describe("EVM Scripts - Utility Functions", function () {
   // ============================================================================
 
   describe("Get Token Balance Script Functionality", function () {
-    /// Test: Zero Balance Query
-    /// Verifies that the get-token-balance.js script returns zero for accounts with no tokens.
-    /// Why: E2E tests need to verify initial balances before operations to calculate expected final balances.
+    // 4. Test: Zero Balance Query
+    // Verifies that the get-token-balance.js script returns zero for accounts with no tokens.
+    // Why: E2E tests need to verify initial balances before operations to calculate expected final balances.
     it("Should return zero balance for account with no tokens", async function () {
       process.env.TOKEN_ADDR = tokenAddress;
       process.env.ACCOUNT = alice.address;
@@ -170,9 +170,9 @@ describe("EVM Scripts - Utility Functions", function () {
       delete process.env.ACCOUNT;
     });
 
-    /// Test: Balance After Minting
-    /// Verifies that the get-token-balance.js script returns the correct balance after tokens are minted.
-    /// Why: E2E tests verify token balances after minting to ensure the solver has sufficient tokens for transfers.
+    // 5. Test: Balance After Minting
+    // Verifies that the get-token-balance.js script returns the correct balance after tokens are minted.
+    // Why: E2E tests verify token balances after minting to ensure the solver has sufficient tokens for transfers.
     it("Should return correct balance after minting", async function () {
       const amount = ethers.parseEther("500");
       await token.connect(deployer).mint(alice.address, amount);
@@ -191,9 +191,9 @@ describe("EVM Scripts - Utility Functions", function () {
       delete process.env.ACCOUNT;
     });
 
-    /// Test: Balance After Transfer
-    /// Verifies that the get-token-balance.js script correctly reflects balance changes after token transfers.
-    /// Why: E2E tests verify that transfers actually occurred by checking balance changes on both sender and recipient.
+    // 6. Test: Balance After Transfer
+    // Verifies that the get-token-balance.js script correctly reflects balance changes after token transfers.
+    // Why: E2E tests verify that transfers actually occurred by checking balance changes on both sender and recipient.
     it("Should return correct balance after transfer", async function () {
       const mintAmount = ethers.parseEther("1000");
       const transferAmount = ethers.parseEther("300");
@@ -232,9 +232,9 @@ describe("EVM Scripts - Utility Functions", function () {
       await token.connect(deployer).mint(bob.address, amount);
     });
 
-    /// Test: ERC20 Transfer with Intent ID
-    /// Verifies that the transfer-with-intent-id.js script performs ERC20 transfers with intent_id appended to calldata.
-    /// Why: The approver needs to extract intent_id from transaction calldata to validate outflow fulfillments. The script must format calldata correctly (100 bytes: selector + recipient + amount + intent_id).
+    // 7. Test: ERC20 Transfer with Intent ID
+    // Verifies that the transfer-with-intent-id.js script performs ERC20 transfers with intent_id appended to calldata.
+    // Why: The approver needs to extract intent_id from transaction calldata to validate outflow fulfillments. The script must format calldata correctly (100 bytes: selector + recipient + amount + intent_id).
     it("Should perform ERC20 transfer with intent_id in calldata", async function () {
       const transferAmount = ethers.parseEther("1000");
       const intentId = DUMMY_INTENT_ID_1;
@@ -289,9 +289,9 @@ describe("EVM Scripts - Utility Functions", function () {
       delete process.env.INTENT_ID;
     });
 
-    /// Test: Intent ID Format Handling
-    /// Verifies that the transfer-with-intent-id.js script handles different intent_id hex formats correctly.
-    /// Why: Intent IDs from Move chain may have varying formats (with/without 0x prefix, different hex casing). The script must normalize and pad them correctly.
+    // 8. Test: Intent ID Format Handling
+    // Verifies that the transfer-with-intent-id.js script handles different intent_id hex formats correctly.
+    // Why: Intent IDs from Move chain may have varying formats (with/without 0x prefix, different hex casing). The script must normalize and pad them correctly.
     it("Should handle different intent_id formats", async function () {
       const transferAmount = ethers.parseEther("500");
       const intentId = DUMMY_INTENT_ID_2;
@@ -317,9 +317,9 @@ describe("EVM Scripts - Utility Functions", function () {
       delete process.env.INTENT_ID;
     });
 
-    /// Test: Intent ID Without 0x Prefix
-    /// Verifies that the transfer-with-intent-id.js script correctly handles intent_id strings without the 0x prefix.
-    /// Why: Some systems may provide intent IDs without the 0x prefix. The script must handle both formats to be robust.
+    // 9. Test: Intent ID Without 0x Prefix
+    // Verifies that the transfer-with-intent-id.js script correctly handles intent_id strings without the 0x prefix.
+    // Why: Some systems may provide intent IDs without the 0x prefix. The script must handle both formats to be robust.
     it("Should handle intent_id without 0x prefix", async function () {
       const transferAmount = ethers.parseEther("200");
       const intentId = "1111111111111111111111111111111111111111111111111111111111111111";
@@ -347,9 +347,9 @@ describe("EVM Scripts - Utility Functions", function () {
       delete process.env.INTENT_ID;
     });
 
-    /// Test: Large Transfer Amounts
-    /// Verifies that the transfer-with-intent-id.js script handles large transfer amounts (matching E2E test amounts).
-    /// Why: E2E tests transfer 1000 ETH (1000000000000000000000 wei). The script must correctly encode large amounts in calldata without overflow.
+    // 10. Test: Large Transfer Amounts
+    // Verifies that the transfer-with-intent-id.js script handles large transfer amounts (matching E2E test amounts).
+    // Why: E2E tests transfer 1000 ETH (1000000000000000000000 wei). The script must correctly encode large amounts in calldata without overflow.
     it("Should handle large transfer amounts", async function () {
       const transferAmount = ethers.parseEther("1000000");
       const intentId = DUMMY_INTENT_ID_2;
@@ -377,9 +377,9 @@ describe("EVM Scripts - Utility Functions", function () {
       delete process.env.INTENT_ID;
     });
 
-    /// Test: Calldata Length Validation
-    /// Verifies that the transfer-with-intent-id.js script generates calldata of exactly 100 bytes (4 + 32 + 32 + 32).
-    /// Why: The approver expects a specific calldata format. Incorrect length would cause parsing failures. This ensures the script matches the expected format.
+    // 11. Test: Calldata Length Validation
+    // Verifies that the transfer-with-intent-id.js script generates calldata of the expected fixed length (selector + recipient + amount + intent_id).
+    // Why: The approver expects a specific calldata format. Incorrect length would cause parsing failures. This ensures the script matches the expected format.
     it("Should verify calldata length is 100 bytes", async function () {
       const transferAmount = ethers.parseEther("1000");
       const intentId = DUMMY_INTENT_ID_1;

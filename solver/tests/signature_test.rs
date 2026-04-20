@@ -7,7 +7,7 @@ use ed25519_dalek::{Signer, SigningKey};
 use rand::Rng;
 
 // 1. Test: we can generate a valid Ed25519 signature
-// Verifies that we can generate a valid Ed25519 signature.
+// Verifies that SigningKey::sign produces a 64-byte Ed25519 signature that verify_strict accepts for the same message, and that hex-encoding it with a 0x prefix yields a 130-character string.
 // Why: see test body.
 #[test]
 fn test_ed25519_signature_generation() {
@@ -53,7 +53,7 @@ fn test_ed25519_signature_generation() {
 }
 
 // 2. Test: signature verification fails with wrong message
-// Verifies that signature verification fails with wrong message.
+// Verifies that VerifyingKey::verify_strict accepts a signature against its original message but returns Err when verifying the same signature against a different message.
 // Why: see test body.
 #[test]
 fn test_signature_verification_fails_wrong_message() {

@@ -57,18 +57,18 @@ describe("IntentInflowEscrow - Cancel", function () {
     );
   });
 
-  /// 1. Test: test_cancel_before_expiry: Cancellation Before Expiry Prevention
-  /// Verifies that admin cannot cancel escrows before expiry.
-  /// Why: Funds must remain locked until expiry to give solvers time to fulfill.
+  // 1. Test: test_cancel_before_expiry: Cancellation Before Expiry Prevention
+  // Verifies that admin cannot cancel escrows before expiry.
+  // Why: Funds must remain locked until expiry to give solvers time to fulfill.
   it("Should revert if escrow has not expired yet", async function () {
     await expect(
       escrow.connect(admin).cancel(intentId)
     ).to.be.revertedWithCustomError(escrow, "E_ESCROW_NOT_EXPIRED");
   });
 
-  /// 2. Test: test_cancel_after_expiry: Admin Cancellation After Expiry
-  /// Verifies that admin can cancel escrows after expiry and funds return to requester.
-  /// Why: Admin acts as operator to unstick expired escrows; funds always go to original requester.
+  // 2. Test: test_cancel_after_expiry: Admin Cancellation After Expiry
+  // Verifies that admin can cancel escrows after expiry and funds return to requester.
+  // Why: Admin acts as operator to unstick expired escrows; funds always go to original requester.
   it("Should allow admin to cancel and return funds to requester after expiry", async function () {
     // Advance time past expiry
     await advanceTime(DEFAULT_EXPIRY_OFFSET + 1);
@@ -88,9 +88,9 @@ describe("IntentInflowEscrow - Cancel", function () {
     expect(await escrow.isCancelled(intentId)).to.equal(true);
   });
 
-  /// 3. Test: test_cancel_unauthorized: Unauthorized Cancellation Prevention
-  /// Verifies that non-admin callers cannot cancel escrows (even after expiry).
-  /// Why: Only admin should be able to cancel; requester and solver are not authorized.
+  // 3. Test: test_cancel_unauthorized: Unauthorized Cancellation Prevention
+  // Verifies that non-admin callers cannot cancel escrows (even after expiry).
+  // Why: Only admin should be able to cancel; requester and solver are not authorized.
   it("Should revert if caller is not admin", async function () {
     // Advance time past expiry
     await advanceTime(DEFAULT_EXPIRY_OFFSET + 1);
@@ -106,9 +106,9 @@ describe("IntentInflowEscrow - Cancel", function () {
     ).to.be.revertedWithCustomError(escrow, "E_UNAUTHORIZED_CALLER");
   });
 
-  /// 4. Test: test_cancel_after_fulfillment: Cancellation After Fulfillment Prevention
-  /// Verifies that attempting to cancel an already-fulfilled escrow reverts.
-  /// Why: Once funds are released via fulfillment, they cannot be cancelled.
+  // 4. Test: test_cancel_after_fulfillment: Cancellation After Fulfillment Prevention
+  // Verifies that attempting to cancel an already-fulfilled escrow reverts.
+  // Why: Once funds are released via fulfillment, they cannot be cancelled.
   it("Should revert if already fulfilled", async function () {
     const timestamp = await getCurrentTimestamp();
 
@@ -129,9 +129,9 @@ describe("IntentInflowEscrow - Cancel", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ALREADY_RELEASED");
   });
 
-  /// 5. Test: test_cancel_nonexistent_escrow: Non-Existent Escrow Prevention
-  /// Verifies that canceling a non-existent escrow reverts.
-  /// Why: Prevents invalid operations on non-existent escrows.
+  // 5. Test: test_cancel_nonexistent_escrow: Non-Existent Escrow Prevention
+  // Verifies that canceling a non-existent escrow reverts.
+  // Why: Prevents invalid operations on non-existent escrows.
   it("Should revert if escrow does not exist", async function () {
     const nonExistentIntentId = "0xcc000000000000000000000000000000000000000000000000000000000000dd";
 
@@ -140,9 +140,9 @@ describe("IntentInflowEscrow - Cancel", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ESCROW_NOT_FOUND");
   });
 
-  /// 6. Test: test_double_cancel: Double Cancellation Prevention
-  /// Verifies that canceling an already-cancelled escrow reverts.
-  /// Why: Prevents double-refund by ensuring released escrows cannot be cancelled again.
+  // 6. Test: test_double_cancel: Double Cancellation Prevention
+  // Verifies that canceling an already-cancelled escrow reverts.
+  // Why: Prevents double-refund by ensuring released escrows cannot be cancelled again.
   it("Should revert if already cancelled", async function () {
     // Advance time past expiry
     await advanceTime(DEFAULT_EXPIRY_OFFSET + 1);

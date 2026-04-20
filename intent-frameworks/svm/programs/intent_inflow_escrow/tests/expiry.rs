@@ -22,9 +22,9 @@ use bincode::deserialize;
 // SVM honors GMP fulfillment proofs regardless of local expiry (hub is source
 // of truth). Local expiry only affects the cancel operation.
 
-/// 1. Test: Expired Escrow Cancellation by Admin
-/// Verifies that admin can cancel escrows after expiry and funds return to requester.
-/// Why: Admin needs to be able to return funds if fulfillment doesn't occur before expiry. Cancellation before expiry is blocked to ensure funds remain locked until expiry.
+// 1. Test: Expired Escrow Cancellation by Admin
+// Verifies that admin can cancel escrows after expiry and funds return to requester.
+// Why: Admin needs to be able to return funds if fulfillment doesn't occur before expiry. Cancellation before expiry is blocked to ensure funds remain locked until expiry.
 #[tokio::test]
 async fn test_allow_admin_to_cancel_expired_escrow() {
     let program_test = program_test();
@@ -164,9 +164,9 @@ async fn test_allow_admin_to_cancel_expired_escrow() {
     assert!(escrow.is_claimed);
 }
 
-/// 2. Test: Expiry Timestamp Validation
-/// Verifies that expiry timestamp is correctly stored from requirements.
-/// Why: Correct expiry storage is critical for time-based cancellation logic.
+// 2. Test: Expiry Timestamp Validation
+// Verifies that expiry timestamp is correctly stored from requirements.
+// Why: Correct expiry storage is critical for time-based cancellation logic.
 #[tokio::test]
 async fn test_verify_expiry_timestamp_is_stored_correctly() {
     let program_test = program_test();
@@ -248,11 +248,11 @@ async fn test_verify_expiry_timestamp_is_stored_correctly() {
     );
 }
 
-/// 3. Test: Expired Escrow Can Be Fulfilled via GMP
-/// Verifies that expired escrows CAN still be fulfilled via GMP fulfillment proof.
-/// Why: In GMP mode, the hub is the source of truth. If the hub sends a fulfillment proof,
-/// it means the solver fulfilled the intent on the other chain, so funds should be released.
-/// The escrow's expiry timestamp only gates the admin Cancel operation, not GMP fulfillment.
+// 3. Test: Expired Escrow Can Be Fulfilled via GMP
+// Verifies that expired escrows CAN still be fulfilled via GMP fulfillment proof.
+// Why: In GMP mode, the hub is the source of truth. If the hub sends a fulfillment proof,
+// it means the solver fulfilled the intent on the other chain, so funds should be released.
+// The escrow's expiry timestamp only gates the admin Cancel operation, not GMP fulfillment.
 #[tokio::test]
 async fn test_expired_escrow_can_be_fulfilled_via_gmp() {
     let program_test = program_test();

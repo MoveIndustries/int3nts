@@ -19,7 +19,7 @@ use test_helpers::{
 // ============================================================================
 
 // 1. Test: CoordinatorClient::new() creates a client with correct base URL
-// Verifies that CoordinatorClient::new() creates a client with correct base URL.
+// Verifies that CoordinatorClient::new() accepts a base URL string and returns a client instance without panicking.
 // Why: Ensure client initialization works correctly.
 #[test]
 fn test_coordinator_client_new() {
@@ -30,7 +30,7 @@ fn test_coordinator_client_new() {
 }
 
 // 2. Test: CoordinatorClient methods handle API response format correctly
-// Verifies that CoordinatorClient methods handle API response format correctly.
+// Verifies that a successful ApiResponse<Vec<PendingDraft>> JSON payload deserializes into a populated data field with success=true and error=None.
 // Why: Ensure we correctly parse the ApiResponse<T> wrapper from coordinator.
 #[test]
 fn test_api_response_parsing() {
@@ -73,7 +73,7 @@ fn test_api_response_parsing() {
 }
 
 // 3. Test: API error response parsing
-// Verifies that API error response parsing.
+// Verifies that an ApiResponse payload with success=false deserializes with data=None and the error message preserved.
 // Why: Ensure we correctly handle error responses from coordinator.
 #[test]
 fn test_api_error_response_parsing() {
@@ -94,7 +94,7 @@ fn test_api_error_response_parsing() {
 }
 
 // 4. Test: SignatureSubmission serialization
-// Verifies that SignatureSubmission serialization.
+// Verifies that a SignatureSubmission round-trips through serde_json preserving solver_hub_addr, signature, and public_key fields.
 // Why: Ensure request format matches coordinator API expectations.
 #[test]
 fn test_signature_submission_serialization() {
@@ -113,7 +113,7 @@ fn test_signature_submission_serialization() {
 }
 
 // 5. Test: PendingDraft deserialization with various draft_data formats
-// Verifies that PendingDraft deserialization with various draft_data formats.
+// Verifies that a PendingDraft JSON with a nested draft_data object deserializes with draft_id, requester_addr, timestamp, expiry_time, and an arbitrary JSON draft_data payload accessible as an object.
 // Why: Ensure we can handle different draft_data JSON structures from coordinator.
 #[test]
 fn test_pending_draft_deserialization() {
@@ -162,7 +162,7 @@ fn test_pending_draft_deserialization() {
 // ----------------------------------------------------------------------------
 
 // 6. Test: poll_pending_drafts() successfully fetches pending drafts
-// Verifies that poll_pending_drafts() successfully fetches pending drafts.
+// Verifies that poll_pending_drafts() issues a GET to /draftintents/pending and returns the deserialized PendingDraft list from a 200 response.
 // Why: Ensure HTTP GET request works correctly and parses response.
 #[test]
 fn test_poll_pending_drafts_success() {
@@ -211,7 +211,7 @@ fn test_poll_pending_drafts_success() {
 }
 
 // 7. Test: poll_pending_drafts() handles empty list
-// Verifies that poll_pending_drafts() handles empty list.
+// Verifies that poll_pending_drafts() returns an empty Vec when the coordinator responds with success=true and an empty data array.
 // Why: Ensure empty response is handled correctly.
 #[test]
 fn test_poll_pending_drafts_empty() {
@@ -242,7 +242,7 @@ fn test_poll_pending_drafts_empty() {
 }
 
 // 8. Test: poll_pending_drafts() handles API error response
-// Verifies that poll_pending_drafts() handles API error response.
+// Verifies that poll_pending_drafts() returns an Err containing the coordinator's error message when the server responds with a 500 and success=false.
 // Why: Ensure error responses are properly converted to errors.
 #[test]
 fn test_poll_pending_drafts_error() {
@@ -278,7 +278,7 @@ fn test_poll_pending_drafts_error() {
 // ----------------------------------------------------------------------------
 
 // 9. Test: submit_signature() successfully submits signature
-// Verifies that submit_signature() successfully submits signature.
+// Verifies that submit_signature() POSTs to /draftintent/{id}/signature and returns the deserialized SignatureSubmissionResponse from a 200 response.
 // Why: Ensure HTTP POST request works correctly and parses response.
 #[test]
 fn test_submit_signature_success() {
@@ -321,7 +321,7 @@ fn test_submit_signature_success() {
 }
 
 // 10. Test: submit_signature() handles FCFS conflict (409 Conflict)
-// Verifies that submit_signature() handles FCFS conflict (409 Conflict).
+// Verifies that submit_signature() returns an Err whose message contains the FCFS marker when the coordinator responds with HTTP 409.
 // Why: Ensure FCFS logic is properly detected and returns appropriate error.
 #[test]
 fn test_submit_signature_conflict() {
@@ -362,7 +362,7 @@ fn test_submit_signature_conflict() {
 }
 
 // 11. Test: submit_signature() handles other HTTP errors
-// Verifies that submit_signature() handles other HTTP errors.
+// Verifies that submit_signature() returns an Err whose message includes the coordinator's error string when the server responds with a non-409 HTTP error such as 400.
 // Why: Ensure non-409 errors are handled correctly.
 #[test]
 fn test_submit_signature_other_error() {
@@ -411,7 +411,7 @@ fn test_submit_signature_other_error() {
 // ----------------------------------------------------------------------------
 
 // 12. Test: HTTP methods handle network errors (connection refused)
-// Verifies that HTTP methods handle network errors (connection refused).
+// Verifies that poll_pending_drafts() returns an Err mentioning the failed GET when pointed at an unreachable base URL.
 // Why: Ensure network errors are properly propagated.
 #[test]
 fn test_network_error() {
@@ -428,7 +428,7 @@ fn test_network_error() {
 }
 
 // 13. Test: HTTP methods handle invalid JSON responses
-// Verifies that HTTP methods handle invalid JSON responses.
+// Verifies that poll_pending_drafts() returns an Err indicating a parse failure when the coordinator returns a 200 with a non-JSON body.
 // Why: Ensure malformed JSON is handled gracefully.
 #[test]
 fn test_invalid_json_response() {

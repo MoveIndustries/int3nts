@@ -34,8 +34,8 @@ const HUB_CHAIN_ID: u32 = 30325; // Movement chain ID
 const SVM_CHAIN_ID: u32 = 30168; // Solana chain ID
 const FAR_FUTURE_EXPIRY: u64 = 9999999999; // Far future timestamp for non-expiry tests
 
-/// Deterministic program ID for the outflow validator in tests.
-/// Uses a simple sequential pattern (0x01..0x20) for easy identification in logs.
+// Deterministic program ID for the outflow validator in tests.
+// Uses a simple sequential pattern (0x01..0x20) for easy identification in logs.
 fn outflow_program_id() -> Pubkey {
     Pubkey::new_from_array([
         0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
@@ -44,8 +44,8 @@ fn outflow_program_id() -> Pubkey {
     ])
 }
 
-/// Deterministic GMP endpoint program ID for tests.
-/// Uses a sequential pattern (0x21..0x40) distinct from outflow_program_id.
+// Deterministic GMP endpoint program ID for tests.
+// Uses a sequential pattern (0x21..0x40) distinct from outflow_program_id.
 fn gmp_endpoint_id() -> Pubkey {
     Pubkey::new_from_array([
         0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
@@ -54,8 +54,8 @@ fn gmp_endpoint_id() -> Pubkey {
     ])
 }
 
-/// Deterministic hub GMP endpoint address (32 bytes) for GMP message verification.
-/// Non-zero first/last bytes make it easy to spot in hex dumps.
+// Deterministic hub GMP endpoint address (32 bytes) for GMP message verification.
+// Non-zero first/last bytes make it easy to spot in hex dumps.
 fn hub_gmp_endpoint_addr() -> [u8; 32] {
     let mut addr = [0u8; 32];
     addr[0] = 0xAA;
@@ -63,8 +63,8 @@ fn hub_gmp_endpoint_addr() -> [u8; 32] {
     addr
 }
 
-/// Deterministic intent ID for test cases.
-/// Non-zero first/last bytes distinguish it from other test addresses.
+// Deterministic intent ID for test cases.
+// Non-zero first/last bytes distinguish it from other test addresses.
 fn test_intent_id() -> [u8; 32] {
     let mut id = [0u8; 32];
     id[0] = 0x11;
@@ -76,8 +76,8 @@ fn test_intent_id() -> [u8; 32] {
 // TEST HELPERS
 // ============================================================================
 
-/// Creates a ProgramTest instance configured with the outflow validator.
-/// Uses native processor (not BPF) for faster test execution.
+// Creates a ProgramTest instance configured with the outflow validator.
+// Uses native processor (not BPF) for faster test execution.
 fn program_test() -> ProgramTest {
     let program_id = outflow_program_id();
     let mut pt = ProgramTest::new(
@@ -89,8 +89,8 @@ fn program_test() -> ProgramTest {
     pt
 }
 
-/// Builds an Initialize instruction with the correct account layout.
-/// Derives the config PDA and sets up admin as signer.
+// Builds an Initialize instruction with the correct account layout.
+// Derives the config PDA and sets up admin as signer.
 fn create_initialize_ix(
     program_id: Pubkey,
     admin: Pubkey,
@@ -117,8 +117,8 @@ fn create_initialize_ix(
     }
 }
 
-/// Builds an GmpReceive instruction simulating a GMP message delivery.
-/// Derives both config and requirements PDAs from the intent_id.
+// Builds an GmpReceive instruction simulating a GMP message delivery.
+// Derives both config and requirements PDAs from the intent_id.
 fn create_gmp_receive_ix(
     program_id: Pubkey,
     payer: Pubkey,
@@ -152,8 +152,8 @@ fn create_gmp_receive_ix(
     }
 }
 
-/// Sends a transaction and waits for confirmation.
-/// Returns Ok on success, Err on any failure (signature, simulation, etc).
+// Sends a transaction and waits for confirmation.
+// Returns Ok on success, Err on any failure (signature, simulation, etc).
 async fn send_tx(
     context: &mut solana_program_test::ProgramTestContext,
     payer: &Keypair,
@@ -172,8 +172,8 @@ async fn send_tx(
     context.banks_client.process_transaction(tx).await
 }
 
-/// Reads and deserializes an account's data into the specified type.
-/// Panics if the account doesn't exist or deserialization fails.
+// Reads and deserializes an account's data into the specified type.
+// Panics if the account doesn't exist or deserialization fails.
 async fn read_account<T: BorshDeserialize>(
     context: &mut solana_program_test::ProgramTestContext,
     pubkey: Pubkey,
@@ -187,8 +187,8 @@ async fn read_account<T: BorshDeserialize>(
     T::try_from_slice(&account.data).unwrap()
 }
 
-/// Creates a ProgramTest instance with outflow validator and SPL token.
-/// Required for fulfill_intent tests that involve token transfers.
+// Creates a ProgramTest instance with outflow validator and SPL token.
+// Required for fulfill_intent tests that involve token transfers.
 fn program_test_with_spl() -> ProgramTest {
     let program_id = outflow_program_id();
     let mut pt = ProgramTest::new(
@@ -205,7 +205,7 @@ fn program_test_with_spl() -> ProgramTest {
     pt
 }
 
-/// Creates an SPL token mint.
+// Creates an SPL token mint.
 async fn create_mint(
     context: &mut solana_program_test::ProgramTestContext,
     payer: &Keypair,
@@ -244,7 +244,7 @@ async fn create_mint(
     mint.pubkey()
 }
 
-/// Creates an SPL token account.
+// Creates an SPL token account.
 async fn create_token_account(
     context: &mut solana_program_test::ProgramTestContext,
     payer: &Keypair,
@@ -282,7 +282,7 @@ async fn create_token_account(
     token_account.pubkey()
 }
 
-/// Mints tokens to a token account.
+// Mints tokens to a token account.
 async fn mint_tokens(
     context: &mut solana_program_test::ProgramTestContext,
     payer: &Keypair,
@@ -311,7 +311,7 @@ async fn mint_tokens(
     context.banks_client.process_transaction(tx).await.unwrap();
 }
 
-/// Builds a FulfillIntent instruction with the correct account layout.
+// Builds a FulfillIntent instruction with the correct account layout.
 fn create_fulfill_intent_ix(
     program_id: Pubkey,
     solver: Pubkey,
@@ -346,7 +346,7 @@ fn create_fulfill_intent_ix(
     }
 }
 
-/// Helper to set up requirements via gmp_receive.
+// Helper to set up requirements via gmp_receive.
 async fn setup_requirements(
     context: &mut solana_program_test::ProgramTestContext,
     admin: &Keypair,
@@ -390,8 +390,8 @@ async fn setup_requirements(
     send_tx(context, admin, &[gmp_receive_ix], &[]).await.unwrap();
 }
 
-/// Creates a ProgramTest instance with outflow validator, SPL token, and integrated GMP endpoint.
-/// Required for happy path tests that need the full GMP CPI flow.
+// Creates a ProgramTest instance with outflow validator, SPL token, and integrated GMP endpoint.
+// Required for happy path tests that need the full GMP CPI flow.
 fn program_test_with_spl_and_gmp() -> ProgramTest {
     let program_id = outflow_program_id();
     let mut pt = ProgramTest::new(
@@ -413,7 +413,7 @@ fn program_test_with_spl_and_gmp() -> ProgramTest {
     pt
 }
 
-/// Initialize the integrated GMP endpoint.
+// Initialize the integrated GMP endpoint.
 async fn initialize_gmp_endpoint(
     context: &mut solana_program_test::ProgramTestContext,
     admin: &Keypair,
@@ -435,7 +435,7 @@ async fn initialize_gmp_endpoint(
     send_tx(context, admin, &[init_ix], &[]).await.unwrap();
 }
 
-/// Builds a FulfillIntent instruction with full GMP accounts for happy path testing.
+// Builds a FulfillIntent instruction with full GMP accounts for happy path testing.
 fn create_fulfill_intent_ix_with_gmp(
     program_id: Pubkey,
     solver: Pubkey,
@@ -492,8 +492,8 @@ fn create_fulfill_intent_ix_with_gmp(
     }
 }
 
-/// Builds an UpdateHubConfig instruction with the correct account layout.
-/// Derives the config PDA and sets up admin as signer.
+// Builds an UpdateHubConfig instruction with the correct account layout.
+// Derives the config PDA and sets up admin as signer.
 fn create_update_hub_config_ix(
     program_id: Pubkey,
     admin: Pubkey,
@@ -517,7 +517,7 @@ fn create_update_hub_config_ix(
     }
 }
 
-/// Gets the token balance for an account.
+// Gets the token balance for an account.
 async fn get_token_balance(
     context: &mut solana_program_test::ProgramTestContext,
     token_account: Pubkey,
@@ -532,9 +532,9 @@ async fn get_token_balance(
 // INITIALIZATION TESTS
 // ============================================================================
 
-/// 1. Test: Initialize creates config account
-/// Verifies that Initialize creates the config PDA with correct values.
-/// Why: Proper initialization is required before any other operations.
+// 1. Test: Initialize creates config account
+// Verifies that Initialize creates the config PDA with correct values.
+// Why: Proper initialization is required before any other operations.
 #[tokio::test]
 async fn test_initialize_creates_config() {
     let pt = program_test();
@@ -561,9 +561,9 @@ async fn test_initialize_creates_config() {
     assert_eq!(config.hub_gmp_endpoint_addr, hub_gmp_endpoint_addr());
 }
 
-/// 2. Test: Initialize fails if already initialized
-/// Verifies that double initialization is rejected.
-/// Why: Config must only be set once to prevent admin takeover.
+// 2. Test: Initialize fails if already initialized
+// Verifies that double initialization is rejected.
+// Why: Config must only be set once to prevent admin takeover.
 #[tokio::test]
 async fn test_initialize_rejects_double_init() {
     let pt = program_test();
@@ -594,9 +594,9 @@ async fn test_initialize_rejects_double_init() {
 // LZ_RECEIVE TESTS
 // ============================================================================
 
-/// 3. Test: Receive stores intent requirements
-/// Verifies that receiving a GMP message creates the requirements PDA.
-/// Why: Intent requirements must be stored for solvers to fulfill.
+// 3. Test: Receive stores intent requirements
+// Verifies that receiving a GMP message creates the requirements PDA.
+// Why: Intent requirements must be stored for solvers to fulfill.
 #[tokio::test]
 async fn test_receive_stores_requirements() {
     let pt = program_test();
@@ -649,9 +649,9 @@ async fn test_receive_stores_requirements() {
     assert!(!stored.fulfilled);
 }
 
-/// 4. Test: Receive is idempotent
-/// Verifies that duplicate messages don't fail or overwrite.
-/// Why: Network retries must not corrupt state or cause failures.
+// 4. Test: Receive is idempotent
+// Verifies that duplicate messages don't fail or overwrite.
+// Why: Network retries must not corrupt state or cause failures.
 #[tokio::test]
 async fn test_receive_idempotent() {
     let pt = program_test();
@@ -696,9 +696,9 @@ async fn test_receive_idempotent() {
     send_tx(&mut context, &admin, &[gmp_receive_ix], &[]).await.unwrap();
 }
 
-/// 5. Test: Receive rejects unknown remote GMP endpoint
-/// Verifies that messages from wrong chain/address are rejected.
-/// Why: Only the hub GMP endpoint can send intent requirements.
+// 5. Test: Receive rejects unknown remote GMP endpoint
+// Verifies that messages from wrong chain/address are rejected.
+// Why: Only the hub GMP endpoint can send intent requirements.
 #[tokio::test]
 async fn test_receive_rejects_unknown_remote_gmp_endpoint() {
     let pt = program_test();
@@ -754,9 +754,9 @@ async fn test_receive_rejects_unknown_remote_gmp_endpoint() {
     assert!(result.is_err(), "Wrong source address should be rejected");
 }
 
-/// 6. Test: Receive rejects invalid payload
-/// Verifies that malformed GMP messages are rejected.
-/// Why: Prevents processing of corrupted or malicious messages.
+// 6. Test: Receive rejects invalid payload
+// Verifies that malformed GMP messages are rejected.
+// Why: Prevents processing of corrupted or malicious messages.
 #[tokio::test]
 async fn test_receive_rejects_invalid_payload() {
     let pt = program_test();
@@ -794,9 +794,9 @@ async fn test_receive_rejects_invalid_payload() {
 // FULFILL_INTENT TESTS
 // ============================================================================
 
-/// 7. Test: FulfillIntent rejects already fulfilled intent
-/// Verifies that double fulfillment is rejected.
-/// Why: Prevents solver from claiming payment twice.
+// 7. Test: FulfillIntent rejects already fulfilled intent
+// Verifies that double fulfillment is rejected.
+// Why: Prevents solver from claiming payment twice.
 #[tokio::test]
 async fn test_fulfill_intent_rejects_already_fulfilled() {
     let pt = program_test_with_spl();
@@ -852,9 +852,9 @@ async fn test_fulfill_intent_rejects_already_fulfilled() {
     assert!(result.is_err(), "Already fulfilled intent should be rejected");
 }
 
-/// 8. Test: FulfillIntent rejects expired intent
-/// Verifies that expired intents cannot be fulfilled.
-/// Why: Protects solver from fulfilling intents user no longer wants.
+// 8. Test: FulfillIntent rejects expired intent
+// Verifies that expired intents cannot be fulfilled.
+// Why: Protects solver from fulfilling intents user no longer wants.
 #[tokio::test]
 async fn test_fulfill_intent_rejects_expired() {
     let pt = program_test_with_spl();
@@ -897,9 +897,9 @@ async fn test_fulfill_intent_rejects_expired() {
     assert!(result.is_err(), "Expired intent should be rejected");
 }
 
-/// 9. Test: FulfillIntent rejects unauthorized solver
-/// Verifies that only the authorized solver can fulfill.
-/// Why: Ensures intent creator's solver preference is respected.
+// 9. Test: FulfillIntent rejects unauthorized solver
+// Verifies that only the authorized solver can fulfill.
+// Why: Ensures intent creator's solver preference is respected.
 #[tokio::test]
 async fn test_fulfill_intent_rejects_unauthorized_solver() {
     let pt = program_test_with_spl();
@@ -943,9 +943,9 @@ async fn test_fulfill_intent_rejects_unauthorized_solver() {
     assert!(result.is_err(), "Unauthorized solver should be rejected");
 }
 
-/// 10. Test: FulfillIntent rejects token mismatch
-/// Verifies that wrong token mint is rejected.
-/// Why: Prevents solver from fulfilling with different token.
+// 10. Test: FulfillIntent rejects token mismatch
+// Verifies that wrong token mint is rejected.
+// Why: Prevents solver from fulfilling with different token.
 #[tokio::test]
 async fn test_fulfill_intent_rejects_token_mismatch() {
     let pt = program_test_with_spl();
@@ -991,9 +991,9 @@ async fn test_fulfill_intent_rejects_token_mismatch() {
     assert!(result.is_err(), "Token mismatch should be rejected");
 }
 
-/// 11. Test: FulfillIntent rejects non-existent requirements
-/// Verifies that fulfilling unknown intent_id fails.
-/// Why: Prevents fulfillment of intents that were never created.
+// 11. Test: FulfillIntent rejects non-existent requirements
+// Verifies that fulfilling unknown intent_id fails.
+// Why: Prevents fulfillment of intents that were never created.
 #[tokio::test]
 async fn test_fulfill_intent_rejects_requirements_not_found() {
     let pt = program_test_with_spl();
@@ -1035,9 +1035,9 @@ async fn test_fulfill_intent_rejects_requirements_not_found() {
     assert!(result.is_err(), "Non-existent requirements should be rejected");
 }
 
-/// 12. Test: FulfillIntent rejects recipient mismatch
-/// Verifies that sending tokens to wrong recipient's account fails.
-/// Why: Prevents solver from redirecting funds to unauthorized recipient.
+// 12. Test: FulfillIntent rejects recipient mismatch
+// Verifies that sending tokens to wrong recipient's account fails.
+// Why: Prevents solver from redirecting funds to unauthorized recipient.
 #[tokio::test]
 async fn test_fulfill_intent_rejects_recipient_mismatch() {
     let pt = program_test_with_spl();
@@ -1087,9 +1087,9 @@ async fn test_fulfill_intent_rejects_recipient_mismatch() {
     assert!(result.is_err(), "Recipient mismatch should be rejected");
 }
 
-/// 13. Test: FulfillIntent succeeds with valid inputs
-/// Verifies the happy path: tokens transferred, state updated, GMP message sent.
-/// Why: Ensures the core fulfillment flow works end-to-end.
+// 13. Test: FulfillIntent succeeds with valid inputs
+// Verifies the happy path: tokens transferred, state updated, GMP message sent.
+// Why: Ensures the core fulfillment flow works end-to-end.
 #[tokio::test]
 async fn test_fulfill_intent_succeeds() {
     let pt = program_test_with_spl_and_gmp();
@@ -1200,9 +1200,9 @@ async fn test_fulfill_intent_succeeds() {
 // UPDATE_HUB_CONFIG TESTS
 // ============================================================================
 
-/// 19. Test: UpdateHubConfig succeeds with valid admin
-/// Verifies that the admin can update hub_chain_id and hub_gmp_endpoint_addr.
-/// Why: Allows reconfiguring the outflow validator when hub addresses change.
+// 19. Test: UpdateHubConfig succeeds with valid admin
+// Verifies that the admin can update hub_chain_id and hub_gmp_endpoint_addr.
+// Why: Allows reconfiguring the outflow validator when hub addresses change.
 #[tokio::test]
 async fn test_update_hub_config_succeeds() {
     let pt = program_test();
@@ -1249,9 +1249,9 @@ async fn test_update_hub_config_succeeds() {
     assert_eq!(config.gmp_endpoint, gmp_endpoint_id());
 }
 
-/// 20. Test: UpdateHubConfig rejects non-admin signer
-/// Verifies that only the original admin can update config.
-/// Why: Prevents unauthorized reconfiguration of the hub trust relationship.
+// 20. Test: UpdateHubConfig rejects non-admin signer
+// Verifies that only the original admin can update config.
+// Why: Prevents unauthorized reconfiguration of the hub trust relationship.
 #[tokio::test]
 async fn test_update_hub_config_rejects_non_admin() {
     let pt = program_test();
@@ -1287,9 +1287,9 @@ async fn test_update_hub_config_rejects_non_admin() {
     assert_eq!(config.hub_gmp_endpoint_addr, hub_gmp_endpoint_addr());
 }
 
-/// 21. Test: UpdateHubConfig allows GmpReceive with new hub GMP endpoint address
-/// Verifies end-to-end: update config, then receive message from new hub address.
-/// Why: Ensures the updated config is used for GMP message validation.
+// 21. Test: UpdateHubConfig allows GmpReceive with new hub GMP endpoint address
+// Verifies end-to-end: update config, then receive message from new hub address.
+// Why: Ensures the updated config is used for GMP message validation.
 #[tokio::test]
 async fn test_update_hub_config_then_gmp_receive() {
     let pt = program_test();
@@ -1370,9 +1370,9 @@ async fn test_update_hub_config_then_gmp_receive() {
 // GMP Caller Authorization
 // ============================================================================
 
-/// 22. Test: GmpReceive rejects unsigned gmp_caller
-/// Verifies that the gmp_caller account must be a transaction signer.
-/// Why: Only trusted relays/endpoints (signers) can deliver intent requirements.
+// 22. Test: GmpReceive rejects unsigned gmp_caller
+// Verifies that the gmp_caller account must be a transaction signer.
+// Why: Only trusted relays/endpoints (signers) can deliver intent requirements.
 #[tokio::test]
 async fn test_gmp_receive_rejects_unsigned_gmp_caller() {
     let pt = program_test();

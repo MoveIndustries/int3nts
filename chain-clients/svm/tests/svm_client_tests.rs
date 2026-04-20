@@ -128,7 +128,7 @@ fn test_client_new_rejects_invalid() {
 // ============================================================================
 
 // 3. Test: is_escrow_released returns true when escrow has been released
-// Verifies that is_escrow_released returns true when escrow has been released.
+// Verifies that is_escrow_released fetches the escrow PDA via getAccountInfo and reads the Borsh-decoded `is_claimed` field when the escrow is released.
 // Why: Release state drives the solver's claim-detection logic; a false negative would block fulfillment.
 #[tokio::test]
 async fn test_is_escrow_released_success() {
@@ -148,7 +148,7 @@ async fn test_is_escrow_released_success() {
 }
 
 // 4. Test: is_escrow_released returns false when escrow not yet released
-// Verifies that is_escrow_released returns false when escrow not yet released.
+// Verifies that is_escrow_released returns false when the Borsh-decoded EscrowAccount reports the escrow is not yet claimed.
 // Why: Must distinguish released from unreleased reliably — both states drive different solver actions.
 #[tokio::test]
 async fn test_is_escrow_released_false() {
@@ -168,7 +168,7 @@ async fn test_is_escrow_released_false() {
 }
 
 // 5. Test: is_escrow_released propagates RPC errors
-// Verifies that is_escrow_released propagates RPC errors.
+// Verifies that is_escrow_released returns an `Err` carrying the JSON-RPC error message when getAccountInfo responds with an error object.
 // Why: Silent failure would let the solver treat errors as "not released" and retry indefinitely.
 #[tokio::test]
 async fn test_is_escrow_released_error() {
@@ -193,7 +193,7 @@ async fn test_is_escrow_released_error() {
 // ============================================================================
 
 // 6. Test: get_token_balance returns correct SPL token balance
-// Verifies that get_token_balance returns correct SPL token balance.
+// Verifies that get_token_balance calls getTokenAccountBalance for the associated token account and parses `value.amount` as a u128.
 // Why: Balance drives liquidity gating; incorrect parsing would let the solver over-commit.
 #[tokio::test]
 async fn test_get_token_balance_success() {
@@ -225,7 +225,7 @@ async fn test_get_token_balance_success() {
 }
 
 // 7. Test: get_token_balance propagates RPC errors
-// Verifies that get_token_balance propagates RPC errors.
+// Verifies that get_token_balance returns an `Err` when getTokenAccountBalance responds with a JSON-RPC error object rather than swallowing it as a zero balance.
 // Why: Must not silently return zero on RPC error; the solver would then misgate liquidity.
 #[tokio::test]
 async fn test_get_token_balance_error() {
@@ -250,7 +250,7 @@ async fn test_get_token_balance_error() {
 // #8: test_get_token_balance_zero — N/A for SVM (token accounts don't return zero; they don't exist if unfunded)
 
 // 9. Test: get_native_balance returns correct SOL balance in lamports
-// Verifies that get_native_balance returns correct SOL balance in lamports.
+// Verifies that get_native_balance issues a getBalance RPC and parses `value` as a u64 lamport count.
 // Why: Gas token balance gates transaction submission; wrong parse fails submissions.
 #[tokio::test]
 async fn test_get_native_balance_success() {
@@ -276,7 +276,7 @@ async fn test_get_native_balance_success() {
 }
 
 // 10. Test: get_native_balance propagates RPC errors
-// Verifies that get_native_balance propagates RPC errors.
+// Verifies that get_native_balance surfaces a JSON-RPC error from getBalance as an `Err` instead of returning a default lamport value.
 // Why: Silent failure on native balance would let the solver submit txs it cannot pay for.
 #[tokio::test]
 async fn test_get_native_balance_error() {
@@ -306,7 +306,7 @@ async fn test_get_native_balance_error() {
 // ============================================================================
 
 // 14. Test: get_escrow_events parses program accounts into escrow events
-// Verifies that get_escrow_events parses program accounts into escrow events.
+// Verifies that get_escrow_events calls getProgramAccounts, Borsh-decodes each account's data, and maps the `intent_id` bytes and account pubkey into EscrowEvent fields.
 // Why: The solver discovers new escrows from these program accounts; parse errors would miss intents.
 #[tokio::test]
 async fn test_get_escrow_events_success() {
@@ -334,7 +334,7 @@ async fn test_get_escrow_events_success() {
 }
 
 // 15. Test: get_escrow_events handles empty program accounts
-// Verifies that get_escrow_events handles empty program accounts.
+// Verifies that get_escrow_events returns an empty result when getProgramAccounts responds with an empty array rather than erroring.
 // Why: Empty result must return an empty Vec, not error, to support the steady-state polling loop.
 #[tokio::test]
 async fn test_get_escrow_events_empty() {
@@ -355,7 +355,7 @@ async fn test_get_escrow_events_empty() {
 }
 
 // 16. Test: get_escrow_events propagates RPC errors
-// Verifies that get_escrow_events propagates RPC errors.
+// Verifies that get_escrow_events returns an `Err` containing the JSON-RPC error message when getProgramAccounts responds with an error object.
 // Why: RPC errors must fail loudly so the monitor can alert instead of silently missing events.
 #[tokio::test]
 async fn test_get_escrow_events_error() {
@@ -440,7 +440,7 @@ fn test_pubkey_from_hex_with_leading_zeros() {
 }
 
 // 26. Test: pubkey_from_hex works for addresses without leading zeros
-// Verifies that pubkey_from_hex works for addresses without leading zeros.
+// Verifies that pubkey_from_hex decodes a 64-char hex string into a 32-byte Pubkey with the first byte preserved from the input.
 // Why: Covers the common-case pubkey form to complement the leading-zeros case in test 25.
 #[test]
 fn test_pubkey_from_hex_no_leading_zeros() {

@@ -50,7 +50,7 @@ fn create_test_config() -> SolverConfig {
 // ============================================================================
 
 // 1. Test: SolverConfig::validate() accepts valid configuration
-// Verifies that SolverConfig::validate() accepts valid configuration.
+// Verifies that SolverConfig::validate() returns Ok when every chain ID, token pair, fee_bps, and liquidity threshold satisfies the invariants checked by validate().
 // Why: Ensure valid configs pass validation.
 #[test]
 fn test_config_validation_success() {
@@ -59,7 +59,7 @@ fn test_config_validation_success() {
 }
 
 // 2. Test: SolverConfig::validate() accepts multiple connected chains of all types
-// Verifies that SolverConfig::validate() accepts multiple connected chains of all types.
+// Verifies that SolverConfig::validate() succeeds with a mix of MvmChainConfig, EvmChainConfig, and SvmChainConfig entries in connected_chain, and that get_connected_chain_by_id() resolves each variant by its chain ID.
 // Why: Ensure MVM, EVM, and SVM connected chains can be configured together.
 #[test]
 fn test_config_validation_multiple_connected_chains() {
@@ -98,7 +98,7 @@ fn test_config_validation_multiple_connected_chains() {
 }
 
 // 3. Test: SolverConfig::validate() rejects duplicate chain IDs
-// Verifies that SolverConfig::validate() rejects duplicate chain IDs.
+// Verifies that SolverConfig::validate() returns an error mentioning "same chain ID" when a connected chain shares its chain_id with the hub chain.
 // Why: Ensure hub and connected chains have different chain IDs.
 #[test]
 fn test_config_validation_duplicate_chain_ids() {
@@ -117,7 +117,7 @@ fn test_config_validation_duplicate_chain_ids() {
 }
 
 // 4. Test: SolverConfig::validate() rejects unknown chain IDs in token pairs
-// Verifies that SolverConfig::validate() rejects unknown chain IDs in token pairs.
+// Verifies that SolverConfig::validate() returns an error containing "Unknown source_chain_id" when a TokenPairConfig references a chain ID that is not declared as the hub or any connected chain.
 // Why: Ensure token pairs reference configured chain IDs.
 #[test]
 fn test_config_validation_unknown_chain_id_in_token_pair() {
@@ -138,7 +138,7 @@ fn test_config_validation_unknown_chain_id_in_token_pair() {
 }
 
 // 5. Test: SolverConfig::validate() rejects invalid-length hex SVM tokens
-// Verifies that SolverConfig::validate() rejects invalid-length hex SVM tokens.
+// Verifies that SolverConfig::validate() returns an error containing "expected 32 bytes" when an SVM-targeted TokenPairConfig specifies a hex-encoded target_token whose decoded length is not 32 bytes.
 // Why: SVM hex tokens must be 32 bytes (like Move addresses on hub chain).
 #[test]
 fn test_config_validation_rejects_svm_invalid_hex_length() {
@@ -168,7 +168,7 @@ fn test_config_validation_rejects_svm_invalid_hex_length() {
 }
 
 // 6. Test: SolverConfig::validate() rejects invalid base58 SVM tokens
-// Verifies that SolverConfig::validate() rejects invalid base58 SVM tokens.
+// Verifies that SolverConfig::validate() returns an error containing "Invalid base58 SVM mint" when an SVM-targeted TokenPairConfig's target_token is neither valid hex nor a valid base58-encoded mint.
 // Why: Prevent malformed SVM mints in acceptance config.
 #[test]
 fn test_config_validation_rejects_invalid_svm_base58_token() {
@@ -198,7 +198,7 @@ fn test_config_validation_rejects_invalid_svm_base58_token() {
 }
 
 // 7. Test: SolverConfig::validate() rejects fee_bps > 10000
-// Verifies that SolverConfig::validate() rejects fee_bps > 10000.
+// Verifies that SolverConfig::validate() returns an error mentioning "fee_bps" when a TokenPairConfig's fee_bps exceeds the maximum basis-point ceiling (100%).
 // Why: fee_bps > 10000 (>100%) is nonsensical.
 #[test]
 fn test_config_validation_fee_bps_too_high() {
@@ -219,7 +219,7 @@ fn test_config_validation_fee_bps_too_high() {
 }
 
 // 8. Test: SolverConfig::validate() accepts fee_bps at maximum (10000 = 100%)
-// Verifies that SolverConfig::validate() accepts fee_bps at maximum (10000 = 100%).
+// Verifies that SolverConfig::validate() returns Ok when a TokenPairConfig's fee_bps is exactly at the maximum basis-point ceiling (100%), confirming the ceiling is inclusive.
 // Why: 100% is the upper bound.
 #[test]
 fn test_config_validation_fee_bps_max_accepted() {
@@ -238,7 +238,7 @@ fn test_config_validation_fee_bps_max_accepted() {
 }
 
 // 9. Test: SolverConfig::get_token_pairs() propagates fee params
-// Verifies that SolverConfig::get_token_pairs() propagates fee params.
+// Verifies that SolverConfig::get_token_pairs() preserves the acceptance.base_fee_in_move value on the config and copies each TokenPairConfig.fee_bps onto the produced TokenPair entry keyed by the pair.
 // Why: Ensure base_fee_in_move and fee_bps are carried through correctly.
 #[test]
 fn test_get_token_pairs_with_fees() {
@@ -261,7 +261,7 @@ fn test_get_token_pairs_with_fees() {
 }
 
 // 10. Test: SolverConfig::validate() rejects non-positive exchange rates
-// Verifies that SolverConfig::validate() rejects non-positive exchange rates.
+// Verifies that SolverConfig::validate() returns an error containing "must be positive" when a TokenPairConfig's ratio is negative.
 // Why: Ensure exchange rates are positive.
 #[test]
 fn test_config_validation_negative_exchange_rate() {
@@ -282,7 +282,7 @@ fn test_config_validation_negative_exchange_rate() {
 }
 
 // 11. Test: SolverConfig::validate() rejects zero exchange rate
-// Verifies that SolverConfig::validate() rejects zero exchange rate.
+// Verifies that SolverConfig::validate() returns an error containing "must be positive" when a TokenPairConfig's ratio is zero, confirming the positivity check is strict.
 // Why: Ensure exchange rates are positive (not zero).
 #[test]
 fn test_config_validation_zero_exchange_rate() {
@@ -307,7 +307,7 @@ fn test_config_validation_zero_exchange_rate() {
 // ============================================================================
 
 // 12. Test: SolverConfig::get_token_pairs() converts configs to TokenPair structs
-// Verifies that SolverConfig::get_token_pairs() converts configs to TokenPair structs.
+// Verifies that SolverConfig::get_token_pairs() returns a map whose keys are TokenPair structs built from each TokenPairConfig and whose values carry the configured ratio as the TokenPair rate.
 // Why: Ensure token pairs are correctly converted into TokenPair structs.
 #[test]
 fn test_get_token_pairs_success() {
@@ -323,7 +323,7 @@ fn test_get_token_pairs_success() {
 }
 
 // 13. Test: SolverConfig::get_token_pairs() handles multiple token pairs
-// Verifies that SolverConfig::get_token_pairs() handles multiple token pairs.
+// Verifies that SolverConfig::get_token_pairs() emits one entry per TokenPairConfig when acceptance.token_pairs contains multiple distinct pairs, without collapsing or deduplicating them.
 // Why: Ensure multiple token pairs are correctly converted.
 #[test]
 fn test_get_token_pairs_multiple() {
@@ -343,7 +343,7 @@ fn test_get_token_pairs_multiple() {
 }
 
 // 14. Test: SolverConfig::get_token_pairs() handles token addresses
-// Verifies that SolverConfig::get_token_pairs() handles token addresses.
+// Verifies that SolverConfig::get_token_pairs() carries the configured target_token address verbatim into the resulting TokenPair's desired_token field for an EVM-connected chain pair.
 // Why: Ensure all tokens use their actual addresses (hex format).
 #[test]
 fn test_get_token_pairs_token_address() {
@@ -387,7 +387,7 @@ fn test_get_token_pairs_token_address() {
 // ============================================================================
 
 // 15. Test: SolverConfig can be serialized to and deserialized from TOML
-// Verifies that SolverConfig can be serialized to and deserialized from TOML.
+// Verifies that a SolverConfig round-tripped through toml::to_string and toml::from_str preserves service.coordinator_url, hub_chain.chain_id, and the number of acceptance.token_pairs.
 // Why: Ensure config structs work with TOML format.
 #[test]
 fn test_config_toml_roundtrip() {
@@ -406,7 +406,7 @@ fn test_config_toml_roundtrip() {
 }
 
 // 16. Test: MvmChainConfig can deserialize from TOML
-// Verifies that MvmChainConfig can deserialize from TOML.
+// Verifies that toml::from_str parses an MvmChainConfig from a TOML fragment and populates chain_id, name, module_addr, and profile from the corresponding TOML keys.
 // Why: Ensure MVM chain config is correctly parsed from TOML.
 #[test]
 fn test_connected_chain_mvm_deserialization() {
@@ -427,7 +427,7 @@ profile = "connected-profile"
 }
 
 // 17. Test: EvmChainConfig can deserialize from TOML
-// Verifies that EvmChainConfig can deserialize from TOML.
+// Verifies that toml::from_str parses an EvmChainConfig from a TOML fragment and populates chain_id, name, escrow_contract_addr, and private_key_env from the corresponding TOML keys.
 // Why: Ensure EVM chain config is correctly parsed from TOML.
 #[test]
 fn test_connected_chain_evm_deserialization() {
@@ -448,7 +448,7 @@ private_key_env = "SOLVER_EVM_PRIVATE_KEY"
 }
 
 // 18. Test: SvmChainConfig can deserialize from TOML
-// Verifies that SvmChainConfig can deserialize from TOML.
+// Verifies that toml::from_str parses an SvmChainConfig from a TOML fragment and populates chain_id, name, escrow_program_id, and private_key_env from the corresponding TOML keys.
 // Why: Ensure SVM chain config is correctly parsed from TOML.
 #[test]
 fn test_connected_chain_svm_deserialization() {
@@ -476,7 +476,7 @@ private_key_env = "SOLANA_SOLVER_PRIVATE_KEY"
 // ============================================================================
 
 // 19. Test: SolverConfig::load() loads configuration from TOML file
-// Verifies that SolverConfig::load() loads configuration from TOML file.
+// Verifies that SolverConfig::load() reads the path from the SOLVER_CONFIG_PATH environment variable, parses the TOML at that path, and returns a SolverConfig whose service, hub_chain, and acceptance sections reflect the file contents.
 // Why: Ensure config can be loaded from actual TOML file.
 #[test]
 fn test_config_load_from_file() {
@@ -570,7 +570,7 @@ address = "0xccc"
 }
 
 // 20. Test: SolverConfig::load() returns error when file doesn't exist
-// Verifies that SolverConfig::load() returns error when file doesn't exist.
+// Verifies that SolverConfig::load_from_path() returns an error containing "not found" when given an explicit path to a file that does not exist on disk.
 // Why: Ensure proper error message when config file is missing.
 #[test]
 fn test_config_load_file_not_found() {
