@@ -83,9 +83,9 @@ For ALL new/modified test files and test functions (from diff):
 Every test function must have:
 
 ```text
-/// N. Test: [Test Name]
-/// Verifies that [what the test does].
-/// Why: [rationale].
+// N. Test: [Test Name]
+// Verifies that [what the test does].
+// Why: [rationale].
 ```
 
 Check:

@@ -28,9 +28,9 @@ describe("IntentInflowEscrow - Cross-Chain Intent ID Handling", function () {
   // CROSS-CHAIN INTENT ID TESTS (bytes32 format)
   // ============================================================================
 
-  /// 1. Test: test_hex_intent_id_handling: Hex Intent ID Handling
-  /// Verifies that intent IDs in bytes32 hex format work correctly.
-  /// Why: Cross-chain intents use 32-byte identifiers for compatibility across chains.
+  // 1. Test: test_hex_intent_id_handling: Hex Intent ID Handling
+  // Verifies that intent IDs in bytes32 hex format work correctly.
+  // Why: Cross-chain intents use 32-byte identifiers for compatibility across chains.
   it("Should handle bytes32 intent ID correctly", async function () {
     // Intent ID in bytes32 hex format
     const intentId = "0x0000000000000000000000000000000000000000000000000000000000001234";
@@ -63,9 +63,9 @@ describe("IntentInflowEscrow - Cross-Chain Intent ID Handling", function () {
     expect(escrowData.amount).to.equal(DEFAULT_AMOUNT);
   });
 
-  /// 2. Test: test_intent_id_boundary_values: Intent ID Boundary Values
-  /// Verifies that the contract handles boundary intent ID values correctly.
-  /// Why: Intent IDs from different chains may have different formats. Boundary testing ensures compatibility.
+  // 2. Test: test_intent_id_boundary_values: Intent ID Boundary Values
+  // Verifies that the contract handles boundary intent ID values correctly.
+  // Why: Intent IDs from different chains may have different formats. Boundary testing ensures compatibility.
   it("Should handle intent ID boundary values", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -91,9 +91,9 @@ describe("IntentInflowEscrow - Cross-Chain Intent ID Handling", function () {
     expect(await escrow.hasEscrow(midIntentId)).to.equal(true);
   });
 
-  /// 3. Test: test_intent_id_various_patterns: Intent ID With Various Patterns
-  /// Verifies that the contract handles various intent ID patterns correctly.
-  /// Why: Real-world intent IDs may have various byte patterns.
+  // 3. Test: test_intent_id_various_patterns: Intent ID With Various Patterns
+  // Verifies that the contract handles various intent ID patterns correctly.
+  // Why: Real-world intent IDs may have various byte patterns.
   it("Should handle intent IDs with various patterns", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -128,9 +128,9 @@ describe("IntentInflowEscrow - Cross-Chain Intent ID Handling", function () {
     }
   });
 
-  /// 4. Test: test_multiple_intent_ids_independent: Multiple Intent IDs Are Independent
-  /// Verifies that multiple escrows with different intent IDs are independent.
-  /// Why: Each intent ID must map to its own escrow state.
+  // 4. Test: test_multiple_intent_ids_independent: Multiple Intent IDs Are Independent
+  // Verifies that multiple escrows with different intent IDs are independent.
+  // Why: Each intent ID must map to its own escrow state.
   it("Should handle multiple independent intent IDs", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);

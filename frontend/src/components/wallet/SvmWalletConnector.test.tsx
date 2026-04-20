@@ -35,20 +35,18 @@ describe('SvmWalletConnector', () => {
     mockState.wallets = [{ adapter: { name: 'Phantom' } }];
   });
 
-  /**
-   * Test: Disconnected state rendering
-   * Why: Users should see a connect CTA when no wallet is connected.
-   */
+  // 1. Test: Disconnected state rendering
+  // Verifies that SvmWalletConnector renders the connect action when no wallet is connected.
+  // Why: Users need a clear call-to-action to initiate an SVM wallet connection.
   it('should show connect button when disconnected', async () => {
     render(<SvmWalletConnector />);
     const button = await screen.findByText('Connect SVM');
     expect(button).toBeInTheDocument();
   });
 
-  /**
-   * Test: Missing Phantom adapter
-   * Why: UI should disable if Phantom adapter is unavailable.
-   */
+  // 2. Test: Missing Phantom adapter
+  // Verifies that SvmWalletConnector disables the connect action when the Solana wallet adapter reports no available wallets.
+  // Why: Attempting to connect without a detected Phantom adapter would fail, so the UI should block the action upfront.
   it('should disable when Phantom adapter is not detected', async () => {
     mockState.wallets = [];
     render(<SvmWalletConnector />);
@@ -56,10 +54,9 @@ describe('SvmWalletConnector', () => {
     expect(button).toBeDisabled();
   });
 
-  /**
-   * Test: Connect action
-   * Why: Clicking connect should select Phantom and call connect().
-   */
+  // 3. Test: Connect action
+  // Verifies that SvmWalletConnector selects the Phantom adapter and invokes the useWallet connect handler when the user clicks the connect action.
+  // Why: The button must both choose the adapter and trigger connection, otherwise the wallet session cannot be established.
   it('should call select and connect on click', async () => {
     render(<SvmWalletConnector />);
     const button = await screen.findByText('Connect SVM');
@@ -68,10 +65,9 @@ describe('SvmWalletConnector', () => {
     expect(connectMock).toHaveBeenCalledTimes(1);
   });
 
-  /**
-   * Test: Connected state rendering
-   * Why: Users should see the truncated SVM address and be able to disconnect.
-   */
+  // 4. Test: Connected state rendering
+  // Verifies that SvmWalletConnector displays the truncated connected public key and exposes a disconnect affordance when the wallet is connected.
+  // Why: Users need to confirm the active SVM account and have a way to disconnect from the same control.
   it('should show truncated SVM address when connected', async () => {
     mockState.connected = true;
     render(<SvmWalletConnector />);

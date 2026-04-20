@@ -90,8 +90,9 @@ module mvmt_intent::fa_entryflow_tests {
         offerer = @0xcafe,
         solver = @0xdead
     )]
-    /// What is tested: requester and solver entry functions complete a FA limit order end-to-end
-    /// Why: Validate the integration path that real transactions will follow on-chain
+    // 1. Test: requester and solver entry functions complete a FA limit order end-to-end
+    // Verifies that the offerer_submit_limit_order entry stores a PendingIntent that solver_fill_limit_order can consume via start_fa_offering_session and finish_fa_receiving_session, leaving both parties with the expected swapped balances and removing the PendingIntent resource.
+    // Why: Validate the integration path that real transactions will follow on-chain.
     fun test_fa_limit_order(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -129,8 +130,9 @@ module mvmt_intent::fa_entryflow_tests {
         solver = @0xdead
     )]
     #[expected_failure(abort_code = 65537, location = fa_intent)] // error::invalid_argument(EAMOUNT_NOT_MEET)
-    /// What is tested: solver settlement aborts when it provides fewer tokens than required
-    /// Why: Enforce the EAMOUNT_NOT_MEET guard on integrated inflow/outflow flows
+    // 2. Test: solver settlement aborts when it provides fewer tokens than required
+    // Verifies that solver_fill_limit_order aborts with fa_intent's EAMOUNT_NOT_MEET when the desired_amount it withdraws and passes to finish_fa_receiving_session is less than the stored PendingIntent's desired_amount.
+    // Why: Enforce the EAMOUNT_NOT_MEET guard on integrated inflow/outflow flows.
     fun test_fa_limit_order_insufficient_solver_payment(
         aptos_framework: &signer,
         mvmt_intent: &signer,

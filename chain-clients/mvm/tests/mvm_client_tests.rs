@@ -23,9 +23,9 @@ const DUMMY_TOKEN_ADDR: &str =
 // CLIENT INITIALIZATION
 // ============================================================================
 
-/// 1. Test: MvmClient initialization
-/// Verifies that MvmClient::new() creates a client successfully.
-/// Why: Client initialization is the entry point for all MVM operations.
+// 1. Test: MvmClient initialization
+// Verifies that MvmClient::new() creates a client successfully.
+// Why: Client initialization is the entry point for all MVM operations.
 #[test]
 fn test_client_new() {
     let _client = MvmClient::new("http://127.0.0.1:8080").unwrap();
@@ -37,9 +37,9 @@ fn test_client_new() {
 // ESCROW RELEASE CHECK
 // ============================================================================
 
-/// 3. Test: is_escrow_released returns true when escrow has been auto-released
-/// Verifies that is_escrow_released() calls the view function and parses boolean response.
-/// Why: With auto-release, the solver polls this to confirm release happened.
+// 3. Test: is_escrow_released returns true when escrow has been auto-released
+// Verifies that is_escrow_released() calls the view function and parses boolean response.
+// Why: With auto-release, the solver polls this to confirm release happened.
 #[tokio::test]
 async fn test_is_escrow_released_success() {
     let mock_server = MockServer::start().await;
@@ -58,9 +58,9 @@ async fn test_is_escrow_released_success() {
     assert!(result);
 }
 
-/// 4. Test: is_escrow_released returns false when not yet released
-/// Verifies that is_escrow_released() correctly parses a false response.
-/// Why: The solver polls this function repeatedly; false must not be misinterpreted.
+// 4. Test: is_escrow_released returns false when not yet released
+// Verifies that is_escrow_released() correctly parses a false response.
+// Why: The solver polls this function repeatedly; false must not be misinterpreted.
 #[tokio::test]
 async fn test_is_escrow_released_false() {
     let mock_server = MockServer::start().await;
@@ -79,9 +79,9 @@ async fn test_is_escrow_released_false() {
     assert!(!result);
 }
 
-/// 5. Test: is_escrow_released handles HTTP error
-/// Verifies that is_escrow_released() propagates errors from failed HTTP requests.
-/// Why: Network errors must not be silently swallowed; the caller needs to retry.
+// 5. Test: is_escrow_released handles HTTP error
+// Verifies that is_escrow_released() propagates errors from failed HTTP requests.
+// Why: Network errors must not be silently swallowed; the caller needs to retry.
 #[tokio::test]
 async fn test_is_escrow_released_error() {
     let mock_server = MockServer::start().await;
@@ -103,10 +103,9 @@ async fn test_is_escrow_released_error() {
 // BALANCE QUERIES
 // ============================================================================
 
-/// 6. Test: get_token_balance returns correct FA balance
-/// Verifies that get_token_balance() calls primary_fungible_store::balance view function
-/// and parses the string response as u128.
-/// Why: Liquidity monitoring depends on accurate balance reads from MVM chains.
+// 6. Test: get_token_balance returns correct FA balance
+// Verifies that get_token_balance() calls primary_fungible_store::balance view function.
+// Why: Liquidity monitoring depends on accurate balance reads from MVM chains.
 #[tokio::test]
 async fn test_get_token_balance_success() {
     let mock_server = MockServer::start().await;
@@ -125,9 +124,9 @@ async fn test_get_token_balance_success() {
     assert_eq!(balance, 1_000_000);
 }
 
-/// 7. Test: get_token_balance propagates HTTP errors
-/// Verifies that get_token_balance() returns Err on HTTP failure.
-/// Why: Errors must propagate so the liquidity monitor can log and retry.
+// 7. Test: get_token_balance propagates HTTP errors
+// Verifies that get_token_balance() returns Err on HTTP failure.
+// Why: Errors must propagate so the liquidity monitor can log and retry.
 #[tokio::test]
 async fn test_get_token_balance_error() {
     let mock_server = MockServer::start().await;
@@ -145,9 +144,9 @@ async fn test_get_token_balance_error() {
     assert!(result.is_err());
 }
 
-/// 8. Test: get_token_balance returns zero balance
-/// Verifies that get_token_balance() correctly parses "0" from the view function.
-/// Why: Zero balance is a valid state (empty wallet), not an error.
+// 8. Test: get_token_balance returns zero balance
+// Verifies that get_token_balance() correctly parses a zero balance from the view function.
+// Why: Zero balance is a valid state (empty wallet), not an error.
 #[tokio::test]
 async fn test_get_token_balance_zero() {
     let mock_server = MockServer::start().await;
@@ -185,19 +184,18 @@ async fn test_get_token_balance_zero() {
 // ADDRESS NORMALIZATION (MVM-specific)
 // ============================================================================
 
-/// 18. Test: normalize_hex_to_address preserves full-length 64-char addresses
-/// Verifies that a correctly formatted 64-char hex address passes through unchanged.
-/// Why: Normalization must be a no-op for well-formed addresses to avoid corruption.
+// 18. Test: normalize_hex_to_address preserves full-length 64-char addresses
+// Verifies that a correctly formatted 64-char hex address passes through unchanged.
+// Why: Normalization must be a no-op for well-formed addresses to avoid corruption.
 #[test]
 fn test_normalize_hex_to_address_full_length() {
     let result = normalize_hex_to_address(DUMMY_INTENT_ID);
     assert_eq!(result, DUMMY_INTENT_ID);
 }
 
-/// 19. Test: normalize_hex_to_address pads short addresses to 64 chars
-/// Verifies that short addresses (e.g., "0x1") are zero-padded to 32 bytes.
-/// Why: Move addresses are always 32 bytes. Short forms like "0x1" appear in framework
-/// addresses and must be padded for the Aptos REST API.
+// 19. Test: normalize_hex_to_address pads short addresses to 64 chars
+// Verifies that short addresses are zero-padded to the Move 32-byte address width.
+// Why: Move addresses are always 32 bytes. Short forms like "0x1" appear in framework.
 #[test]
 fn test_normalize_hex_to_address_short_address() {
     let result = normalize_hex_to_address("0x1");
@@ -207,10 +205,9 @@ fn test_normalize_hex_to_address_short_address() {
     );
 }
 
-/// 20. Test: normalize_hex_to_address fixes odd-length hex from stripped leading zeros
-/// Verifies that 63-char hex (from Move stripping a leading zero) becomes 64-char.
-/// Why: Move events strip leading zeros from addresses. "0x0f...fe" becomes "0xf...fe"
-/// (63 hex chars, odd length), which the Aptos REST API rejects.
+// 20. Test: normalize_hex_to_address fixes odd-length hex from stripped leading zeros
+// Verifies that 63-char hex (from Move stripping a leading zero) becomes 64-char.
+// Why: Move events strip leading zeros from addresses. "0x0f...fe" becomes "0xf...fe".
 #[test]
 fn test_normalize_hex_to_address_odd_length() {
     let stripped = "0xf";
@@ -221,9 +218,9 @@ fn test_normalize_hex_to_address_odd_length() {
     );
 }
 
-/// 21. Test: normalize_hex_to_address handles input without 0x prefix
-/// Verifies that bare hex strings (no "0x") are correctly padded and prefixed.
-/// Why: Intent IDs from different sources may or may not include the 0x prefix.
+// 21. Test: normalize_hex_to_address handles input without 0x prefix
+// Verifies that bare hex strings (no "0x") are correctly padded and prefixed.
+// Why: Intent IDs from different sources may or may not include the 0x prefix.
 #[test]
 fn test_normalize_hex_to_address_no_prefix() {
     let result = normalize_hex_to_address("1");

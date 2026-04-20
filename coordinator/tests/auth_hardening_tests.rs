@@ -101,9 +101,9 @@ fn valid_signature_request() -> serde_json::Value {
 // EXPIRED DRAFT SIGNING
 // ============================================================================
 
-/// Test that creating a draft with past expiry is rejected
-/// What is tested: Coordinator rejects draft creation when expiry_time is in the past
-/// Why: Prevents expired intents from entering the system and wasting solver resources
+// 1. Test: Creating a draft with past expiry is rejected
+// Verifies that creating a draft with past expiry is rejected.
+// Why: Prevents expired intents from entering the system and wasting solver resources.
 #[tokio::test]
 async fn test_draft_creation_rejected_for_past_expiry() {
     let (api_server, _mock) = create_api_server_with_registered_solver().await;
@@ -136,9 +136,9 @@ async fn test_draft_creation_rejected_for_past_expiry() {
 // NONEXISTENT DRAFT SIGNING
 // ============================================================================
 
-/// Test that submitting a signature for a nonexistent draft returns error
-/// What is tested: Solver cannot sign a draft that doesn't exist
-/// Why: Prevents out-of-order calls where solver submits signature before requester creates draft
+// 2. Test: Submitting a signature for a nonexistent draft returns error
+// Verifies that submitting a signature for a nonexistent draft returns error.
+// Why: Prevents out-of-order calls where solver submits signature before requester creates draft.
 #[tokio::test]
 async fn test_signature_rejected_for_nonexistent_draft() {
     let (api_server, _mock) = create_api_server_with_registered_solver().await;
@@ -164,9 +164,9 @@ async fn test_signature_rejected_for_nonexistent_draft() {
 // CONCURRENT FCFS
 // ============================================================================
 
-/// Test that two signatures on the same draft results in exactly one success
-/// What is tested: FCFS (First Come First Served) — first signature wins, second gets 409 Conflict
-/// Why: Prevents double-signing which could lock solver liquidity twice
+// 3. Test: Two signatures on the same draft results in exactly one success
+// Verifies that two signatures on the same draft results in exactly one success.
+// Why: Prevents double-signing which could lock solver liquidity twice.
 #[tokio::test]
 async fn test_fcfs_second_solver_rejected_via_http() {
     let (api_server, _mock) = create_api_server_with_registered_solver().await;
@@ -229,9 +229,9 @@ async fn test_fcfs_second_solver_rejected_via_http() {
 // FORGED SIGNER / UNREGISTERED SOLVER
 // ============================================================================
 
-/// Test that a signature from an unregistered solver is rejected
-/// What is tested: Solver must be registered on-chain before signing
-/// Why: Prevents unauthorized solvers from claiming intents
+// 4. Test: A signature from an unregistered solver is rejected
+// Verifies that a signature from an unregistered solver is rejected.
+// Why: Prevents unauthorized solvers from claiming intents.
 #[tokio::test]
 async fn test_signature_rejected_for_unregistered_solver() {
     let (api_server, _mock) = create_api_server_without_solver().await;

@@ -42,18 +42,18 @@ module mvmt_intent::intent_inflow_escrow_tests {
     // GMP CONFIG TESTS
     // ============================================================================
 
-    /// 1. Test: SetGmpConfig creates/updates GMP configuration
-    /// Verifies that admin can set GMP config with hub chain ID, hub GMP endpoint address, and endpoint.
-    /// Why: GMP config is required for source validation in all GMP message handlers.
+    // 1. Test: SetGmpConfig creates/updates GMP configuration
+    // Verifies that admin can set GMP config with hub chain ID, hub GMP endpoint address, and endpoint.
+    // Why: GMP config is required for source validation in all GMP message handlers.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent)]
     fun test_set_gmp_config(aptos_framework: &signer, admin: &signer) {
         // TODO: Implement
         abort 999
     }
 
-    /// 2. Test: SetGmpConfig rejects unauthorized caller
-    /// Verifies that only admin can update GMP config after initial setup.
-    /// Why: GMP config controls authorized sources - must be admin-only.
+    // 2. Test: SetGmpConfig rejects unauthorized caller
+    // Verifies that only admin can update GMP config after initial setup.
+    // Why: GMP config controls authorized sources - must be admin-only.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent)]
     fun test_set_gmp_config_rejects_unauthorized(aptos_framework: &signer, admin: &signer) {
         // TODO: Implement
@@ -64,9 +64,9 @@ module mvmt_intent::intent_inflow_escrow_tests {
     // LZ RECEIVE REQUIREMENTS TESTS
     // ============================================================================
 
-    /// 3. Test: GmpReceiveRequirements stores intent requirements
-    /// Verifies that requirements from hub are stored correctly.
-    /// Why: Requirements must be stored before escrow can be created with validation.
+    // 3. Test: GmpReceiveRequirements stores intent requirements
+    // Verifies that requirements from hub are stored correctly.
+    // Why: Requirements must be stored before escrow can be created with validation.
     #[test(aptos_framework = @0x1, admin = @mvmt_intent)]
     fun test_gmp_receive_requirements_stores_requirements(aptos_framework: &signer, admin: &signer) {
         // TODO: Implement
@@ -211,22 +211,22 @@ When a test from another framework doesn't apply to your platform, add a comment
 **In SVM (for EVM-specific tests):**
 
 ```rust
-/// Test: Insufficient Allowance Rejection
-/// Verifies that createEscrow reverts when token allowance is insufficient.
-/// Why: Token transfers require explicit approval. Insufficient allowance must be rejected to prevent failed transfers.
-///
-/// NOTE: N/A for SVM - SPL tokens don't use approve/allowance pattern
+// Test: Insufficient Allowance Rejection
+// Verifies that createEscrow reverts when token allowance is insufficient.
+// Why: Token transfers require explicit approval. Insufficient allowance must be rejected to prevent failed transfers.
+//
+// NOTE: N/A for SVM - SPL tokens don't use approve/allowance pattern
 // EVM: intent-frameworks/evm/test/error-conditions.test.js - "Should revert with insufficient ERC20 allowance"
 ```
 
 **In EVM (for SVM-specific tests):**
 
 ```javascript
-/// Test: Zero Solver Address Rejection
-/// Verifies that escrows cannot be created with zero/default solver address.
-/// Why: A valid solver must be specified for claims.
-///
-/// NOTE: N/A for EVM - Solidity address type cannot be zero by default, and require() checks prevent zero addresses
+// Test: Zero Solver Address Rejection
+// Verifies that escrows cannot be created with zero/default solver address.
+// Why: A valid solver must be specified for claims.
+//
+// NOTE: N/A for EVM - Solidity address type cannot be zero by default, and require() checks prevent zero addresses
 // SVM: intent-frameworks/svm/programs/intent_inflow_escrow/tests/error_conditions.rs - "test_reject_zero_solver_address"
 ```
 
@@ -248,10 +248,10 @@ If your platform has tests that don't exist in other frameworks, add them to the
 **Step 2: Implement in MVM** (`intent-frameworks/mvm/tests/intent_inflow_escrow_tests.move`)
 
 ```move
-/// 16. Test: Release escrow succeeds after fulfillment (MVM-specific)
-/// Verifies that the solver can successfully claim escrowed tokens after receiving a fulfillment proof from the hub.
-/// Why: This is the final step in the inflow intent lifecycle. The solver must receive payment after fulfilling the intent on the hub.
-/// Note: MVM requires manual release call. SVM auto-releases in test 6.
+// 16. Test: Release escrow succeeds after fulfillment (MVM-specific)
+// Verifies that the solver can successfully claim escrowed tokens after receiving a fulfillment proof from the hub.
+// Why: This is the final step in the inflow intent lifecycle. The solver must receive payment after fulfilling the intent on the hub.
+// Note: MVM requires manual release call. SVM auto-releases in test 6.
 #[test(aptos_framework = @0x1, admin = @mvmt_intent, solver = @0x456)]
 fun test_release_escrow_succeeds_after_fulfillment(...) {
     // ... test implementation
@@ -305,9 +305,9 @@ fun test_release_escrow_succeeds_after_fulfillment(...) {
 **In EVM (error-conditions.test.js):**
 
 ```javascript
-/// 12. Test: New Feature Validation
-/// Verifies that new feature works correctly.
-/// Why: Ensures the new feature behaves as expected.
+// 12. Test: New Feature Validation
+// Verifies that new feature works correctly.
+// Why: Ensures the new feature behaves as expected.
 it("Should validate new feature", async function () {
   // ... test implementation
 });
@@ -316,11 +316,11 @@ it("Should validate new feature", async function () {
 **In SVM (error_conditions.rs) - at the same position:**
 
 ```rust
-/// 12. Test: New Feature Validation
-/// Verifies that new feature works correctly.
-/// Why: Ensures the new feature behaves as expected.
-///
-/// NOTE: N/A for SVM - [Clear explanation of why this test doesn't apply to SVM]
+// 12. Test: New Feature Validation
+// Verifies that new feature works correctly.
+// Why: Ensures the new feature behaves as expected.
+//
+// NOTE: N/A for SVM - [Clear explanation of why this test doesn't apply to SVM]
 // EVM: intent-frameworks/evm/test/error-conditions.test.js - "Should validate new feature"
 ```
 

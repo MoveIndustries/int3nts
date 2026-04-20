@@ -27,9 +27,9 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     intentId = fixtures.intentId;
   });
 
-  /// 1. Test: test_reject_zero_amount: Zero Amount Rejection
-  /// Verifies that createEscrowWithValidation reverts when amount is zero.
-  /// Why: Zero-amount escrows are meaningless and could cause accounting issues.
+  // 1. Test: test_reject_zero_amount: Zero Amount Rejection
+  // Verifies that createEscrowWithValidation reverts when amount is zero.
+  // Why: Zero-amount escrows are meaningless and could cause accounting issues.
   it("Should revert with zero amount in createEscrow", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -52,9 +52,9 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ZERO_AMOUNT");
   });
 
-  /// 2. Test: test_insufficient_allowance_rejection: Insufficient Allowance Rejection
-  /// Verifies that createEscrowWithValidation reverts when ERC20 allowance is insufficient.
-  /// Why: ERC20 transfers require explicit approval. Insufficient allowance must be rejected.
+  // 2. Test: test_insufficient_allowance_rejection: Insufficient Allowance Rejection
+  // Verifies that createEscrowWithValidation reverts when ERC20 allowance is insufficient.
+  // Why: ERC20 transfers require explicit approval. Insufficient allowance must be rejected.
   it("Should revert with insufficient ERC20 allowance", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -88,9 +88,9 @@ describe("IntentInflowEscrow - Error Conditions", function () {
   // #6: test_reject_native_currency_with_token_address — not yet implemented for EVM
   // #7: test_reject_invalid_signature_length — not yet implemented for EVM
 
-  /// 8. Test: test_reject_requirements_not_found: Requirements Not Found
-  /// Verifies that createEscrowWithValidation reverts when no requirements exist.
-  /// Why: Escrows can only be created after hub sends requirements.
+  // 8. Test: test_reject_requirements_not_found: Requirements Not Found
+  // Verifies that createEscrowWithValidation reverts when no requirements exist.
+  // Why: Escrows can only be created after hub sends requirements.
   it("Should revert when requirements not found", async function () {
     const unknownIntentId = "0xcc000000000000000000000000000000000000000000000000000000000000dd";
 
@@ -99,9 +99,9 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_REQUIREMENTS_NOT_FOUND");
   });
 
-  /// 9. Test: test_reject_amount_mismatch: Amount Mismatch Rejection
-  /// Verifies that createEscrowWithValidation reverts when amount doesn't match requirements.
-  /// Why: Amount must match what hub specified.
+  // 9. Test: test_reject_amount_mismatch: Amount Mismatch Rejection
+  // Verifies that createEscrowWithValidation reverts when amount doesn't match requirements.
+  // Why: Amount must match what hub specified.
   it("Should revert with amount mismatch", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -125,9 +125,9 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_AMOUNT_MISMATCH");
   });
 
-  /// 10. Test: test_reject_token_mismatch: Token Mismatch Rejection
-  /// Verifies that createEscrowWithValidation reverts when token doesn't match requirements.
-  /// Why: Token must match what hub specified.
+  // 10. Test: test_reject_token_mismatch: Token Mismatch Rejection
+  // Verifies that createEscrowWithValidation reverts when token doesn't match requirements.
+  // Why: Token must match what hub specified.
   it("Should revert with token mismatch", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -155,9 +155,9 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_TOKEN_MISMATCH");
   });
 
-  /// 11. Test: test_reject_requester_mismatch: Requester Mismatch Rejection
-  /// Verifies that only the correct requester can create escrow.
-  /// Why: Security - only authorized requester can lock funds.
+  // 11. Test: test_reject_requester_mismatch: Requester Mismatch Rejection
+  // Verifies that only the correct requester can create escrow.
+  // Why: Security - only authorized requester can lock funds.
   it("Should revert with requester mismatch", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -183,9 +183,9 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_REQUESTER_MISMATCH");
   });
 
-  /// 12. Test: test_reject_expired_intent: Expired Intent Rejection
-  /// Verifies that escrows cannot be created after intent expires.
-  /// Why: Expired intents should be rejected.
+  // 12. Test: test_reject_expired_intent: Expired Intent Rejection
+  // Verifies that escrows cannot be created after intent expires.
+  // Why: Expired intents should be rejected.
   it("Should revert with expired intent", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -207,9 +207,9 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_INTENT_EXPIRED");
   });
 
-  /// 13. Test: test_revert_cancel_on_non_existent_escrow: Non-Existent Escrow Cancellation Rejection
-  /// Verifies that cancel reverts for non-existent escrows.
-  /// Why: Prevents cancellation of non-existent escrows.
+  // 13. Test: test_revert_cancel_on_non_existent_escrow: Non-Existent Escrow Cancellation Rejection
+  // Verifies that cancel reverts for non-existent escrows.
+  // Why: Prevents cancellation of non-existent escrows.
   it("Should revert cancel on non-existent escrow", async function () {
     const nonExistentIntentId = "0xcc000000000000000000000000000000000000000000000000000000000000dd";
 
@@ -221,9 +221,9 @@ describe("IntentInflowEscrow - Error Conditions", function () {
 
   // #14: test_reject_zero_solver_address — not yet implemented for EVM
 
-  /// 15. Test: test_reject_duplicate_intent_id: Duplicate Escrow Creation Rejection
-  /// Verifies that escrows with duplicate intent IDs are rejected.
-  /// Why: Each intent ID must map to exactly one escrow.
+  // 15. Test: test_reject_duplicate_intent_id: Duplicate Escrow Creation Rejection
+  // Verifies that escrows with duplicate intent IDs are rejected.
+  // Why: Each intent ID must map to exactly one escrow.
   it("Should revert with duplicate escrow creation", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -249,9 +249,9 @@ describe("IntentInflowEscrow - Error Conditions", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ESCROW_ALREADY_CREATED");
   });
 
-  /// 16. Test: test_reject_insufficient_token_balance: Insufficient Token Balance Rejection
-  /// Verifies that escrow creation fails if requester has insufficient tokens.
-  /// Why: Cannot deposit more tokens than available.
+  // 16. Test: test_reject_insufficient_token_balance: Insufficient Token Balance Rejection
+  // Verifies that escrow creation fails if requester has insufficient tokens.
+  // Why: Cannot deposit more tokens than available.
   it("Should revert with insufficient token balance", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);

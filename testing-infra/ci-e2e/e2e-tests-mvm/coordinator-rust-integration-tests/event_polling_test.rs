@@ -5,8 +5,9 @@
 
 use chain_clients_mvm::MvmClient;
 
-/// Test that we can query events on Hub
-/// Why: Event polling is core functionality for monitoring blockchain activity
+// 1. Test: query account events on hub chain
+// Verifies that MvmClient::get_account_events can be invoked against the hub chain without error at the API level.
+// Why: Event queries are a prerequisite for the coordinator's monitoring logic on the hub.
 #[tokio::test]
 async fn test_get_account_events_chain1() {
     let client = MvmClient::new("http://127.0.0.1:1000").unwrap();
@@ -26,8 +27,9 @@ async fn test_get_account_events_chain1() {
     }
 }
 
-/// Test that we can query events on Chain 2
-/// Why: Event polling is core functionality for monitoring blockchain activity
+// 2. Test: query account events on connected chain
+// Verifies that MvmClient::get_account_events can be invoked against the connected chain without error at the API level.
+// Why: Event queries are a prerequisite for the coordinator's monitoring logic on connected chains.
 #[tokio::test]
 async fn test_get_account_events_chain2() {
     let client = MvmClient::new("http://127.0.0.1:2000").unwrap();
@@ -47,9 +49,9 @@ async fn test_get_account_events_chain2() {
     }
 }
 
-/// Test event polling API connectivity for intent events
-/// Why: Verify that poll_hub_events() API calls work (does not verify parsing of real events yet)
-/// Note: This only tests API connectivity. For full event parsing test, intents must exist on-chain.
+// 3. Test: EventMonitor::poll_hub_events API connectivity
+// Verifies that EventMonitor::poll_hub_events executes against a running hub without returning a transport-level error.
+// Why: The coordinator's hub event polling path must be reachable; a transport failure here would block intent discovery.
 #[tokio::test]
 async fn test_poll_hub_events_api() {
     // This test requires chains to be running with deployed contracts

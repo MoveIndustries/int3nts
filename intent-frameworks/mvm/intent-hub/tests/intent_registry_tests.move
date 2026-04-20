@@ -14,8 +14,9 @@ module mvmt_intent::intent_registry_tests {
         aptos_framework = @0x1,
         mvmt_intent = @0x123
     )]
-    /// What is tested: initialize creates an empty registry
-    /// Why: Ensure the registry starts clean with no active requesters
+    // 1. Test: initialize creates an empty registry
+    // Verifies that after intent_registry::init_for_test, get_active_requesters returns an empty vector.
+    // Why: Ensure the registry starts clean with no active requesters.
     fun test_initialize_registry(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -32,8 +33,9 @@ module mvmt_intent::intent_registry_tests {
         mvmt_intent = @0x123,
         requester = @0xcafe
     )]
-    /// What is tested: register_intent adds intent and unregister_intent removes it
-    /// Why: Ensure intent lifecycle is tracked accurately for approver polling
+    // 2. Test: register_intent adds intent and unregister_intent removes it
+    // Verifies that register_intent_for_test increments get_intent_count and adds the requester to get_active_requesters, while unregister_intent_for_test decrements the count and removes the requester once their last intent is unregistered.
+    // Why: Ensure intent lifecycle is tracked accurately for approver polling.
     fun test_register_unregister_lifecycle(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -79,8 +81,9 @@ module mvmt_intent::intent_registry_tests {
         requester = @0xcafe,
         cleaner = @0xbeef
     )]
-    /// What is tested: cleanup_expired only works for truly expired intents
-    /// Why: Prevent malicious actors from removing active intents
+    // 3. Test: cleanup_expired only works for truly expired intents
+    // Verifies that cleanup_expired succeeds once the current timestamp has advanced past the intent's expiry, removing it so is_intent_registered returns false and get_intent_count drops to zero.
+    // Why: Prevent malicious actors from removing active intents.
     fun test_cleanup_expired_only_after_expiry(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -118,8 +121,9 @@ module mvmt_intent::intent_registry_tests {
         cleaner = @0xbeef
     )]
     #[expected_failure(abort_code = 327684, location = intent_registry)] // E_INTENT_NOT_EXPIRED
-    /// What is tested: cleanup_expired fails if intent is not expired
-    /// Why: Prevent malicious removal of active intents
+    // 4. Test: cleanup_expired fails if intent is not expired
+    // Verifies that cleanup_expired aborts with E_INTENT_NOT_EXPIRED when called for an intent whose expiry timestamp is still in the future.
+    // Why: Prevent malicious removal of active intents.
     fun test_cleanup_expired_fails_if_not_expired(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -146,8 +150,9 @@ module mvmt_intent::intent_registry_tests {
         cleaner = @0xbeef
     )]
     #[expected_failure(abort_code = 393219, location = intent_registry)] // E_INTENT_NOT_FOUND
-    /// What is tested: cleanup_expired fails for non-existent intent
-    /// Why: Prevent cleanup of intents that were never registered or already cleaned
+    // 5. Test: cleanup_expired fails for non-existent intent
+    // Verifies that cleanup_expired aborts with E_INTENT_NOT_FOUND when the supplied intent_id has no entry in the registry.
+    // Why: Prevent cleanup of intents that were never registered or already cleaned.
     fun test_cleanup_expired_fails_if_not_found(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -166,8 +171,9 @@ module mvmt_intent::intent_registry_tests {
         aptos_framework = @0x1,
         mvmt_intent = @0x123
     )]
-    /// What is tested: unregister_intent is idempotent for non-existent intents
-    /// Why: Fulfillment code can safely call unregister even if intent was already cleaned up
+    // 6. Test: unregister_intent is idempotent for non-existent intents
+    // Verifies that unregister_intent_for_test returns without aborting when invoked for an unknown intent_id and leaves get_active_requesters empty.
+    // Why: Fulfillment code can safely call unregister even if intent was already cleaned up.
     fun test_unregister_idempotent(
         aptos_framework: &signer,
         mvmt_intent: &signer,
@@ -190,8 +196,9 @@ module mvmt_intent::intent_registry_tests {
         requester1 = @0xcafe,
         requester2 = @0xbeef
     )]
-    /// What is tested: multiple requesters are tracked independently
-    /// Why: Ensure each requester's intents are isolated
+    // 7. Test: multiple requesters are tracked independently
+    // Verifies that register_intent_for_test and unregister_intent_for_test maintain per-requester get_intent_count values and that get_active_requesters only contains requesters whose count is above zero.
+    // Why: Ensure each requester's intents are isolated.
     fun test_multiple_requesters(
         aptos_framework: &signer,
         mvmt_intent: &signer,

@@ -41,9 +41,9 @@ const BASE_SIG: DraftIntentSignature = {
 // ============================================================================
 
 describe('buildIntentArguments (EVM)', () => {
-  /// 1. Test: Builds Inflow EVM Arguments
-  /// Verifies that inflow arguments are built with padded EVM addresses.
-  /// Why: Move entry functions require 32-byte addresses; EVM addresses must be left-padded.
+  // 1. Test: Builds Inflow EVM Arguments
+  // Verifies that inflow arguments are built with padded EVM addresses.
+  // Why: Move entry functions require 32-byte addresses; EVM addresses must be left-padded.
   it('builds inflow EVM arguments', () => {
     const result = buildIntentArguments({
       configs: TEST_CHAINS,
@@ -58,9 +58,9 @@ describe('buildIntentArguments (EVM)', () => {
     expect(result.functionArguments).toHaveLength(13);
   });
 
-  /// 2. Test: Builds Outflow EVM Arguments
-  /// Verifies that outflow arguments are built with padded EVM addresses.
-  /// Why: Outflow desired metadata and requester address need 32-byte padding for Move.
+  // 2. Test: Builds Outflow EVM Arguments
+  // Verifies that outflow arguments are built with padded EVM addresses.
+  // Why: Outflow desired metadata and requester address need 32-byte padding for Move.
   it('builds outflow EVM arguments', () => {
     const result = buildIntentArguments({
       configs: TEST_CHAINS,
@@ -75,9 +75,9 @@ describe('buildIntentArguments (EVM)', () => {
     expect(result.functionArguments).toHaveLength(13);
   });
 
-  /// 3. Test: Throws When Solver Lacks EVM Address
-  /// Verifies that missing solver_evm_addr causes an error.
-  /// Why: EVM inflow/outflow paths require the solver's EVM address for the connected chain.
+  // 3. Test: Throws When Solver Lacks EVM Address
+  // Verifies that missing solver_evm_addr causes an error.
+  // Why: EVM inflow/outflow paths require the solver's EVM address for the connected chain.
   it('throws when solver lacks EVM address for inflow', () => {
     const sigNoEvm: DraftIntentSignature = {
       ...BASE_SIG,

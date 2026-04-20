@@ -11,9 +11,9 @@ mod test_helpers;
 // SIGNATURE FORMAT VALIDATION TESTS
 // ============================================================================
 
-/// Test that valid Ed25519 signature format passes validation
-/// What is tested: 128 hex characters (64 bytes) signature format
-/// Why: Ed25519 signatures must be exactly 64 bytes
+// 1. Test: Valid Ed25519 signature format passes validation
+// Verifies that valid Ed25519 signature format passes validation.
+// Why: Ed25519 signatures must be exactly 64 bytes.
 #[test]
 fn test_validate_signature_format_valid() {
     // Valid signature: 128 hex chars
@@ -25,9 +25,9 @@ fn test_validate_signature_format_valid() {
     assert!(validate_signature_format(&valid_sig_with_prefix).is_ok());
 }
 
-/// Test that signature with wrong length fails validation
-/// What is tested: Length validation (must be 128 hex chars)
-/// Why: Ed25519 signatures must be exactly 64 bytes
+// 2. Test: Signature with wrong length fails validation
+// Verifies that signature with wrong length fails validation.
+// Why: Ed25519 signatures must be exactly 64 bytes.
 #[test]
 fn test_validate_signature_format_wrong_length() {
     // Too short
@@ -43,9 +43,9 @@ fn test_validate_signature_format_wrong_length() {
     assert!(result.unwrap_err().contains("expected 128 hex characters"));
 }
 
-/// Test that signature with invalid hex characters fails validation
-/// What is tested: Hex character validation
-/// Why: Signatures must be valid hexadecimal
+// 3. Test: Signature with invalid hex characters fails validation
+// Verifies that signature with invalid hex characters fails validation.
+// Why: Signatures must be valid hexadecimal.
 #[test]
 fn test_validate_signature_format_invalid_hex() {
     // Contains non-hex characters
@@ -61,9 +61,9 @@ fn test_validate_signature_format_invalid_hex() {
     assert!(result.unwrap_err().contains("not valid hex"));
 }
 
-/// Test that signature with valid hex but wrong case still passes
-/// What is tested: Case insensitivity (hex is case-insensitive)
-/// Why: Hex can be uppercase or lowercase
+// 4. Test: Signature with valid hex but wrong case still passes
+// Verifies that signature with valid hex but wrong case still passes.
+// Why: Hex can be uppercase or lowercase.
 #[test]
 fn test_validate_signature_format_case_insensitive() {
     // Uppercase hex
@@ -75,9 +75,9 @@ fn test_validate_signature_format_case_insensitive() {
     assert!(validate_signature_format(&mixed_sig).is_ok());
 }
 
-/// Test that empty signature fails validation
-/// What is tested: Empty string handling
-/// Why: Empty signatures are invalid
+// 5. Test: Empty signature fails validation
+// Verifies that empty signature fails validation.
+// Why: Empty signatures are invalid.
 #[test]
 fn test_validate_signature_format_empty() {
     let result = validate_signature_format("");
@@ -85,9 +85,9 @@ fn test_validate_signature_format_empty() {
     assert!(result.unwrap_err().contains("expected 128 hex characters"));
 }
 
-/// Test that signature with only 0x prefix fails validation
-/// What is tested: 0x prefix handling when signature is empty
-/// Why: 0x prefix alone is not a valid signature
+// 6. Test: Signature with only 0x prefix fails validation
+// Verifies that signature with only 0x prefix fails validation.
+// Why: 0x prefix alone is not a valid signature.
 #[test]
 fn test_validate_signature_format_only_prefix() {
     let result = validate_signature_format("0x");

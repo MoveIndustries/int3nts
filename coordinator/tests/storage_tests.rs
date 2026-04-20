@@ -42,9 +42,9 @@ fn past_expiry_time() -> u64 {
 // CRUD TESTS
 // ============================================================================
 
-/// Test that drafts can be added and retrieved
-/// What is tested: Basic CRUD operations for draft intents
-/// Why: Core functionality - drafts must be stored and retrievable
+// 1. Test: Drafts can be added and retrieved
+// Verifies that drafts can be added and retrieved.
+// Why: Core functionality - drafts must be stored and retrievable.
 #[tokio::test]
 async fn test_add_and_get_draft() {
     let store = DraftintentStore::new();
@@ -72,9 +72,9 @@ async fn test_add_and_get_draft() {
     assert_eq!(retrieved.status, DraftintentStatus::Pending);
 }
 
-/// Test that getting non-existent draft returns None
-/// What is tested: Error handling for missing drafts
-/// Why: API should handle missing drafts gracefully
+// 2. Test: Getting non-existent draft returns None
+// Verifies that getting non-existent draft returns None.
+// Why: API should handle missing drafts gracefully.
 #[tokio::test]
 async fn test_get_nonexistent_draft() {
     let store = DraftintentStore::new();
@@ -87,9 +87,9 @@ async fn test_get_nonexistent_draft() {
 // PENDING DRAFTS TESTS
 // ============================================================================
 
-/// Test that pending drafts can be retrieved
-/// What is tested: get_pending_drafts returns all pending drafts
-/// Why: Solvers need to poll for all pending drafts
+// 3. Test: Pending drafts can be retrieved
+// Verifies that pending drafts can be retrieved.
+// Why: Solvers need to poll for all pending drafts.
 #[tokio::test]
 async fn test_get_pending_drafts() {
     let store = DraftintentStore::new();
@@ -117,9 +117,9 @@ async fn test_get_pending_drafts() {
     assert_eq!(pending.len(), 2, "Should return all pending drafts");
 }
 
-/// Test that expired drafts are excluded from pending list
-/// What is tested: Expired drafts are filtered out
-/// Why: Solvers should not see expired drafts
+// 4. Test: Expired drafts are excluded from pending list
+// Verifies that expired drafts are excluded from pending list.
+// Why: Solvers should not see expired drafts.
 #[tokio::test]
 async fn test_pending_drafts_exclude_expired() {
     let store = DraftintentStore::new();
@@ -153,9 +153,9 @@ async fn test_pending_drafts_exclude_expired() {
     );
 }
 
-/// Test that signed drafts are excluded from pending list
-/// What is tested: Signed drafts are filtered out
-/// Why: Solvers should not see already-signed drafts
+// 5. Test: Signed drafts are excluded from pending list
+// Verifies that signed drafts are excluded from pending list.
+// Why: Solvers should not see already-signed drafts.
 #[tokio::test]
 async fn test_pending_drafts_exclude_signed() {
     let store = DraftintentStore::new();
@@ -205,9 +205,9 @@ async fn test_pending_drafts_exclude_signed() {
 // FCFS SIGNATURE TESTS
 // ============================================================================
 
-/// Test that first signature succeeds (FCFS)
-/// What is tested: First signature is accepted
-/// Why: FCFS logic - first solver to sign wins
+// 6. Test: First signature succeeds (FCFS)
+// Verifies that first signature succeeds (FCFS).
+// Why: FCFS logic - first solver to sign wins.
 #[tokio::test]
 async fn test_fcfs_first_signature_succeeds() {
     let store = DraftintentStore::new();
@@ -240,9 +240,9 @@ async fn test_fcfs_first_signature_succeeds() {
     assert_eq!(draft.signature.unwrap().solver_hub_addr, DUMMY_SOLVER_ADDR_HUB);
 }
 
-/// Test that second signature fails (FCFS)
-/// What is tested: Later signatures are rejected
-/// Why: FCFS logic - only first signature wins
+// 7. Test: Second signature fails (FCFS)
+// Verifies that second signature fails (FCFS).
+// Why: FCFS logic - only first signature wins.
 #[tokio::test]
 async fn test_fcfs_second_signature_fails() {
     let store = DraftintentStore::new();
@@ -289,9 +289,9 @@ async fn test_fcfs_second_signature_fails() {
     assert_eq!(draft.signature.unwrap().solver_hub_addr, DUMMY_SOLVER_ADDR_HUB);
 }
 
-/// Test that signature to non-existent draft fails
-/// What is tested: Error handling for missing draft
-/// Why: Should handle invalid draft_id gracefully
+// 8. Test: Signature to non-existent draft fails
+// Verifies that signature to non-existent draft fails.
+// Why: Should handle invalid draft_id gracefully.
 #[tokio::test]
 async fn test_signature_nonexistent_draft() {
     let store = DraftintentStore::new();
@@ -311,9 +311,9 @@ async fn test_signature_nonexistent_draft() {
     );
 }
 
-/// Test that signature to expired draft fails
-/// What is tested: Expired drafts cannot be signed
-/// Why: Expired drafts should be rejected
+// 9. Test: Signature to expired draft fails
+// Verifies that signature to expired draft fails.
+// Why: Expired drafts should be rejected.
 #[tokio::test]
 async fn test_signature_expired_draft() {
     let store = DraftintentStore::new();
@@ -347,9 +347,9 @@ async fn test_signature_expired_draft() {
 // STATUS TRANSITION TESTS
 // ============================================================================
 
-/// Test that draft status transitions from Pending to Signed
-/// What is tested: Status update when signature is added
-/// Why: Status must accurately reflect draft state
+// 10. Test: Draft status transitions from Pending to Signed
+// Verifies that draft status transitions from Pending to Signed.
+// Why: Status must accurately reflect draft state.
 #[tokio::test]
 async fn test_status_transition_pending_to_signed() {
     let store = DraftintentStore::new();
@@ -388,9 +388,9 @@ async fn test_status_transition_pending_to_signed() {
 // EXPIRY TESTS
 // ============================================================================
 
-/// Test that cleanup_expired marks expired drafts correctly
-/// What is tested: Expired drafts are marked as expired
-/// Why: Expired drafts should be cleaned up
+// 11. Test: Cleanup_expired marks expired drafts correctly
+// Verifies that cleanup_expired marks expired drafts correctly.
+// Why: Expired drafts should be cleaned up.
 #[tokio::test]
 async fn test_cleanup_expired() {
     let store = DraftintentStore::new();
@@ -432,9 +432,9 @@ async fn test_cleanup_expired() {
 // DATA VALIDATION TESTS
 // ============================================================================
 
-/// Test that draft with empty draft_data works
-/// What is tested: Empty draft_data is handled correctly
-/// Why: Edge case - should not crash on empty data
+// 12. Test: Draft with empty draft_data works
+// Verifies that draft with empty draft_data works.
+// Why: Edge case - should not crash on empty data.
 #[tokio::test]
 async fn test_draft_with_empty_data() {
     let store = DraftintentStore::new();
@@ -454,9 +454,9 @@ async fn test_draft_with_empty_data() {
     assert_eq!(retrieved.draft_data, serde_json::json!({}));
 }
 
-/// Test that signature timestamp is set correctly
-/// What is tested: Signature timestamp is recorded
-/// Why: Timestamps enable audit trail and ordering
+// 13. Test: Signature timestamp is set correctly
+// Verifies that signature timestamp is set correctly.
+// Why: Timestamps enable audit trail and ordering.
 #[tokio::test]
 async fn test_signature_timestamp() {
     let store = DraftintentStore::new();

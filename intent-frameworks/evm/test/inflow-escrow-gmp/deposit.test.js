@@ -26,9 +26,9 @@ describe("IntentInflowEscrow - Create Escrow (Deposit)", function () {
     intentId = fixtures.intentId;
   });
 
-  /// 1. Test: test_create_escrow_with_tokens: Token Escrow Creation
-  /// Verifies that requesters can create an escrow with ERC20 tokens after receiving requirements.
-  /// Why: Escrow creation is the first step after hub sends IntentRequirements. Requesters must be able to lock funds securely.
+  // 1. Test: test_create_escrow_with_tokens: Token Escrow Creation
+  // Verifies that requesters can create an escrow with ERC20 tokens after receiving requirements.
+  // Why: Escrow creation is the first step after hub sends IntentRequirements. Requesters must be able to lock funds securely.
   it("Should allow requester to create escrow with tokens", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -61,9 +61,9 @@ describe("IntentInflowEscrow - Create Escrow (Deposit)", function () {
     expect(escrowData.amount).to.equal(DEFAULT_AMOUNT);
   });
 
-  /// 2. Test: test_create_escrow_duplicate: Escrow Creation After Escrow Exists Prevention
-  /// Verifies that escrows cannot be created with an intent ID that already has an escrow.
-  /// Why: Prevents duplicate escrows and ensures each intent ID maps to a single escrow state.
+  // 2. Test: test_create_escrow_duplicate: Escrow Creation After Escrow Exists Prevention
+  // Verifies that escrows cannot be created with an intent ID that already has an escrow.
+  // Why: Prevents duplicate escrows and ensures each intent ID maps to a single escrow state.
   it("Should revert if escrow already exists", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);
@@ -96,9 +96,9 @@ describe("IntentInflowEscrow - Create Escrow (Deposit)", function () {
     ).to.be.revertedWithCustomError(escrow, "E_ESCROW_ALREADY_CREATED");
   });
 
-  /// 3. Test: test_multiple_escrows_different_intents: Multiple Escrows with Different Intent IDs
-  /// Verifies that multiple escrows can be created for different intent IDs.
-  /// Why: System must support concurrent escrows.
+  // 3. Test: test_multiple_escrows_different_intents: Multiple Escrows with Different Intent IDs
+  // Verifies that multiple escrows can be created for different intent IDs.
+  // Why: System must support concurrent escrows.
   it("Should support multiple escrows with different intent IDs", async function () {
     const intentId1 = intentId;
     const intentId2 = "0xbb000000000000000000000000000000000000000000000000000000000000cc";
@@ -155,9 +155,9 @@ describe("IntentInflowEscrow - Create Escrow (Deposit)", function () {
     expect(await token.balanceOf(escrow.target)).to.equal(amount1 + amount2);
   });
 
-  /// 4. Test: test_escrow_expiry_from_requirements: Escrow Expiry From Requirements
-  /// Verifies that escrow uses expiry from hub requirements.
-  /// Why: Expiry is determined by the hub, not locally. The connected chain must honor hub's expiry.
+  // 4. Test: test_escrow_expiry_from_requirements: Escrow Expiry From Requirements
+  // Verifies that escrow uses expiry from hub requirements.
+  // Why: Expiry is determined by the hub, not locally. The connected chain must honor hub's expiry.
   it("Should use expiry from requirements", async function () {
     const tokenAddr32 = addressToBytes32(token.target);
     const requesterAddr32 = addressToBytes32(requester.address);

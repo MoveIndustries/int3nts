@@ -53,8 +53,8 @@ fn dummy_payload() -> Vec<u8> {
 // INSTRUCTION SERIALIZATION TESTS
 // ============================================================================
 
-/// 1. Test: Initialize instruction serialization roundtrip
-/// Verifies that Initialize instruction can be serialized and deserialized.
+// 1. Test: Initialize instruction serialization roundtrip
+// Verifies that Initialize instruction can be serialized and deserialized.
 #[test]
 fn test_initialize_instruction_roundtrip() {
     let original_endpoint = Pubkey::new_unique();
@@ -86,8 +86,8 @@ fn test_initialize_instruction_roundtrip() {
     }
 }
 
-/// 2. Test: Receive instruction serialization roundtrip
-/// Verifies that GmpReceive instruction can be serialized and deserialized.
+// 2. Test: Receive instruction serialization roundtrip
+// Verifies that GmpReceive instruction can be serialized and deserialized.
 #[test]
 fn test_receive_instruction_roundtrip() {
     let original_chain_id = DUMMY_HUB_CHAIN_ID;
@@ -117,8 +117,8 @@ fn test_receive_instruction_roundtrip() {
     }
 }
 
-/// 3. Test: FulfillIntent instruction serialization roundtrip
-/// Verifies that FulfillIntent instruction can be serialized and deserialized.
+// 3. Test: FulfillIntent instruction serialization roundtrip
+// Verifies that FulfillIntent instruction can be serialized and deserialized.
 #[test]
 fn test_fulfill_intent_instruction_roundtrip() {
     let original_intent_id = dummy_intent_id();
@@ -142,8 +142,8 @@ fn test_fulfill_intent_instruction_roundtrip() {
 // STATE SERIALIZATION TESTS
 // ============================================================================
 
-/// 4. Test: IntentRequirementsAccount serialization roundtrip
-/// Verifies that requirements account state can be serialized and deserialized.
+// 4. Test: IntentRequirementsAccount serialization roundtrip
+// Verifies that requirements account state can be serialized and deserialized.
 #[test]
 fn test_intent_requirements_account_roundtrip() {
     let original_intent_id = dummy_intent_id();
@@ -177,8 +177,8 @@ fn test_intent_requirements_account_roundtrip() {
     assert_eq!(deserialized.bump, original_bump);
 }
 
-/// 5. Test: ConfigAccount serialization roundtrip
-/// Verifies that config account state can be serialized and deserialized.
+// 5. Test: ConfigAccount serialization roundtrip
+// Verifies that config account state can be serialized and deserialized.
 #[test]
 fn test_config_account_roundtrip() {
     let original_admin = Pubkey::new_unique();
@@ -209,8 +209,8 @@ fn test_config_account_roundtrip() {
 // ERROR CONVERSION TESTS
 // ============================================================================
 
-/// 6. Test: Error to ProgramError conversion
-/// Verifies that OutflowError can be converted to ProgramError.
+// 6. Test: Error to ProgramError conversion
+// Verifies that OutflowError can be converted to ProgramError.
 #[test]
 fn test_error_conversion() {
     use solana_program::program_error::ProgramError;
@@ -224,8 +224,8 @@ fn test_error_conversion() {
     }
 }
 
-/// 7. Test: All error variants have unique codes
-/// Verifies that each error variant maps to a unique error code.
+// 7. Test: All error variants have unique codes
+// Verifies that each error variant maps to a unique error code.
 #[test]
 fn test_error_codes_unique() {
     let errors = [

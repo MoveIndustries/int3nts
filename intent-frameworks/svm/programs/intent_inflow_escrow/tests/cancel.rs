@@ -22,9 +22,9 @@ use bincode::deserialize;
 // EXPIRY TESTS
 // ============================================================================
 
-/// 1. Test: Cancellation Before Expiry Prevention
-/// Verifies that admin cannot cancel escrows before expiry.
-/// Why: Funds must remain locked until expiry to give solvers time to fulfill.
+// 1. Test: Cancellation Before Expiry Prevention
+// Verifies that admin cannot cancel escrows before expiry.
+// Why: Funds must remain locked until expiry to give solvers time to fulfill.
 #[tokio::test]
 async fn test_revert_if_escrow_has_not_expired_yet() {
     let program_test = program_test();
@@ -86,11 +86,11 @@ async fn test_revert_if_escrow_has_not_expired_yet() {
     assert!(result.is_err(), "Should have thrown an error");
 }
 
-/// 2. Test: Admin Cancellation After Expiry
-/// Verifies that admin can cancel escrows after expiry and funds return to requester.
-/// Why: Admin needs a way to return funds if fulfillment doesn't occur.
-///
-/// NOTE: Uses 1-second expiry for fast testing. Production uses 120 seconds.
+// 2. Test: Admin Cancellation After Expiry
+// Verifies that admin can cancel escrows after expiry and funds return to requester.
+// Why: Admin needs a way to return funds if fulfillment doesn't occur.
+//
+// NOTE: Uses 1-second expiry for fast testing. Production uses 120 seconds.
 #[tokio::test]
 async fn test_cancel_after_expiry() {
     let program_test = program_test();
@@ -196,9 +196,9 @@ async fn test_cancel_after_expiry() {
 // AUTHORIZATION TESTS
 // ============================================================================
 
-/// 3. Test: Requester Cannot Cancel (only admin can)
-/// Verifies that the requester cannot cancel their own escrow — only admin can.
-/// Why: Security requirement - only admin can cancel expired escrows.
+// 3. Test: Requester Cannot Cancel (only admin can)
+// Verifies that the requester cannot cancel their own escrow — only admin can.
+// Why: Security requirement - only admin can cancel expired escrows.
 #[tokio::test]
 async fn test_revert_if_not_admin() {
     // Custom setup where admin ≠ requester
@@ -323,9 +323,9 @@ async fn test_revert_if_not_admin() {
     assert!(result.is_err(), "Should fail - requester is not admin");
 }
 
-/// 4. Test: Cancellation After Claim Prevention (GMP Mode)
-/// Verifies that attempting to cancel an already-claimed escrow reverts.
-/// Why: Once funds are claimed, they cannot be cancelled.
+// 4. Test: Cancellation After Claim Prevention (GMP Mode)
+// Verifies that attempting to cancel an already-claimed escrow reverts.
+// Why: Once funds are claimed, they cannot be cancelled.
 #[tokio::test]
 async fn test_revert_if_already_claimed() {
     let program_test = program_test();
@@ -455,9 +455,9 @@ async fn test_revert_if_already_claimed() {
 // NON-EXISTENT ESCROW TESTS
 // ============================================================================
 
-/// 5. Test: Non-Existent Escrow Prevention
-/// Verifies that canceling a non-existent escrow reverts.
-/// Why: Prevents invalid operations on non-existent escrows.
+// 5. Test: Non-Existent Escrow Prevention
+// Verifies that canceling a non-existent escrow reverts.
+// Why: Prevents invalid operations on non-existent escrows.
 #[tokio::test]
 async fn test_revert_if_escrow_does_not_exist() {
     let program_test = program_test();
@@ -501,9 +501,9 @@ async fn test_revert_if_escrow_does_not_exist() {
 // ADMIN CANCEL TESTS
 // ============================================================================
 
-/// 6. Test: Double Cancellation Prevention
-/// Verifies that canceling an already-cancelled escrow reverts.
-/// Why: Prevents double-refund by ensuring released escrows cannot be cancelled again.
+// 6. Test: Double Cancellation Prevention
+// Verifies that canceling an already-cancelled escrow reverts.
+// Why: Prevents double-refund by ensuring released escrows cannot be cancelled again.
 #[tokio::test]
 async fn test_revert_if_already_cancelled() {
     let program_test = program_test();

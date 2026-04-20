@@ -9,9 +9,9 @@ describe('CoordinatorClient', () => {
   // ============================================================================
 
   describe('constructor', () => {
-    /// 1. Test: Constructor Requires Explicit URL
-    /// Verifies that the client accepts a coordinator URL at construction time.
-    /// Why: The SDK must not read environment variables — all config is caller-provided.
+    // 1. Test: Constructor Requires Explicit URL
+    // Verifies that the client accepts a coordinator URL at construction time.
+    // Why: The SDK must not read environment variables — all config is caller-provided.
     it('accepts a coordinator URL', () => {
       const client = new CoordinatorClient(TEST_URL);
       expect(client).toBeDefined();
@@ -23,9 +23,9 @@ describe('CoordinatorClient', () => {
       vi.restoreAllMocks();
     });
 
-    /// 2. Test: Health Check Endpoint
-    /// Verifies that health() calls GET /health with correct URL and headers.
-    /// Why: Ensures the client builds URLs from the provided base, not from hardcoded values.
+    // 2. Test: Health Check Endpoint
+    // Verifies that health() calls GET /health with correct URL and headers.
+    // Why: Ensures the client builds URLs from the provided base, not from hardcoded values.
     it('calls GET /health', async () => {
       const mockResponse = { success: true, data: 'ok', error: null };
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -51,9 +51,9 @@ describe('CoordinatorClient', () => {
       vi.restoreAllMocks();
     });
 
-    /// 3. Test: Create Draft Intent
-    /// Verifies that createDraftIntent() sends POST /draftintent with the full request body.
-    /// Why: Draft creation is the entry point of the requester flow — incorrect serialization breaks negotiation.
+    // 3. Test: Create Draft Intent
+    // Verifies that createDraftIntent() sends POST /draftintent with the full request body.
+    // Why: Draft creation is the entry point of the requester flow — incorrect serialization breaks negotiation.
     it('sends POST /draftintent with request body', async () => {
       const mockResponse = {
         success: true,
@@ -106,9 +106,9 @@ describe('CoordinatorClient', () => {
       vi.restoreAllMocks();
     });
 
-    /// 4. Test: HTTP Error Returns Structured Response
-    /// Verifies that HTTP 500 returns {success: false} with the server's error message.
-    /// Why: Callers must get actionable error info — swallowed failures hide coordinator problems.
+    // 4. Test: HTTP Error Returns Structured Response
+    // Verifies that an HTTP error response is returned with success=false and the server's error message surfaced.
+    // Why: Callers must get actionable error info — swallowed failures hide coordinator problems.
     it('returns error response on HTTP 500', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: false,
@@ -125,9 +125,9 @@ describe('CoordinatorClient', () => {
       expect(result.data).toBeNull();
     });
 
-    /// 5. Test: Connection Error on Fetch Failure
-    /// Verifies that a TypeError from fetch produces an actionable "Failed to connect" message.
-    /// Why: Network failures must tell the caller that the coordinator is unreachable, not throw raw errors.
+    // 5. Test: Connection Error on Fetch Failure
+    // Verifies that a TypeError from fetch produces an actionable connection-failure error message.
+    // Why: Network failures must tell the caller that the coordinator is unreachable, not throw raw errors.
     it('returns connection error on fetch failure', async () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(
         new TypeError('fetch failed'),
@@ -151,9 +151,9 @@ describe('CoordinatorClient', () => {
       vi.restoreAllMocks();
     });
 
-    /// 6. Test: Exchange Rate Query with Offered Token Only
-    /// Verifies that getExchangeRate() builds query params with only offered_chain_id and offered_token.
-    /// Why: Partial queries (offered-only) are used for fee estimation before the user selects a desired token.
+    // 6. Test: Exchange Rate Query with Offered Token Only
+    // Verifies that getExchangeRate() builds query params with only offered_chain_id and offered_token.
+    // Why: Partial queries (offered-only) are used for fee estimation before the user selects a desired token.
     it('builds query params for offered token only', async () => {
       const mockResponse = { success: true, data: { exchange_rate: 1.0 }, error: null };
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -170,9 +170,9 @@ describe('CoordinatorClient', () => {
       expect(calledUrl).not.toContain('desired_chain_id');
     });
 
-    /// 7. Test: Exchange Rate Query with Desired Token
-    /// Verifies that getExchangeRate() includes desired_chain_id and desired_token when provided.
-    /// Why: Full exchange rate queries require both sides for accurate rate calculation.
+    // 7. Test: Exchange Rate Query with Desired Token
+    // Verifies that getExchangeRate() includes desired_chain_id and desired_token when provided.
+    // Why: Full exchange rate queries require both sides for accurate rate calculation.
     it('includes desired params when provided', async () => {
       const mockResponse = { success: true, data: { exchange_rate: 1.0 }, error: null };
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -198,9 +198,9 @@ describe('CoordinatorClient', () => {
       vi.restoreAllMocks();
     });
 
-    /// 8. Test: Poll Timeout
-    /// Verifies that pollUntilSigned() returns a timeout error when the deadline is exceeded.
-    /// Why: Prevents infinite polling if the solver never signs — callers must get control back.
+    // 8. Test: Poll Timeout
+    // Verifies that pollUntilSigned() returns a timeout error when the deadline is exceeded.
+    // Why: Prevents infinite polling if the solver never signs — callers must get control back.
     it('returns timeout error when deadline exceeded', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: true,
@@ -221,9 +221,9 @@ describe('CoordinatorClient', () => {
       expect(result.error).toBe('Polling timeout');
     });
 
-    /// 9. Test: Non-Polling Error Returns Immediately
-    /// Verifies that errors other than "not yet signed" stop polling and return immediately.
-    /// Why: Only the pending state should trigger retries — other errors (e.g., "not found") are final.
+    // 9. Test: Non-Polling Error Returns Immediately
+    // Verifies that errors other than "not yet signed" stop polling and return immediately.
+    // Why: Only the pending state should trigger retries — other errors (e.g., "not found") are final.
     it('returns immediately on non-polling error', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: true,
@@ -246,9 +246,9 @@ describe('CoordinatorClient', () => {
       expect(fetch).toHaveBeenCalledTimes(1);
     });
 
-    /// 10. Test: Poll Returns Signed Response
-    /// Verifies that pollUntilSigned() retries and returns the signature once the solver signs.
-    /// Why: Happy path — the requester must receive the solver's signature after polling through pending states.
+    // 10. Test: Poll Returns Signed Response
+    // Verifies that pollUntilSigned() retries and returns the signature once the solver signs.
+    // Why: Happy path — the requester must receive the solver's signature after polling through pending states.
     it('returns signed response when solver signs', async () => {
       let callCount = 0;
       vi.stubGlobal('fetch', vi.fn().mockImplementation(() => {

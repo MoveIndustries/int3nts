@@ -11,9 +11,9 @@ use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 // EDGE CASE TESTS
 // ============================================================================
 
-/// 1. Test: Maximum Values
-/// Verifies that createEscrow handles maximum values for both amounts and intent IDs.
-/// Why: Edge case testing ensures the program handles boundary values without overflow or underflow.
+// 1. Test: Maximum Values
+// Verifies that createEscrow handles maximum values for both amounts and intent IDs.
+// Why: Edge case testing ensures the program handles boundary values without overflow or underflow.
 #[tokio::test]
 async fn test_handle_maximum_values_for_amounts_and_intent_ids() {
     let program_test = program_test();
@@ -62,9 +62,9 @@ async fn test_handle_maximum_values_for_amounts_and_intent_ids() {
     assert_eq!(escrow.requester, env.requester.pubkey());
 }
 
-/// 2. Test: Empty Deposit Scenarios
-/// Verifies edge cases around minimum deposit amounts (1 token unit).
-/// Why: Ensures the program accepts the minimum valid amount (1 token unit) without rejecting it as zero.
+// 2. Test: Empty Deposit Scenarios
+// Verifies edge cases around minimum deposit amounts (1 token unit).
+// Why: Ensures the program accepts the minimum valid amount (1 token unit) without rejecting it as zero.
 #[tokio::test]
 async fn test_handle_minimum_deposit_amount() {
     let program_test = program_test();
@@ -118,9 +118,9 @@ async fn test_handle_minimum_deposit_amount() {
     assert_eq!(vault_balance, min_amount);
 }
 
-/// 3. Test: Multiple Escrows Per Requester
-/// Verifies that a requester can create multiple escrows with different intent IDs.
-/// Why: Requesters may need multiple concurrent escrows for different intents. State isolation must be maintained.
+// 3. Test: Multiple Escrows Per Requester
+// Verifies that a requester can create multiple escrows with different intent IDs.
+// Why: Requesters may need multiple concurrent escrows for different intents. State isolation must be maintained.
 #[tokio::test]
 async fn test_allow_requester_to_create_multiple_escrows() {
     let program_test = program_test();
@@ -177,11 +177,11 @@ async fn test_allow_requester_to_create_multiple_escrows() {
     }
 }
 
-/// 4. Test: Gas Limit Scenarios
-/// Verifies gas consumption for large operations (multiple escrows, large amounts).
-/// Why: Gas efficiency is critical for user experience. Operations must stay within reasonable gas limits.
-///
-/// NOTE: SVM uses compute units instead of gas. This test verifies compute unit consumption.
+// 4. Test: Gas Limit Scenarios
+// Verifies gas consumption for large operations (multiple escrows, large amounts).
+// Why: Gas efficiency is critical for user experience. Operations must stay within reasonable gas limits.
+//
+// NOTE: SVM uses compute units instead of gas. This test verifies compute unit consumption.
 #[tokio::test]
 async fn test_handle_gas_consumption_for_large_operations() {
     let program_test = program_test();
@@ -235,9 +235,9 @@ async fn test_handle_gas_consumption_for_large_operations() {
     }
 }
 
-/// 5. Test: Concurrent Operations
-/// Verifies that multiple simultaneous escrow operations can be handled correctly.
-/// Why: Real-world usage involves concurrent operations. The program must handle them without state corruption.
+// 5. Test: Concurrent Operations
+// Verifies that multiple simultaneous escrow operations can be handled correctly.
+// Why: Real-world usage involves concurrent operations. The program must handle them without state corruption.
 #[tokio::test]
 async fn test_handle_concurrent_escrow_operations() {
     let program_test = program_test();

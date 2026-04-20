@@ -20,9 +20,9 @@ use common::{program_test, setup_basic_env};
 //
 // For now, this file exists to maintain test structure alignment across frameworks.
 
-/// Test: Scripts Placeholder
-/// Verifies that the test structure is in place for script testing.
-/// Why: Maintains alignment with test structure across frameworks. Will be expanded in Phase 6.
+// 1. Test: Scripts Placeholder
+// Verifies that the test structure is in place for script testing.
+// Why: Maintains alignment with test structure across frameworks. Will be expanded in Phase 6.
 #[tokio::test]
 async fn test_scripts_test_structure_in_place() {
     let program_test = program_test();

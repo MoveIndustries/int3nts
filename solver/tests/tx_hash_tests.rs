@@ -9,27 +9,27 @@ use solver::chains::tx_hash::extract_tx_hash;
 // JSON Parsing Tests
 // ============================================================================
 
-//1. Test: extract_tx_hash parses aptos CLI JSON output
-// Verifies: JSON strategy extracts hash from {"Result": {"transaction_hash": "0x..."}}
-// Why: aptos CLI outputs this format; must parse correctly
+// 1. Test: extract_tx_hash parses aptos CLI JSON output
+// Verifies that the JSON strategy extracts the transaction hash from a Result-wrapped JSON object with a transaction_hash field.
+// Why: aptos CLI outputs this format; must parse correctly.
 #[test]
 fn test_extract_from_json() {
     let output = r#"{"Result": {"transaction_hash": "0xabc123", "gas_used": 100}}"#;
     assert_eq!(extract_tx_hash(output, "test").unwrap(), "0xabc123");
 }
 
-//2. Test: extract_tx_hash parses unquoted line-based output
-// Verifies: Line strategy extracts hash from "Transaction hash: 0x..." format
-// Why: Hardhat scripts output this format
+// 2. Test: extract_tx_hash parses unquoted line-based output
+// Verifies that the Line strategy extracts the transaction hash from a labeled line of unquoted CLI output.
+// Why: Hardhat scripts output this format.
 #[test]
 fn test_extract_from_line_unquoted() {
     let output = "Some preamble\nTransaction hash: 0xdef456\nDone";
     assert_eq!(extract_tx_hash(output, "test").unwrap(), "0xdef456");
 }
 
-//3. Test: extract_tx_hash parses quoted JSON hash field
-// Verifies: Handles {"transaction_hash": "0x..."} (non-Result-wrapped JSON)
-// Why: Some output formats use flat JSON with quoted hash values
+// 3. Test: extract_tx_hash parses quoted JSON hash field
+// Verifies that extract_tx_hash handles a flat JSON object with a quoted transaction_hash field (not wrapped in Result).
+// Why: Some output formats use flat JSON with quoted hash values.
 #[test]
 fn test_extract_from_line_quoted() {
     let output = r#"{"transaction_hash": "0x789abc"}"#;
@@ -40,9 +40,9 @@ fn test_extract_from_line_quoted() {
 // Error Handling Tests
 // ============================================================================
 
-//4. Test: extract_tx_hash fails when no hash is present
-// Verifies: Returns error for output containing no transaction hash
-// Why: Must fail explicitly rather than returning garbage
+// 4. Test: extract_tx_hash fails when no hash is present
+// Verifies that extract_tx_hash returns an error when the output contains no transaction hash.
+// Why: Must fail explicitly rather than returning garbage.
 #[test]
 fn test_extract_no_hash_fails() {
     let output = "No hash here\nJust some output";
@@ -53,8 +53,8 @@ fn test_extract_no_hash_fails() {
 // Integration-Style Tests
 // ============================================================================
 
-//5. Test: extract_tx_hash parses multi-line Hardhat output
-// Verifies: Correctly finds hash line among other Hardhat output lines
+// 5. Test: extract_tx_hash parses multi-line Hardhat output
+// Verifies that extract_tx_hash finds the transaction hash line among unrelated Hardhat output lines.
 // Why: Real Hardhat output includes solver address, block number, etc.
 #[test]
 fn test_extract_hardhat_output() {

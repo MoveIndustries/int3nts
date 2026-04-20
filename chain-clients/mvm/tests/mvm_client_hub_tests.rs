@@ -271,9 +271,9 @@ async fn setup_mock_server_with_resources(
 // SOLVER REGISTRY LOOKUP — MVM ADDRESS
 // ============================================================================
 
-/// 1. Test: get_solver_mvm_address returns address when solver is registered
-/// Verifies: Successful MVM address lookup from solver registry.
-/// Why: Primary happy path for connected chain address resolution.
+// 1. Test: get_solver_mvm_address returns address when solver is registered
+// Verifies that Successful MVM address lookup from solver registry.
+// Why: Primary happy path for connected chain address resolution.
 #[tokio::test]
 async fn test_get_solver_mvm_addr_success() {
     let resources = create_solver_registry_resource_with_mvm_address(
@@ -288,9 +288,9 @@ async fn test_get_solver_mvm_addr_success() {
     assert_eq!(result, Some(DUMMY_SOLVER_ADDR_MVMCON.to_string()));
 }
 
-/// 2. Test: get_solver_mvm_address returns None when address not set
-/// Verifies: Correct handling when solver has no connected chain MVM address.
-/// Why: Prevents false positives for uninitialized address fields.
+// 2. Test: get_solver_mvm_address returns None when address not set
+// Verifies that Correct handling when solver has no connected chain MVM address.
+// Why: Prevents false positives for uninitialized address fields.
 #[tokio::test]
 async fn test_get_solver_mvm_addr_none() {
     let resources = create_solver_registry_resource_with_mvm_address(
@@ -305,9 +305,9 @@ async fn test_get_solver_mvm_addr_none() {
     assert_eq!(result, None);
 }
 
-/// 3. Test: get_solver_mvm_address returns None for unregistered solver
-/// Verifies: Correct handling of unregistered solvers.
-/// Why: Prevents incorrect address lookups for unknown solvers.
+// 3. Test: get_solver_mvm_address returns None for unregistered solver
+// Verifies that Correct handling of unregistered solvers.
+// Why: Prevents incorrect address lookups for unknown solvers.
 #[tokio::test]
 async fn test_get_solver_mvm_addr_solver_not_found() {
     let resources = create_solver_registry_resource_with_mvm_address(
@@ -322,9 +322,9 @@ async fn test_get_solver_mvm_addr_solver_not_found() {
     assert_eq!(result, None);
 }
 
-/// 4. Test: get_solver_mvm_address returns None when registry missing
-/// Verifies: Correct handling when SolverRegistry resource doesn't exist.
-/// Why: Prevents panics on uninitialized state.
+// 4. Test: get_solver_mvm_address returns None when registry missing
+// Verifies that Correct handling when SolverRegistry resource doesn't exist.
+// Why: Prevents panics on uninitialized state.
 #[tokio::test]
 async fn test_get_solver_mvm_addr_registry_not_found() {
     let (_s, client) =
@@ -337,9 +337,9 @@ async fn test_get_solver_mvm_addr_registry_not_found() {
     assert_eq!(result, None);
 }
 
-/// 5. Test: get_solver_mvm_address handles address normalization
-/// Verifies: Address matching works with/without 0x prefix.
-/// Why: Prevents lookup failures from inconsistent formatting.
+// 5. Test: get_solver_mvm_address handles address normalization
+// Verifies that Address matching works with/without 0x prefix.
+// Why: Prevents lookup failures from inconsistent formatting.
 #[tokio::test]
 async fn test_get_solver_mvm_addr_address_normalization() {
     let resources = create_solver_registry_resource_with_mvm_address(
@@ -360,9 +360,9 @@ async fn test_get_solver_mvm_addr_address_normalization() {
 // SOLVER REGISTRY LOOKUP — EVM ADDRESS
 // ============================================================================
 
-/// 6. Test: get_solver_evm_address parses array format
-/// Verifies: Aptos Option<vector<u8>> as {"vec": [[bytes_array]]} is parsed correctly.
-/// Why: Aptos serialization format varies; array format is the most common.
+// 6. Test: get_solver_evm_address parses array format
+// Verifies that Aptos Option<vector<u8>> as {"vec": [[bytes_array]]} is parsed correctly.
+// Why: Aptos serialization format varies; array format is the most common.
 #[tokio::test]
 async fn test_get_solver_evm_address_array_format() {
     let resources = create_solver_registry_resource_with_evm_address_array(
@@ -377,9 +377,9 @@ async fn test_get_solver_evm_address_array_format() {
     assert_eq!(result, Some(DUMMY_SOLVER_ADDR_EVM.to_string()));
 }
 
-/// 7. Test: get_solver_evm_address parses hex string format
-/// Verifies: Aptos Option<vector<u8>> as {"vec": ["0xhexstring"]} is parsed correctly.
-/// Why: This format caused EVM outflow validation failures in production.
+// 7. Test: get_solver_evm_address parses hex string format
+// Verifies that Aptos Option<vector<u8>> as {"vec": ["0xhexstring"]} is parsed correctly.
+// Why: This format caused EVM outflow validation failures in production.
 #[tokio::test]
 async fn test_get_solver_evm_address_hex_string_format() {
     let resources = create_solver_registry_resource_with_evm_address_hex_string(
@@ -394,9 +394,9 @@ async fn test_get_solver_evm_address_hex_string_format() {
     assert_eq!(result, Some(DUMMY_SOLVER_ADDR_EVM.to_string()));
 }
 
-/// 8. Test: get_solver_mvm_address handles leading zero mismatch
-/// Verifies: Registry found despite Move stripping leading zeros from type names.
-/// Why: Move strips leading zeros from addresses in type names but API uses full address.
+// 8. Test: get_solver_mvm_address handles leading zero mismatch
+// Verifies that Registry found despite Move stripping leading zeros from type names.
+// Why: Move strips leading zeros from addresses in type names but API uses full address.
 #[tokio::test]
 async fn test_get_solver_mvm_address_leading_zero_mismatch() {
     let addr_full = "0x0123456789012345678901234567890123456789012345678901234567890123";
@@ -415,9 +415,9 @@ async fn test_get_solver_mvm_address_leading_zero_mismatch() {
     assert_eq!(result, Some(DUMMY_SOLVER_ADDR_MVMCON.to_string()));
 }
 
-/// 9. Test: get_solver_evm_address handles leading zero mismatch
-/// Verifies: Registry found despite Move stripping leading zeros from type names.
-/// Why: Same issue as MVM but for EVM address lookup.
+// 9. Test: get_solver_evm_address handles leading zero mismatch
+// Verifies that Registry found despite Move stripping leading zeros from type names.
+// Why: Same issue as MVM but for EVM address lookup.
 #[tokio::test]
 async fn test_get_solver_evm_address_leading_zero_mismatch() {
     let addr_full = "0x0123456789012345678901234567890123456789012345678901234567890123";
@@ -436,10 +436,9 @@ async fn test_get_solver_evm_address_leading_zero_mismatch() {
     assert_eq!(result, Some(DUMMY_SOLVER_ADDR_EVM.to_string()));
 }
 
-/// 10. Test: get_solver_evm_address handles leading zero stripped from registry key
-/// Verifies: Lookup succeeds when the on-chain registry key has leading zeros stripped.
-/// Why: Move/Aptos may strip leading zeros from addresses stored as map keys, causing
-///      a 63-char key to not match a 64-char lookup address.
+// 10. Test: get_solver_evm_address handles leading zero stripped from registry key
+// Verifies that Lookup succeeds when the on-chain registry key has leading zeros stripped.
+// Why: Move/Aptos may strip leading zeros from addresses stored as map keys, causing.
 #[tokio::test]
 async fn test_get_solver_evm_address_leading_zero_key_mismatch() {
     let addr_full = "0x0123456789012345678901234567890123456789012345678901234567890123";
@@ -462,9 +461,9 @@ async fn test_get_solver_evm_address_leading_zero_key_mismatch() {
 // SOLVER REGISTRY LOOKUP — SVM ADDRESS
 // ============================================================================
 
-/// 11. Test: get_solver_svm_address parses array format
-/// Verifies: 32-byte SVM address correctly parsed from array format.
-/// Why: SVM addresses are 32 bytes (Solana public key) vs 20 bytes for EVM.
+// 11. Test: get_solver_svm_address parses array format
+// Verifies that 32-byte SVM address correctly parsed from array format.
+// Why: SVM addresses are 32 bytes (Solana public key) vs 20 bytes for EVM.
 #[tokio::test]
 async fn test_get_solver_svm_address_array_format() {
     let resources = create_solver_registry_resource_with_svm_address_array(
@@ -479,9 +478,9 @@ async fn test_get_solver_svm_address_array_format() {
     assert_eq!(result, Some(DUMMY_SOLVER_ADDR_SVM.to_string()));
 }
 
-/// 12. Test: get_solver_svm_address parses hex string format
-/// Verifies: 32-byte SVM address correctly parsed from hex string format.
-/// Why: Aptos can serialize addresses as hex strings instead of byte arrays.
+// 12. Test: get_solver_svm_address parses hex string format
+// Verifies that 32-byte SVM address correctly parsed from hex string format.
+// Why: Aptos can serialize addresses as hex strings instead of byte arrays.
 #[tokio::test]
 async fn test_get_solver_svm_address_hex_string_format() {
     let resources = create_solver_registry_resource_with_svm_address_hex_string(
@@ -496,9 +495,9 @@ async fn test_get_solver_svm_address_hex_string_format() {
     assert_eq!(result, Some(DUMMY_SOLVER_ADDR_SVM.to_string()));
 }
 
-/// 13. Test: get_solver_svm_address handles leading zero mismatch
-/// Verifies: Registry found despite Move stripping leading zeros from type names.
-/// Why: Same issue as MVM/EVM but for SVM address lookup.
+// 13. Test: get_solver_svm_address handles leading zero mismatch
+// Verifies that Registry found despite Move stripping leading zeros from type names.
+// Why: Same issue as MVM/EVM but for SVM address lookup.
 #[tokio::test]
 async fn test_get_solver_svm_address_leading_zero_mismatch() {
     let addr_full = "0x0123456789012345678901234567890123456789012345678901234567890123";
@@ -521,9 +520,9 @@ async fn test_get_solver_svm_address_leading_zero_mismatch() {
 // SOLVER PUBLIC KEY
 // ============================================================================
 
-/// 14. Test: get_solver_public_key returns key when registered
-/// Verifies: Successful public key retrieval from registry.
-/// Why: Signature submission requires verifying solver is registered.
+// 14. Test: get_solver_public_key returns key when registered
+// Verifies that Successful public key retrieval from registry.
+// Why: Signature submission requires verifying solver is registered.
 #[tokio::test]
 async fn test_get_solver_public_key_success() {
     let public_key = vec![1u8, 2, 3, 4, 5];
@@ -536,9 +535,9 @@ async fn test_get_solver_public_key_success() {
     assert_eq!(result, Some(public_key));
 }
 
-/// 15. Test: get_solver_public_key returns None when not registered
-/// Verifies: Unregistered solver returns None.
-/// Why: Unregistered solvers must be rejected.
+// 15. Test: get_solver_public_key returns None when not registered
+// Verifies that Unregistered solver returns None.
+// Why: Unregistered solvers must be rejected.
 #[tokio::test]
 async fn test_get_solver_public_key_not_registered() {
     let (_s, client) = setup_mock_server_with_public_key(None).await;
@@ -550,9 +549,9 @@ async fn test_get_solver_public_key_not_registered() {
     assert_eq!(result, None);
 }
 
-/// 16. Test: get_solver_public_key handles empty hex string
-/// Verifies: Empty hex ("0x") treated as not registered.
-/// Why: Aptos returns "0x" for empty vector<u8>.
+// 16. Test: get_solver_public_key handles empty hex string
+// Verifies that an empty hex response is treated as not registered.
+// Why: Aptos returns "0x" for empty vector<u8>.
 #[tokio::test]
 async fn test_get_solver_public_key_empty_hex_string() {
     let mock_server = MockServer::start().await;
@@ -570,9 +569,9 @@ async fn test_get_solver_public_key_empty_hex_string() {
     assert_eq!(result, None);
 }
 
-/// 17. Test: get_solver_public_key errors on unexpected format
-/// Verifies: Non-array response results in error.
-/// Why: Unexpected formats must fail loudly.
+// 17. Test: get_solver_public_key errors on unexpected format
+// Verifies that Non-array response results in error.
+// Why: Unexpected formats must fail loudly.
 #[tokio::test]
 async fn test_get_solver_public_key_errors_on_unexpected_format() {
     let mock_server = MockServer::start().await;
@@ -590,9 +589,9 @@ async fn test_get_solver_public_key_errors_on_unexpected_format() {
     assert!(result.unwrap_err().to_string().contains("expected array"));
 }
 
-/// 18. Test: get_solver_public_key handles 32-byte Ed25519 key
-/// Verifies: Real-world Ed25519 32-byte public key format.
-/// Why: Ed25519 keys are exactly 32 bytes.
+// 18. Test: get_solver_public_key handles 32-byte Ed25519 key
+// Verifies that Real-world Ed25519 32-byte public key format.
+// Why: Ed25519 keys are exactly 32 bytes.
 #[tokio::test]
 async fn test_get_solver_public_key_ed25519_format() {
     let public_key: Vec<u8> = (0..32).collect();
@@ -607,9 +606,9 @@ async fn test_get_solver_public_key_ed25519_format() {
     assert_eq!(pk, public_key);
 }
 
-/// 19. Test: get_solver_public_key errors on empty array
-/// Verifies: Empty array response results in error.
-/// Why: View function must return at least one element.
+// 19. Test: get_solver_public_key errors on empty array
+// Verifies that Empty array response results in error.
+// Why: View function must return at least one element.
 #[tokio::test]
 async fn test_get_solver_public_key_errors_on_empty_array() {
     let mock_server = MockServer::start().await;
@@ -627,9 +626,9 @@ async fn test_get_solver_public_key_errors_on_empty_array() {
     assert!(result.unwrap_err().to_string().contains("Empty response array"));
 }
 
-/// 20. Test: get_solver_public_key errors on non-string element
-/// Verifies: Non-string element in array results in error.
-/// Why: Aptos returns hex strings, not raw numbers.
+// 20. Test: get_solver_public_key errors on non-string element
+// Verifies that Non-string element in array results in error.
+// Why: Aptos returns hex strings, not raw numbers.
 #[tokio::test]
 async fn test_get_solver_public_key_errors_on_non_string_element() {
     let mock_server = MockServer::start().await;
@@ -647,9 +646,9 @@ async fn test_get_solver_public_key_errors_on_non_string_element() {
     assert!(result.unwrap_err().to_string().contains("expected hex string"));
 }
 
-/// 21. Test: get_solver_public_key errors on invalid hex
-/// Verifies: Invalid hex characters result in error.
-/// Why: Hex decode must fail on invalid characters.
+// 21. Test: get_solver_public_key errors on invalid hex
+// Verifies that Invalid hex characters result in error.
+// Why: Hex decode must fail on invalid characters.
 #[tokio::test]
 async fn test_get_solver_public_key_errors_on_invalid_hex() {
     let mock_server = MockServer::start().await;
@@ -667,9 +666,9 @@ async fn test_get_solver_public_key_errors_on_invalid_hex() {
     assert!(result.unwrap_err().to_string().contains("Failed to decode hex"));
 }
 
-/// 22. Test: get_solver_public_key errors on HTTP error
-/// Verifies: HTTP errors are propagated.
-/// Why: Network errors must be surfaced, not silently ignored.
+// 22. Test: get_solver_public_key errors on HTTP error
+// Verifies that HTTP errors are propagated.
+// Why: Network errors must be surfaced, not silently ignored.
 #[tokio::test]
 async fn test_get_solver_public_key_errors_on_http_error() {
     let mock_server = MockServer::start().await;
@@ -687,9 +686,9 @@ async fn test_get_solver_public_key_errors_on_http_error() {
     assert!(result.unwrap_err().to_string().contains("Failed to query solver public key"));
 }
 
-/// 23. Test: get_solver_public_key rejects address without 0x prefix
-/// Verifies: Address validation rejects malformed addresses.
-/// Why: Missing 0x prefix indicates a bug in calling code.
+// 23. Test: get_solver_public_key rejects address without 0x prefix
+// Verifies that Address validation rejects malformed addresses.
+// Why: Missing 0x prefix indicates a bug in calling code.
 #[tokio::test]
 async fn test_get_solver_public_key_rejects_address_without_prefix() {
     let mock_server = MockServer::start().await;
@@ -707,9 +706,9 @@ async fn test_get_solver_public_key_rejects_address_without_prefix() {
 // SOLVER REGISTRATION CHECK
 // ============================================================================
 
-/// 24. Test: is_solver_registered returns true for registered solver
-/// Verifies: View function call and boolean response parsing for registered solver.
-/// Why: Solver needs to verify registration before fulfillment attempts.
+// 24. Test: is_solver_registered returns true for registered solver
+// Verifies that View function call and boolean response parsing for registered solver.
+// Why: Solver needs to verify registration before fulfillment attempts.
 #[tokio::test]
 async fn test_is_solver_registered_true() {
     let mock_server = MockServer::start().await;
@@ -727,9 +726,9 @@ async fn test_is_solver_registered_true() {
     assert!(result);
 }
 
-/// 25. Test: is_solver_registered returns false for unregistered solver
-/// Verifies: False response correctly parsed.
-/// Why: Unregistered solvers must be rejected to avoid wasting gas.
+// 25. Test: is_solver_registered returns false for unregistered solver
+// Verifies that False response correctly parsed.
+// Why: Unregistered solvers must be rejected to avoid wasting gas.
 #[tokio::test]
 async fn test_is_solver_registered_false() {
     let mock_server = MockServer::start().await;
@@ -747,9 +746,9 @@ async fn test_is_solver_registered_false() {
     assert!(!result);
 }
 
-/// 26. Test: is_solver_registered handles address normalization
-/// Verifies: Addresses with/without 0x prefix both work.
-/// Why: Address format shouldn't affect registration checks.
+// 26. Test: is_solver_registered handles address normalization
+// Verifies that Addresses with/without 0x prefix both work.
+// Why: Address format shouldn't affect registration checks.
 #[tokio::test]
 async fn test_is_solver_registered_address_normalization() {
     let mock_server = MockServer::start().await;
@@ -776,9 +775,9 @@ async fn test_is_solver_registered_address_normalization() {
     assert!(result2);
 }
 
-/// 27. Test: is_solver_registered propagates HTTP errors
-/// Verifies: HTTP errors are not swallowed.
-/// Why: Network errors must propagate so the caller can retry or alert.
+// 27. Test: is_solver_registered propagates HTTP errors
+// Verifies that HTTP errors are not swallowed.
+// Why: Network errors must propagate so the caller can retry or alert.
 #[tokio::test]
 async fn test_is_solver_registered_http_error() {
     let mock_server = MockServer::start().await;
@@ -799,9 +798,9 @@ async fn test_is_solver_registered_http_error() {
         .contains("Failed to query solver registration"));
 }
 
-/// 28. Test: is_solver_registered errors on invalid JSON
-/// Verifies: Malformed responses result in errors, not panics.
-/// Why: Invalid JSON must fail clearly.
+// 28. Test: is_solver_registered errors on invalid JSON
+// Verifies that Malformed responses result in errors, not panics.
+// Why: Invalid JSON must fail clearly.
 #[tokio::test]
 async fn test_is_solver_registered_invalid_json() {
     let mock_server = MockServer::start().await;
@@ -818,9 +817,9 @@ async fn test_is_solver_registered_invalid_json() {
     assert!(result.is_err());
 }
 
-/// 29. Test: is_solver_registered errors on unexpected format
-/// Verifies: Empty array or wrong type results in error.
-/// Why: Unexpected formats must fail loudly.
+// 29. Test: is_solver_registered errors on unexpected format
+// Verifies that Empty array or wrong type results in error.
+// Why: Unexpected formats must fail loudly.
 #[tokio::test]
 async fn test_is_solver_registered_unexpected_format() {
     let mock_server = MockServer::start().await;
@@ -845,9 +844,9 @@ async fn test_is_solver_registered_unexpected_format() {
 // OUTFLOW REQUIREMENTS
 // ============================================================================
 
-/// 30. Test: has_outflow_requirements returns true when requirements delivered
-/// Verifies: View function call and boolean response parsing.
-/// Why: The solver polls this before calling fulfill_intent.
+// 30. Test: has_outflow_requirements returns true when requirements delivered
+// Verifies that View function call and boolean response parsing.
+// Why: The solver polls this before calling fulfill_intent.
 #[tokio::test]
 async fn test_has_outflow_requirements_success() {
     let mock_server = MockServer::start().await;
@@ -865,9 +864,9 @@ async fn test_has_outflow_requirements_success() {
     assert!(result);
 }
 
-/// 31. Test: has_outflow_requirements returns false when not delivered
-/// Verifies: False response correctly parsed.
-/// Why: The solver polls this repeatedly; false must not be misinterpreted.
+// 31. Test: has_outflow_requirements returns false when not delivered
+// Verifies that False response correctly parsed.
+// Why: The solver polls this repeatedly; false must not be misinterpreted.
 #[tokio::test]
 async fn test_has_outflow_requirements_false() {
     let mock_server = MockServer::start().await;
@@ -885,9 +884,9 @@ async fn test_has_outflow_requirements_false() {
     assert!(!result);
 }
 
-/// 32. Test: has_outflow_requirements propagates HTTP errors
-/// Verifies: HTTP errors are not swallowed.
-/// Why: Errors must propagate so the caller can fail fast.
+// 32. Test: has_outflow_requirements propagates HTTP errors
+// Verifies that HTTP errors are not swallowed.
+// Why: Errors must propagate so the caller can fail fast.
 #[tokio::test]
 async fn test_has_outflow_requirements_error() {
     let mock_server = MockServer::start().await;

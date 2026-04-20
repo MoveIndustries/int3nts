@@ -57,18 +57,18 @@ describe("IntentInflowEscrow", function () {
   // ============================================================================
 
   describe("Initialization", function () {
-    /// 1. Test: test_initialize_creates_config: Initialize Creates Config
-    /// Verifies escrow GMP is initialized with correct config.
-    /// Why: Configuration is required for GMP communication.
+    // 1. Test: test_initialize_creates_config: Initialize Creates Config
+    // Verifies escrow GMP is initialized with correct config.
+    // Why: Configuration is required for GMP communication.
     it("should initialize with correct config", async function () {
       expect(await escrowGmp.gmpEndpoint()).to.equal(gmpEndpoint.target);
       expect(await escrowGmp.hubChainId()).to.equal(HUB_CHAIN_ID);
       expect(await escrowGmp.hubGmpEndpointAddr()).to.equal(HUB_GMP_ENDPOINT_ADDR);
     });
 
-    /// 2. Test: test_initialize_rejects_zero_endpoint: Initialize Rejects Zero Endpoint
-    /// Verifies deployment fails with zero endpoint address.
-    /// Why: GMP endpoint is required.
+    // 2. Test: test_initialize_rejects_zero_endpoint: Initialize Rejects Zero Endpoint
+    // Verifies deployment fails with zero endpoint address.
+    // Why: GMP endpoint is required.
     it("should reject zero GMP endpoint", async function () {
       const IntentInflowEscrow = await ethers.getContractFactory("IntentInflowEscrow");
       await expect(
@@ -87,9 +87,9 @@ describe("IntentInflowEscrow", function () {
   // ============================================================================
 
   describe("Receive Intent Requirements", function () {
-    /// 3. Test: test_receive_requirements_stores_requirements: Receive Requirements Stores Requirements
-    /// Verifies requirements are stored correctly.
-    /// Why: Requirements are needed for escrow validation.
+    // 3. Test: test_receive_requirements_stores_requirements: Receive Requirements Stores Requirements
+    // Verifies requirements are stored correctly.
+    // Why: Requirements are needed for escrow validation.
     it("should store received requirements", async function () {
       const tokenAddr32 = await tokenToBytes32(token.target);
       const requesterAddr32 = await addressToBytes32(requester.address);
@@ -113,9 +113,9 @@ describe("IntentInflowEscrow", function () {
       expect(req.amountRequired).to.equal(AMOUNT);
     });
 
-    /// 4. Test: test_receive_requirements_idempotent: Receive Requirements Idempotent
-    /// Verifies duplicate delivery is blocked by GMP deduplication.
-    /// Why: (intent_id, msg_type) dedup prevents double-processing at the GMP layer.
+    // 4. Test: test_receive_requirements_idempotent: Receive Requirements Idempotent
+    // Verifies duplicate delivery is blocked by GMP deduplication.
+    // Why: (intent_id, msg_type) dedup prevents double-processing at the GMP layer.
     it("should reject duplicate delivery at GMP level", async function () {
       const tokenAddr32 = await tokenToBytes32(token.target);
       const requesterAddr32 = await addressToBytes32(requester.address);
@@ -140,9 +140,9 @@ describe("IntentInflowEscrow", function () {
       ).to.be.revertedWithCustomError(gmpEndpoint, "E_ALREADY_DELIVERED");
     });
 
-    /// 5. Test: test_receive_requirements_rejects_unauthorized_source: Receive Requirements Rejects Unauthorized Source
-    /// Verifies requirements from unauthorized source are rejected.
-    /// Why: Only the registered hub GMP endpoint should send requirements.
+    // 5. Test: test_receive_requirements_rejects_unauthorized_source: Receive Requirements Rejects Unauthorized Source
+    // Verifies requirements from unauthorized source are rejected.
+    // Why: Only the registered hub GMP endpoint should send requirements.
     it("should reject requirements from unauthorized source", async function () {
       const wrongAddr = "0x9900000000000000000000000000000000000000000000000000000000000099";
       await gmpEndpoint.addRemoteGmpEndpointAddr(HUB_CHAIN_ID, wrongAddr);
@@ -191,9 +191,9 @@ describe("IntentInflowEscrow", function () {
       );
     });
 
-    /// 6. Test: test_receive_fulfillment_proof_releases_escrow: Receive Fulfillment Proof Releases Escrow
-    /// Verifies fulfillment proof triggers auto-release.
-    /// Why: Solver should receive tokens when hub confirms fulfillment.
+    // 6. Test: test_receive_fulfillment_proof_releases_escrow: Receive Fulfillment Proof Releases Escrow
+    // Verifies fulfillment proof triggers auto-release.
+    // Why: Solver should receive tokens when hub confirms fulfillment.
     it("should release escrow on fulfillment proof", async function () {
       const block = await ethers.provider.getBlock("latest");
       const timestamp = BigInt(block.timestamp);
@@ -216,9 +216,9 @@ describe("IntentInflowEscrow", function () {
       expect(await token.balanceOf(solver.address)).to.equal(AMOUNT);
     });
 
-    /// 7. Test: test_receive_fulfillment_rejects_unauthorized_source: Receive Fulfillment Rejects Unauthorized Source
-    /// Verifies fulfillment from unauthorized source is rejected.
-    /// Why: Only the registered hub GMP endpoint should send fulfillment proofs.
+    // 7. Test: test_receive_fulfillment_rejects_unauthorized_source: Receive Fulfillment Rejects Unauthorized Source
+    // Verifies fulfillment from unauthorized source is rejected.
+    // Why: Only the registered hub GMP endpoint should send fulfillment proofs.
     it("should reject fulfillment from unauthorized source", async function () {
       const wrongAddr = "0x9900000000000000000000000000000000000000000000000000000000000099";
       await gmpEndpoint.addRemoteGmpEndpointAddr(HUB_CHAIN_ID, wrongAddr);
@@ -230,9 +230,9 @@ describe("IntentInflowEscrow", function () {
       ).to.be.revertedWithCustomError(escrowGmp, "E_INVALID_SOURCE_ADDRESS");
     });
 
-    /// 8. Test: test_receive_fulfillment_proof_rejects_already_fulfilled: Receive Fulfillment Proof Rejects Already Fulfilled
-    /// Verifies double fulfillment is blocked by GMP deduplication.
-    /// Why: Prevents double-release of tokens.
+    // 8. Test: test_receive_fulfillment_proof_rejects_already_fulfilled: Receive Fulfillment Proof Rejects Already Fulfilled
+    // Verifies double fulfillment is blocked by GMP deduplication.
+    // Why: Prevents double-release of tokens.
     it("should reject double fulfillment at GMP level", async function () {
       const block = await ethers.provider.getBlock("latest");
       const timestamp = BigInt(block.timestamp);
@@ -282,9 +282,9 @@ describe("IntentInflowEscrow", function () {
       await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
     });
 
-    /// 9. Test: test_create_escrow_validates_against_requirements: Create Escrow Validates Against Requirements
-    /// Verifies escrow creation validates all fields.
-    /// Why: Escrow must match hub requirements.
+    // 9. Test: test_create_escrow_validates_against_requirements: Create Escrow Validates Against Requirements
+    // Verifies escrow creation validates all fields.
+    // Why: Escrow must match hub requirements.
     it("should create escrow when validated", async function () {
       await expect(
         escrowGmp.connect(requester).createEscrowWithValidation(
@@ -297,9 +297,9 @@ describe("IntentInflowEscrow", function () {
       expect(await escrowGmp.hasEscrow(INTENT_ID)).to.equal(true);
     });
 
-    /// 10. Test: test_create_escrow_rejects_amount_mismatch: Create Escrow Rejects Amount Mismatch
-    /// Verifies escrow creation fails if amount doesn't match.
-    /// Why: Amount must match requirements.
+    // 10. Test: test_create_escrow_rejects_amount_mismatch: Create Escrow Rejects Amount Mismatch
+    // Verifies escrow creation fails if amount doesn't match.
+    // Why: Amount must match requirements.
     it("should reject amount mismatch", async function () {
       const wrongAmount = AMOUNT + 1n;
 
@@ -312,9 +312,9 @@ describe("IntentInflowEscrow", function () {
       ).to.be.revertedWithCustomError(escrowGmp, "E_AMOUNT_MISMATCH");
     });
 
-    /// 11. Test: test_create_escrow_rejects_token_mismatch: Create Escrow Rejects Token Mismatch
-    /// Verifies escrow creation fails if token doesn't match.
-    /// Why: Token must match requirements.
+    // 11. Test: test_create_escrow_rejects_token_mismatch: Create Escrow Rejects Token Mismatch
+    // Verifies escrow creation fails if token doesn't match.
+    // Why: Token must match requirements.
     it("should reject token mismatch", async function () {
       const MockERC20 = await ethers.getContractFactory("MockERC20");
       const wrongToken = await MockERC20.deploy("Wrong", "WRONG", 18);
@@ -330,9 +330,9 @@ describe("IntentInflowEscrow", function () {
       ).to.be.revertedWithCustomError(escrowGmp, "E_TOKEN_MISMATCH");
     });
 
-    /// 12. Test: test_create_escrow_sends_escrow_confirmation: Create Escrow Sends Escrow Confirmation
-    /// Verifies EscrowConfirmation is sent to hub.
-    /// Why: Hub needs confirmation to proceed with intent.
+    // 12. Test: test_create_escrow_sends_escrow_confirmation: Create Escrow Sends Escrow Confirmation
+    // Verifies EscrowConfirmation is sent to hub.
+    // Why: Hub needs confirmation to proceed with intent.
     it("should send escrow confirmation to hub", async function () {
       await expect(
         escrowGmp.connect(requester).createEscrowWithValidation(
@@ -373,9 +373,9 @@ describe("IntentInflowEscrow", function () {
       await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
     });
 
-    /// 13. Test: test_create_escrow_rejects_no_requirements: Create Escrow Rejects No Requirements
-    /// Verifies escrow creation fails if no requirements exist.
-    /// Why: Requirements must be received first.
+    // 13. Test: test_create_escrow_rejects_no_requirements: Create Escrow Rejects No Requirements
+    // Verifies escrow creation fails if no requirements exist.
+    // Why: Requirements must be received first.
     it("should reject escrow without requirements", async function () {
       const unknownIntentId = "0xcc000000000000000000000000000000000000000000000000000000000000dd";
 
@@ -388,9 +388,9 @@ describe("IntentInflowEscrow", function () {
       ).to.be.revertedWithCustomError(escrowGmp, "E_REQUIREMENTS_NOT_FOUND");
     });
 
-    /// 14. Test: test_create_escrow_rejects_double_create: Create Escrow Rejects Double Create
-    /// Verifies escrow cannot be created twice.
-    /// Why: Each intent can have only one escrow.
+    // 14. Test: test_create_escrow_rejects_double_create: Create Escrow Rejects Double Create
+    // Verifies escrow cannot be created twice.
+    // Why: Each intent can have only one escrow.
     it("should reject double escrow creation", async function () {
       await escrowGmp.connect(requester).createEscrowWithValidation(
         INTENT_ID,
@@ -413,9 +413,9 @@ describe("IntentInflowEscrow", function () {
   // ============================================================================
 
   describe("EVM-Specific Tests", function () {
-    /// 15. Test: test_reject_direct_call: Reject Direct Call (Not Through GMP)
-    /// Verifies only GMP endpoint can call receiveIntentRequirements.
-    /// Why: Single trust point through GMP endpoint.
+    // 15. Test: test_reject_direct_call: Reject Direct Call (Not Through GMP)
+    // Verifies only GMP endpoint can call receiveIntentRequirements.
+    // Why: Single trust point through GMP endpoint.
     it("should reject direct call", async function () {
       const payload = "0x01" + "00".repeat(144);
 
@@ -449,9 +449,9 @@ describe("IntentInflowEscrow", function () {
         await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
       });
 
-      /// 16. Test: test_create_escrow_rejects_requester_mismatch: Create Escrow Rejects Requester Mismatch
-      /// Verifies only requester can create escrow.
-      /// Why: Security - only the authorized requester can escrow.
+      // 16. Test: test_create_escrow_rejects_requester_mismatch: Create Escrow Rejects Requester Mismatch
+      // Verifies only requester can create escrow.
+      // Why: Security - only the authorized requester can escrow.
       it("should reject requester mismatch", async function () {
         await token.mint(solver.address, AMOUNT);
         await token.connect(solver).approve(escrowGmp.target, AMOUNT);
@@ -465,9 +465,9 @@ describe("IntentInflowEscrow", function () {
         ).to.be.revertedWithCustomError(escrowGmp, "E_REQUESTER_MISMATCH");
       });
 
-      /// 17. Test: test_create_escrow_rejects_expired_intent: Create Escrow Rejects Expired Intent
-      /// Verifies expired intents cannot have escrows created.
-      /// Why: Expired intents should be rejected.
+      // 17. Test: test_create_escrow_rejects_expired_intent: Create Escrow Rejects Expired Intent
+      // Verifies expired intents cannot have escrows created.
+      // Why: Expired intents should be rejected.
       it("should reject expired intent", async function () {
         // Create new intent with past expiry
         const block = await ethers.provider.getBlock("latest");
@@ -493,9 +493,9 @@ describe("IntentInflowEscrow", function () {
         ).to.be.revertedWithCustomError(escrowGmp, "E_INTENT_EXPIRED");
       });
 
-      /// 18. Test: test_tokens_transferred_to_escrow: Tokens Transferred to Escrow Contract
-      /// Verifies tokens are actually transferred.
-      /// Why: Escrow must hold the tokens.
+      // 18. Test: test_tokens_transferred_to_escrow: Tokens Transferred to Escrow Contract
+      // Verifies tokens are actually transferred.
+      // Why: Escrow must hold the tokens.
       it("should transfer tokens to escrow contract", async function () {
         const balanceBefore = await token.balanceOf(escrowGmp.target);
 
@@ -516,9 +516,9 @@ describe("IntentInflowEscrow", function () {
   // ============================================================================
 
   describe("Full Workflow", function () {
-    /// 19. Test: test_full_inflow_gmp_workflow: Full Inflow GMP Workflow
-    /// Verifies complete flow from requirements to release.
-    /// Why: End-to-end validation of the entire process.
+    // 19. Test: test_full_inflow_gmp_workflow: Full Inflow GMP Workflow
+    // Verifies complete flow from requirements to release.
+    // Why: End-to-end validation of the entire process.
     it("should complete full inflow GMP workflow", async function () {
       const tokenAddr32 = await tokenToBytes32(token.target);
       const requesterAddr32 = await addressToBytes32(requester.address);
@@ -606,9 +606,9 @@ describe("IntentInflowEscrow", function () {
       );
     });
 
-    /// 24. Test: test_emit_events_on_release: Emit Events on Release
-    /// Verifies correct events are emitted.
-    /// Why: Events are used for monitoring and indexing.
+    // 24. Test: test_emit_events_on_release: Emit Events on Release
+    // Verifies correct events are emitted.
+    // Why: Events are used for monitoring and indexing.
     it("should emit events on release", async function () {
       const block = await ethers.provider.getBlock("latest");
       const timestamp = BigInt(block.timestamp);

@@ -16,9 +16,9 @@ import {
 // ============================================================================
 
 describe('getSvmConnection', () => {
-  /// 1. Test: SVM RPC Selection
-  /// Verifies that getSvmConnection uses the provided RPC URL.
-  /// Why: Connection must use the caller-provided RPC endpoint, not a hardcoded value.
+  // 1. Test: SVM RPC Selection
+  // Verifies that getSvmConnection uses the provided RPC URL.
+  // Why: Connection must use the caller-provided RPC endpoint, not a hardcoded value.
   it('should use the provided RPC URL', () => {
     const connection = getSvmConnection('https://example.invalid');
     expect(connection.rpcEndpoint).toBe('https://example.invalid');
@@ -30,17 +30,17 @@ describe('getSvmConnection', () => {
 // ============================================================================
 
 describe('decodeBase64', () => {
-  /// 2. Test: Base64 Decoding
-  /// Verifies that decodeBase64 correctly decodes base64 to bytes.
-  /// Why: Integrated-gmp signatures arrive as base64 and must be decoded for Solana.
+  // 2. Test: Base64 Decoding
+  // Verifies that decodeBase64 correctly decodes base64 to bytes.
+  // Why: Integrated-gmp signatures arrive as base64 and must be decoded for Solana.
   it('should decode base64 to bytes', () => {
     const bytes = decodeBase64('AQID');
     expect(Array.from(bytes)).toEqual([1, 2, 3]);
   });
 
-  /// 3. Test: Whitespace Handling
-  /// Verifies that decodeBase64 trims leading/trailing whitespace.
-  /// Why: Inputs may contain leading/trailing whitespace.
+  // 3. Test: Whitespace Handling
+  // Verifies that decodeBase64 trims leading/trailing whitespace.
+  // Why: Inputs may contain leading/trailing whitespace.
   it('should trim whitespace around base64 input', () => {
     const bytes = decodeBase64('  AQID  ');
     expect(Array.from(bytes)).toEqual([1, 2, 3]);
@@ -48,9 +48,9 @@ describe('decodeBase64', () => {
 });
 
 describe('buildEd25519VerificationIx', () => {
-  /// 4. Test: Ed25519 Instruction Builder
-  /// Verifies that buildEd25519VerificationIx returns an instruction targeting the Ed25519 program.
-  /// Why: SVM claim flow depends on a valid Ed25519 verification instruction.
+  // 4. Test: Ed25519 Instruction Builder
+  // Verifies that buildEd25519VerificationIx returns an instruction targeting the Ed25519 program.
+  // Why: SVM claim flow depends on a valid Ed25519 verification instruction.
   it('should return an instruction targeting the Ed25519 program', () => {
     const mockInstruction = new TransactionInstruction({
       keys: [],
@@ -85,9 +85,9 @@ describe('fetchSolverSvmAddress', () => {
     vi.resetAllMocks();
   });
 
-  /// 5. Test: Failed RPC Request
-  /// Verifies that fetchSolverSvmAddress returns null when the RPC request fails.
-  /// Why: Missing registry data should resolve to null.
+  // 5. Test: Failed RPC Request
+  // Verifies that fetchSolverSvmAddress returns null when the RPC request fails.
+  // Why: Missing registry data should resolve to null.
   it('should return null when the request fails', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: false });
     vi.stubGlobal('fetch', fetchMock);
@@ -96,9 +96,9 @@ describe('fetchSolverSvmAddress', () => {
     expect(result).toBeNull();
   });
 
-  /// 6. Test: Empty Registry Entry
-  /// Verifies that fetchSolverSvmAddress returns null when the registry vec is empty.
-  /// Why: Empty registry responses should resolve to null.
+  // 6. Test: Empty Registry Entry
+  // Verifies that fetchSolverSvmAddress returns null when the registry vec is empty.
+  // Why: Empty registry responses should resolve to null.
   it('should return null when the registry vec is empty', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -110,9 +110,9 @@ describe('fetchSolverSvmAddress', () => {
     expect(result).toBeNull();
   });
 
-  /// 7. Test: String Address Normalization
-  /// Verifies that fetchSolverSvmAddress returns normalized hex when vec is a string.
-  /// Why: Registry can return a hex string without 0x prefix.
+  // 7. Test: String Address Normalization
+  // Verifies that fetchSolverSvmAddress returns normalized hex when vec is a string.
+  // Why: Registry can return a hex string without 0x prefix.
   it('should return normalized hex when vec is a string', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -124,9 +124,9 @@ describe('fetchSolverSvmAddress', () => {
     expect(result).toBe('0xabcd');
   });
 
-  /// 8. Test: Vector<u8> Address Conversion
-  /// Verifies that fetchSolverSvmAddress converts byte arrays to hex.
-  /// Why: Registry can return byte arrays that must be hex-encoded.
+  // 8. Test: Vector<u8> Address Conversion
+  // Verifies that fetchSolverSvmAddress converts byte arrays to hex.
+  // Why: Registry can return byte arrays that must be hex-encoded.
   it('should convert vec byte array to hex', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

@@ -24,8 +24,8 @@ use intent_inflow_escrow::{
 // TEST PROGRAM ID
 // ============================================================================
 
-/// Fixed program ID for testing. Actual deployed program ID is determined by
-/// the deployment keypair, not this value.
+// Fixed program ID for testing. Actual deployed program ID is determined by
+// the deployment keypair, not this value.
 pub fn test_program_id() -> Pubkey {
     // Use a deterministic pubkey derived from a known seed for testing
     solana_sdk::pubkey!("Escrow11111111111111111111111111111111111111")
@@ -35,17 +35,17 @@ pub fn test_program_id() -> Pubkey {
 // DUMMY TEST CONSTANTS
 // ============================================================================
 
-/// Dummy hub chain ID for testing GMP functionality
+// Dummy hub chain ID for testing GMP functionality
 pub const DUMMY_HUB_CHAIN_ID: u32 = 1;
 
-/// Dummy hub GMP endpoint address for testing GMP functionality
+// Dummy hub GMP endpoint address for testing GMP functionality
 pub const DUMMY_HUB_GMP_ENDPOINT_ADDR: [u8; 32] = [0u8; 32];
 
 // ============================================================================
 // TEST HARNESS HELPERS
 // ============================================================================
 
-/// Helper: Build a ProgramTest instance with intent_inflow_escrow + spl_token
+// Helper: Build a ProgramTest instance with intent_inflow_escrow + spl_token
 pub fn program_test() -> ProgramTest {
     let program_id = test_program_id();
     let mut program_test = ProgramTest::new(
@@ -61,7 +61,7 @@ pub fn program_test() -> ProgramTest {
     program_test
 }
 
-/// Helper: Send a transaction with a specific payer and signers
+// Helper: Send a transaction with a specific payer and signers
 pub async fn send_tx(
     context: &mut ProgramTestContext,
     payer: &Keypair,
@@ -90,7 +90,7 @@ pub async fn send_tx(
 // SPL TOKEN HELPERS
 // ============================================================================
 
-/// Helper: Create a new SPL token mint
+// Helper: Create a new SPL token mint
 pub async fn create_mint(
     context: &mut ProgramTestContext,
     payer: &Keypair,
@@ -121,7 +121,7 @@ pub async fn create_mint(
     mint.pubkey()
 }
 
-/// Helper: Create an SPL token account for a given mint and owner
+// Helper: Create an SPL token account for a given mint and owner
 pub async fn create_token_account(
     context: &mut ProgramTestContext,
     payer: &Keypair,
@@ -151,7 +151,7 @@ pub async fn create_token_account(
     token_account.pubkey()
 }
 
-/// Helper: Mint tokens to a token account
+// Helper: Mint tokens to a token account
 pub async fn mint_to(
     context: &mut ProgramTestContext,
     payer: &Keypair,
@@ -173,7 +173,7 @@ pub async fn mint_to(
     send_tx(context, payer, &[ix], &[mint_authority]).await;
 }
 
-/// Helper: Read SPL token account balance
+// Helper: Read SPL token account balance
 pub async fn get_token_balance(
     context: &mut ProgramTestContext,
     token_account: Pubkey,
@@ -192,7 +192,7 @@ pub async fn get_token_balance(
 // PROGRAM HELPERS
 // ============================================================================
 
-/// Helper: Initialize the program state with an approver
+// Helper: Initialize the program state with an approver
 pub async fn initialize_program(
     context: &mut ProgramTestContext,
     payer: &Keypair,
@@ -218,9 +218,9 @@ pub async fn initialize_program(
     state_pda
 }
 
-/// Helper: Build a CreateEscrow instruction
-/// Requirements PDA is mandatory - escrow creation always requires GMP requirements.
-/// Expiry comes from the hub-provided requirements, not from the instruction.
+// Helper: Build a CreateEscrow instruction
+// Requirements PDA is mandatory - escrow creation always requires GMP requirements.
+// Expiry comes from the hub-provided requirements, not from the instruction.
 pub fn create_escrow_ix(
     program_id: Pubkey,
     intent_id: [u8; 32],
@@ -261,7 +261,7 @@ pub fn create_escrow_ix(
     }
 }
 
-/// Helper: Build a Claim instruction (GMP mode - no signature)
+// Helper: Build a Claim instruction (GMP mode - no signature)
 pub fn create_claim_ix(
     program_id: Pubkey,
     intent_id: [u8; 32],
@@ -283,7 +283,7 @@ pub fn create_claim_ix(
     }
 }
 
-/// Helper: Build a Cancel instruction (admin-only, requires gmp_config for auth)
+// Helper: Build a Cancel instruction (admin-only, requires gmp_config for auth)
 pub fn create_cancel_ix(
     program_id: Pubkey,
     intent_id: [u8; 32],
@@ -309,7 +309,7 @@ pub fn create_cancel_ix(
     }
 }
 
-/// Helper: Build a SetGmpConfig instruction
+// Helper: Build a SetGmpConfig instruction
 pub fn create_set_gmp_config_ix(
     program_id: Pubkey,
     gmp_config_pda: Pubkey,
@@ -335,7 +335,7 @@ pub fn create_set_gmp_config_ix(
     }
 }
 
-/// Helper: Build an GmpReceiveRequirements instruction
+// Helper: Build an GmpReceiveRequirements instruction
 pub fn create_gmp_receive_requirements_ix(
     program_id: Pubkey,
     requirements_pda: Pubkey,
@@ -365,7 +365,7 @@ pub fn create_gmp_receive_requirements_ix(
     }
 }
 
-/// Helper: Build an GmpReceiveFulfillmentProof instruction
+// Helper: Build an GmpReceiveFulfillmentProof instruction
 pub fn create_gmp_receive_fulfillment_proof_ix(
     program_id: Pubkey,
     requirements_pda: Pubkey,
@@ -399,8 +399,8 @@ pub fn create_gmp_receive_fulfillment_proof_ix(
     }
 }
 
-/// Helper: Build a generic GmpReceive instruction for requirements (message type 0x01)
-/// This uses the generic GmpReceive variant which routes based on message type.
+// Helper: Build a generic GmpReceive instruction for requirements (message type 0x01)
+// This uses the generic GmpReceive variant which routes based on message type.
 pub fn create_gmp_receive_generic_requirements_ix(
     program_id: Pubkey,
     requirements_pda: Pubkey,
@@ -430,8 +430,8 @@ pub fn create_gmp_receive_generic_requirements_ix(
     }
 }
 
-/// Helper: Build a generic GmpReceive instruction for fulfillment proof (message type 0x03)
-/// This uses the generic GmpReceive variant which routes based on message type.
+// Helper: Build a generic GmpReceive instruction for fulfillment proof (message type 0x03)
+// This uses the generic GmpReceive variant which routes based on message type.
 pub fn create_gmp_receive_generic_fulfillment_ix(
     program_id: Pubkey,
     requirements_pda: Pubkey,
@@ -465,17 +465,17 @@ pub fn create_gmp_receive_generic_fulfillment_ix(
     }
 }
 
-/// Helper: Read escrow state from account data
+// Helper: Read escrow state from account data
 pub fn read_escrow(account: &solana_sdk::account::Account) -> Escrow {
     Escrow::try_from_slice(&account.data).unwrap()
 }
 
-/// Helper: Read global state from account data
+// Helper: Read global state from account data
 pub fn read_state(account: &solana_sdk::account::Account) -> EscrowState {
     EscrowState::try_from_slice(&account.data).unwrap()
 }
 
-/// Helper: Read stored intent requirements from account data
+// Helper: Read stored intent requirements from account data
 pub fn read_requirements(account: &solana_sdk::account::Account) -> StoredIntentRequirements {
     StoredIntentRequirements::try_from_slice(&account.data).unwrap()
 }
@@ -484,7 +484,7 @@ pub fn read_requirements(account: &solana_sdk::account::Account) -> StoredIntent
 // TEST ENVIRONMENT
 // ============================================================================
 
-/// Test environment with common accounts and SPL token setup
+// Test environment with common accounts and SPL token setup
 pub struct TestEnv {
     pub program_id: Pubkey,
     pub requester: Keypair,
@@ -495,15 +495,15 @@ pub struct TestEnv {
     pub requester_token: Pubkey,
     pub solver_token: Pubkey,
     pub state_pda: Pubkey,
-    /// GMP config PDA - must be from TestEnv, not a DUMMY constant.
-    /// PDAs are cryptographically derived from seeds + program_id and validated
-    /// on-chain. A hardcoded "dummy" address would fail PDA validation.
+    // GMP config PDA - must be from TestEnv, not a DUMMY constant.
+    // PDAs are cryptographically derived from seeds + program_id and validated
+    // on-chain. A hardcoded "dummy" address would fail PDA validation.
     pub gmp_config_pda: Pubkey,
     pub hub_chain_id: u32,
     pub hub_gmp_endpoint_addr: [u8; 32],
 }
 
-/// Helper: Create a baseline environment used by most tests
+// Helper: Create a baseline environment used by most tests
 pub async fn setup_basic_env(context: &mut ProgramTestContext) -> TestEnv {
     let payer = context.payer.insecure_clone();
     let payer_pubkey = payer.pubkey();
@@ -575,9 +575,9 @@ pub async fn setup_basic_env(context: &mut ProgramTestContext) -> TestEnv {
     }
 }
 
-/// Helper: Set up GMP requirements for a given intent.
-/// Sends IntentRequirements via GMP and returns the requirements PDA.
-/// This is required before creating any escrow (there is no direct path).
+// Helper: Set up GMP requirements for a given intent.
+// Sends IntentRequirements via GMP and returns the requirements PDA.
+// This is required before creating any escrow (there is no direct path).
 pub async fn setup_gmp_requirements(
     context: &mut ProgramTestContext,
     env: &TestEnv,
@@ -624,8 +624,8 @@ pub async fn setup_gmp_requirements(
     requirements_pda
 }
 
-/// Helper: Set up GMP requirements with custom parameters (for tests with non-standard environments).
-/// Allows specifying arbitrary requester, token, solver addresses.
+// Helper: Set up GMP requirements with custom parameters (for tests with non-standard environments).
+// Allows specifying arbitrary requester, token, solver addresses.
 pub async fn setup_gmp_requirements_custom(
     context: &mut ProgramTestContext,
     program_id: Pubkey,
@@ -682,8 +682,8 @@ pub async fn setup_gmp_requirements_custom(
 // ED25519 SIGNATURE HELPERS
 // ============================================================================
 
-/// Helper: Create an Ed25519 verify instruction for signature verification
-/// The signature must be created by signing the message with the approver's keypair
+// Helper: Create an Ed25519 verify instruction for signature verification
+// The signature must be created by signing the message with the approver's keypair
 pub fn create_ed25519_instruction(
     message: &[u8],
     signature: &[u8; 64],
@@ -696,7 +696,7 @@ pub fn create_ed25519_instruction(
 // INTENT ID HELPERS
 // ============================================================================
 
-/// Helper: Generate a random 32-byte intent ID
+// Helper: Generate a random 32-byte intent ID
 pub fn generate_intent_id() -> [u8; 32] {
     use rand::RngCore;
     let mut id = [0u8; 32];
@@ -704,11 +704,11 @@ pub fn generate_intent_id() -> [u8; 32] {
     id
 }
 
-/// Helper: Convert a hex string to a 32-byte array
-/// Useful for cross-chain intent ID compatibility
-/// Supports hex strings with or without 0x prefix
-/// Left-pads with zeros if hex string is shorter than 32 bytes
-/// Handles odd-length hex strings by prepending a '0'
+// Helper: Convert a hex string to a 32-byte array
+// Useful for cross-chain intent ID compatibility
+// Supports hex strings with or without 0x prefix
+// Left-pads with zeros if hex string is shorter than 32 bytes
+// Handles odd-length hex strings by prepending a '0'
 pub fn hex_to_bytes32(hex_string: &str) -> [u8; 32] {
     let hex = hex_string.strip_prefix("0x").unwrap_or(hex_string);
     // Ensure even length by prepending '0' if needed

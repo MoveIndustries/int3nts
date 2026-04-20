@@ -8,8 +8,9 @@ use coordinator::config::{AcceptanceConfig, ChainConfig, Config, EvmChainConfig,
 mod test_helpers;
 use test_helpers::{DUMMY_ESCROW_CONTRACT_ADDR_EVM, DUMMY_SVM_ESCROW_PROGRAM_ID, DUMMY_TOKEN_ADDR_FANTOM};
 
-/// Test that default configuration creates valid structure
-/// Why: Verify default config is valid and doesn't panic
+// 1. Test: Default configuration creates valid structure
+// Verifies that default configuration creates valid structure.
+// Why: Verify default config is valid and doesn't panic.
 #[test]
 fn test_default_config_creation() {
     let config = Config::default();
@@ -26,8 +27,9 @@ fn test_default_config_creation() {
     );
 }
 
-/// Test that connected_chain_mvm can be set to Some(ChainConfig)
-/// Why: Verify connected_chain_mvm accepts actual values when configured
+// 2. Test: Connected_chain_mvm can be set to Some(ChainConfig)
+// Verifies that connected_chain_mvm can be set to Some(ChainConfig).
+// Why: Verify connected_chain_mvm accepts actual values when configured.
 #[test]
 fn test_connected_chain_mvm_with_values() {
     use coordinator::config::ChainConfig;
@@ -49,8 +51,9 @@ fn test_connected_chain_mvm_with_values() {
     );
 }
 
-/// What is tested: AcceptanceConfig parses pairs list without ratios
-/// Why: Coordinator should only store pairs and fetch ratios live from solver
+// 3. Test: AcceptanceConfig parses pairs list without ratios
+// Verifies that AcceptanceConfig deserializes a TOML pairs list that has no ratio fields.
+// Why: Coordinator should only store pairs and fetch ratios live from the solver.
 #[test]
 fn test_acceptance_pairs_deserialize() {
     let toml = format!(
@@ -69,8 +72,9 @@ pairs = [
     assert_eq!(acceptance.pairs.len(), 2);
 }
 
-/// What is tested: Config::validate() accepts base58 SVM mints in pairs
-/// Why: SVM tokens must be base58, not hex
+// 4. Test: Config.validate() accepts base58 SVM mints in pairs
+// Verifies that Config::validate() accepts acceptance pairs whose target_token is a base58 SVM mint.
+// Why: SVM tokens are base58-encoded, not hex, so validation must allow them.
 #[test]
 fn test_config_validate_acceptance_svm_base58() {
     let mut config = Config::default();
@@ -97,8 +101,9 @@ fn test_config_validate_acceptance_svm_base58() {
     assert!(result.is_ok(), "Should accept base58 SVM mints");
 }
 
-/// What is tested: Config::validate() accepts multiple connected chains
-/// Why: Ensure MVM, EVM, and SVM can all be configured at once
+// 5. Test: Config.validate() accepts MVM, EVM, and SVM connected chains together
+// Verifies that Config::validate() passes when connected_chain_mvm, connected_chain_evm, and connected_chain_svm are all populated.
+// Why: Ensure MVM, EVM, and SVM can all be configured at once.
 #[test]
 fn test_config_validation_multiple_connected_chains() {
     let mut config = Config::default();
@@ -137,8 +142,9 @@ fn test_config_validation_multiple_connected_chains() {
     assert!(result.is_ok(), "Should accept multiple connected chains");
 }
 
-/// Test that config can be serialized and deserialized
-/// Why: Verify TOML round-trip works correctly
+// 6. Test: Config can be serialized and deserialized
+// Verifies that config can be serialized and deserialized.
+// Why: Verify TOML round-trip works correctly.
 #[test]
 fn test_config_serialization() {
     let config = Config::default();
@@ -157,8 +163,9 @@ fn test_config_serialization() {
 // CONFIG VALIDATION TESTS
 // ============================================================================
 
-/// Test that config.validate() returns error when hub and MVM chains have same chain ID
-/// Why: Verify configuration validation catches duplicate chain IDs at load time
+// 7. Test: Config.validate() returns error when hub and MVM chains have same chain ID
+// Verifies that config.validate() returns error when hub and MVM chains have same chain ID.
+// Why: Verify configuration validation catches duplicate chain IDs at load time.
 #[test]
 fn test_config_validate_hub_mvm_duplicate_chain_id() {
     let mut config = Config::default();
@@ -178,8 +185,9 @@ fn test_config_validate_hub_mvm_duplicate_chain_id() {
     assert!(result.unwrap_err().to_string().contains("Hub chain and connected MVM chain have the same chain ID"), "Error message should mention hub and MVM duplicate");
 }
 
-/// Test that config.validate() returns error when hub and EVM chains have same chain ID
-/// Why: Verify configuration validation catches duplicate chain IDs at load time
+// 8. Test: Config.validate() returns error when hub and EVM chains have same chain ID
+// Verifies that config.validate() returns error when hub and EVM chains have same chain ID.
+// Why: Verify configuration validation catches duplicate chain IDs at load time.
 #[test]
 fn test_config_validate_hub_evm_duplicate_chain_id() {
     let mut config = Config::default();
@@ -200,8 +208,9 @@ fn test_config_validate_hub_evm_duplicate_chain_id() {
     assert!(result.unwrap_err().to_string().contains("Hub chain and connected EVM chain have the same chain ID"), "Error message should mention hub and EVM duplicate");
 }
 
-/// Test that config.validate() returns error when MVM and EVM chains have same chain ID
-/// Why: Verify configuration validation catches duplicate chain IDs at load time
+// 9. Test: Config.validate() returns error when MVM and EVM chains have same chain ID
+// Verifies that config.validate() returns error when MVM and EVM chains have same chain ID.
+// Why: Verify configuration validation catches duplicate chain IDs at load time.
 #[test]
 fn test_config_validate_mvm_evm_duplicate_chain_id() {
     let mut config = Config::default();
@@ -230,8 +239,9 @@ fn test_config_validate_mvm_evm_duplicate_chain_id() {
     assert!(result.unwrap_err().to_string().contains("Connected MVM chain and connected EVM chain have the same chain ID"), "Error message should mention MVM and EVM duplicate");
 }
 
-/// Test that config.validate() succeeds when all chain IDs are unique
-/// Why: Verify configuration validation passes for valid configurations
+// 10. Test: Config.validate() succeeds when all chain IDs are unique
+// Verifies that config.validate() succeeds when all chain IDs are unique.
+// Why: Verify configuration validation passes for valid configurations.
 #[test]
 fn test_config_validate_unique_chain_ids() {
     let mut config = Config::default();

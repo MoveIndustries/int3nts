@@ -88,8 +88,9 @@ fn create_test_pending_draft(expiry_time: u64) -> solver::coordinator_client::Pe
 // DRAFT DATA PARSING TESTS
 // ============================================================================
 
-/// What is tested: parse_draft_data() correctly parses valid draft data JSON
-/// Why: Ensure the parser extracts all required fields correctly from well-formed input
+// 1. Test: parse_draft_data() correctly parses valid draft data JSON
+// Verifies that parse_draft_data() extracts offered_token, offered_amount, offered_chain_id, desired_token, desired_amount, and desired_chain_id from a well-formed JSON object and returns them in the parsed result.
+// Why: Ensure the parser extracts all required fields correctly from well-formed input.
 #[test]
 fn test_parse_draft_data_success() {
     let draft_data = create_default_draft_data();
@@ -103,8 +104,9 @@ fn test_parse_draft_data_success() {
     assert_eq!(result.desired_chain_id, 2);
 }
 
-/// What is tested: parse_draft_data() returns error when offered_metadata field is missing
-/// Why: Ensure all required fields are validated and missing fields produce clear errors
+// 2. Test: parse_draft_data() returns error when offered_metadata field is missing
+// Verifies that parse_draft_data() returns an Err whose message references the missing offered_metadata field when that key is absent from the JSON input.
+// Why: Ensure all required fields are validated and missing fields produce clear errors.
 #[test]
 fn test_parse_draft_data_missing_offered_metadata() {
     let draft_data = json!({
@@ -121,8 +123,9 @@ fn test_parse_draft_data_missing_offered_metadata() {
     assert!(result.unwrap_err().to_string().contains("offered_metadata"));
 }
 
-/// What is tested: parse_draft_data() returns error when offered_metadata is not a string
-/// Why: Ensure type validation catches invalid data types for string fields
+// 3. Test: parse_draft_data() returns error when offered_metadata is not a string
+// Verifies that parse_draft_data() returns an Err referencing offered_metadata when that field is present but contains a non-string JSON value (e.g. a number).
+// Why: Ensure type validation catches invalid data types for string fields.
 #[test]
 fn test_parse_draft_data_invalid_offered_metadata_type() {
     let draft_data = json!({
@@ -140,8 +143,9 @@ fn test_parse_draft_data_invalid_offered_metadata_type() {
     assert!(result.unwrap_err().to_string().contains("offered_metadata"));
 }
 
-/// What is tested: parse_draft_data() returns error when offered_amount field is missing
-/// Why: Ensure all required numeric fields are validated
+// 4. Test: parse_draft_data() returns error when offered_amount field is missing
+// Verifies that parse_draft_data() returns an Err whose message references the missing offered_amount field when that key is absent from the JSON input.
+// Why: Ensure all required numeric fields are validated.
 #[test]
 fn test_parse_draft_data_missing_offered_amount() {
     let draft_data = json!({
@@ -158,8 +162,9 @@ fn test_parse_draft_data_missing_offered_amount() {
     assert!(result.unwrap_err().to_string().contains("offered_amount"));
 }
 
-/// What is tested: parse_draft_data() returns error when offered_amount is not a valid number
-/// Why: Ensure numeric validation catches invalid values that cannot be parsed
+// 5. Test: parse_draft_data() returns error when offered_amount is not a valid number
+// Verifies that parse_draft_data() returns an Err referencing offered_amount when its string value cannot be parsed into a numeric amount.
+// Why: Ensure numeric validation catches invalid values that cannot be parsed.
 #[test]
 fn test_parse_draft_data_invalid_offered_amount() {
     let draft_data = json!({
@@ -177,8 +182,9 @@ fn test_parse_draft_data_invalid_offered_amount() {
     assert!(result.unwrap_err().to_string().contains("offered_amount"));
 }
 
-/// What is tested: parse_draft_data() returns error when offered_chain_id field is missing
-/// Why: Ensure chain ID validation catches missing chain identifiers
+// 6. Test: parse_draft_data() returns error when offered_chain_id field is missing
+// Verifies that parse_draft_data() returns an Err whose message references the missing offered_chain_id field when that key is absent from the JSON input.
+// Why: Ensure chain ID validation catches missing chain identifiers.
 #[test]
 fn test_parse_draft_data_missing_offered_chain_id() {
     let draft_data = json!({
@@ -195,8 +201,9 @@ fn test_parse_draft_data_missing_offered_chain_id() {
     assert!(result.unwrap_err().to_string().contains("offered_chain_id"));
 }
 
-/// What is tested: parse_draft_data() returns error when desired_metadata field is missing
-/// Why: Ensure desired token metadata is required for intent processing
+// 7. Test: parse_draft_data() returns error when desired_metadata field is missing
+// Verifies that parse_draft_data() returns an Err whose message references the missing desired_metadata field when that key is absent from the JSON input.
+// Why: Ensure desired token metadata is required for intent processing.
 #[test]
 fn test_parse_draft_data_missing_desired_metadata() {
     let draft_data = json!({
@@ -213,8 +220,9 @@ fn test_parse_draft_data_missing_desired_metadata() {
     assert!(result.unwrap_err().to_string().contains("desired_metadata"));
 }
 
-/// What is tested: parse_draft_data() returns error when desired_amount field is missing
-/// Why: Ensure desired amount is required for exchange rate validation
+// 8. Test: parse_draft_data() returns error when desired_amount field is missing
+// Verifies that parse_draft_data() returns an Err whose message references the missing desired_amount field when that key is absent from the JSON input.
+// Why: Ensure desired amount is required for exchange rate validation.
 #[test]
 fn test_parse_draft_data_missing_desired_amount() {
     let draft_data = json!({
@@ -231,8 +239,9 @@ fn test_parse_draft_data_missing_desired_amount() {
     assert!(result.unwrap_err().to_string().contains("desired_amount"));
 }
 
-/// What is tested: parse_draft_data() returns error when desired_chain_id field is missing
-/// Why: Ensure destination chain is required for cross-chain intent routing
+// 9. Test: parse_draft_data() returns error when desired_chain_id field is missing
+// Verifies that parse_draft_data() returns an Err whose message references the missing desired_chain_id field when that key is absent from the JSON input.
+// Why: Ensure destination chain is required for cross-chain intent routing.
 #[test]
 fn test_parse_draft_data_missing_desired_chain_id() {
     let draft_data = json!({
@@ -249,8 +258,9 @@ fn test_parse_draft_data_missing_desired_chain_id() {
     assert!(result.unwrap_err().to_string().contains("desired_chain_id"));
 }
 
-/// What is tested: parse_draft_data() returns error for empty JSON object
-/// Why: Ensure completely invalid input is rejected with appropriate error
+// 10. Test: parse_draft_data() returns error for empty JSON object
+// Verifies that parse_draft_data() returns an Err when given an empty JSON object with no draft fields at all.
+// Why: Ensure completely invalid input is rejected with appropriate error.
 #[test]
 fn test_parse_draft_data_empty_json() {
     let draft_data = json!({});
@@ -259,8 +269,9 @@ fn test_parse_draft_data_empty_json() {
     assert!(result.is_err());
 }
 
-/// What is tested: parse_draft_data() returns error when fee_in_offered_token is missing
-/// Why: fee_in_offered_token is required — no silent fallback to 0
+// 11. Test: parse_draft_data() returns error when fee_in_offered_token is missing
+// Verifies that parse_draft_data() returns an Err whose message references the missing fee_in_offered_token field rather than silently defaulting it to zero.
+// Why: fee_in_offered_token is required — no silent fallback to 0.
 #[test]
 fn test_parse_draft_data_missing_fee_in_offered_token() {
     let draft_data = json!({
@@ -278,8 +289,9 @@ fn test_parse_draft_data_missing_fee_in_offered_token() {
     assert!(result.unwrap_err().to_string().contains("fee_in_offered_token"));
 }
 
-/// What is tested: parse_draft_data() accepts zero amounts
-/// Why: Ensure edge case of zero amounts is handled (validation of zero may be done elsewhere)
+// 12. Test: parse_draft_data() accepts zero amounts
+// Verifies that parse_draft_data() successfully parses a draft where offered_amount and desired_amount are zero and returns those values without treating them as invalid.
+// Why: Ensure edge case of zero amounts is handled (validation of zero may be done elsewhere).
 #[test]
 fn test_parse_draft_data_zero_amounts() {
     let draft_data = json!({
@@ -298,8 +310,9 @@ fn test_parse_draft_data_zero_amounts() {
     assert_eq!(result.desired_amount, 0);
 }
 
-/// What is tested: parse_draft_data() accepts maximum u64 amounts
-/// Why: Ensure large amounts at u64 boundary are parsed correctly without overflow
+// 13. Test: parse_draft_data() accepts maximum u64 amounts
+// Verifies that parse_draft_data() parses offered_amount and desired_amount strings equal to u64::MAX back into u64::MAX without overflow or truncation.
+// Why: Ensure large amounts at u64 boundary are parsed correctly without overflow.
 #[test]
 fn test_parse_draft_data_max_amounts() {
     let draft_data = json!({
@@ -322,8 +335,9 @@ fn test_parse_draft_data_max_amounts() {
 // EXPIRY CHECKING TESTS
 // ============================================================================
 
-/// What is tested: process_draft() rejects drafts that have already expired
-/// Why: Ensure solver does not sign intents that cannot be fulfilled before expiry
+// 14. Test: process_draft() rejects drafts that have already expired
+// Verifies that SigningService::process_draft() returns Ok(false) for a PendingDraft whose expiry_time is earlier than the current wall-clock time, indicating the draft was skipped without signing.
+// Why: Ensure solver does not sign intents that cannot be fulfilled before expiry.
 #[tokio::test]
 async fn test_process_draft_rejects_expired_draft() {
     let config = create_test_solver_config();
@@ -343,8 +357,9 @@ async fn test_process_draft_rejects_expired_draft() {
     assert_eq!(result, false);
 }
 
-/// What is tested: process_draft() proceeds with non-expired drafts (may fail on signing)
-/// Why: Ensure valid drafts are not rejected due to expiry check and proceed to signing
+// 15. Test: process_draft() proceeds with non-expired drafts (may fail on signing)
+// Verifies that SigningService::process_draft() on a non-expired draft passes the expiry and liquidity checks and progresses into the signing step, surfacing a signing-related error (profile/private key/CLI/HTTP/Signing failed) rather than an expiry rejection.
+// Why: Ensure valid drafts are not rejected due to expiry check and proceed to signing.
 #[tokio::test]
 async fn test_process_draft_accepts_non_expired_draft() {
     use solver::service::liquidity::ChainToken;
@@ -408,8 +423,9 @@ async fn test_process_draft_accepts_non_expired_draft() {
     );
 }
 
-/// What is tested: process_draft() handles drafts at expiry boundary
-/// Why: Ensure drafts exactly at current time are handled correctly (edge case)
+// 16. Test: process_draft() handles drafts at expiry boundary
+// Verifies that SigningService::process_draft() on a draft whose expiry_time equals the current wall-clock time returns Ok without panicking, treating the boundary as a valid (non-expired) case.
+// Why: Ensure drafts exactly at current time are handled correctly (edge case).
 #[tokio::test]
 async fn test_process_draft_rejects_draft_at_expiry_boundary() {
     let config = create_test_solver_config();

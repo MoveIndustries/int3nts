@@ -56,21 +56,21 @@ describe("IntentOutflowValidator", function () {
   // ============================================================================
 
   describe("Initialization", function () {
-    /// 1. Test: test_initialize_creates_config: Initialize Creates Config
-    /// Verifies outflow validator is initialized with correct config.
-    /// Why: Configuration is required for GMP communication.
+    // 1. Test: test_initialize_creates_config: Initialize Creates Config
+    // Verifies outflow validator is initialized with correct config.
+    // Why: Configuration is required for GMP communication.
     it("should initialize with correct config", async function () {
       expect(await outflowValidator.gmpEndpoint()).to.equal(gmpEndpoint.target);
       expect(await outflowValidator.hubChainId()).to.equal(HUB_CHAIN_ID);
       expect(await outflowValidator.hubGmpEndpointAddr()).to.equal(HUB_GMP_ENDPOINT_ADDR);
     });
 
-    /// 2. Test: Initialize Rejects Double Init
-    /// (N/A for Solidity - constructor runs once)
+    // 2. Test: Initialize Rejects Double Init
+    // (N/A for Solidity - constructor runs once)
 
-    /// 3. Test: test_initialize_rejects_zero_endpoint: Initialize Rejects Zero Endpoint
-    /// Verifies deployment fails with zero endpoint address.
-    /// Why: GMP endpoint is required.
+    // 3. Test: test_initialize_rejects_zero_endpoint: Initialize Rejects Zero Endpoint
+    // Verifies deployment fails with zero endpoint address.
+    // Why: GMP endpoint is required.
     it("should reject zero GMP endpoint", async function () {
       const IntentOutflowValidator = await ethers.getContractFactory("IntentOutflowValidator");
       await expect(
@@ -89,9 +89,9 @@ describe("IntentOutflowValidator", function () {
   // ============================================================================
 
   describe("Receive Intent Requirements", function () {
-    /// 4. Test: test_receive_stores_requirements: Receive Stores Requirements
-    /// Verifies requirements are stored correctly.
-    /// Why: Requirements are needed for fulfillment validation.
+    // 4. Test: test_receive_stores_requirements: Receive Stores Requirements
+    // Verifies requirements are stored correctly.
+    // Why: Requirements are needed for fulfillment validation.
     it("should store received requirements", async function () {
       const tokenAddr32 = await tokenToBytes32(token.target);
       const requesterAddr32 = await addressToBytes32(requester.address);
@@ -115,9 +115,9 @@ describe("IntentOutflowValidator", function () {
       expect(req.amountRequired).to.equal(AMOUNT);
     });
 
-    /// 5. Test: test_receive_idempotent: Receive Idempotent
-    /// Verifies duplicate delivery is blocked by GMP deduplication.
-    /// Why: (intent_id, msg_type) dedup prevents double-processing at the GMP layer.
+    // 5. Test: test_receive_idempotent: Receive Idempotent
+    // Verifies duplicate delivery is blocked by GMP deduplication.
+    // Why: (intent_id, msg_type) dedup prevents double-processing at the GMP layer.
     it("should reject duplicate delivery at GMP level", async function () {
       const tokenAddr32 = await tokenToBytes32(token.target);
       const requesterAddr32 = await addressToBytes32(requester.address);
@@ -142,9 +142,9 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(gmpEndpoint, "E_ALREADY_DELIVERED");
     });
 
-    /// 6. Test: test_receive_rejects_unauthorized_source: Receive Rejects Unauthorized Source
-    /// Verifies requirements from unauthorized source are rejected.
-    /// Why: Only the registered hub GMP endpoint should send requirements.
+    // 6. Test: test_receive_rejects_unauthorized_source: Receive Rejects Unauthorized Source
+    // Verifies requirements from unauthorized source are rejected.
+    // Why: Only the registered hub GMP endpoint should send requirements.
     it("should reject requirements from unauthorized source", async function () {
       const wrongAddr = "0x9900000000000000000000000000000000000000000000000000000000000099";
       await gmpEndpoint.addRemoteGmpEndpointAddr(HUB_CHAIN_ID, wrongAddr);
@@ -156,8 +156,8 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_INVALID_SOURCE_ADDRESS");
     });
 
-    /// 7. Test: Receive Rejects Invalid Payload
-    /// (Covered by GmpTypes decode validation)
+    // 7. Test: Receive Rejects Invalid Payload
+    // (Covered by GmpTypes decode validation)
   });
 
   // ============================================================================
@@ -191,9 +191,9 @@ describe("IntentOutflowValidator", function () {
       await gmpEndpoint.deliverMessage(HUB_CHAIN_ID, HUB_GMP_ENDPOINT_ADDR, payload);
     });
 
-    /// 8. Test: test_fulfill_intent_rejects_already_fulfilled: Fulfill Rejects Already Fulfilled
-    /// Verifies double fulfillment is rejected.
-    /// Why: Prevents double payment.
+    // 8. Test: test_fulfill_intent_rejects_already_fulfilled: Fulfill Rejects Already Fulfilled
+    // Verifies double fulfillment is rejected.
+    // Why: Prevents double payment.
     it("should reject already fulfilled intent", async function () {
       await outflowValidator.connect(solver).fulfillIntent(INTENT_ID, token.target);
 
@@ -202,9 +202,9 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_ALREADY_FULFILLED");
     });
 
-    /// 9. Test: test_fulfill_intent_rejects_expired: Fulfill Rejects Expired
-    /// Verifies expired intents cannot be fulfilled.
-    /// Why: Expired intents should not be fulfilled.
+    // 9. Test: test_fulfill_intent_rejects_expired: Fulfill Rejects Expired
+    // Verifies expired intents cannot be fulfilled.
+    // Why: Expired intents should not be fulfilled.
     it("should reject expired intent", async function () {
       // Create new intent with past expiry
       const pastExpiry = BigInt(Math.floor(Date.now() / 1000) - 3600);
@@ -225,9 +225,9 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_INTENT_EXPIRED");
     });
 
-    /// 10. Test: test_fulfill_intent_rejects_unauthorized_solver: Fulfill Rejects Unauthorized Solver
-    /// Verifies only authorized solver can fulfill.
-    /// Why: Security - only designated solver should fulfill.
+    // 10. Test: test_fulfill_intent_rejects_unauthorized_solver: Fulfill Rejects Unauthorized Solver
+    // Verifies only authorized solver can fulfill.
+    // Why: Security - only designated solver should fulfill.
     it("should reject unauthorized solver", async function () {
       await token.mint(admin.address, AMOUNT);
       await token.connect(admin).approve(outflowValidator.target, AMOUNT);
@@ -237,9 +237,9 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_UNAUTHORIZED_SOLVER");
     });
 
-    /// 11. Test: test_fulfill_intent_rejects_token_mismatch: Fulfill Rejects Token Mismatch
-    /// Verifies fulfillment fails if token doesn't match.
-    /// Why: Token must match requirements.
+    // 11. Test: test_fulfill_intent_rejects_token_mismatch: Fulfill Rejects Token Mismatch
+    // Verifies fulfillment fails if token doesn't match.
+    // Why: Token must match requirements.
     it("should reject token mismatch", async function () {
       const MockERC20 = await ethers.getContractFactory("MockERC20");
       const wrongToken = await MockERC20.deploy("Wrong", "WRONG", 18);
@@ -251,9 +251,9 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_TOKEN_MISMATCH");
     });
 
-    /// 12. Test: test_fulfill_intent_rejects_requirements_not_found: Fulfill Rejects Requirements Not Found
-    /// Verifies fulfillment fails if no requirements exist.
-    /// Why: Requirements must be received first.
+    // 12. Test: test_fulfill_intent_rejects_requirements_not_found: Fulfill Rejects Requirements Not Found
+    // Verifies fulfillment fails if no requirements exist.
+    // Why: Requirements must be received first.
     it("should reject fulfillment without requirements", async function () {
       const unknownIntentId = "0xcc000000000000000000000000000000000000000000000000000000000000dd";
 
@@ -262,12 +262,12 @@ describe("IntentOutflowValidator", function () {
       ).to.be.revertedWithCustomError(outflowValidator, "E_REQUIREMENTS_NOT_FOUND");
     });
 
-    /// 13. Test: Fulfill Rejects Recipient Mismatch
-    /// (N/A - recipient comes from requirements, not input)
+    // 13. Test: Fulfill Rejects Recipient Mismatch
+    // (N/A - recipient comes from requirements, not input)
 
-    /// 14. Test: test_fulfill_intent_succeeds: Fulfill Intent Succeeds
-    /// Verifies solver can fulfill intent successfully.
-    /// Why: Core functionality - solver transfers tokens to requester.
+    // 14. Test: test_fulfill_intent_succeeds: Fulfill Intent Succeeds
+    // Verifies solver can fulfill intent successfully.
+    // Why: Core functionality - solver transfers tokens to requester.
     it("should fulfill intent successfully", async function () {
       await expect(
         outflowValidator.connect(solver).fulfillIntent(INTENT_ID, token.target)
@@ -277,9 +277,9 @@ describe("IntentOutflowValidator", function () {
       expect(await token.balanceOf(requester.address)).to.equal(AMOUNT);
     });
 
-    /// 15. Test: test_allow_any_solver_zero_address: Allow Any Solver When Zero Address
-    /// Verifies any solver can fulfill when solver_addr is zero.
-    /// Why: Zero solver address means "any solver".
+    // 15. Test: test_allow_any_solver_zero_address: Allow Any Solver When Zero Address
+    // Verifies any solver can fulfill when solver_addr is zero.
+    // Why: Zero solver address means "any solver".
     it("should allow any solver when solver_addr is zero", async function () {
       // Create intent with zero solver address
       const zeroSolverAddr = "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -304,18 +304,18 @@ describe("IntentOutflowValidator", function () {
       ).to.emit(outflowValidator, "FulfillmentSucceeded");
     });
 
-    /// 16. Test: test_send_fulfillment_proof_to_hub: Send Fulfillment Proof to Hub
-    /// Verifies FulfillmentProof is sent to hub.
-    /// Why: Hub needs proof to release escrowed funds.
+    // 16. Test: test_send_fulfillment_proof_to_hub: Send Fulfillment Proof to Hub
+    // Verifies FulfillmentProof is sent to hub.
+    // Why: Hub needs proof to release escrowed funds.
     it("should send fulfillment proof to hub", async function () {
       await expect(
         outflowValidator.connect(solver).fulfillIntent(INTENT_ID, token.target)
       ).to.emit(outflowValidator, "FulfillmentProofSent");
     });
 
-    /// 17. Test: test_tokens_transferred_to_requester: Tokens Transferred to Requester
-    /// Verifies tokens are transferred to requester (recipient).
-    /// Why: Requester should receive tokens.
+    // 17. Test: test_tokens_transferred_to_requester: Tokens Transferred to Requester
+    // Verifies tokens are transferred to requester (recipient).
+    // Why: Requester should receive tokens.
     it("should transfer tokens to requester", async function () {
       const balanceBefore = await token.balanceOf(requester.address);
 
@@ -331,9 +331,9 @@ describe("IntentOutflowValidator", function () {
   // ============================================================================
 
   describe("Full Workflow", function () {
-    /// 18. Test: test_complete_outflow_workflow: Complete Outflow Workflow
-    /// Verifies complete flow from requirements to fulfillment.
-    /// Why: End-to-end validation of the entire process.
+    // 18. Test: test_complete_outflow_workflow: Complete Outflow Workflow
+    // Verifies complete flow from requirements to fulfillment.
+    // Why: End-to-end validation of the entire process.
     it("should complete full outflow workflow", async function () {
       const tokenAddr32 = await tokenToBytes32(token.target);
       const requesterAddr32 = await addressToBytes32(requester.address);
@@ -367,23 +367,23 @@ describe("IntentOutflowValidator", function () {
   // ============================================================================
 
   describe("Update Hub Config", function () {
-    /// 19. Test: test_update_hub_config_succeeds: UpdateHubConfig Succeeds
-    /// Verifies that the admin can update hub_chain_id and hub_gmp_endpoint_addr.
-    /// Why: Allows reconfiguring the outflow validator when hub addresses change.
-    /// TODO: Implement - EVM has updateHubConfig in IntentOutflowValidator
-    /// SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+    // 19. Test: test_update_hub_config_succeeds: UpdateHubConfig Succeeds
+    // Verifies that the admin can update hub_chain_id and hub_gmp_endpoint_addr.
+    // Why: Allows reconfiguring the outflow validator when hub addresses change.
+    // TODO: Implement - EVM has updateHubConfig in IntentOutflowValidator
+    // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
 
-    /// 20. Test: test_update_hub_config_rejects_non_admin: UpdateHubConfig Rejects Non-Admin
-    /// Verifies that only the admin can update config.
-    /// Why: Prevents unauthorized reconfiguration of the hub trust relationship.
-    /// TODO: Implement - EVM has updateHubConfig with onlyOwner modifier
-    /// SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+    // 20. Test: test_update_hub_config_rejects_non_admin: UpdateHubConfig Rejects Non-Admin
+    // Verifies that only the admin can update config.
+    // Why: Prevents unauthorized reconfiguration of the hub trust relationship.
+    // TODO: Implement - EVM has updateHubConfig with onlyOwner modifier
+    // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
 
-    /// 21. Test: test_update_hub_config_then_gmp_receive: UpdateHubConfig Then GmpReceive
-    /// Verifies end-to-end: update config, then receive message from new hub address.
-    /// Why: Ensures the updated config is used for GMP message validation.
-    /// TODO: Implement - EVM has updateHubConfig in IntentOutflowValidator
-    /// SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+    // 21. Test: test_update_hub_config_then_gmp_receive: UpdateHubConfig Then GmpReceive
+    // Verifies end-to-end: update config, then receive message from new hub address.
+    // Why: Ensures the updated config is used for GMP message validation.
+    // TODO: Implement - EVM has updateHubConfig in IntentOutflowValidator
+    // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
   });
 
   // ============================================================================
@@ -391,11 +391,11 @@ describe("IntentOutflowValidator", function () {
   // ============================================================================
 
   describe("GMP Caller Authorization", function () {
-    /// 22. Test: test_gmp_receive_rejects_unsigned_gmp_caller: GmpReceive Rejects Unauthorized Caller
-    /// Verifies that receiveIntentRequirements rejects calls from non-GMP-endpoint addresses.
-    /// Why: Only the authorized GMP endpoint can deliver intent requirements.
-    /// TODO: Implement - EVM has onlyGmpEndpoint modifier on receiveIntentRequirements
-    /// SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
+    // 22. Test: test_gmp_receive_rejects_unsigned_gmp_caller: GmpReceive Rejects Unauthorized Caller
+    // Verifies that receiveIntentRequirements rejects calls from non-GMP-endpoint addresses.
+    // Why: Only the authorized GMP endpoint can deliver intent requirements.
+    // TODO: Implement - EVM has onlyGmpEndpoint modifier on receiveIntentRequirements
+    // SVM: intent-frameworks/svm/programs/intent-outflow-validator/tests/validator_tests.rs
   });
 
   // ============================================================================

@@ -27,8 +27,9 @@ fn is_safe_for_escrow(event: &IntentEvent) -> bool {
 // REVOCABILITY TESTS
 // ============================================================================
 
-/// Test that revocable intents are rejected (error thrown)
-/// Why: Verify critical security check - revocable intents must be rejected for escrow
+// 1. Test: Revocable intents are rejected (error thrown)
+// Verifies that revocable intents are rejected (error thrown).
+// Why: Verify critical security check - revocable intents must be rejected for escrow.
 #[test]
 fn test_revocable_intent_rejection() {
     let revocable_intent = IntentEvent {
@@ -54,8 +55,9 @@ fn test_revocable_intent_rejection() {
 // CACHE BEHAVIOR TESTS
 // ============================================================================
 
-/// Test that duplicate intent events are rejected (not added to cache)
-/// Why: Verify that the monitor correctly detects and rejects duplicate intent events
+// 2. Test: Duplicate intent events are rejected (not added to cache)
+// Verifies that duplicate intent events are rejected (not added to cache).
+// Why: Verify that the monitor correctly detects and rejects duplicate intent events.
 #[tokio::test]
 async fn test_duplicate_intent_event_rejection() {
     let _ = tracing_subscriber::fmt::try_init();
@@ -106,8 +108,9 @@ async fn test_duplicate_intent_event_rejection() {
     assert_eq!(cache[0].intent_id, intent.intent_id);
 }
 
-/// Test that EventMonitor can be created and basic cache operations work
-/// Why: Verify monitor initialization and basic read/write to caches
+// 3. Test: EventMonitor can be created and basic cache operations work
+// Verifies that EventMonitor can be created and basic cache operations work.
+// Why: Verify monitor initialization and basic read/write to caches.
 #[tokio::test]
 async fn test_monitor_initialization_and_basic_ops() {
     let _ = tracing_subscriber::fmt::try_init();

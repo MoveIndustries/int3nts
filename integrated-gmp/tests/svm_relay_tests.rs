@@ -187,7 +187,7 @@ fn test_fulfillment_proof_payload_intent_id_extraction() {
 }
 
 // 11. Test: FulfillmentProof Payload Minimum Length
-/// Verifies that FulfillmentProof payloads are validated against the minimum 65-byte length requirement.
+/// Verifies that FulfillmentProof payloads are validated against the minimum length required for the protocol's mandatory fields.
 /// Why: deliver_to_svm checks payload.len() >= 65 for required fields.
 #[test]
 fn test_fulfillment_proof_payload_minimum_length() {
