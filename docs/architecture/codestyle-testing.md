@@ -111,9 +111,9 @@ Match the expected format for each constant type:
 Every test function must include documentation with the following format:
 
 ```rust
-/// N. Test: [Test Name]
-/// Verifies that [what the test does].
-/// Why: [rationale for why this test is important].
+// N. Test: [Test Name]
+// Verifies that [what the test does].
+// Why: [rationale for why this test is important].
 #[test]
 fn test_example() {
     // ...
@@ -130,20 +130,16 @@ fn test_example() {
 **Example:**
 
 ```rust
-/// 1. Test: Valid Claim with Approver Signature
-/// Verifies that solvers can claim escrow funds when provided with a valid approver signature.
-/// Why: Claiming is the core fulfillment mechanism. Solvers must be able to receive funds after approver approval.
+// 1. Test: Valid Claim with Approver Signature
+// Verifies that solvers can claim escrow funds when provided with a valid approver signature.
+// Why: Claiming is the core fulfillment mechanism. Solvers must be able to receive funds after approver approval.
 #[test]
 fn test_valid_claim_with_signature() {
     // ...
 }
 ```
 
-**Language-specific formats:**
-
-- **Rust**: Use `///` doc comments
-- **JavaScript/TypeScript**: Use `///` comments (same format)
-- **Move**: Use `///` doc comments
+**Comment style**: Use `//` line comments (not `///` doc comments) for test documentation. Test functions are not part of the public API, so `///` adds no value and pollutes `cargo doc` output with entries for test-only items. This applies uniformly across Rust, Move, JavaScript, and TypeScript.
 
 ### 11. Test File Section Headers
 

@@ -84,7 +84,7 @@ module mvmt_intent::gmp_common_tests {
         *vector::borrow_mut(v, offset + 7) = ((val & 0xFF) as u8);
     }
 
-    /// Convert a hex character to its numeric value (0-15)
+    // Convert a hex character to its numeric value (0-15)
     fun hex_char_to_u8(c: u8): u8 {
         if (c >= 0x30 && c <= 0x39) {       // '0'-'9'
             c - 0x30
@@ -97,7 +97,7 @@ module mvmt_intent::gmp_common_tests {
         }
     }
 
-    /// Convert a hex string (as bytes) to a byte vector
+    // Convert a hex string (as bytes) to a byte vector
     fun hex_to_bytes(hex: vector<u8>): vector<u8> {
         let len = vector::length(&hex);
         assert!(len % 2 == 0, 98); // must be even length
@@ -116,9 +116,10 @@ module mvmt_intent::gmp_common_tests {
     // INTENT REQUIREMENTS (0x01) TESTS
     // ============================================================================
 
-    //1. Test: IntentRequirements Encoded Size
-    //Why: A size mismatch between chains would cause the receiver to read beyond
-    //the buffer or miss trailing fields, silently corrupting every message.
+    // 1. Test: IntentRequirements Encoded Size
+    // Verifies that the encoded buffer is exactly 145 bytes, matching the declared size constant.
+    // Why: A size mismatch between chains would cause the receiver to read beyond
+    // the buffer or miss trailing fields, silently corrupting every message.
     #[test]
     fun test_intent_requirements_encode_size() {
         let msg = gmp_common::new_intent_requirements(
@@ -129,9 +130,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(vector::length(&encoded) == 145, 2);
     }
 
-    //2. Test: IntentRequirements Discriminator Byte
-    //Why: The receiver reads this byte first to decide which struct to decode into.
-    //A wrong discriminator causes the message to be interpreted as the wrong type.
+    // 2. Test: IntentRequirements Discriminator Byte
+    // Verifies that the first byte of an IntentRequirements-encoded buffer is the discriminator 0x01.
+    // Why: The receiver reads this byte first to decide which struct to decode into.
+    // A wrong discriminator causes the message to be interpreted as the wrong type.
     #[test]
     fun test_intent_requirements_discriminator() {
         let msg = gmp_common::new_intent_requirements(
@@ -141,9 +143,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(*vector::borrow(&encoded, 0) == 0x01, 1);
     }
 
-    //3. Test: IntentRequirements Encode/Decode Roundtrip
-    //Why: If encode and decode are not exact inverses, data is silently corrupted
-    //when messages cross chains — e.g. wrong solver gets the escrow funds.
+    // 3. Test: IntentRequirements Encode/Decode Roundtrip
+    // Verifies that encoding then decoding an IntentRequirements message returns the original unchanged.
+    // Why: If encode and decode are not exact inverses, data is silently corrupted
+    // when messages cross chains — e.g. wrong solver gets the escrow funds.
     #[test]
     fun test_intent_requirements_roundtrip() {
         let msg = gmp_common::new_intent_requirements(
@@ -155,9 +158,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(decoded == msg, 1);
     }
 
-    //4. Test: IntentRequirements Big-Endian Amount
-    //Why: Move is little-endian internally. If encode accidentally uses native
-    //order, Solidity (big-endian) reads a different amount, causing wrong escrow values.
+    // 4. Test: IntentRequirements Big-Endian Amount
+    // Verifies that amount_required is written in big-endian byte order at offset 65..73.
+    // Why: Move is little-endian internally. If encode accidentally uses native
+    // order, Solidity (big-endian) reads a different amount, causing wrong escrow values.
     #[test]
     fun test_intent_requirements_big_endian_amount() {
         let msg = gmp_common::new_intent_requirements(
@@ -177,9 +181,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(*vector::borrow(&encoded, 72) == 0x08, 8);
     }
 
-    //5. Test: IntentRequirements Big-Endian Expiry
-    //Why: Wrong endianness on expiry could cause escrows to expire at the wrong time
-    //or never expire, locking funds permanently.
+    // 5. Test: IntentRequirements Big-Endian Expiry
+    // Verifies that expiry is written in big-endian byte order at offset 137..145.
+    // Why: Wrong endianness on expiry could cause escrows to expire at the wrong time
+    // or never expire, locking funds permanently.
     #[test]
     fun test_intent_requirements_big_endian_expiry() {
         let msg = gmp_common::new_intent_requirements(
@@ -198,9 +203,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(*vector::borrow(&encoded, 144) == 0x33, 8);
     }
 
-    //6. Test: IntentRequirements Field Offsets
-    //Why: All chains decode by slicing at fixed offsets. If any field starts at the
-    //wrong byte, that field and every field after it reads wrong data.
+    // 6. Test: IntentRequirements Field Offsets
+    // Verifies that every field in IntentRequirements is encoded at its expected byte offset.
+    // Why: All chains decode by slicing at fixed offsets. If any field starts at the
+    // wrong byte, that field and every field after it reads wrong data.
     #[test]
     fun test_intent_requirements_field_offsets() {
         let msg = gmp_common::new_intent_requirements(
@@ -229,9 +235,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(*vector::borrow(&encoded, 136) == 0x66, 9);
     }
 
-    //7. Test: IntentRequirements EVM Address Encoding
-    //Why: EVM addresses are 20 bytes left-padded to 32. If padding bytes are corrupted,
-    //the EVM contract won't recognize the address and funds go to a wrong account.
+    // 7. Test: IntentRequirements EVM Address Encoding
+    // Verifies that an EVM address (20 bytes) is left-padded with 12 zero bytes in the 32-byte slot.
+    // Why: EVM addresses are 20 bytes left-padded to 32. If padding bytes are corrupted,
+    // the EVM contract won't recognize the address and funds go to a wrong account.
     #[test]
     fun test_intent_requirements_evm_address() {
         let msg = gmp_common::new_intent_requirements(
@@ -252,10 +259,11 @@ module mvmt_intent::gmp_common_tests {
     // ESCROW CONFIRMATION (0x02) TESTS
     // ============================================================================
 
-    //8. Test: EscrowConfirmation Encoded Size
-    //Why: The hub decodes this message to confirm an escrow was created on the
-    //connected chain. A wrong size means the hub reads garbage and may release
-    //funds for an escrow that doesn't exist.
+    // 8. Test: EscrowConfirmation Encoded Size
+    // Verifies that the encoded EscrowConfirmation buffer is exactly 137 bytes, matching the declared size constant.
+    // Why: The hub decodes this message to confirm an escrow was created on the
+    // connected chain. A wrong size means the hub reads garbage and may release
+    // funds for an escrow that doesn't exist.
     #[test]
     fun test_escrow_confirmation_encode_size() {
         let msg = gmp_common::new_escrow_confirmation(
@@ -266,9 +274,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(vector::length(&encoded) == 137, 2);
     }
 
-    //9. Test: EscrowConfirmation Discriminator Byte
-    //Why: The hub uses this byte to route the message to the escrow confirmation
-    //handler. A wrong value would route it to the wrong handler.
+    // 9. Test: EscrowConfirmation Discriminator Byte
+    // Verifies that the first byte of an EscrowConfirmation-encoded buffer is the discriminator 0x02.
+    // Why: The hub uses this byte to route the message to the escrow confirmation
+    // handler. A wrong value would route it to the wrong handler.
     #[test]
     fun test_escrow_confirmation_discriminator() {
         let msg = gmp_common::new_escrow_confirmation(
@@ -278,9 +287,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(*vector::borrow(&encoded, 0) == 0x02, 1);
     }
 
-    //10. Test: EscrowConfirmation Encode/Decode Roundtrip
-    //Why: The connected chain encodes this and the hub decodes it. If they disagree,
-    //the hub could confirm the wrong escrow or credit the wrong creator.
+    // 10. Test: EscrowConfirmation Encode/Decode Roundtrip
+    // Verifies that encoding then decoding an EscrowConfirmation message returns the original unchanged.
+    // Why: The connected chain encodes this and the hub decodes it. If they disagree,
+    // the hub could confirm the wrong escrow or credit the wrong creator.
     #[test]
     fun test_escrow_confirmation_roundtrip() {
         let msg = gmp_common::new_escrow_confirmation(
@@ -292,9 +302,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(decoded == msg, 1);
     }
 
-    //11. Test: EscrowConfirmation Big-Endian Amount
-    //Why: The hub checks that escrow amount matches the intent requirement. Wrong
-    //endianness means the amounts never match even when they should.
+    // 11. Test: EscrowConfirmation Big-Endian Amount
+    // Verifies that amount_escrowed is written in big-endian byte order at offset 65..73.
+    // Why: The hub checks that escrow amount matches the intent requirement. Wrong
+    // endianness means the amounts never match even when they should.
     #[test]
     fun test_escrow_confirmation_big_endian_amount() {
         let msg = gmp_common::new_escrow_confirmation(
@@ -314,9 +325,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(*vector::borrow(&encoded, 72) == 0x11, 8);
     }
 
-    //12. Test: EscrowConfirmation Field Offsets
-    //Why: The hub reads escrow_id, token_addr, and creator_addr by slicing at fixed
-    //offsets. A shifted offset means the hub associates the wrong creator with the escrow.
+    // 12. Test: EscrowConfirmation Field Offsets
+    // Verifies that every field in EscrowConfirmation is encoded at its expected byte offset.
+    // Why: The hub reads escrow_id, token_addr, and creator_addr by slicing at fixed
+    // offsets. A shifted offset means the hub associates the wrong creator with the escrow.
     #[test]
     fun test_escrow_confirmation_field_offsets() {
         let msg = gmp_common::new_escrow_confirmation(
@@ -340,9 +352,10 @@ module mvmt_intent::gmp_common_tests {
     // FULFILLMENT PROOF (0x03) TESTS
     // ============================================================================
 
-    //13. Test: FulfillmentProof Encoded Size
-    //Why: The connected chain decodes this to release escrowed funds. A wrong size
-    //means the escrow contract reads garbage and funds stay locked.
+    // 13. Test: FulfillmentProof Encoded Size
+    // Verifies that the encoded FulfillmentProof buffer is exactly 81 bytes, matching the declared size constant.
+    // Why: The connected chain decodes this to release escrowed funds. A wrong size
+    // means the escrow contract reads garbage and funds stay locked.
     #[test]
     fun test_fulfillment_proof_encode_size() {
         let msg = gmp_common::new_fulfillment_proof(
@@ -353,9 +366,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(vector::length(&encoded) == 81, 2);
     }
 
-    //14. Test: FulfillmentProof Discriminator Byte
-    //Why: The connected chain uses this byte to route to the fulfillment handler.
-    //A wrong value would route it to the wrong handler or reject the message entirely.
+    // 14. Test: FulfillmentProof Discriminator Byte
+    // Verifies that the first byte of a FulfillmentProof-encoded buffer is the discriminator 0x03.
+    // Why: The connected chain uses this byte to route to the fulfillment handler.
+    // A wrong value would route it to the wrong handler or reject the message entirely.
     #[test]
     fun test_fulfillment_proof_discriminator() {
         let msg = gmp_common::new_fulfillment_proof(
@@ -365,9 +379,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(*vector::borrow(&encoded, 0) == 0x03, 1);
     }
 
-    //15. Test: FulfillmentProof Encode/Decode Roundtrip
-    //Why: The hub encodes this and the connected chain decodes it to release funds.
-    //A mismatch means the escrow releases to the wrong solver or wrong amount.
+    // 15. Test: FulfillmentProof Encode/Decode Roundtrip
+    // Verifies that encoding then decoding a FulfillmentProof message returns the original unchanged.
+    // Why: The hub encodes this and the connected chain decodes it to release funds.
+    // A mismatch means the escrow releases to the wrong solver or wrong amount.
     #[test]
     fun test_fulfillment_proof_roundtrip() {
         let msg = gmp_common::new_fulfillment_proof(
@@ -378,9 +393,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(decoded == msg, 1);
     }
 
-    //16. Test: FulfillmentProof Big-Endian Fields
-    //Why: The escrow contract checks amount_fulfilled against the locked amount.
-    //Wrong endianness means the check fails and funds stay locked forever.
+    // 16. Test: FulfillmentProof Big-Endian Fields
+    // Verifies that amount_fulfilled and timestamp are both written in big-endian byte order at their offsets.
+    // Why: The escrow contract checks amount_fulfilled against the locked amount.
+    // Wrong endianness means the check fails and funds stay locked forever.
     #[test]
     fun test_fulfillment_proof_big_endian_fields() {
         let msg = gmp_common::new_fulfillment_proof(
@@ -397,9 +413,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(*vector::borrow(&encoded, 80) == 0x33, 4);
     }
 
-    //17. Test: FulfillmentProof Field Offsets
-    //Why: The escrow contract reads solver_addr by offset to verify the solver.
-    //A shifted offset means a different address is read and the wrong party gets funds.
+    // 17. Test: FulfillmentProof Field Offsets
+    // Verifies that every field in FulfillmentProof is encoded at its expected byte offset.
+    // Why: The escrow contract reads solver_addr by offset to verify the solver.
+    // A shifted offset means a different address is read and the wrong party gets funds.
     #[test]
     fun test_fulfillment_proof_field_offsets() {
         let msg = gmp_common::new_fulfillment_proof(
@@ -418,9 +435,10 @@ module mvmt_intent::gmp_common_tests {
     // PEEK MESSAGE TYPE TESTS
     // ============================================================================
 
-    //18. Test: Peek IntentRequirements Type
-    //Why: The gmpReceive handler calls peek first to decide which decode path to take.
-    //A wrong peek result routes the message to the wrong handler.
+    // 18. Test: Peek IntentRequirements Type
+    // Verifies that peek_message_type returns 0x01 for an IntentRequirements-encoded buffer.
+    // Why: The gmpReceive handler calls peek first to decide which decode path to take.
+    // A wrong peek result routes the message to the wrong handler.
     #[test]
     fun test_peek_intent_requirements() {
         let msg = gmp_common::new_intent_requirements(
@@ -430,9 +448,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(gmp_common::peek_message_type(&encoded) == 0x01, 1);
     }
 
-    //19. Test: Peek EscrowConfirmation Type
-    //Why: Each discriminator value must map to the correct type.
-    //Tests 18-20 together ensure all three types are correctly identified.
+    // 19. Test: Peek EscrowConfirmation Type
+    // Verifies that peek_message_type returns 0x02 for an EscrowConfirmation-encoded buffer.
+    // Why: Each discriminator value must map to the correct type.
+    // Tests 18-20 together ensure all three types are correctly identified.
     #[test]
     fun test_peek_escrow_confirmation() {
         let msg = gmp_common::new_escrow_confirmation(
@@ -442,9 +461,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(gmp_common::peek_message_type(&encoded) == 0x02, 1);
     }
 
-    //20. Test: Peek FulfillmentProof Type
-    //Why: Each discriminator value must map to the correct type.
-    //Tests 18-20 together ensure all three types are correctly identified.
+    // 20. Test: Peek FulfillmentProof Type
+    // Verifies that peek_message_type returns 0x03 for a FulfillmentProof-encoded buffer.
+    // Why: Each discriminator value must map to the correct type.
+    // Tests 18-20 together ensure all three types are correctly identified.
     #[test]
     fun test_peek_fulfillment_proof() {
         let msg = gmp_common::new_fulfillment_proof(
@@ -458,9 +478,10 @@ module mvmt_intent::gmp_common_tests {
     // ERROR CONDITION TESTS
     // ============================================================================
 
-    //21. Test: Reject Wrong Discriminator
-    //Why: Without this check, a buffer encoded as EscrowConfirmation could be
-    //decoded as IntentRequirements, silently producing garbage fields.
+    // 21. Test: Reject Wrong Discriminator
+    // Verifies that decode_intent_requirements aborts when the discriminator byte does not match 0x01.
+    // Why: Without this check, a buffer encoded as EscrowConfirmation could be
+    // decoded as IntentRequirements, silently producing garbage fields.
     #[test]
     #[expected_failure(abort_code = 1, location = mvmt_intent::gmp_common)]
     fun test_reject_wrong_discriminator() {
@@ -473,9 +494,10 @@ module mvmt_intent::gmp_common_tests {
         gmp_common::decode_intent_requirements(&encoded);
     }
 
-    //22. Test: Reject Wrong Length
-    //Why: A truncated buffer could cause out-of-bounds reads. A padded buffer could
-    //contain trailing garbage. Both must be rejected to prevent silent corruption.
+    // 22. Test: Reject Wrong Length
+    // Verifies that decode_intent_requirements aborts when given a buffer shorter than the expected 145 bytes.
+    // Why: A truncated buffer could cause out-of-bounds reads. A padded buffer could
+    // contain trailing garbage. Both must be rejected to prevent silent corruption.
     #[test]
     #[expected_failure(abort_code = 2, location = mvmt_intent::gmp_common)]
     fun test_reject_wrong_length() {
@@ -483,9 +505,10 @@ module mvmt_intent::gmp_common_tests {
         gmp_common::decode_intent_requirements(&data);
     }
 
-    //23. Test: Reject Empty Buffer
-    //Why: GMP messages could arrive empty due to network errors or malicious senders.
-    //Decode must abort, not panic or read uninitialized memory.
+    // 23. Test: Reject Empty Buffer
+    // Verifies that decode_intent_requirements aborts on an empty buffer.
+    // Why: GMP messages could arrive empty due to network errors or malicious senders.
+    // Decode must abort, not panic or read uninitialized memory.
     #[test]
     #[expected_failure(abort_code = 2, location = mvmt_intent::gmp_common)]
     fun test_reject_empty_buffer() {
@@ -493,9 +516,10 @@ module mvmt_intent::gmp_common_tests {
         gmp_common::decode_intent_requirements(&empty);
     }
 
-    //24. Test: Peek Rejects Empty Buffer
-    //Why: peek is called before decode, so it's the first line of defense. It must
-    //not index out of bounds on empty input from the network.
+    // 24. Test: Peek Rejects Empty Buffer
+    // Verifies that peek_message_type aborts on an empty buffer.
+    // Why: peek is called before decode, so it's the first line of defense. It must
+    // not index out of bounds on empty input from the network.
     #[test]
     #[expected_failure(abort_code = 2, location = mvmt_intent::gmp_common)]
     fun test_peek_reject_empty_buffer() {
@@ -503,9 +527,10 @@ module mvmt_intent::gmp_common_tests {
         gmp_common::peek_message_type(&empty);
     }
 
-    //25. Test: Peek Rejects Unknown Type
-    //Why: If a new message type is added on one chain but not another, the receiver
-    //must reject it cleanly rather than silently misinterpreting the payload.
+    // 25. Test: Peek Rejects Unknown Type
+    // Verifies that peek_message_type aborts when the discriminator byte is not a known message type.
+    // Why: If a new message type is added on one chain but not another, the receiver
+    // must reject it cleanly rather than silently misinterpreting the payload.
     #[test]
     #[expected_failure(abort_code = 3, location = mvmt_intent::gmp_common)]
     fun test_peek_reject_unknown_type() {
@@ -514,9 +539,10 @@ module mvmt_intent::gmp_common_tests {
         gmp_common::peek_message_type(&data);
     }
 
-    //26. Test: Reject Wrong Discriminator for EscrowConfirmation
-    //Why: Each message type has its own decode function. If EscrowConfirmation accepts
-    //a 0x01 buffer, it would silently misinterpret IntentRequirements fields.
+    // 26. Test: Reject Wrong Discriminator for EscrowConfirmation
+    // Verifies that decode_escrow_confirmation aborts when the discriminator byte does not match 0x02.
+    // Why: Each message type has its own decode function. If EscrowConfirmation accepts
+    // a 0x01 buffer, it would silently misinterpret IntentRequirements fields.
     #[test]
     #[expected_failure(abort_code = 1, location = mvmt_intent::gmp_common)]
     fun test_reject_wrong_discriminator_escrow_confirmation() {
@@ -525,9 +551,10 @@ module mvmt_intent::gmp_common_tests {
         gmp_common::decode_escrow_confirmation(&data);
     }
 
-    //27. Test: Reject Wrong Discriminator for FulfillmentProof
-    //Why: Same reasoning as test 26 — each decode function must enforce its own
-    //discriminator to prevent cross-type misinterpretation.
+    // 27. Test: Reject Wrong Discriminator for FulfillmentProof
+    // Verifies that decode_fulfillment_proof aborts when the discriminator byte does not match 0x03.
+    // Why: Same reasoning as test 26 — each decode function must enforce its own
+    // discriminator to prevent cross-type misinterpretation.
     #[test]
     #[expected_failure(abort_code = 1, location = mvmt_intent::gmp_common)]
     fun test_reject_wrong_discriminator_fulfillment_proof() {
@@ -536,9 +563,10 @@ module mvmt_intent::gmp_common_tests {
         gmp_common::decode_fulfillment_proof(&data);
     }
 
-    //28. Test: Reject Wrong Length for EscrowConfirmation
-    //Why: Each message type has a different expected size. A bug in the
-    //EscrowConfirmation length check is independent of the IntentRequirements one.
+    // 28. Test: Reject Wrong Length for EscrowConfirmation
+    // Verifies that decode_escrow_confirmation aborts when given a buffer shorter than the expected 137 bytes.
+    // Why: Each message type has a different expected size. A bug in the
+    // EscrowConfirmation length check is independent of the IntentRequirements one.
     #[test]
     #[expected_failure(abort_code = 2, location = mvmt_intent::gmp_common)]
     fun test_reject_wrong_length_escrow_confirmation() {
@@ -546,9 +574,10 @@ module mvmt_intent::gmp_common_tests {
         gmp_common::decode_escrow_confirmation(&data);
     }
 
-    //29. Test: Reject Wrong Length for FulfillmentProof
-    //Why: Each message type checks its own expected size independently. A bug in one
-    //length check doesn't imply the others are correct.
+    // 29. Test: Reject Wrong Length for FulfillmentProof
+    // Verifies that decode_fulfillment_proof aborts when given a buffer shorter than the expected 81 bytes.
+    // Why: Each message type checks its own expected size independently. A bug in one
+    // length check doesn't imply the others are correct.
     #[test]
     #[expected_failure(abort_code = 2, location = mvmt_intent::gmp_common)]
     fun test_reject_wrong_length_fulfillment_proof() {
@@ -556,9 +585,10 @@ module mvmt_intent::gmp_common_tests {
         gmp_common::decode_fulfillment_proof(&data);
     }
 
-    //30. Test: Reject Off-By-One Length
-    //Why: Off-by-one is the most likely length check bug. Testing exact_size-1
-    //catches this where a wildly wrong size like 10 might not.
+    // 30. Test: Reject Off-By-One Length
+    // Verifies that decode_intent_requirements aborts on a 144-byte buffer (one less than the expected 145).
+    // Why: Off-by-one is the most likely length check bug. Testing exact_size-1
+    // catches this where a wildly wrong size like 10 might not.
     #[test]
     #[expected_failure(abort_code = 2, location = mvmt_intent::gmp_common)]
     fun test_reject_off_by_one_length() {
@@ -571,10 +601,11 @@ module mvmt_intent::gmp_common_tests {
     // KNOWN BYTE SEQUENCE TESTS
     // ============================================================================
 
-    //31. Test: Decode Known IntentRequirements Bytes
-    //Why: Roundtrip tests use encode+decode together, so a bug that is symmetric
-    //in both functions would be invisible. This test decodes a hand-built buffer
-    //to catch bugs that roundtrip alone cannot.
+    // 31. Test: Decode Known IntentRequirements Bytes
+    // Verifies that a hand-built IntentRequirements byte buffer decodes into the expected field values.
+    // Why: Roundtrip tests use encode+decode together, so a bug that is symmetric
+    // in both functions would be invisible. This test decodes a hand-built buffer
+    // to catch bugs that roundtrip alone cannot.
     #[test]
     fun test_decode_known_intent_requirements_bytes() {
         let data = zeros(145);
@@ -597,9 +628,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(gmp_common::intent_requirements_expiry(&msg) == DUMMY_EXPIRY, 7);
     }
 
-    //32. Test: Decode Known EscrowConfirmation Bytes
-    //Why: Same reasoning as test 31 — decoding a hand-built buffer catches bugs
-    //that are symmetric in encode and decode.
+    // 32. Test: Decode Known EscrowConfirmation Bytes
+    // Verifies that a hand-built EscrowConfirmation byte buffer decodes into the expected field values.
+    // Why: Same reasoning as test 31 — decoding a hand-built buffer catches bugs
+    // that are symmetric in encode and decode.
     #[test]
     fun test_decode_known_escrow_confirmation_bytes() {
         let data = zeros(137);
@@ -618,9 +650,10 @@ module mvmt_intent::gmp_common_tests {
         assert!(*vector::borrow(gmp_common::escrow_confirmation_creator_addr(&msg), 0) == 0xDD, 5);
     }
 
-    //33. Test: Decode Known FulfillmentProof Bytes
-    //Why: Same reasoning as test 31 — decoding a hand-built buffer catches bugs
-    //that are symmetric in encode and decode.
+    // 33. Test: Decode Known FulfillmentProof Bytes
+    // Verifies that a hand-built FulfillmentProof byte buffer decodes into the expected field values.
+    // Why: Same reasoning as test 31 — decoding a hand-built buffer catches bugs
+    // that are symmetric in encode and decode.
     #[test]
     fun test_decode_known_fulfillment_proof_bytes() {
         let data = zeros(81);
@@ -641,9 +674,10 @@ module mvmt_intent::gmp_common_tests {
     // BOUNDARY CONDITION TESTS
     // ============================================================================
 
-    //34. Test: Max u64 Amount Roundtrip
-    //Why: u64::MAX (0xFFFFFFFFFFFFFFFF) is all 0xFF bytes in big-endian. This
-    //catches sign-extension bugs or off-by-one errors at the maximum boundary.
+    // 34. Test: Max u64 Amount Roundtrip
+    // Verifies that u64::MAX values in amount_required and expiry roundtrip through encode/decode.
+    // Why: u64::MAX (0xFFFFFFFFFFFFFFFF) is all 0xFF bytes in big-endian. This
+    // catches sign-extension bugs or off-by-one errors at the maximum boundary.
     #[test]
     fun test_max_u64_amount_roundtrip() {
         let max_u64: u64 = 18446744073709551615;
@@ -657,10 +691,11 @@ module mvmt_intent::gmp_common_tests {
         assert!(gmp_common::intent_requirements_expiry(&decoded) == max_u64, 2);
     }
 
-    //35. Test: Zero Solver Address Means Any Solver
-    //Why: bytes32(0) is a sentinel meaning "any solver may fulfill this intent".
-    //If it doesn't roundtrip, the open-solver feature silently breaks and intents
-    //become unfulfillable.
+    // 35. Test: Zero Solver Address Means Any Solver
+    // Verifies that the bytes32(0) sentinel solver address roundtrips through encode/decode.
+    // Why: bytes32(0) is a sentinel meaning "any solver may fulfill this intent".
+    // If it doesn't roundtrip, the open-solver feature silently breaks and intents
+    // become unfulfillable.
     #[test]
     fun test_zero_solver_addr_means_any() {
         let msg = gmp_common::new_intent_requirements(
@@ -679,10 +714,10 @@ module mvmt_intent::gmp_common_tests {
     // intent-frameworks/common/testing/gmp-encoding-test-vectors.json. The same bytes must be
     // produced by SVM to ensure cross-chain compatibility.
 
-    //36. Test: Cross-chain IntentRequirements Encoding
-    //Verifies that encoding produces bytes identical to gmp-encoding-test-vectors.json.
-    //Why: Cross-chain GMP requires byte-exact encoding. If MVM produces different bytes
-    //than SVM, messages cannot be decoded correctly on the receiving chain.
+    // 36. Test: Cross-chain IntentRequirements Encoding
+    // Verifies that encoding produces bytes identical to gmp-encoding-test-vectors.json.
+    // Why: Cross-chain GMP requires byte-exact encoding. If MVM produces different bytes
+    // than SVM, messages cannot be decoded correctly on the receiving chain.
     #[test]
     fun test_cross_chain_encoding_intent_requirements() {
         let msg = gmp_common::new_intent_requirements(
@@ -700,10 +735,10 @@ module mvmt_intent::gmp_common_tests {
         };
     }
 
-    //37. Test: Cross-chain EscrowConfirmation Encoding
-    //Verifies that encoding produces bytes identical to gmp-encoding-test-vectors.json.
-    //Why: Cross-chain GMP requires byte-exact encoding. If MVM produces different bytes
-    //than SVM, messages cannot be decoded correctly on the receiving chain.
+    // 37. Test: Cross-chain EscrowConfirmation Encoding
+    // Verifies that encoding produces bytes identical to gmp-encoding-test-vectors.json.
+    // Why: Cross-chain GMP requires byte-exact encoding. If MVM produces different bytes
+    // than SVM, messages cannot be decoded correctly on the receiving chain.
     #[test]
     fun test_cross_chain_encoding_escrow_confirmation() {
         let msg = gmp_common::new_escrow_confirmation(
@@ -721,10 +756,10 @@ module mvmt_intent::gmp_common_tests {
         };
     }
 
-    //38. Test: Cross-chain FulfillmentProof Encoding
-    //Verifies that encoding produces bytes identical to gmp-encoding-test-vectors.json.
-    //Why: Cross-chain GMP requires byte-exact encoding. If MVM produces different bytes
-    //than SVM, messages cannot be decoded correctly on the receiving chain.
+    // 38. Test: Cross-chain FulfillmentProof Encoding
+    // Verifies that encoding produces bytes identical to gmp-encoding-test-vectors.json.
+    // Why: Cross-chain GMP requires byte-exact encoding. If MVM produces different bytes
+    // than SVM, messages cannot be decoded correctly on the receiving chain.
     #[test]
     fun test_cross_chain_encoding_fulfillment_proof() {
         let msg = gmp_common::new_fulfillment_proof(
@@ -741,10 +776,10 @@ module mvmt_intent::gmp_common_tests {
         };
     }
 
-    //39. Test: Cross-chain IntentRequirements Zeros Encoding
-    //Verifies that all-zero values encode correctly across chains.
-    //Why: Boundary test for zero values. Ensures no special-casing or off-by-one errors
-    //when all fields are at their minimum value.
+    // 39. Test: Cross-chain IntentRequirements Zeros Encoding
+    // Verifies that all-zero values encode correctly across chains.
+    // Why: Boundary test for zero values. Ensures no special-casing or off-by-one errors
+    // when all fields are at their minimum value.
     #[test]
     fun test_cross_chain_encoding_intent_requirements_zeros() {
         let msg = gmp_common::new_intent_requirements(
@@ -761,10 +796,10 @@ module mvmt_intent::gmp_common_tests {
         };
     }
 
-    //40. Test: Cross-chain IntentRequirements Max Values Encoding
-    //Verifies that maximum u64 values encode correctly across chains.
-    //Why: Boundary test for max values. Ensures no overflow, sign-extension, or
-    //truncation errors when all fields are at their maximum value.
+    // 40. Test: Cross-chain IntentRequirements Max Values Encoding
+    // Verifies that maximum u64 values encode correctly across chains.
+    // Why: Boundary test for max values. Ensures no overflow, sign-extension, or
+    // truncation errors when all fields are at their maximum value.
     #[test]
     fun test_cross_chain_encoding_intent_requirements_max() {
         let max_u64: u64 = 18446744073709551615;
