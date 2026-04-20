@@ -2,31 +2,43 @@
 
 ## Progress
 
-| # | Stage                                                          | Status      |
-| - | -------------------------------------------------------------- | ----------- |
-| 1 | Solver inflow retry with explicit terminal state               | Done        |
-| 2 | Solver tracker self-heal against hub fulfillment proof         | Done        |
-| 3 | E2E partial-failure tests (solver + integrated-gmp + on-chain) | Pending     |
+| # | Stage                                                  | Status |
+| - | ------------------------------------------------------ | ------ |
+| 1 | Solver inflow retry with explicit terminal state       | Done   |
+| 2 | Solver tracker self-heal against hub fulfillment proof | Done   |
 
-## Out of scope (previously Stage 3)
+Plan complete.
 
-Automated orphaned-escrow cleanup was originally planned as Stage 3 ("solver-driven on-chain cancel on MVM/EVM/SVM"). **Dropped for two reasons:**
+## Out of scope
+
+### Automated orphaned-escrow cleanup (originally Stage 3 in an earlier draft)
+
+Initially planned as "solver-driven on-chain cancel on MVM/EVM/SVM". **Dropped for two reasons:**
 
 - On-chain `cancel_escrow` / `cancel()` / `process_cancel` is admin-gated on all three connected chains, and keeping it admin-gated is intentional — cancellation should only happen after a human has clarified on-chain status.
 - The solver is an independent third-party participant, not the protocol operator. Surfacing protocol-wide problems (stuck escrows, dropped GMP, failed auto-releases) is operator tooling, not solver logic.
 
 Orphaned-escrow detection + admin-triggered cancel is a separate operator-tooling initiative, tracked outside this plan.
 
+### E2E partial-failure tests (originally Stage 3 in a later draft)
+
+Planned as a fault-injection phase tail-appended to the existing per-chain inflow/outflow runners, exercising retry exhaustion (Stage 1) and tracker self-heal (Stage 2) against a real stack. **Dropped because the cost-to-coverage ratio didn't justify it:**
+
+- **Stage 2 (self-heal) has no observable trigger.** Tracker is in-memory only, and `mark_fulfilled` is called synchronously after on-chain success — a restart empties the tracker rather than producing drift. Producing drift from the outside would require a test-only `/admin/force-drift` endpoint in the solver (rejected as a production-binary smell).
+- **Stage 1 (retry exhaustion) is chain-specific and plumbing-heavy.** Killing integrated-gmp reaches the retry path for EVM/SVM inflow (solver polls connected chain → hub rejects with `E_ESCROW_NOT_CONFIRMED` → `record_inflow_failure`) but is silent on MVM (solver polls `is_escrow_confirmed` on the hub — a GMP-delivered flag — and simply skips the intent). Even the EVM/SVM path would need either a mint helper to top up solver hub liquidity before the fault phase (since the happy path leaves solver at ~30000 hub, below the standard fulfillment amount) or amount-parameterization on the existing submit scripts.
+- **Unit coverage is strong.** Stage 1: `record_inflow_failure` + backoff + terminal `Failed` covered by three solver unit tests. Stage 2: `classify_drift`, `heal_state_by_intent_id`, `run_once` empty-tracker, and inflow-skip filter covered by ten solver unit tests.
+
+The residual gap is wiring-only (spawning the sweep in `bin/solver.rs`, gating the retry call in `inflow.rs`). A binary that failed to start or panicked on either wire-up would fail every existing happy-path E2E already.
+
 ## Goal
 
 Harden failure handling for the things the **solver itself** is responsible for on MVM, EVM, and SVM — retries, bounded failure, and keeping its own in-memory tracker honest.
 
-The changes land in two components:
+The changes land in a single component:
 
 - **Solver** ([solver/](../../../solver/)) — adds inflow retry (Stage 1) and tracker self-heal against the hub (Stage 2).
-- **Testing infra** ([testing-infra/ci-e2e/](../../../testing-infra/ci-e2e/)) — adds partial-failure E2E scripts that exercise the solver + integrated-gmp + on-chain stack (Stage 3).
 
-No on-chain contract changes, no changes to the coordinator or integrated-gmp services.
+No on-chain contract changes, no changes to the coordinator or integrated-gmp services, no changes to testing infrastructure.
 
 Today the solver has outflow retry/backoff but no inflow retry and no mechanism to correct its tracker when the hub disagrees with it. Intents can end up in silent-stuck states (transient fulfillment failures never reaching a terminal state, tracker cache diverging from on-chain reality) that violate the project's **No Fallbacks Policy** — they neither succeed nor fail loudly.
 
@@ -111,47 +123,3 @@ Solver only. Single new module in [solver/src/service/](../../../solver/src/serv
 ```bash
 RUST_LOG=off nix develop ./nix -c bash -c "cd solver && cargo test --quiet"
 ```
-
----
-
-## Stage 3 — E2E partial-failure tests (solver + integrated-gmp + on-chain)
-
-### Purpose of Stage 3
-
-**What**: Add end-to-end shell scripts under [testing-infra/ci-e2e/](../../../testing-infra/ci-e2e/) that spin up the full stack (solver + integrated-gmp + per-chain local nodes) and deliberately break the happy path to exercise Stages 1 and 2:
-
-- **Stage 1 exercised**: induce transient inflow fulfillment failures (e.g. kill integrated-gmp briefly, then restore) and assert the solver retries with backoff, and that after `MAX_INFLOW_RETRIES` the intent reaches `Failed`.
-- **Stage 2 exercised**: force tracker drift (e.g. kill the solver mid-fulfillment after the hub records proof but before the tracker writes `Fulfilled`; restart the solver), then assert the reconciliation sweep heals the tracker state within ~30s.
-
-**Why**: Stage 1 and Stage 2 unit tests prove each primitive in isolation — but retry + self-heal behavior is emergent across solver + integrated-gmp + on-chain contracts. E2E coverage is the only way to verify those pieces compose correctly under real failure conditions. Running the same scenarios on MVM, EVM, and SVM also confirms behavior is chain-uniform.
-
-### Scope
-
-[testing-infra/ci-e2e/](../../../testing-infra/ci-e2e/) only — new partial-failure E2E scripts on top of the existing inflow/outflow test harnesses. No solver code changes, no chain-clients changes, no integrated-gmp code changes, no on-chain contract changes.
-
-### Files to change
-
-- `testing-infra/ci-e2e/e2e-tests-mvm/partial-failure/` (new directory)
-  - `test-inflow-retry-exhaustion.sh` — induce repeated inflow fulfillment failures (kill integrated-gmp until `MAX_INFLOW_RETRIES` is exceeded) and assert the solver transitions the intent to `Failed`.
-  - `test-tracker-self-heal.sh` — kill the solver after the MVM hub has recorded a fulfillment proof but before the solver tracker writes `Fulfilled`; restart the solver; assert the reconciliation sweep flips the tracker to `Fulfilled` within ~30s.
-- Repeat equivalents under `testing-infra/ci-e2e/e2e-tests-evm/partial-failure/` and `testing-infra/ci-e2e/e2e-tests-svm/partial-failure/`.
-- Root scripts under [testing-infra/ci-e2e/](../../../testing-infra/ci-e2e/) don't need changes — these new scripts run standalone per the existing pattern.
-
-### Test command
-
-```bash
-nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/partial-failure/test-inflow-retry-exhaustion.sh" && \
-nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/partial-failure/test-tracker-self-heal.sh" && \
-nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/partial-failure/test-inflow-retry-exhaustion.sh" && \
-nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/partial-failure/test-tracker-self-heal.sh" && \
-nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-svm/partial-failure/test-inflow-retry-exhaustion.sh" && \
-nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-svm/partial-failure/test-tracker-self-heal.sh"
-```
-
-### End of Stage 3 (required)
-
-1. Run all test commands above and confirm the E2E scripts pass on all three chains.
-2. **Review**: run `/review-me` and resolve any blocking feedback.
-3. Ask the user: "Ready to commit?"
-4. **Commit**: if yes, run `/commit`.
-5. This is the final stage — once committed, mark all stages complete in the progress table.
