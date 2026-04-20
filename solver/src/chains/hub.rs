@@ -621,10 +621,27 @@ impl HubChainClient {
         anyhow::bail!("Unexpected response format from primary_fungible_store::balance view function")
     }
 
-    /// Checks if a FulfillmentProof has been received via GMP for an outflow intent.
+    /// Checks if a FulfillmentProof has been received via GMP at the hub.
     ///
     /// Calls the `gmp_intent_state::is_fulfillment_proof_received` view function.
-    /// Returns true if the FulfillmentProof GMP message was received from the connected chain.
+    /// Returns true if the FulfillmentProof GMP message was received from the
+    /// connected chain.
+    ///
+    /// # IMPORTANT: outflow semantics only
+    ///
+    /// The `FulfillmentProof` GMP message flows **connected chain → hub** and
+    /// exists only on the outflow fulfillment path:
+    ///
+    /// - Outflow: solver fulfills on the connected chain; the connected chain
+    ///   sends `FulfillmentProof` to the hub. This view returns `true` after
+    ///   the message is delivered.
+    /// - Inflow: solver fulfills on the hub directly. **No FulfillmentProof
+    ///   message ever flows toward the hub for inflow intents.** This view
+    ///   returns `false` forever for inflow, regardless of completion.
+    ///
+    /// Callers that apply this signal indiscriminately will misclassify every
+    /// completed inflow intent as "unfulfilled on hub." Use with outflow only,
+    /// or gate on `offered_chain_id == hub_chain_id` at the caller.
     ///
     /// # Arguments
     ///
@@ -632,7 +649,7 @@ impl HubChainClient {
     ///
     /// # Returns
     ///
-    /// * `Ok(bool)` - True if FulfillmentProof was received
+    /// * `Ok(bool)` - True if FulfillmentProof was received (only meaningful for outflow)
     /// * `Err(anyhow::Error)` - Failed to query
     pub async fn is_fulfillment_proof_received(&self, intent_id: &str) -> Result<bool> {
         let without_prefix = intent_id.strip_prefix("0x").unwrap_or(intent_id);

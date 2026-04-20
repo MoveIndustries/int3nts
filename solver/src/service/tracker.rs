@@ -529,6 +529,28 @@ impl IntentTracker {
         intents.values().cloned().collect()
     }
 
+    /// Overwrites the state of the tracked intent with the given on-chain intent_id.
+    ///
+    /// Used by the reconciliation sweep to correct drift between the in-memory
+    /// tracker and the hub's authoritative view. Unlike `mark_fulfilled`, this
+    /// does no side-effect cleanup (completed_intent_ids, requester pruning) —
+    /// it only overwrites `state`. The caller is responsible for picking a
+    /// healed state that does not strand the intent.
+    pub async fn heal_state_by_intent_id(
+        &self,
+        intent_id: &str,
+        new_state: IntentState,
+    ) -> Result<()> {
+        let mut intents = self.intents.write().await;
+        for (_draft_id, intent) in intents.iter_mut() {
+            if intent.intent_id == intent_id {
+                intent.state = new_state;
+                return Ok(());
+            }
+        }
+        anyhow::bail!("Intent not found: {}", intent_id)
+    }
+
     /// Manually sets intent state
     ///
     /// # Note

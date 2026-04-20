@@ -1,285 +1,252 @@
-//! Cross-chain state reconciliation service
+//! Tracker self-heal service
 //!
-//! Observation-only sweep that cross-checks the solver's in-memory `IntentTracker`
-//! against on-chain state on the hub chain and the connected chains (MVM/EVM/SVM).
-//! For every divergence, emits an explicit `Mismatch` and logs it at error level —
-//! the service does not attempt any repair. Repair is the responsibility of the
-//! escrow-cleanup sweep (built in a later stage).
+//! Periodically compares the solver's in-memory `IntentTracker` against hub
+//! chain state and, when the two disagree, corrects the tracker in-place.
 //!
-//! Inflow-scoped: the three mismatch kinds all reference the inflow lifecycle
-//! (hub lock + connected-chain escrow + GMP fulfillment proof). Outflow-only
-//! reconciliation is intentionally out of scope for this stage.
+//! This service exists purely to keep the solver's own cache honest — it does
+//! not observe connected-chain state and does not surface protocol-wide
+//! problems (orphaned escrows, GMP delivery issues, auto-release failures).
+//! Those concerns belong in operator-run tooling, not in the solver, which is
+//! an independent third-party participant.
+//!
+//! # IMPORTANT: outflow-only scope
+//!
+//! This sweep applies to **outflow intents only**. The signal it relies on,
+//! [`HubChainClient::is_fulfillment_proof_received`], asks the hub "did the
+//! connected chain send you a FulfillmentProof GMP message for this intent?"
+//! That message exists on exactly one path:
+//!
+//! - Outflow: solver fulfills on the connected chain → connected chain emits
+//!   `FulfillmentProof` → hub receives it → this view returns `true`.
+//! - Inflow: solver fulfills on the hub directly. **No FulfillmentProof GMP
+//!   message ever flows toward the hub for inflow intents.** This view returns
+//!   `false` forever for inflow, regardless of completion status.
+//!
+//! Applying this signal to inflow intents would classify every successful
+//! inflow as drift and revert the tracker to `Created`, triggering repeated
+//! double-fulfillment attempts. The sweep therefore filters inflow out.
+//! Inflow tracker drift is a separate design problem — it needs a different
+//! hub-side signal — and is intentionally out of scope for this service.
+//!
+//! Two drifts are detected and healed (for outflow intents):
+//!
+//! - `ClaimsFulfilledButNoProofOnHub` — solver tracker says `Fulfilled`, but
+//!   the hub has no fulfillment proof. Tracker likely wrote the state too
+//!   early (or was mutated by a bug). Reverted to `Created` so retry logic
+//!   can attempt fulfillment again.
+//! - `ClaimsUnfulfilledButHubHasProof` — solver tracker still says `Created`,
+//!   but the hub already has a fulfillment proof. Tracker missed the event.
+//!   Advanced to `Fulfilled` so the solver stops trying to fulfill.
 
 use anyhow::Result;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::chains::{ConnectedEvmClient, ConnectedMvmClient, ConnectedSvmClient, HubChainClient};
-use crate::config::{ConnectedChainConfig, SolverConfig};
-use crate::service::tracker::{IntentState, IntentTracker, TrackedIntent};
+use crate::chains::HubChainClient;
+use crate::config::SolverConfig;
+use crate::service::tracker::{IntentState, IntentTracker};
 
 /// Reconciliation sweep interval (seconds).
 ///
 /// Mainnet intents currently live ~120s end-to-end, so the sweep must fire
-/// several times per intent lifetime to catch mismatches before expiry.
-pub const RECONCILE_INTERVAL_SECS: u64 = 15;
+/// several times per intent lifetime to catch drift before expiry.
+pub const RECONCILE_INTERVAL_SECS: u64 = 30;
 
-/// A divergence between the solver's `IntentTracker` and on-chain state.
+/// Drift between the solver's `IntentTracker` and the hub's view of the intent.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Mismatch {
-    /// Solver tracker still shows the inflow intent as awaiting fulfillment
-    /// (`Created`), but the connected-chain escrow has already been released.
-    /// Indicates the fulfillment GMP message reached the connected-chain escrow
-    /// contract but did not update the solver tracker (lost relay update or
-    /// crashed solver).
-    HubLockedButConnectedReleased {
-        intent_id: String,
-        connected_chain: String,
-    },
-    /// Hub has received a fulfillment proof for the intent, but the
-    /// connected-chain escrow is still locked. Indicates the inflow
-    /// auto-release on the connected chain failed or its GMP delivery dropped.
-    HubFulfilledButConnectedNotReleased {
-        intent_id: String,
-        connected_chain: String,
-    },
-    /// Solver's in-memory tracker reports the intent as `Fulfilled`, but the
-    /// hub has no corresponding fulfillment proof. Indicates the tracker cache
-    /// is stale or was corrupted.
-    TrackerClaimsFulfilledButHubDoesNotAgree { intent_id: String },
+pub enum TrackerDrift {
+    /// Tracker says `Fulfilled`, hub has no fulfillment proof. Self-heal:
+    /// revert tracker to `Created` so fulfillment retry can run.
+    ClaimsFulfilledButNoProofOnHub { intent_id: String },
+    /// Tracker says `Created`, hub has a fulfillment proof already. Self-heal:
+    /// advance tracker to `Fulfilled` so the solver stops attempting to fulfill.
+    ClaimsUnfulfilledButHubHasProof { intent_id: String },
 }
 
-impl Mismatch {
+impl TrackerDrift {
     pub fn intent_id(&self) -> &str {
         match self {
-            Mismatch::HubLockedButConnectedReleased { intent_id, .. } => intent_id,
-            Mismatch::HubFulfilledButConnectedNotReleased { intent_id, .. } => intent_id,
-            Mismatch::TrackerClaimsFulfilledButHubDoesNotAgree { intent_id } => intent_id,
+            TrackerDrift::ClaimsFulfilledButNoProofOnHub { intent_id } => intent_id,
+            TrackerDrift::ClaimsUnfulfilledButHubHasProof { intent_id } => intent_id,
+        }
+    }
+
+    /// The state the tracker should be corrected to after healing.
+    fn healed_state(&self) -> IntentState {
+        match self {
+            TrackerDrift::ClaimsFulfilledButNoProofOnHub { .. } => IntentState::Created,
+            TrackerDrift::ClaimsUnfulfilledButHubHasProof { .. } => IntentState::Fulfilled,
         }
     }
 }
 
-impl std::fmt::Display for Mismatch {
+impl std::fmt::Display for TrackerDrift {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Mismatch::HubLockedButConnectedReleased { intent_id, connected_chain } => write!(
+            TrackerDrift::ClaimsFulfilledButNoProofOnHub { intent_id } => write!(
                 f,
-                "HubLockedButConnectedReleased: hub still locked but connected escrow released (intent_id={}, connected_chain={})",
-                intent_id, connected_chain
+                "ClaimsFulfilledButNoProofOnHub: tracker says Fulfilled but hub has no proof (intent_id={})",
+                intent_id
             ),
-            Mismatch::HubFulfilledButConnectedNotReleased { intent_id, connected_chain } => write!(
+            TrackerDrift::ClaimsUnfulfilledButHubHasProof { intent_id } => write!(
                 f,
-                "HubFulfilledButConnectedNotReleased: hub has fulfillment proof but connected escrow still locked (intent_id={}, connected_chain={})",
-                intent_id, connected_chain
-            ),
-            Mismatch::TrackerClaimsFulfilledButHubDoesNotAgree { intent_id } => write!(
-                f,
-                "TrackerClaimsFulfilledButHubDoesNotAgree: solver tracker reports Fulfilled but hub has no fulfillment proof (intent_id={})",
+                "ClaimsUnfulfilledButHubHasProof: tracker says Created but hub already has fulfillment proof (intent_id={})",
                 intent_id
             ),
         }
     }
 }
 
-impl std::error::Error for Mismatch {}
+impl std::error::Error for TrackerDrift {}
 
-/// Snapshot of tracker + on-chain state for a single intent, sufficient input
-/// for [`classify_mismatch`]. Constructed by the reconciliation service from
-/// live chain reads; exposed directly to tests so mismatch classification can
-/// be exercised without mocking chain clients.
+/// Snapshot of the tracker state + hub fulfillment proof for a single intent.
+/// Input to [`classify_drift`].
 #[derive(Debug, Clone)]
-pub struct IntentSnapshot {
+pub struct TrackerSnapshot {
     pub intent_id: String,
-    /// Human-readable label for the connected chain (e.g. `"evm:31337"`).
-    pub connected_chain: String,
     pub tracker_state: IntentState,
-    /// Hub has received and accepted a fulfillment proof for this intent.
     pub hub_fulfillment_proof_received: bool,
-    /// The connected-chain inflow escrow has been released (funds sent to solver).
-    pub connected_escrow_released: bool,
 }
 
-/// Classifies a single intent snapshot into at most one mismatch.
+/// Classifies a single snapshot into at most one drift.
 ///
-/// Returns `None` when tracker and on-chain state are consistent (or when the
-/// intent is in a state where no mismatch can be meaningfully detected — e.g.
-/// `Signed`, `Expired`, `Failed`).
-pub fn classify_mismatch(snap: &IntentSnapshot) -> Option<Mismatch> {
+/// Returns `None` when tracker and hub agree, or when the intent is in a
+/// state where drift can't be meaningfully judged (`Signed`, `Expired`,
+/// `Failed`).
+pub fn classify_drift(snap: &TrackerSnapshot) -> Option<TrackerDrift> {
     match snap.tracker_state {
-        IntentState::Fulfilled => {
-            if !snap.hub_fulfillment_proof_received {
-                return Some(Mismatch::TrackerClaimsFulfilledButHubDoesNotAgree {
-                    intent_id: snap.intent_id.clone(),
-                });
-            }
-            if !snap.connected_escrow_released {
-                return Some(Mismatch::HubFulfilledButConnectedNotReleased {
-                    intent_id: snap.intent_id.clone(),
-                    connected_chain: snap.connected_chain.clone(),
-                });
-            }
-            None
+        IntentState::Fulfilled if !snap.hub_fulfillment_proof_received => {
+            Some(TrackerDrift::ClaimsFulfilledButNoProofOnHub {
+                intent_id: snap.intent_id.clone(),
+            })
         }
-        IntentState::Created => {
-            if snap.connected_escrow_released {
-                return Some(Mismatch::HubLockedButConnectedReleased {
-                    intent_id: snap.intent_id.clone(),
-                    connected_chain: snap.connected_chain.clone(),
-                });
-            }
-            None
+        IntentState::Created if snap.hub_fulfillment_proof_received => {
+            Some(TrackerDrift::ClaimsUnfulfilledButHubHasProof {
+                intent_id: snap.intent_id.clone(),
+            })
         }
-        IntentState::Signed | IntentState::Expired | IntentState::Failed => None,
+        _ => None,
     }
 }
 
-/// Observation-only reconciliation service.
+/// Solver-internal tracker self-heal service.
+///
+/// Scope is outflow-only. See module-level docs for why inflow is excluded.
 pub struct ReconciliationService {
-    config: SolverConfig,
     tracker: Arc<IntentTracker>,
     hub_client: HubChainClient,
-    mvm_clients: HashMap<u64, ConnectedMvmClient>,
-    evm_clients: HashMap<u64, ConnectedEvmClient>,
-    svm_clients: HashMap<u64, ConnectedSvmClient>,
+    /// Hub chain id. Used to classify each tracked intent as inflow vs outflow
+    /// so the sweep can skip inflow (see module docs for why).
+    hub_chain_id: u64,
 }
 
 impl ReconciliationService {
     pub fn new(config: SolverConfig, tracker: Arc<IntentTracker>) -> Result<Self> {
         let hub_client = HubChainClient::new(&config.hub_chain)?;
-
-        let mut mvm_clients = HashMap::new();
-        let mut evm_clients = HashMap::new();
-        let mut svm_clients = HashMap::new();
-        for chain in &config.connected_chain {
-            match chain {
-                ConnectedChainConfig::Mvm(cfg) => {
-                    mvm_clients.insert(cfg.chain_id, ConnectedMvmClient::new(cfg)?);
-                }
-                ConnectedChainConfig::Evm(cfg) => {
-                    evm_clients.insert(cfg.chain_id, ConnectedEvmClient::new(cfg)?);
-                }
-                ConnectedChainConfig::Svm(cfg) => {
-                    svm_clients.insert(cfg.chain_id, ConnectedSvmClient::new(cfg)?);
-                }
-            }
-        }
-
+        let hub_chain_id = config.hub_chain.chain_id;
         Ok(Self {
-            config,
             tracker,
             hub_client,
-            mvm_clients,
-            evm_clients,
-            svm_clients,
+            hub_chain_id,
         })
     }
 
-    /// Returns the connected-chain id for a tracked intent, or `None` if both
-    /// sides are the hub (which would be malformed).
-    fn connected_chain_id(&self, intent: &TrackedIntent) -> Option<u64> {
-        let hub_id = self.config.hub_chain.chain_id;
-        let offered = intent.draft_data.offered_chain_id;
-        let desired = intent.draft_data.desired_chain_id;
-        if offered == hub_id && desired != hub_id {
-            Some(desired)
-        } else if desired == hub_id && offered != hub_id {
-            Some(offered)
-        } else {
-            None
-        }
-    }
-
-    async fn is_connected_escrow_released(&self, chain_id: u64, intent_id: &str) -> Result<bool> {
-        if let Some(c) = self.mvm_clients.get(&chain_id) {
-            return c.is_escrow_released(intent_id).await;
-        }
-        if let Some(c) = self.evm_clients.get(&chain_id) {
-            return c.is_escrow_released(intent_id).await;
-        }
-        if let Some(c) = self.svm_clients.get(&chain_id) {
-            return c.is_escrow_released(intent_id);
-        }
-        anyhow::bail!("No connected chain client configured for chain_id {}", chain_id)
-    }
-
-    async fn snapshot_intent(&self, intent: &TrackedIntent) -> Result<IntentSnapshot> {
-        let connected_id = self.connected_chain_id(intent);
-        let connected_label = match connected_id.and_then(|id| self.config.get_connected_chain_by_id(id))
-        {
-            Some(c) => format!("{}:{}", c.chain_type(), c.chain_id()),
-            None => "unknown".to_string(),
-        };
-
-        let hub_fulfillment_proof_received = self
-            .hub_client
-            .is_fulfillment_proof_received(&intent.intent_id)
-            .await?;
-
-        let connected_escrow_released = match connected_id {
-            Some(id) => self.is_connected_escrow_released(id, &intent.intent_id).await?,
-            None => false,
-        };
-
-        Ok(IntentSnapshot {
-            intent_id: intent.intent_id.clone(),
-            connected_chain: connected_label,
-            tracker_state: intent.state.clone(),
-            hub_fulfillment_proof_received,
-            connected_escrow_released,
-        })
-    }
-
-    /// Runs one reconciliation pass across every tracked intent.
+    /// Returns true if the tracked intent is an outflow intent.
     ///
-    /// Returns a list of every mismatch observed. Each mismatch is also logged
-    /// at error level with structured fields (intent_id, connected_chain, kind).
-    /// Intents whose snapshot fails (e.g. transient RPC error) are skipped
-    /// with an error log — they will be re-checked on the next sweep.
-    pub async fn run_once(&self) -> Vec<Mismatch> {
+    /// Outflow: tokens offered on the hub, fulfilled on the connected chain.
+    /// The `FulfillmentProof` GMP message flows connected → hub, which is the
+    /// signal this sweep relies on. Inflow produces no such message; see the
+    /// module-level docs for the full rationale.
+    fn is_outflow(&self, intent: &crate::service::tracker::TrackedIntent) -> bool {
+        intent.draft_data.offered_chain_id == self.hub_chain_id
+    }
+
+    /// Runs one sweep: for every tracked **outflow** intent in `Created` or
+    /// `Fulfilled`, checks the hub for the fulfillment proof and, on drift,
+    /// corrects the tracker state in place. Inflow intents are skipped (see
+    /// module docs).
+    ///
+    /// Returns the drifts that were detected and healed this pass. Intents
+    /// whose hub query fails are skipped with a warning and retried on the
+    /// next sweep.
+    pub async fn run_once(&self) -> Vec<TrackerDrift> {
         let intents = self.tracker.get_all_tracked_intents().await;
-        let mut mismatches = Vec::new();
+        let mut drifts = Vec::new();
 
         for intent in intents {
-            let snap = match self.snapshot_intent(&intent).await {
-                Ok(s) => s,
+            if !matches!(intent.state, IntentState::Created | IntentState::Fulfilled) {
+                continue;
+            }
+            // Outflow-only: the hub's `is_fulfillment_proof_received` signal
+            // is meaningless for inflow. See module docs.
+            if !self.is_outflow(&intent) {
+                continue;
+            }
+
+            let hub_proof = match self
+                .hub_client
+                .is_fulfillment_proof_received(&intent.intent_id)
+                .await
+            {
+                Ok(p) => p,
                 Err(e) => {
-                    tracing::error!(
+                    tracing::warn!(
                         intent_id = %intent.intent_id,
                         error = %format!("{:#}", e),
-                        "Reconciliation snapshot failed; skipping intent this sweep"
+                        "Hub query failed during reconciliation; retrying next sweep"
                     );
                     continue;
                 }
             };
 
-            if let Some(m) = classify_mismatch(&snap) {
-                tracing::error!(
-                    intent_id = %m.intent_id(),
-                    mismatch = ?m,
-                    "Reconciliation mismatch detected"
-                );
-                mismatches.push(m);
+            let snap = TrackerSnapshot {
+                intent_id: intent.intent_id.clone(),
+                tracker_state: intent.state.clone(),
+                hub_fulfillment_proof_received: hub_proof,
+            };
+
+            if let Some(drift) = classify_drift(&snap) {
+                let target = drift.healed_state();
+                match self
+                    .tracker
+                    .heal_state_by_intent_id(&intent.intent_id, target.clone())
+                    .await
+                {
+                    Ok(_) => {
+                        tracing::warn!(
+                            intent_id = %drift.intent_id(),
+                            healed_to = ?target,
+                            drift = ?drift,
+                            "Reconciliation healed tracker drift"
+                        );
+                        drifts.push(drift);
+                    }
+                    Err(e) => {
+                        tracing::warn!(
+                            intent_id = %drift.intent_id(),
+                            error = %format!("{:#}", e),
+                            "Failed to apply healed state; will retry next sweep"
+                        );
+                    }
+                }
             }
         }
 
-        mismatches
+        drifts
     }
 
     /// Runs reconciliation in a loop at the given interval until cancelled.
     pub async fn run(&self, interval: Duration) {
         let mut ticker = tokio::time::interval(interval);
-        // Skip the immediate first tick; give other services a chance to warm up.
+        // Skip the immediate first tick; let other services warm up.
         ticker.tick().await;
         loop {
             ticker.tick().await;
-            let mismatches = self.run_once().await;
-            if mismatches.is_empty() {
-                tracing::trace!("Reconciliation sweep: no mismatches");
-            } else {
-                tracing::warn!(
-                    count = mismatches.len(),
-                    "Reconciliation sweep found mismatches"
+            let drifts = self.run_once().await;
+            if !drifts.is_empty() {
+                tracing::info!(
+                    count = drifts.len(),
+                    "Reconciliation sweep healed tracker drift(s)"
                 );
             }
         }
