@@ -6,6 +6,10 @@ authors = ["Intent Framework Team"]
 description = "Solver tools for intent framework - signature generation and intent management"
 
 [dependencies]
+# Pin transitive dep: constant_time_eq >= 0.4.3 requires rustc >= 1.95,
+# which is newer than the nix-pinned toolchain. Remove when nix rustc is bumped.
+constant_time_eq = "=0.4.2"
+
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

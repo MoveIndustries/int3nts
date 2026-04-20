@@ -1,4 +1,4 @@
-# Plan: Secondary Unhappy Paths
+# Plan: Resilience Hardening
 
 ## Progress
 
