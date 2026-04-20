@@ -7,7 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
  * Connect/disconnect SVM wallet (Phantom).
  */
 export function SvmWalletConnector() {
-  const { connected, connect, disconnect, wallets, select, wallet } = useWallet();
+  const { connected, connect, disconnect, wallets, select, wallet, publicKey } = useWallet();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -28,12 +28,18 @@ export function SvmWalletConnector() {
   }
 
   if (connected) {
+    if (!publicKey) {
+      throw new Error('Connected but no SVM publicKey available');
+    }
+    const addr = publicKey.toBase58();
+    const short = `${addr.slice(0, 4)}...${addr.slice(-4)}`;
     return (
       <button
         onClick={() => disconnect()}
         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+        title="Disconnect SVM"
       >
-        Disconnect SVM
+        SVM {short}
       </button>
     );
   }

@@ -153,6 +153,17 @@ export class CoordinatorClient {
     return this.fetchFrom(this.coordinatorUrl, `/acceptance?${params.toString()}`);
   }
 
+  // Get relay balance/health per EVM connected chain
+  async getRelayHealth(): Promise<ApiResponse<Array<{
+    chain_id: number;
+    chain_name: string;
+    relay_address: string;
+    balance_wei: string;
+    healthy: boolean;
+  }>>> {
+    return this.fetchFrom(this.coordinatorUrl, '/relay-health');
+  }
+
   // --------------------------------------------------------------------------
   // Polling utilities
   // --------------------------------------------------------------------------

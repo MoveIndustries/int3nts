@@ -44,6 +44,10 @@ async function main() {
   console.log("  Movement Intent Module:", movementModuleAddr);
   console.log("  Relay Address:", relayAddress);
 
+  // IMPORTANT: .wait(N) waits for N blocks to be mined after the tx block.
+  // Hardhat automine only mines on new transactions, so .wait(>1) hangs forever.
+  // Keep .wait(1) for all transactions — do NOT increase for "reliability".
+
   // Deploy IntentGmp
   console.log("\n1. Deploying IntentGmp...");
   const IntentGmp = await hre.ethers.getContractFactory("IntentGmp");

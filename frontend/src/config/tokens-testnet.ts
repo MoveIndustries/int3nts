@@ -4,21 +4,21 @@ export const TESTNET_TOKENS: TokenConfig[] = [
   // Movement Bardock Testnet
   {
     symbol: 'MOVE',
-    name: 'MOVE (Movement)',
+    name: 'MOVE (Movement Testnet)',
     metadata: '0x1',
     decimals: 8,
     chain: 'movement',
   },
   {
     symbol: 'USDC.e',
-    name: 'USDC.e (Movement)',
+    name: 'USDC.e (Movement Testnet)',
     metadata: '0xb89077cfd2a82a0c1450534d49cfd5f2707643155273069bc23a912bcfefdee7',
     decimals: 6,
     chain: 'movement',
   },
   {
     symbol: 'USDC',
-    name: 'USDC (Movement)',
+    name: 'USDC (Movement Testnet)',
     metadata: '0x351a5fbcb9ccd79a7a3c4f203dca74bb02d681221771fd37694d9cd15112f27e',
     decimals: 6,
     chain: 'movement',
@@ -26,7 +26,7 @@ export const TESTNET_TOKENS: TokenConfig[] = [
   },
   {
     symbol: 'USDT',
-    name: 'USDT (Movement)',
+    name: 'USDT (Movement Testnet)',
     metadata: '0xe8d4819362f685b3276275ab44e1a20e2a30ae8e8bbbfb5126329a45e44ac4e0',
     decimals: 6,
     chain: 'movement',
@@ -34,7 +34,7 @@ export const TESTNET_TOKENS: TokenConfig[] = [
   },
   {
     symbol: 'WETH',
-    name: 'WETH (Movement)',
+    name: 'WETH (Movement Testnet)',
     metadata: '0x2fa1ab0e37fdd22cbf9da880826e9f79f06e8e5d9df9bce774b1f47b708fe121',
     decimals: 8,
     chain: 'movement',

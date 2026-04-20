@@ -24,12 +24,20 @@ dev-debug.log
 !.env.*.example
 testing-infra/networks/testnet/.env.testnet
 
-# Testnet and CI config files (contain sensitive keys)
+# EC2 deploy state, config, and logs
+testing-infra/networks/mainnet/.ec2-config
+testing-infra/networks/mainnet/.ec2-state.env
+testing-infra/networks/mainnet/logs/
+
+# Testnet, mainnet, and CI config files (contain sensitive keys)
 solver/config/solver_testnet.toml
+solver/config/solver_mainnet.toml
 solver/config/solver-e2e-ci-testing.toml
 coordinator/config/coordinator_testnet.toml
+coordinator/config/coordinator_mainnet.toml
 coordinator/config/coordinator-e2e-ci-testing.toml
 integrated-gmp/config/integrated-gmp_testnet.toml
+integrated-gmp/config/integrated-gmp_mainnet.toml
 integrated-gmp/config/integrated-gmp-e2e-ci-testing.toml
 
 # E2E test artifacts

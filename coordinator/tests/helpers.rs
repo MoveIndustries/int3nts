@@ -134,6 +134,7 @@ pub fn build_test_config_with_mvm() -> Config {
             chain_id: 1,
             intent_module_addr: "0x1".to_string(),
             escrow_module_addr: None,
+            relay_address: None,
         },
         connected_chain_mvm: vec![ChainConfig {
             name: "connected".to_string(),
@@ -141,6 +142,7 @@ pub fn build_test_config_with_mvm() -> Config {
             chain_id: 2,
             intent_module_addr: "0x2".to_string(),
             escrow_module_addr: Some("0x2".to_string()),
+            relay_address: None,
         }],
         coordinator: CoordinatorConfig {
             polling_interval_ms: 1000,
@@ -169,6 +171,7 @@ pub fn build_test_config_with_evm() -> Config {
         outflow_validator_contract_addr: "0x0000000000000000000000000000000000000010".to_string(),
         chain_id: 31337,
         event_block_range: 1000,
+        relay_address: None,
     }];
     config
 }
@@ -183,6 +186,7 @@ pub fn build_test_config_with_svm() -> Config {
         rpc_url: "http://127.0.0.1:8899".to_string(),
         chain_id: 901,
         escrow_program_id: DUMMY_SVM_ESCROW_PROGRAM_ID.to_string(),
+        relay_address: None,
     }];
     config
 }

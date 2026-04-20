@@ -4,8 +4,10 @@
 
 // Balance fetching utilities for Movement and EVM chains
 
-import type { TokenConfig } from './config.js';
+import type { ChainConfig, TokenConfig } from './config.js';
 import { fromSmallestUnits } from './config.js';
+
+type ChainType = ChainConfig['chainType'];
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 
@@ -22,7 +24,7 @@ export interface TokenBalance {
 /**
  * Fetch Movement token balance (Fungible Asset)
  */
-export async function fetchMovementBalance(
+export async function fetchMvmBalance(
   rpcUrl: string,
   address: string,
   token: TokenConfig
@@ -261,14 +263,16 @@ export async function fetchSvmBalance(
 export async function fetchTokenBalance(
   rpcUrl: string,
   address: string,
-  token: TokenConfig
+  token: TokenConfig,
+  chainType: ChainType,
 ): Promise<TokenBalance | null> {
-  if (token.chain === 'movement') {
-    return fetchMovementBalance(rpcUrl, address, token);
-  } else if (token.chain === 'svm-devnet') {
-    return fetchSvmBalance(rpcUrl, address, token);
-  } else {
-    return fetchEvmBalance(rpcUrl, address, token);
+  switch (chainType) {
+    case 'mvm':
+      return fetchMvmBalance(rpcUrl, address, token);
+    case 'evm':
+      return fetchEvmBalance(rpcUrl, address, token);
+    case 'svm':
+      return fetchSvmBalance(rpcUrl, address, token);
   }
 }
 

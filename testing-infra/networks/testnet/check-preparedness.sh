@@ -10,7 +10,6 @@
 # Supports:
 #   - Movement Bardock Testnet (MOVE, USDC.e, USDC, USDT, WETH)
 #   - Base Sepolia (ETH, USDC)
-#   - Ethereum Sepolia (ETH, USDC)
 #   - Solana Devnet (SOL, USDC)
 # 
 # Assets Config: testing-infra/networks/testnet/config/testnet-assets.toml
@@ -24,6 +23,9 @@ export PROJECT_ROOT
 
 # Source utilities (for error handling only, not logging)
 source "$PROJECT_ROOT/testing-infra/ci-e2e/util.sh" 2>/dev/null || true
+
+# Track overall pass/fail - set to false on any ❌
+all_ok=true
 
 echo " Checking Testnet Preparedness"
 echo "================================="
@@ -63,18 +65,6 @@ elif [ -z "$BASE_USDC_DECIMALS" ]; then
     exit 1
 fi
 
-# Extract Ethereum Sepolia USDC address and decimals
-SEPOLIA_USDC_ADDR=$(grep -A 20 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
-SEPOLIA_USDC_DECIMALS=$(grep -A 20 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
-if [ -z "$SEPOLIA_USDC_ADDR" ]; then
-    echo "❌ Ethereum Sepolia USDC address not found in testnet-assets.toml"
-    echo "   Ethereum Sepolia USDC balance checks will be skipped"
-elif [ -z "$SEPOLIA_USDC_DECIMALS" ]; then
-    echo "❌ ERROR: Ethereum Sepolia USDC decimals not found in testnet-assets.toml"
-    echo "   Add usdc_decimals = 6 to [ethereum_sepolia] section"
-    exit 1
-fi
-
 # Extract Movement token addresses and decimals
 # USDC.e
 MOVEMENT_USDC_E_ADDR=$(grep -A 30 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^usdc_e = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
@@ -109,40 +99,19 @@ if [ -z "$BASE_NATIVE_DECIMALS" ]; then
     exit 1
 fi
 
-SEPOLIA_NATIVE_DECIMALS=$(grep -A 10 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^native_token_decimals = " | sed 's/.*= \([0-9]*\).*/\1/' || echo "")
-if [ -z "$SEPOLIA_NATIVE_DECIMALS" ]; then
-    echo "❌ ERROR: Ethereum Sepolia native token decimals not found in testnet-assets.toml"
-    echo "   Add native_token_decimals = 18 to [ethereum_sepolia] section"
-    exit 1
-fi
 
 # Extract RPC URLs
 MOVEMENT_RPC_URL=$(grep -A 5 "^\[movement_bardock_testnet\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
 if [ -z "$MOVEMENT_RPC_URL" ]; then
     echo "❌ Movement RPC URL not found in testnet-assets.toml"
     echo "   Movement balance checks will fail"
+    all_ok=false
 fi
 
-if [ -z "$ALCHEMY_BASE_SEPOLIA_API_KEY" ]; then
-    echo "❌ ALCHEMY_BASE_SEPOLIA_API_KEY not set in .env.testnet"
+if [ -z "$BASE_RPC_URL" ]; then
+    echo "❌ BASE_RPC_URL not set in .env.testnet"
     echo "   Base Sepolia checks will fail"
-fi
-BASE_RPC_URL="https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_BASE_SEPOLIA_API_KEY}"
-
-SEPOLIA_RPC_URL=$(grep -A 5 "^\[ethereum_sepolia\]" "$ASSETS_CONFIG_FILE" | grep "^rpc_url = " | sed 's/.*= "\(.*\)".*/\1/' | tr -d '"' || echo "")
-if [ -z "$SEPOLIA_RPC_URL" ]; then
-    echo "❌ Ethereum Sepolia RPC URL not found in testnet-assets.toml"
-    echo "   Ethereum Sepolia balance checks will fail"
-fi
-
-# Substitute API key in Sepolia RPC URL if placeholder is present
-if [[ "$SEPOLIA_RPC_URL" == *"ALCHEMY_API_KEY"* ]]; then
-    if [ -n "$ALCHEMY_ETH_SEPOLIA_API_KEY" ]; then
-        SEPOLIA_RPC_URL="${SEPOLIA_RPC_URL/ALCHEMY_API_KEY/$ALCHEMY_ETH_SEPOLIA_API_KEY}"
-    else
-        echo "❌ ALCHEMY_ETH_SEPOLIA_API_KEY not set in .env.testnet"
-        echo "   Ethereum Sepolia balance checks will fail"
-    fi
+    all_ok=false
 fi
 
 # Extract chain IDs for remote GMP endpoint checks
@@ -387,6 +356,7 @@ display_movement_balances() {
 
 if [ -z "$MOVEMENT_DEPLOYER_ADDR" ]; then
     echo "   ❌ MOVEMENT_DEPLOYER_ADDR not set in .env.testnet"
+    all_ok=false
 else
     echo "   Deployer  ($MOVEMENT_DEPLOYER_ADDR)"
     display_movement_balances "$MOVEMENT_DEPLOYER_ADDR"
@@ -394,6 +364,7 @@ fi
 
 if [ -z "$MOVEMENT_REQUESTER_ADDR" ]; then
     echo "   ❌ MOVEMENT_REQUESTER_ADDR not set in .env.testnet"
+    all_ok=false
 else
     echo "   Requester ($MOVEMENT_REQUESTER_ADDR)"
     display_movement_balances "$MOVEMENT_REQUESTER_ADDR"
@@ -401,6 +372,7 @@ fi
 
 if [ -z "$MOVEMENT_SOLVER_ADDR" ]; then
     echo "   ❌ MOVEMENT_SOLVER_ADDR not set in .env.testnet"
+    all_ok=false
 else
     echo "   Solver    ($MOVEMENT_SOLVER_ADDR)"
     display_movement_balances "$MOVEMENT_SOLVER_ADDR"
@@ -408,6 +380,7 @@ fi
 
 if [ -z "$INTEGRATED_GMP_MVM_ADDR" ]; then
     echo "   ❌ INTEGRATED_GMP_MVM_ADDR not set in .env.testnet"
+    all_ok=false
 else
     echo "   Relay     ($INTEGRATED_GMP_MVM_ADDR)"
     display_movement_balances "$INTEGRATED_GMP_MVM_ADDR"
@@ -428,6 +401,7 @@ echo "   RPC: $SOLANA_RPC_URL"
 
 if [ -z "$SOLANA_DEPLOYER_ADDR" ]; then
     echo "   ❌ SOLANA_DEPLOYER_ADDR not set in .env.testnet"
+    all_ok=false
 else
     sol_balance=$(get_solana_balance "$SOLANA_DEPLOYER_ADDR" "$SOLANA_RPC_URL")
     sol_formatted=$(format_balance "$sol_balance" 9 "SOL")
@@ -443,6 +417,7 @@ fi
 
 if [ -z "$SOLANA_REQUESTER_ADDR" ]; then
     echo "   ❌ SOLANA_REQUESTER_ADDR not set in .env.testnet"
+    all_ok=false
 else
     sol_balance=$(get_solana_balance "$SOLANA_REQUESTER_ADDR" "$SOLANA_RPC_URL")
     sol_formatted=$(format_balance "$sol_balance" 9 "SOL")
@@ -458,6 +433,7 @@ fi
 
 if [ -z "$SOLANA_SOLVER_ADDR" ]; then
     echo "   ❌ SOLANA_SOLVER_ADDR not set in .env.testnet"
+    all_ok=false
 else
     sol_balance=$(get_solana_balance "$SOLANA_SOLVER_ADDR" "$SOLANA_RPC_URL")
     sol_formatted=$(format_balance "$sol_balance" 9 "SOL")
@@ -473,6 +449,7 @@ fi
 
 if [ -z "$INTEGRATED_GMP_SVM_ADDR" ]; then
     echo "   ❌ INTEGRATED_GMP_SVM_ADDR not set in .env.testnet"
+    all_ok=false
 else
     sol_balance=$(get_solana_balance "$INTEGRATED_GMP_SVM_ADDR" "$SOLANA_RPC_URL")
     sol_formatted=$(format_balance "$sol_balance" 9 "SOL")
@@ -493,6 +470,7 @@ echo "   RPC: $BASE_RPC_URL"
 
 if [ -z "$BASE_DEPLOYER_ADDR" ]; then
     echo "   ❌ BASE_DEPLOYER_ADDR not set in .env.testnet"
+    all_ok=false
 else
     eth_balance=$(get_base_eth_balance "$BASE_DEPLOYER_ADDR")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
@@ -508,6 +486,7 @@ fi
 
 if [ -z "$BASE_REQUESTER_ADDR" ]; then
     echo "   ❌ BASE_REQUESTER_ADDR not set in .env.testnet"
+    all_ok=false
 else
     eth_balance=$(get_base_eth_balance "$BASE_REQUESTER_ADDR")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
@@ -523,6 +502,7 @@ fi
 
 if [ -z "$BASE_SOLVER_ADDR" ]; then
     echo "   ❌ BASE_SOLVER_ADDR not set in .env.testnet"
+    all_ok=false
 else
     eth_balance=$(get_base_eth_balance "$BASE_SOLVER_ADDR")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
@@ -544,73 +524,10 @@ fi
 
 if [ -z "$GMP_RELAY_EVM_ADDR" ]; then
     echo "   ❌ INTEGRATED_GMP_EVM_PUBKEY_HASH not set in .env.testnet"
+    all_ok=false
 else
     eth_balance=$(get_base_eth_balance "$GMP_RELAY_EVM_ADDR")
     eth_formatted=$(format_balance "$eth_balance" "$BASE_NATIVE_DECIMALS")
-    echo "   Relay     ($GMP_RELAY_EVM_ADDR)"
-    echo "             $eth_formatted"
-fi
-
-echo ""
-
-# Check Ethereum Sepolia balances (using same addresses as Base - EVM addresses work across chains)
-sepolia_ready="❌"
-if [ -n "$BASE_DEPLOYER_ADDR" ] && [ -n "$BASE_REQUESTER_ADDR" ] && [ -n "$BASE_SOLVER_ADDR" ]; then
-    sepolia_ready="✅"
-fi
-echo " $sepolia_ready Ethereum Sepolia"
-echo "-------------------"
-echo "   RPC: $SEPOLIA_RPC_URL"
-echo "   (Using same addresses as Base Sepolia)"
-
-if [ -z "$BASE_DEPLOYER_ADDR" ]; then
-    echo "   ❌ BASE_DEPLOYER_ADDR not set in .env.testnet"
-else
-    eth_balance=$(get_evm_eth_balance "$BASE_DEPLOYER_ADDR" "$SEPOLIA_RPC_URL")
-    eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
-    echo "   Deployer  ($BASE_DEPLOYER_ADDR)"
-    if [ -n "$SEPOLIA_USDC_ADDR" ]; then
-        usdc_balance=$(get_evm_token_balance "$BASE_DEPLOYER_ADDR" "$SEPOLIA_USDC_ADDR" "$SEPOLIA_RPC_URL")
-        usdc_formatted=$(format_balance "$usdc_balance" "$SEPOLIA_USDC_DECIMALS" "USDC")
-        echo "             $eth_formatted, $usdc_formatted"
-    else
-        echo "             $eth_formatted (USDC n/a)"
-    fi
-fi
-
-if [ -z "$BASE_REQUESTER_ADDR" ]; then
-    echo "   ❌ BASE_REQUESTER_ADDR not set in .env.testnet"
-else
-    eth_balance=$(get_evm_eth_balance "$BASE_REQUESTER_ADDR" "$SEPOLIA_RPC_URL")
-    eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
-    echo "   Requester ($BASE_REQUESTER_ADDR)"
-    if [ -n "$SEPOLIA_USDC_ADDR" ]; then
-        usdc_balance=$(get_evm_token_balance "$BASE_REQUESTER_ADDR" "$SEPOLIA_USDC_ADDR" "$SEPOLIA_RPC_URL")
-        usdc_formatted=$(format_balance "$usdc_balance" "$SEPOLIA_USDC_DECIMALS" "USDC")
-        echo "             $eth_formatted, $usdc_formatted"
-    else
-        echo "             $eth_formatted (USDC n/a)"
-    fi
-fi
-
-if [ -z "$BASE_SOLVER_ADDR" ]; then
-    echo "   ❌ BASE_SOLVER_ADDR not set in .env.testnet"
-else
-    eth_balance=$(get_evm_eth_balance "$BASE_SOLVER_ADDR" "$SEPOLIA_RPC_URL")
-    eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
-    echo "   Solver    ($BASE_SOLVER_ADDR)"
-    if [ -n "$SEPOLIA_USDC_ADDR" ]; then
-        usdc_balance=$(get_evm_token_balance "$BASE_SOLVER_ADDR" "$SEPOLIA_USDC_ADDR" "$SEPOLIA_RPC_URL")
-        usdc_formatted=$(format_balance "$usdc_balance" "$SEPOLIA_USDC_DECIMALS" "USDC")
-        echo "             $eth_formatted, $usdc_formatted"
-    else
-        echo "             $eth_formatted (USDC n/a)"
-    fi
-fi
-
-if [ -n "$GMP_RELAY_EVM_ADDR" ]; then
-    eth_balance=$(get_evm_eth_balance "$GMP_RELAY_EVM_ADDR" "$SEPOLIA_RPC_URL")
-    eth_formatted=$(format_balance "$eth_balance" "$SEPOLIA_NATIVE_DECIMALS")
     echo "   Relay     ($GMP_RELAY_EVM_ADDR)"
     echo "             $eth_formatted"
 fi
@@ -969,8 +886,6 @@ BLUE='\033[1;34m'
 GREY='\033[90m'
 NC='\033[0m'
 
-# Track overall pass/fail - set to false on any ❌
-all_ok=true
 mark() { [[ "$1" != ✅* ]] && all_ok=false; }
 
 # Format 32-byte hex result as EVM address (last 20 bytes)

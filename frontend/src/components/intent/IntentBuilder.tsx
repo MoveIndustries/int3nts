@@ -375,10 +375,11 @@ export function IntentBuilder() {
     return SUPPORTED_TOKENS;
   }, [offeredToken]);
 
-  // Helper to organize tokens for dropdown: USD tokens (USDC, USDC.e, USDT) first, then separator, then MOVE and ETH
+  // Helper to organize tokens for dropdown: USD-pegged tokens first, then separator, then the rest
   const organizeTokensForDropdown = (tokens: TokenConfig[]) => {
-    const usdTokens = tokens.filter(t => t.symbol === 'USDC' || t.symbol === 'USDC.e' || t.symbol === 'USDT');
-    const others = tokens.filter(t => t.symbol !== 'USDC' && t.symbol !== 'USDC.e' && t.symbol !== 'USDT');
+    const isUsd = (t: TokenConfig) => t.symbol.startsWith('USD');
+    const usdTokens = tokens.filter(isUsd);
+    const others = tokens.filter(t => !isUsd(t));
     return { usdcs: usdTokens, others };
   };
 

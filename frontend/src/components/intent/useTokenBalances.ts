@@ -5,9 +5,18 @@ import {
   type TokenConfig,
   type TokenBalance,
   getRpcUrl,
+  getChainType,
   fetchTokenBalance,
 } from '@int3nts/sdk';
 import { CHAIN_CONFIGS } from '@/config/chains';
+
+function requireChainType(chain: TokenConfig['chain']) {
+  const chainType = getChainType(CHAIN_CONFIGS, chain);
+  if (!chainType) {
+    throw new Error(`No chain config for '${chain}' — cannot determine chain type`);
+  }
+  return chainType;
+}
 
 /**
  * Fetch balances for offered/desired tokens with refresh on fulfillment.
@@ -39,7 +48,7 @@ export function useTokenBalances(params: {
     setLoadingOfferedBalance(true);
     setOfferedBalanceError(null);
     console.log('Fetching offered balance:', { address, token: offeredToken.symbol, chain: offeredToken.chain });
-    fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, offeredToken.chain), address, offeredToken)
+    fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, offeredToken.chain), address, offeredToken, requireChainType(offeredToken.chain))
       .then((balance) => {
         console.log('Offered balance result:', balance);
         setOfferedBalance(balance);
@@ -67,7 +76,7 @@ export function useTokenBalances(params: {
     setLoadingDesiredBalance(true);
     setDesiredBalanceError(null);
     console.log('Fetching desired balance:', { address, token: desiredToken.symbol, chain: desiredToken.chain });
-    fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, desiredToken.chain), address, desiredToken)
+    fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, desiredToken.chain), address, desiredToken, requireChainType(desiredToken.chain))
       .then((balance) => {
         console.log('Desired balance result:', balance);
         setDesiredBalance(balance);
@@ -89,7 +98,7 @@ export function useTokenBalances(params: {
       if (offeredAddress) {
         setLoadingOfferedBalance(true);
         setOfferedBalanceError(null);
-        fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, offeredToken.chain), offeredAddress, offeredToken)
+        fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, offeredToken.chain), offeredAddress, offeredToken, requireChainType(offeredToken.chain))
           .then(setOfferedBalance)
           .catch((err: unknown) => {
             console.error('Failed to fetch offered balance:', err);
@@ -104,7 +113,7 @@ export function useTokenBalances(params: {
       if (desiredAddress) {
         setLoadingDesiredBalance(true);
         setDesiredBalanceError(null);
-        fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, desiredToken.chain), desiredAddress, desiredToken)
+        fetchTokenBalance(getRpcUrl(CHAIN_CONFIGS, desiredToken.chain), desiredAddress, desiredToken, requireChainType(desiredToken.chain))
           .then(setDesiredBalance)
           .catch((err: unknown) => {
             console.error('Failed to fetch desired balance:', err);

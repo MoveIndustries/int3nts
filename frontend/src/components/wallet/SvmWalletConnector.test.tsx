@@ -13,6 +13,8 @@ const mockState = {
   wallets: [{ adapter: { name: 'Phantom' } }],
 };
 
+const fakePubkey = { toBase58: () => 'So11111111111111111111111111111111111111112' };
+
 vi.mock('@solana/wallet-adapter-react', () => ({
   useWallet: () => ({
     connected: mockState.connected,
@@ -20,6 +22,7 @@ vi.mock('@solana/wallet-adapter-react', () => ({
     connect: connectMock,
     disconnect: disconnectMock,
     select: selectMock,
+    publicKey: mockState.connected ? fakePubkey : null,
   }),
 }));
 
@@ -67,12 +70,13 @@ describe('SvmWalletConnector', () => {
 
   /**
    * Test: Connected state rendering
-   * Why: Users should be able to disconnect when connected.
+   * Why: Users should see the truncated SVM address and be able to disconnect.
    */
-  it('should show disconnect button when connected', async () => {
+  it('should show truncated SVM address when connected', async () => {
     mockState.connected = true;
     render(<SvmWalletConnector />);
-    const button = await screen.findByText('Disconnect SVM');
+    const button = await screen.findByText(/^SVM So11\.\.\.1112$/);
     expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute('title', 'Disconnect SVM');
   });
 });

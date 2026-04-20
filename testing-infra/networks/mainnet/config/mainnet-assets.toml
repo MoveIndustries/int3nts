@@ -18,6 +18,14 @@ chain_id = 250
 native_token = "MOVE"
 native_token_decimals = 8
 
+# USDC.e on Movement Mainnet (FA metadata address)
+usdc_e = "0x83121c9f9b0527d1f056e21a950d6bf3b9e9e2e8353d0e95ccea726713cbea39"
+usdc_e_decimals = 6
+
+# USDCx on Movement Mainnet (FA metadata address)
+usdcx = "0xba11833544a2f99eec743f41a228ca6ffa7f13c3b6b04681d5a79a8b75ff225e"
+usdcx_decimals = 6
+
 # =============================================================================
 # BASE MAINNET
 # =============================================================================
@@ -28,12 +36,20 @@ rpc_url = "https://mainnet.base.org"
 native_token = "ETH"
 native_token_decimals = 18
 
+# USDC on Base Mainnet
+usdc = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+usdc_decimals = 6
+
 # =============================================================================
 # HYPERLIQUID MAINNET (HyperEVM)
 # =============================================================================
 
 [hyperliquid_mainnet]
 chain_id = 999
-rpc_url = "https://api.hyperliquid.xyz/evm"
+rpc_url = "https://rpc.hyperliquid.xyz/evm"
 native_token = "HYPE"
 native_token_decimals = 18
+
+# USDC on HyperEVM Mainnet
+usdc = "0xb88339CB7199b77E23DB6E890353E22632Ba630f"
+usdc_decimals = 6

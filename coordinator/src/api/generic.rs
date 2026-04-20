@@ -95,6 +95,153 @@ pub struct ExchangeRateResponse {
     pub fee_bps: u64,
 }
 
+/// Response structure for relay health query
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RelayHealthEntry {
+    pub chain_id: u64,
+    pub chain_name: String,
+    pub relay_address: String,
+    pub balance_wei: String,
+    pub healthy: bool,
+}
+
+/// Handler for the /relay-health endpoint.
+/// Returns the relay address and native balance per EVM connected chain so the
+/// frontend can warn users before submission when the relay is under-funded.
+pub async fn get_relay_health_handler(
+    config: Arc<crate::config::Config>,
+) -> Result<impl warp::Reply, warp::Rejection> {
+    let mut entries: Vec<RelayHealthEntry> = Vec::new();
+
+    // Hub (MVM)
+    if let Some(relay_addr) = config.hub_chain.relay_address.as_ref() {
+        let balance = query_mvm_balance(&config.hub_chain.rpc_url, relay_addr)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!("relay-health: MVM hub balance query failed: {}", e);
+                0
+            });
+        entries.push(RelayHealthEntry {
+            chain_id: config.hub_chain.chain_id,
+            chain_name: config.hub_chain.name.clone(),
+            relay_address: relay_addr.clone(),
+            balance_wei: balance.to_string(),
+            healthy: balance > 0,
+        });
+    }
+
+    // Connected EVM chains
+    for evm in &config.connected_chain_evm {
+        let Some(relay_addr) = evm.relay_address.as_ref() else {
+            continue;
+        };
+        let balance_hex = match query_evm_balance(&evm.rpc_url, relay_addr).await {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::warn!("relay-health: EVM balance query failed for {}: {}", evm.name, e);
+                continue;
+            }
+        };
+        let balance = u128::from_str_radix(balance_hex.trim_start_matches("0x"), 16).unwrap_or(0);
+        entries.push(RelayHealthEntry {
+            chain_id: evm.chain_id,
+            chain_name: evm.name.clone(),
+            relay_address: relay_addr.clone(),
+            balance_wei: balance.to_string(),
+            healthy: balance > 0,
+        });
+    }
+
+    // Connected SVM chains
+    for svm in &config.connected_chain_svm {
+        let Some(relay_addr) = svm.relay_address.as_ref() else {
+            continue;
+        };
+        let balance = match query_svm_balance(&svm.rpc_url, relay_addr).await {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::warn!("relay-health: SVM balance query failed for {}: {}", svm.name, e);
+                continue;
+            }
+        };
+        entries.push(RelayHealthEntry {
+            chain_id: svm.chain_id,
+            chain_name: svm.name.clone(),
+            relay_address: relay_addr.clone(),
+            balance_wei: balance.to_string(),
+            healthy: balance > 0,
+        });
+    }
+
+    Ok(warp::reply::json(&ApiResponse::<Vec<RelayHealthEntry>> {
+        success: true,
+        data: Some(entries),
+        error: None,
+    }))
+}
+
+async fn query_svm_balance(rpc_url: &str, address: &str) -> anyhow::Result<u128> {
+    let req = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "getBalance",
+        "params": [address]
+    });
+    let resp: serde_json::Value = reqwest::Client::new()
+        .post(rpc_url)
+        .json(&req)
+        .send()
+        .await?
+        .json()
+        .await?;
+    Ok(resp
+        .get("result")
+        .and_then(|r| r.get("value"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as u128)
+}
+
+async fn query_mvm_balance(rpc_url: &str, address: &str) -> anyhow::Result<u128> {
+    let view_url = format!("{}/view", rpc_url.trim_end_matches('/'));
+    let body = serde_json::json!({
+        "function": "0x1::coin::balance",
+        "type_arguments": ["0x1::aptos_coin::AptosCoin"],
+        "arguments": [address]
+    });
+    let resp: serde_json::Value = reqwest::Client::new()
+        .post(&view_url)
+        .json(&body)
+        .send()
+        .await?
+        .json()
+        .await?;
+    let balance_str = resp.as_array()
+        .and_then(|a| a.get(0))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("unexpected MVM view response: {}", resp))?;
+    Ok(balance_str.parse::<u128>().unwrap_or(0))
+}
+
+async fn query_evm_balance(rpc_url: &str, address: &str) -> anyhow::Result<String> {
+    let req = serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "eth_getBalance",
+        "params": [address, "latest"],
+        "id": 1
+    });
+    let resp: serde_json::Value = reqwest::Client::new()
+        .post(rpc_url)
+        .json(&req)
+        .send()
+        .await?
+        .json()
+        .await?;
+    resp.get("result")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| anyhow::anyhow!("no result in RPC response: {}", resp))
+}
+
 /// Handler for the acceptance/exchange rate endpoint.
 ///
 /// Query parameters:
@@ -428,6 +575,15 @@ impl ApiServer {
                 }
             });
 
+        // Relay health endpoint - native balance per EVM relay (pre-flight warning)
+        let relay_health_config = self.config.clone();
+        let relay_health = warp::path("relay-health")
+            .and(warp::get())
+            .and_then(move || {
+                let config = relay_health_config.clone();
+                async move { get_relay_health_handler(config).await }
+            });
+
         // Negotiation routing endpoints
         // POST /draftintent - Submit draft intent (open to any solver)
         let create_draft_store = draft_store.clone();
@@ -534,6 +690,7 @@ impl ApiServer {
             .or(submit_signature)
             .or(get_signature)
             .or(exchange_rate)
+            .or(relay_health)
             .with(correlation)
             .with(create_cors_filter(&self.config.api.cors_origins))
             .recover(handle_rejection)

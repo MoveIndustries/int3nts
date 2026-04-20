@@ -182,12 +182,14 @@ export function MvmWalletConnector() {
   };
 
   if (isConnected) {
+    const short = `${displayAddress!.slice(0, 6)}...${displayAddress!.slice(-4)}`;
     return (
       <button
         onClick={handleDisconnect}
         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+        title="Disconnect MVM"
       >
-        Disconnect MVM
+        MVM {short}
       </button>
     );
   }

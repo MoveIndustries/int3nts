@@ -14,7 +14,11 @@ const mockState = {
 };
 
 vi.mock('wagmi', () => ({
-  useAccount: () => ({ address: '0x123', isConnected: mockState.isConnected, chainId: 1 }),
+  useAccount: () => ({
+    address: '0x1234567890abcdef1234567890abcdef12345678',
+    isConnected: mockState.isConnected,
+    chainId: 1,
+  }),
   useConnect: () => ({
     connect: connectMock,
     connectors: mockState.connectors,
@@ -66,12 +70,13 @@ describe('EvmWalletConnector', () => {
 
   /**
    * Test: Connected state rendering
-   * Why: Users should be able to disconnect when connected.
+   * Why: Users should see the truncated EVM address and be able to disconnect.
    */
-  it('should show disconnect button when connected', async () => {
+  it('should show truncated EVM address when connected', async () => {
     mockState.isConnected = true;
     render(<EvmWalletConnector />);
-    const button = await screen.findByText('Disconnect EVM');
+    const button = await screen.findByText(/^EVM 0x1234\.\.\.5678$/);
     expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute('title', 'Disconnect EVM');
   });
 });
