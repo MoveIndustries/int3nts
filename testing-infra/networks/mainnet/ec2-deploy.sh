@@ -66,8 +66,13 @@ SOLVER_INSTANCE_TYPE="t3.medium"
 # Git branch to build from
 BUILD_BRANCH="${BUILD_BRANCH:-main}"
 
-# Service definitions: name, port, instance type
-SERVICES=(coordinator integrated-gmp solver)
+# Managed systemd units. Frontend is co-located with coordinator but
+# runs as its own unit, so it's a first-class entry for status/logs/stop.
+SERVICES=(coordinator integrated-gmp solver frontend)
+
+# EC2 instances to provision. Frontend shares the coordinator box, so
+# provisioning/install/config loops iterate INSTANCES, not SERVICES.
+INSTANCES=(coordinator integrated-gmp solver)
 
 # State file
 STATE_FILE="$SCRIPT_DIR/.ec2-state.env"
@@ -122,6 +127,7 @@ get_ip() {
         coordinator)    echo "$COORDINATOR_IP" ;;
         integrated-gmp) echo "$GMP_IP" ;;
         solver)         echo "$SOLVER_IP" ;;
+        frontend)       echo "$COORDINATOR_IP" ;;
         *) echo "ERROR: Unknown service $1" >&2; exit 1 ;;
     esac
 }
@@ -131,6 +137,7 @@ get_unit() {
         coordinator)    echo "int3nts-coordinator" ;;
         integrated-gmp) echo "int3nts-gmp" ;;
         solver)         echo "int3nts-solver" ;;
+        frontend)       echo "int3nts-frontend" ;;
         *) echo "ERROR: Unknown service $1" >&2; exit 1 ;;
     esac
 }
@@ -140,6 +147,7 @@ get_private_ip() {
         coordinator)    echo "$COORDINATOR_PRIVATE_IP" ;;
         integrated-gmp) echo "$GMP_PRIVATE_IP" ;;
         solver)         echo "$SOLVER_PRIVATE_IP" ;;
+        frontend)       echo "$COORDINATOR_PRIVATE_IP" ;;
         *) echo "ERROR: Unknown service $1" >&2; exit 1 ;;
     esac
 }
@@ -349,12 +357,12 @@ cmd_setup() {
     echo "=========================================="
     echo ""
 
-    for svc in "${SERVICES[@]}"; do
+    for svc in "${INSTANCES[@]}"; do
         wait_for_ssh "$svc"
     done
 
     # Install base packages on all instances
-    for svc in "${SERVICES[@]}"; do
+    for svc in "${INSTANCES[@]}"; do
         echo ""
         echo " [$svc] Installing system packages..."
         ssh_to "$svc" "sudo dnf update -y -q && sudo dnf install -y -q git gcc openssl-devel pkg-config"
@@ -523,7 +531,7 @@ cmd_deploy() {
 
     # --- Push configs and env to each instance ---
 
-    for svc in "${SERVICES[@]}"; do
+    for svc in "${INSTANCES[@]}"; do
         local svc_file
         case "$svc" in
             coordinator)    svc_file="coordinator_mainnet.toml" ;;
@@ -660,7 +668,7 @@ CADDY
 
     # --- Bind services to 0.0.0.0 so they're reachable from other instances ---
     # The configs use host = "127.0.0.1" — patch to 0.0.0.0 on the instances
-    for svc in "${SERVICES[@]}"; do
+    for svc in "${INSTANCES[@]}"; do
         ssh_to "$svc" "sed -i 's/host = \"127.0.0.1\"/host = \"0.0.0.0\"/' $REMOTE_DIR/config/*_mainnet.toml" 2>/dev/null || true
     done
 
@@ -727,7 +735,7 @@ cmd_logs() {
     local svc="${1:-}"
 
     if [ -z "$svc" ]; then
-        echo "Usage: $0 logs <coordinator|integrated-gmp|solver>"
+        echo "Usage: $0 logs <coordinator|integrated-gmp|solver|frontend>"
         exit 1
     fi
 
@@ -745,7 +753,7 @@ cmd_ssh() {
     local svc="${1:-}"
 
     if [ -z "$svc" ]; then
-        echo "Usage: $0 ssh <coordinator|integrated-gmp|solver>"
+        echo "Usage: $0 ssh <coordinator|integrated-gmp|solver|frontend>"
         echo ""
         echo " Instances:"
         echo "   coordinator:    $COORDINATOR_IP"
@@ -843,11 +851,11 @@ cmd_start() {
 
 cmd_stop() {
     require_state
-    for svc in solver integrated-gmp coordinator; do
+    # Reverse dependency order: downstream consumers first, coordinator last.
+    for svc in solver integrated-gmp frontend coordinator; do
         echo " Stopping $svc..."
         ssh_to "$svc" "sudo systemctl stop $(get_unit "$svc")" 2>/dev/null || true
     done
-    ssh_to coordinator "sudo systemctl stop int3nts-frontend" 2>/dev/null || true
     echo " All services stopped"
 }
 
@@ -920,8 +928,8 @@ case "${1:-}" in
         echo ""
         echo "Operations:"
         echo "  status                 Show service status on all instances"
-        echo "  logs <service>         Tail logs (coordinator|integrated-gmp|solver)"
-        echo "  ssh <service>          SSH to instance (coordinator|integrated-gmp|solver)"
+        echo "  logs <service>         Tail logs (coordinator|integrated-gmp|solver|frontend)"
+        echo "  ssh <service>          SSH to instance (coordinator|integrated-gmp|solver|frontend)"
         echo ""
         echo "Use BUILD_BRANCH=<branch> to build from a specific branch (default: main)"
         exit 1
