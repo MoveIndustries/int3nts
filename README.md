@@ -57,6 +57,7 @@ Run from project root:
 ```bash
 nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-inflow.sh"
 nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-outflow.sh"
+nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-mvm/run-tests-programmable-roundtrip.sh"
 nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-inflow.sh"
 nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-evm/run-tests-outflow.sh"
 nix develop ./nix -c bash -c "./testing-infra/ci-e2e/e2e-tests-svm/run-tests-inflow.sh"
