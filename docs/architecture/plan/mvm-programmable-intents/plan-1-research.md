@@ -162,8 +162,8 @@ The classic entry functions (`fulfill_inflow_intent`, `fulfill_outflow_intent`) 
 
 ## Resolved design questions
 
-- **(A1) — resolved.** Compiled `.mv` script files live in the test-only Move package's own `build/` output (mirrors the `testing-infra/ci-e2e/test-tokens/` precedent for test-only packages). The abstract test package lives at `testing-infra/ci-e2e/test-shapes/`, compiled at E2E setup time before the orchestration script runs. The Mosaic-specific package (plan 2) follows the same pattern.
-- **(A2) — resolved.** Compile-time parameters baked into the script bytecode: module addresses of `test-shapes` and the intent-hub modules (resolved via the package's `Move.toml` `[addresses]` section). Runtime parameters passed via `--args`: per-intent values that vary every fulfillment — `intent_addr`, `intent_id` / `intent_id_bytes`, `payment_amount` (inflow), `provided_metadata` + `provided_amount` (outflow). The `solver: signer` is implicit from the tx sender, not an arg.
+- **(A1) — resolved.** Compiled `.mv` script files live in the test-only Move package's own `build/` output (mirrors the `testing-infra/ci-e2e/test-tokens/` precedent for test-only packages). The dummy-protocols test package lives at `testing-infra/ci-e2e/dummy-protocols/`, compiled at E2E setup time before the orchestration script runs. The Mosaic-specific package (plan 2) follows the same pattern.
+- **(A2) — resolved.** Compile-time parameters baked into the script bytecode: module addresses of `dummy-protocols` and the intent-hub modules (resolved via the package's `Move.toml` `[addresses]` section). Runtime parameters passed via `--args`: per-intent values that vary every fulfillment — `intent_addr`, `intent_id` / `intent_id_bytes`, `payment_amount` (inflow), `provided_metadata` + `provided_amount` (outflow). The `solver: signer` is implicit from the tx sender, not an arg.
 
 ## Open design questions carried forward
 

@@ -5,7 +5,7 @@
 # Phase 4a (scaffold): runs a CLASSIC inflow leg (chain 2 → hub) followed by a
 # CLASSIC outflow leg (hub → chain 3) in one test, using the existing
 # fulfillment helpers and the existing solver flow. Lands the orchestration
-# shell so later phases (4b test-shapes Move package, 4c solver strategy
+# shell so later phases (4b dummy-protocols Move package, 4c solver strategy
 # registry, 4d programmable wiring) can layer in programmable behavior without
 # first having to debug the test scaffold.
 #
