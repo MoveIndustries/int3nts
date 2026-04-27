@@ -530,7 +530,7 @@ impl LiquidityMonitor {
 ///
 /// SVM balance queries require base58 addresses, but the config and env vars
 /// may store addresses in 0x-hex format for cross-chain compatibility.
-fn to_base58_pubkey(value: &str) -> Result<String> {
+pub fn to_base58_pubkey(value: &str) -> Result<String> {
     if value.starts_with("0x") {
         let hex_str = &value[2..];
         let padded = format!("{:0>64}", hex_str);
@@ -548,68 +548,3 @@ fn to_base58_pubkey(value: &str) -> Result<String> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_available_budget_no_in_flight() {
-        let liquidity = TokenLiquidity {
-            confirmed_balance: 1000,
-            last_updated: Instant::now(),
-            in_flight: Vec::new(),
-        };
-        assert_eq!(liquidity.available_budget(), 1000);
-    }
-
-    #[test]
-    fn test_available_budget_with_in_flight() {
-        let liquidity = TokenLiquidity {
-            confirmed_balance: 1000,
-            last_updated: Instant::now(),
-            in_flight: vec![
-                InFlightCommitment {
-                    draft_id: "d1".to_string(),
-                    amount: 300,
-                    committed_at: Instant::now(),
-                },
-                InFlightCommitment {
-                    draft_id: "d2".to_string(),
-                    amount: 200,
-                    committed_at: Instant::now(),
-                },
-            ],
-        };
-        assert_eq!(liquidity.available_budget(), 500);
-    }
-
-    #[test]
-    fn test_available_budget_saturating_sub() {
-        let liquidity = TokenLiquidity {
-            confirmed_balance: 100,
-            last_updated: Instant::now(),
-            in_flight: vec![InFlightCommitment {
-                draft_id: "d1".to_string(),
-                amount: 500,
-                committed_at: Instant::now(),
-            }],
-        };
-        assert_eq!(liquidity.available_budget(), 0);
-    }
-
-    #[test]
-    fn test_to_base58_pubkey_hex() {
-        // 32 zero bytes in hex
-        let hex = "0x0000000000000000000000000000000000000000000000000000000000000001";
-        let result = to_base58_pubkey(hex).unwrap();
-        let pubkey = Pubkey::from_str(&result).unwrap();
-        assert_eq!(pubkey.to_bytes()[31], 1);
-    }
-
-    #[test]
-    fn test_to_base58_pubkey_base58() {
-        let b58 = "11111111111111111111111111111112";
-        let result = to_base58_pubkey(b58).unwrap();
-        assert_eq!(result, b58);
-    }
-}

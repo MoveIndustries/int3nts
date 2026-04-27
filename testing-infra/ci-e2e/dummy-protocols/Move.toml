@@ -1,0 +1,25 @@
+[package]
+name = "dummy-protocols"
+version = "1.0.0"
+authors = []
+
+[addresses]
+dummy_protocols = "_"
+
+[dependencies.AptosFramework]
+git = "https://github.com/movementlabsxyz/aptos-core.git"
+rev = "ab80decffca5dd83991b5783073fe66ddde2836d"  # 2025-11-17 main branch
+subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.intent-hub]
+local = "../../../intent-frameworks/mvm/intent-hub"
+
+[dev-dependencies]
+
+[dev-dependencies.AptosFramework]
+git = "https://github.com/movementlabsxyz/aptos-core.git"
+rev = "ab80decffca5dd83991b5783073fe66ddde2836d"  # 2025-11-17 main branch
+subdir = "aptos-move/framework/aptos-framework"
+
+[dev-dependencies.intent-hub]
+local = "../../../intent-frameworks/mvm/intent-hub"

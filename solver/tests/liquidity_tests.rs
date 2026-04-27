@@ -13,8 +13,12 @@ use test_helpers::{
 use solver::config::{
     self, AcceptanceConfig, LiquidityMonitorConfig, LiquidityThresholdConfig, TokenPairConfig,
 };
-use solver::service::liquidity::{ChainToken, InFlightCommitment, LiquidityMonitor, TokenLiquidity};
+use solver::service::liquidity::{
+    to_base58_pubkey, ChainToken, InFlightCommitment, LiquidityMonitor, TokenLiquidity,
+};
 use std::time::Instant;
+use std::str::FromStr;
+use solana_sdk::pubkey::Pubkey;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -758,4 +762,34 @@ fn test_config_validation_catches_unknown_chain_before_runtime() {
     });
     let result = config.validate();
     assert!(result.is_err(), "validate() must reject acceptance pairs targeting unconfigured chains");
+}
+
+// ============================================================================
+// SVM PUBKEY CONVERSION
+// ============================================================================
+
+// 36. Test: to_base58_pubkey converts a 0x-hex SVM address to base58
+// Verifies that to_base58_pubkey decodes a 0x-prefixed 32-byte hex string and
+// returns it as a base58-encoded Solana pubkey.
+// Why: SVM balance queries require base58 addresses, but config and env vars may
+// store SVM addresses in 0x-hex for cross-chain symmetry; the conversion must
+// round-trip correctly.
+#[test]
+fn test_to_base58_pubkey_hex() {
+    let hex = "0x0000000000000000000000000000000000000000000000000000000000000001";
+    let result = to_base58_pubkey(hex).unwrap();
+    let pubkey = Pubkey::from_str(&result).unwrap();
+    assert_eq!(pubkey.to_bytes()[31], 1);
+}
+
+// 37. Test: to_base58_pubkey passes through an already-base58 SVM address
+// Verifies that to_base58_pubkey returns the input unchanged when it is already
+// a valid base58 Solana pubkey.
+// Why: callers should be able to pass either format; the function recognizes
+// base58 by the absence of the 0x prefix and validates without conversion.
+#[test]
+fn test_to_base58_pubkey_base58() {
+    let b58 = "11111111111111111111111111111112";
+    let result = to_base58_pubkey(b58).unwrap();
+    assert_eq!(result, b58);
 }

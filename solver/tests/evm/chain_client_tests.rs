@@ -32,10 +32,10 @@ fn create_test_evm_config() -> EvmChainConfig {
 // CLIENT INITIALIZATION
 // ============================================================================
 
-/// 1. Test: ConnectedEvmClient Initialization
-/// Verifies that ConnectedEvmClient::new() creates a client with correct config.
-/// Why: Client initialization is the entry point for all EVM operations. A failure
-/// here would prevent any solver operations on connected EVM chains.
+// 1. Test: ConnectedEvmClient Initialization
+// Verifies that ConnectedEvmClient::new() creates a client with correct config.
+// Why: Client initialization is the entry point for all EVM operations. A failure
+// here would prevent any solver operations on connected EVM chains.
 #[test]
 fn test_client_new() {
     let config = create_test_evm_config();
@@ -70,10 +70,10 @@ fn test_client_new() {
 // IS ESCROW RELEASED HELPERS (EVM-specific, Hardhat script mechanics)
 // ============================================================================
 
-/// 19. Test: is_escrow_released intent ID formatting
-/// Verifies that intent_id is correctly formatted for Hardhat script.
-/// Why: EVM expects 0x-prefixed hex strings. Missing prefix would cause the
-/// Hardhat script to fail with a parse error.
+// 19. Test: is_escrow_released intent ID formatting
+// Verifies that intent_id is correctly formatted for Hardhat script.
+// Why: EVM expects 0x-prefixed hex strings. Missing prefix would cause the
+// Hardhat script to fail with a parse error.
 #[test]
 fn test_is_escrow_released_id_formatting() {
     // Test that intent_id with 0x prefix is preserved
@@ -95,10 +95,10 @@ fn test_is_escrow_released_id_formatting() {
     assert_eq!(formatted, "0x1234567890abcdef");
 }
 
-/// 20. Test: is_escrow_released output parsing
-/// Verifies that "isReleased: true/false" is correctly parsed from Hardhat output.
-/// Why: The solver needs to know when escrow is auto-released to complete the flow.
-/// Wrong parsing would cause the solver to wait forever or miss releases.
+// 20. Test: is_escrow_released output parsing
+// Verifies that "isReleased: true/false" is correctly parsed from Hardhat output.
+// Why: The solver needs to know when escrow is auto-released to complete the flow.
+// Wrong parsing would cause the solver to wait forever or miss releases.
 #[test]
 fn test_is_escrow_released_output_parsing() {
     // Test "isReleased: true" output
@@ -112,10 +112,10 @@ fn test_is_escrow_released_output_parsing() {
     assert!(!output_false.contains("isReleased: true"));
 }
 
-/// 21. Test: is_escrow_released command building
-/// Verifies that the Hardhat command is built correctly with all required arguments.
-/// Why: The is_escrow_released function invokes a Hardhat script with environment variables.
-/// Wrong command formatting would cause the script to fail or use wrong parameters.
+// 21. Test: is_escrow_released command building
+// Verifies that the Hardhat command is built correctly with all required arguments.
+// Why: The is_escrow_released function invokes a Hardhat script with environment variables.
+// Wrong command formatting would cause the script to fail or use wrong parameters.
 #[test]
 fn test_is_escrow_released_command_building() {
     let escrow_gmp_addr = DUMMY_ESCROW_CONTRACT_ADDR_EVM;
@@ -139,10 +139,10 @@ fn test_is_escrow_released_command_building() {
     assert!(command.contains("--network localhost"));
 }
 
-/// 22. Test: is_escrow_released missing directory error
-/// Verifies that proper error is returned when intent-frameworks/evm directory is missing.
-/// Why: A clear error message helps operators diagnose deployment issues.
-/// Silent failures would make debugging much harder.
+// 22. Test: is_escrow_released missing directory error
+// Verifies that proper error is returned when intent-frameworks/evm directory is missing.
+// Why: A clear error message helps operators diagnose deployment issues.
+// Silent failures would make debugging much harder.
 #[test]
 fn test_is_escrow_released_error_handling() {
     // Simulate the directory check logic

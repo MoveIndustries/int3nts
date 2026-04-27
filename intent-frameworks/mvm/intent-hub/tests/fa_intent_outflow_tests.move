@@ -705,5 +705,106 @@ module mvmt_intent::fa_intent_outflow_tests {
         assert!(vector::length(&cancel_events) == 1);
     }
 
+    #[test(
+        aptos_framework = @0x1,
+        mvmt_intent = @0x123,
+        requester_signer = @0xcafe,
+        solver_signer = @0xdead
+    )]
+    // 12. Test: a programmable outflow script can drive start_fa_offering_session +
+    // finish_fa_receiving_session_for_gmp directly and then call
+    // fa_intent_outflow::script_complete to perform the post-finish cleanup.
+    // Verifies that script_complete unregisters the intent from intent_registry,
+    // removes its entry from gmp_intent_state, and emits LimitOrderFulfillmentEvent.
+    // Why: scripts cannot construct LimitOrderFulfillmentEvent across the module
+    // boundary and cannot call the friend-only intent_registry::unregister_intent;
+    // the public script_complete wrapper is the only path for programmable outflow
+    // fulfillment to complete the cleanup that fulfill_outflow_intent inlines today.
+    fun test_script_complete_outflow(
+        aptos_framework: &signer,
+        mvmt_intent: &signer,
+        requester_signer: &signer,
+        solver_signer: &signer,
+    ) {
+        use mvmt_intent::gmp_common;
+        use aptos_framework::fungible_asset;
+
+        let (intent_obj, offered_metadata, _desired_metadata, intent_id) = setup_outflow_intent(
+            aptos_framework,
+            mvmt_intent,
+            requester_signer,
+            solver_signer,
+        );
+
+        let intent_addr = object::object_address(&intent_obj);
+        let intent_id_bytes = bcs::to_bytes(&intent_id);
+
+        // Mimic FulfillmentProof arrival from connected chain via GMP.
+        let solver_addr_bytes = bcs::to_bytes(&signer::address_of(solver_signer));
+        let fulfillment_proof = gmp_common::new_fulfillment_proof(
+            intent_id_bytes,
+            solver_addr_bytes,
+            50, // amount_fulfilled
+            timestamp::now_seconds(),
+        );
+        let payload = gmp_common::encode_fulfillment_proof(&fulfillment_proof);
+        let known_src_addr = vector::empty<u8>();
+        let i = 0;
+        while (i < 32) {
+            vector::push_back(&mut known_src_addr, 0xAB);
+            i = i + 1;
+        };
+        let was_recorded = fa_intent_outflow::receive_fulfillment_proof(
+            2, // src_chain_id (connected chain)
+            known_src_addr,
+            payload,
+        );
+        assert!(was_recorded == true);
+
+        // What the programmable script does between start and script_complete.
+        let intent_obj_generic: Object<Intent<fa_intent_with_oracle::FungibleStoreManager, fa_intent_with_oracle::OracleGuardedLimitOrder>> =
+            object::address_to_object(intent_addr);
+        let (unlocked_fa, session) = fa_intent_with_oracle::start_fa_offering_session(
+            solver_signer, intent_obj_generic
+        );
+
+        // Capture metadata + amount BEFORE depositing (the FA is consumed by deposit).
+        let provided_metadata = fungible_asset::metadata_from_asset(&unlocked_fa);
+        let payment_metadata = fungible_asset::asset_metadata(&unlocked_fa);
+        let provided_amount = fungible_asset::amount(&unlocked_fa);
+
+        primary_fungible_store::deposit(signer::address_of(solver_signer), unlocked_fa);
+
+        // Hub-side payment is 0 for outflow (value already delivered cross-chain).
+        let solver_payment = primary_fungible_store::withdraw(solver_signer, payment_metadata, 0);
+        fa_intent_with_oracle::finish_fa_receiving_session_for_gmp(session, solver_payment);
+
+        // Pre-cleanup state: intent and gmp entry are still registered after finish.
+        assert!(intent_registry::is_intent_registered(intent_addr));
+        let (exists_before, _, _) = gmp_intent_state::get_intent_state(intent_id_bytes);
+        assert!(exists_before);
+
+        // Function under test.
+        fa_intent_outflow::script_complete(
+            solver_signer,
+            intent_addr,
+            intent_id,
+            provided_metadata,
+            provided_amount,
+        );
+
+        // Post-cleanup state: registry and gmp entry emptied.
+        assert!(!intent_registry::is_intent_registered(intent_addr));
+        let (exists_after, _, _) = gmp_intent_state::get_intent_state(intent_id_bytes);
+        assert!(!exists_after);
+
+        // Fulfillment event emitted (coordinator uses this to detect completion).
+        let fulfillment_events = event::emitted_events<fa_intent_outflow::LimitOrderFulfillmentEvent>();
+        assert!(vector::length(&fulfillment_events) == 1);
+
+        // Solver received the unlocked tokens (their reward, deposited above).
+        assert!(primary_fungible_store::balance(signer::address_of(solver_signer), offered_metadata) == 50);
+    }
+
 }
 

@@ -15,8 +15,52 @@ use crate::config::ChainConfig;
 // HELPER FUNCTIONS
 // ============================================================================
 
+/// Builds the CLI argument list for `aptos move run-script`.
+///
+/// In testnet mode (`e2e_mode = false`), `pk_hex_stripped` must be `Some` —
+/// the caller resolves `MOVEMENT_SOLVER_PRIVATE_KEY` before calling.
+pub fn build_run_script_args(
+    script_path: &str,
+    user_args: &[String],
+    e2e_mode: bool,
+    profile: &str,
+    pk_hex_stripped: Option<&str>,
+    base_url: &str,
+) -> Vec<String> {
+    let mut out: Vec<String> = vec![
+        "move".to_string(),
+        "run-script".to_string(),
+        "--assume-yes".to_string(),
+        "--compiled-script-path".to_string(),
+        script_path.to_string(),
+    ];
+
+    if !user_args.is_empty() {
+        out.push("--args".to_string());
+        for a in user_args {
+            out.push(a.clone());
+        }
+    }
+
+    if e2e_mode {
+        out.push("--profile".to_string());
+        out.push(profile.to_string());
+    } else {
+        out.push("--private-key".to_string());
+        out.push(
+            pk_hex_stripped
+                .expect("non-e2e mode requires pk_hex_stripped")
+                .to_string(),
+        );
+        out.push("--url".to_string());
+        out.push(base_url.to_string());
+    }
+
+    out
+}
+
 /// Extracts transaction hash from CLI output (handles both traditional and JSON formats)
-fn extract_transaction_hash(output: &str) -> Option<String> {
+pub fn extract_transaction_hash(output: &str) -> Option<String> {
     // Try JSON format first: "transaction_hash": "0x..."
     if let Some(start) = output.find("\"transaction_hash\"") {
         let after_key = &output[start..];
@@ -392,6 +436,77 @@ impl HubChainClient {
         anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
     }
 
+    /// Submits a Move script payload as the inflow fulfillment.
+    ///
+    /// Parallel to `fulfill_inflow_intent` (fixed entry function); this path
+    /// lets the solver run an arbitrary Move script that drives the full
+    /// inflow lifecycle. The script's flow is owned by
+    /// `fa_intent_inflow::script_complete`.
+    ///
+    /// # Arguments
+    ///
+    /// * `script_path` - Filesystem path to the compiled `.mv` script bytecode
+    /// * `args` - Pre-formatted CLI arguments matching the script's parameter list
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Transaction hash
+    /// * `Err(anyhow::Error)` - Failed to submit script
+    pub fn fulfill_inflow_intent_via_script(
+        &self,
+        script_path: &str,
+        args: &[String],
+    ) -> Result<String> {
+        // Determine CLI based on e2e_mode flag
+        let cli = if self.e2e_mode {
+            "aptos"
+        } else {
+            "movement"
+        };
+
+        // Prepare private key if needed (for testnet mode)
+        let pk_hex_stripped = if !self.e2e_mode {
+            let pk_hex = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY")
+                .context("MOVEMENT_SOLVER_PRIVATE_KEY not set")?;
+            Some(pk_hex.strip_prefix("0x").unwrap_or(&pk_hex).to_string())
+        } else {
+            None
+        };
+
+        let command_args = build_run_script_args(
+            script_path,
+            args,
+            self.e2e_mode,
+            &self.profile,
+            pk_hex_stripped.as_deref(),
+            &self.base_url,
+        );
+
+        let output = Command::new(cli)
+            .args(&command_args)
+            .output()
+            .context(format!("Failed to execute {} move run-script", cli))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            anyhow::bail!(
+                "{} move run-script failed:\nstderr: {}\nstdout: {}",
+                cli,
+                stderr,
+                stdout
+            );
+        }
+
+        // Reuses the existing tx-hash extraction helper.
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        if let Some(hash) = extract_transaction_hash(&output_str) {
+            return Ok(hash);
+        }
+
+        anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
+    }
+
     /// Fulfills an outflow request intent
     ///
     /// Calls the `fulfill_outflow_intent` entry function on the hub chain.
@@ -482,6 +597,74 @@ impl HubChainClient {
         // Handles both formats:
         // - Traditional CLI: "Transaction hash: 0x..."
         // - JSON format: "transaction_hash": "0x..."
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        if let Some(hash) = extract_transaction_hash(&output_str) {
+            return Ok(hash);
+        }
+
+        anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
+    }
+
+    /// Submits a Move script payload as the outflow fulfillment.
+    ///
+    /// Parallel to `fulfill_outflow_intent` (fixed entry function); this path
+    /// lets the solver run an arbitrary Move script that drives the full
+    /// outflow lifecycle. The script's flow is owned by
+    /// `fa_intent_outflow::script_complete`.
+    ///
+    /// # Arguments
+    ///
+    /// * `script_path` - Filesystem path to the compiled `.mv` script bytecode
+    /// * `args` - Pre-formatted CLI arguments matching the script's parameter list
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Transaction hash
+    /// * `Err(anyhow::Error)` - Failed to submit script
+    pub fn fulfill_outflow_intent_via_script(
+        &self,
+        script_path: &str,
+        args: &[String],
+    ) -> Result<String> {
+        let cli = if self.e2e_mode {
+            "aptos"
+        } else {
+            "movement"
+        };
+
+        let pk_hex_stripped = if !self.e2e_mode {
+            let pk_hex = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY")
+                .context("MOVEMENT_SOLVER_PRIVATE_KEY not set")?;
+            Some(pk_hex.strip_prefix("0x").unwrap_or(&pk_hex).to_string())
+        } else {
+            None
+        };
+
+        let command_args = build_run_script_args(
+            script_path,
+            args,
+            self.e2e_mode,
+            &self.profile,
+            pk_hex_stripped.as_deref(),
+            &self.base_url,
+        );
+
+        let output = Command::new(cli)
+            .args(&command_args)
+            .output()
+            .context(format!("Failed to execute {} move run-script", cli))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            anyhow::bail!(
+                "{} move run-script failed:\nstderr: {}\nstdout: {}",
+                cli,
+                stderr,
+                stdout
+            );
+        }
+
         let output_str = String::from_utf8_lossy(&output.stdout);
         if let Some(hash) = extract_transaction_hash(&output_str) {
             return Ok(hash);
@@ -1204,7 +1387,7 @@ pub struct SolverRegistrationInfo {
 }
 
 /// Parse hex bytes from JSON value (handles Move's vector<u8> format)
-fn parse_hex_from_json(value: &serde_json::Value) -> Vec<u8> {
+pub fn parse_hex_from_json(value: &serde_json::Value) -> Vec<u8> {
     if let Some(s) = value.as_str() {
         // Format: "0x..." hex string
         let hex_str = s.strip_prefix("0x").unwrap_or(s);
@@ -1215,7 +1398,7 @@ fn parse_hex_from_json(value: &serde_json::Value) -> Vec<u8> {
 }
 
 /// Parse optional address from JSON (Move's Option<address>)
-fn parse_optional_address(value: &serde_json::Value) -> Option<String> {
+pub fn parse_optional_address(value: &serde_json::Value) -> Option<String> {
     // Move Option is serialized as: {"vec": []} for None, {"vec": ["0x..."]} for Some
     if let Some(obj) = value.as_object() {
         if let Some(vec_val) = obj.get("vec") {
@@ -1232,7 +1415,7 @@ fn parse_optional_address(value: &serde_json::Value) -> Option<String> {
 }
 
 /// Parse optional hex bytes from JSON (Move's Option<vector<u8>>)
-fn parse_optional_hex(value: &serde_json::Value) -> Vec<u8> {
+pub fn parse_optional_hex(value: &serde_json::Value) -> Vec<u8> {
     // Move Option<vector<u8>> is serialized as: {"vec": []} for None, {"vec": ["0x..."]} for Some
     if let Some(obj) = value.as_object() {
         if let Some(vec_val) = obj.get("vec") {
@@ -1246,94 +1429,5 @@ fn parse_optional_hex(value: &serde_json::Value) -> Vec<u8> {
     Vec::new()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn test_parse_hex_from_json_with_prefix() {
-        let value = json!("0xdeadbeef");
-        let result = parse_hex_from_json(&value);
-        assert_eq!(result, vec![0xde, 0xad, 0xbe, 0xef]);
-    }
-
-    #[test]
-    fn test_parse_hex_from_json_without_prefix() {
-        let value = json!("deadbeef");
-        let result = parse_hex_from_json(&value);
-        assert_eq!(result, vec![0xde, 0xad, 0xbe, 0xef]);
-    }
-
-    #[test]
-    fn test_parse_hex_from_json_empty() {
-        let value = json!("");
-        let result = parse_hex_from_json(&value);
-        assert_eq!(result, Vec::<u8>::new());
-    }
-
-    #[test]
-    fn test_parse_hex_from_json_not_string() {
-        let value = json!(123);
-        let result = parse_hex_from_json(&value);
-        assert_eq!(result, Vec::<u8>::new());
-    }
-
-    #[test]
-    fn test_parse_optional_address_some() {
-        // Move Option<address> with value: {"vec": ["0x1234..."]}
-        let value = json!({"vec": ["0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"]});
-        let result = parse_optional_address(&value);
-        assert_eq!(result, Some("0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string()));
-    }
-
-    #[test]
-    fn test_parse_optional_address_none() {
-        // Move Option<address> with no value: {"vec": []}
-        let value = json!({"vec": []});
-        let result = parse_optional_address(&value);
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_parse_optional_address_invalid() {
-        let value = json!("not an option");
-        let result = parse_optional_address(&value);
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_parse_optional_hex_some() {
-        // Move Option<vector<u8>> with value: {"vec": ["0xdeadbeef"]}
-        let value = json!({"vec": ["0xdeadbeef"]});
-        let result = parse_optional_hex(&value);
-        assert_eq!(result, vec![0xde, 0xad, 0xbe, 0xef]);
-    }
-
-    #[test]
-    fn test_parse_optional_hex_none() {
-        // Move Option<vector<u8>> with no value: {"vec": []}
-        let value = json!({"vec": []});
-        let result = parse_optional_hex(&value);
-        assert_eq!(result, Vec::<u8>::new());
-    }
-
-    #[test]
-    fn test_parse_optional_hex_invalid() {
-        let value = json!("not an option");
-        let result = parse_optional_hex(&value);
-        assert_eq!(result, Vec::<u8>::new());
-    }
-
-    #[test]
-    fn test_parse_optional_hex_32_byte_address() {
-        // Typical SVM address (32 bytes)
-        let svm_hex = "6e5f2e9b6d3f4a1c8e7d0b2a5f4c3e8d1a0b9f7e6c5d4a3b2c1e0f9a8b7c6d5e";
-        let value = json!({"vec": [format!("0x{}", svm_hex)]});
-        let result = parse_optional_hex(&value);
-        assert_eq!(result.len(), 32);
-        assert_eq!(hex::encode(&result), svm_hex);
-    }
-}
 
 

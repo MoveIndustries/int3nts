@@ -146,6 +146,45 @@ module mvmt_intent::fa_intent_inflow {
         };
     }
 
+    /// Post-finish cleanup for a programmable inflow fulfillment driven by a
+    /// Move script.
+    ///
+    /// Exists because `intent_registry::unregister_intent` is friend-only.
+    /// Pass an empty `intent_id_bytes` for same-chain intents to skip the
+    /// cross-chain GMP cleanup; `payment_amount` is forwarded in the
+    /// fulfillment proof on the cross-chain branch.
+    ///
+    /// # Arguments
+    /// - `solver`: Signer fulfilling the intent
+    /// - `intent_addr`: Address of the intent object consumed by `finish`
+    /// - `intent_id_bytes`: Cross-chain intent id (BCS-encoded address), or empty for same-chain
+    /// - `payment_amount`: Amount delivered to the requester (forwarded in the fulfillment proof)
+    public fun script_complete(
+        solver: &signer,
+        intent_addr: address,
+        intent_id_bytes: vector<u8>,
+        payment_amount: u64
+    ) {
+        intent_registry::unregister_intent(intent_addr);
+
+        if (!std::vector::is_empty(&intent_id_bytes)) {
+            let dst_chain_id = gmp_intent_state::get_dst_chain_id(intent_id_bytes);
+            let solver_addr_connected_chain =
+                gmp_intent_state::get_solver_addr_connected_chain(intent_id_bytes);
+
+            let _nonce = intent_gmp_hub::send_fulfillment_proof(
+                solver,
+                dst_chain_id,
+                intent_id_bytes,
+                solver_addr_connected_chain,
+                payment_amount,
+                timestamp::now_seconds()
+            );
+
+            gmp_intent_state::remove_intent(intent_id_bytes);
+        };
+    }
+
     /// Creates an inflow intent and returns the intent object.
     ///
     /// This is the core implementation that both the entry function and tests use.

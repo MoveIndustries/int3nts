@@ -45,6 +45,10 @@ init_aptos_profile "solver-chain1" "1" "$LOG_FILE"
 log "Creating test-tokens-chain1 account for Hub..."
 init_aptos_profile "test-tokens-chain1" "1" "$LOG_FILE"
 
+# Create dummy-protocols account for Hub (for programmable-fulfillment script package)
+log "Creating dummy-protocols-chain1 account for Hub..."
+init_aptos_profile "dummy-protocols-chain1" "1" "$LOG_FILE"
+
 log ""
 log "% - - - - - - - - - - - FUNDING - - - - - - - - - - - -"
 log "% - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"

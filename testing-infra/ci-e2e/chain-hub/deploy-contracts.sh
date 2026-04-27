@@ -219,6 +219,31 @@ fi
 
 log_and_echo "✅ USDhub minted to Requester and Solver on hub chain (2 USDhub each)"
 
+# Deploy dummy-protocols package (programmable-fulfillment script package)
+# Publishing also writes compiled scripts/*.mv to build/ for the solver to load.
+log ""
+log " Deploying dummy-protocols package to Hub..."
+
+DUMMY_PROTOCOLS_HUB_ADDR=$(get_profile_address "dummy-protocols-chain1")
+
+log "   - Deploying dummy-protocols with address: $DUMMY_PROTOCOLS_HUB_ADDR"
+cd "$PROJECT_ROOT/testing-infra/ci-e2e/dummy-protocols"
+if aptos_write_locked move publish --profile dummy-protocols-chain1 \
+    --named-addresses dummy_protocols=$DUMMY_PROTOCOLS_HUB_ADDR,mvmt_intent=$HUB_MODULE_ADDR \
+    --assume-yes >> "$LOG_FILE" 2>&1; then
+    log "   ✅ dummy-protocols deployment successful on Hub!"
+    log_and_echo "✅ dummy-protocols package deployed on hub chain"
+else
+    log_and_echo "   ❌ dummy-protocols deployment failed on Hub!"
+    exit 1
+fi
+
+cd "$PROJECT_ROOT"
+
+# Export dummy-protocols address for downstream phases (compiled scripts live in build/)
+echo "DUMMY_PROTOCOLS_HUB_ADDR=$DUMMY_PROTOCOLS_HUB_ADDR" >> "$PROJECT_ROOT/.tmp/chain-info.env"
+log "   ✅ dummy-protocols address saved: $DUMMY_PROTOCOLS_HUB_ADDR"
+
 # Display balances (APT + USDhub)
 display_balances_hub "$TEST_TOKENS_HUB_ADDR"
 
