@@ -22,10 +22,10 @@ use test_helpers::{
 // CLIENT INITIALIZATION
 // ============================================================================
 
-/// 1. Test: ConnectedMvmClient Initialization
-/// Verifies that ConnectedMvmClient::new() creates a client with correct config.
-/// Why: Client initialization is the entry point for all MVM operations. A failure
-/// here would prevent any solver operations on connected MVM chains.
+// 1. Test: ConnectedMvmClient Initialization
+// Verifies that ConnectedMvmClient::new() creates a client with correct config.
+// Why: Client initialization is the entry point for all MVM operations. A failure
+// here would prevent any solver operations on connected MVM chains.
 #[test]
 fn test_client_new() {
     let config = create_default_connected_mvm_chain_config();
@@ -47,10 +47,10 @@ fn test_client_new() {
 // FULFILLMENT OPERATIONS
 // ============================================================================
 
-/// 7. Test: Fulfill Outflow Via GMP Intent ID Formatting
-/// Verifies that intent_id is correctly formatted for aptos CLI hex: argument.
-/// Why: The aptos CLI expects hex arguments without the 0x prefix. Wrong formatting
-/// would cause the transaction to fail with a parse error.
+// 7. Test: Fulfill Outflow Via GMP Intent ID Formatting
+// Verifies that intent_id is correctly formatted for aptos CLI hex: argument.
+// Why: The aptos CLI expects hex arguments without the 0x prefix. Wrong formatting
+// would cause the transaction to fail with a parse error.
 #[test]
 fn test_fulfillment_id_formatting() {
     // Test that intent_id with 0x prefix has it stripped for hex: arg
@@ -70,10 +70,10 @@ fn test_fulfillment_id_formatting() {
 
 // #8: test_fulfillment_signature_encoding - N/A for MVM (EVM uses signatures, MVM uses CLI)
 
-/// 9. Test: Fulfill Outflow Via GMP Command Building
-/// Verifies that the aptos CLI command is built correctly with all required arguments.
-/// Why: The fulfill_intent function is called via aptos CLI. Wrong argument formatting
-/// would cause silent failures or wrong function parameters.
+// 9. Test: Fulfill Outflow Via GMP Command Building
+// Verifies that the aptos CLI command is built correctly with all required arguments.
+// Why: The fulfill_intent function is called via aptos CLI. Wrong argument formatting
+// would cause silent failures or wrong function parameters.
 #[test]
 fn test_fulfillment_command_building() {
     let module_addr = DUMMY_MODULE_ADDR_CON;
@@ -119,10 +119,10 @@ fn test_fulfillment_command_building() {
 // HAS OUTFLOW REQUIREMENTS (MVM-specific, GMP view function)
 // ============================================================================
 
-/// 16. Test: has_outflow_requirements returns true when requirements delivered
-/// Verifies that has_outflow_requirements() calls the intent_outflow_validator_impl::has_requirements
-/// view function and parses the boolean response.
-/// Why: The solver polls this before calling fulfill_intent. A parse error would block fulfillment.
+// 16. Test: has_outflow_requirements returns true when requirements delivered
+// Verifies that has_outflow_requirements() calls the intent_outflow_validator_impl::has_requirements
+// view function and parses the boolean response.
+// Why: The solver polls this before calling fulfill_intent. A parse error would block fulfillment.
 #[tokio::test]
 async fn test_has_outflow_requirements_success() {
     let mock_server = MockServer::start().await;
@@ -142,9 +142,9 @@ async fn test_has_outflow_requirements_success() {
     assert!(result);
 }
 
-/// 17. Test: has_outflow_requirements returns false when not yet delivered
-/// Verifies that has_outflow_requirements() correctly parses a false response.
-/// Why: The solver polls this function repeatedly; false must not be misinterpreted.
+// 17. Test: has_outflow_requirements returns false when not yet delivered
+// Verifies that has_outflow_requirements() correctly parses a false response.
+// Why: The solver polls this function repeatedly; false must not be misinterpreted.
 #[tokio::test]
 async fn test_has_outflow_requirements_false() {
     let mock_server = MockServer::start().await;
@@ -164,9 +164,9 @@ async fn test_has_outflow_requirements_false() {
     assert!(!result);
 }
 
-/// 18. Test: has_outflow_requirements propagates HTTP errors
-/// Verifies that has_outflow_requirements() returns Err on HTTP failure.
-/// Why: Errors must propagate (not be swallowed as warnings) so the caller can fail fast.
+// 18. Test: has_outflow_requirements propagates HTTP errors
+// Verifies that has_outflow_requirements() returns Err on HTTP failure.
+// Why: Errors must propagate (not be swallowed as warnings) so the caller can fail fast.
 #[tokio::test]
 async fn test_has_outflow_requirements_error() {
     let mock_server = MockServer::start().await;

@@ -19,10 +19,10 @@ use test_helpers::{DUMMY_INTENT_ID, DUMMY_SVM_ESCROW_PROGRAM_ID};
 // CLIENT INITIALIZATION
 // ============================================================================
 
-/// 1. Test: ConnectedSvmClient Initialization
-/// Verifies that ConnectedSvmClient::new() accepts valid program ids.
-/// Why: Client initialization is the entry point for all SVM operations. A failure
-/// here would prevent any solver operations on connected SVM chains.
+// 1. Test: ConnectedSvmClient Initialization
+// Verifies that ConnectedSvmClient::new() accepts valid program ids.
+// Why: Client initialization is the entry point for all SVM operations. A failure
+// here would prevent any solver operations on connected SVM chains.
 #[test]
 fn test_client_new() {
     let config = SvmChainConfig {
@@ -39,10 +39,10 @@ fn test_client_new() {
     assert!(result.is_ok(), "Expected valid program id to succeed");
 }
 
-/// 2. Test: ConnectedSvmClient Rejects Invalid Program ID
-/// Verifies that ConnectedSvmClient::new() rejects invalid program ids.
-/// Why: Misconfigured program ids should fail fast instead of causing RPC errors later.
-/// This prevents confusing error messages during escrow operations.
+// 2. Test: ConnectedSvmClient Rejects Invalid Program ID
+// Verifies that ConnectedSvmClient::new() rejects invalid program ids.
+// Why: Misconfigured program ids should fail fast instead of causing RPC errors later.
+// This prevents confusing error messages during escrow operations.
 #[test]
 fn test_client_new_rejects_invalid() {
     let config = SvmChainConfig {
@@ -71,10 +71,10 @@ fn test_client_new_rejects_invalid() {
 // GMP FULFILLMENT
 // ============================================================================
 
-/// 10. Test: Fulfill Outflow Via GMP Returns Error When Not Configured
-/// Verifies that fulfill_outflow_via_gmp returns an error when GMP config is missing.
-/// Why: The GMP flow for SVM requires outflow_validator_program_id and gmp_endpoint_program_id
-/// to be configured. If not configured, the function should return a clear error message.
+// 10. Test: Fulfill Outflow Via GMP Returns Error When Not Configured
+// Verifies that fulfill_outflow_via_gmp returns an error when GMP config is missing.
+// Why: The GMP flow for SVM requires outflow_validator_program_id and gmp_endpoint_program_id
+// to be configured. If not configured, the function should return a clear error message.
 #[tokio::test]
 async fn test_fulfillment_error_handling() {
     let config = SvmChainConfig {
@@ -113,7 +113,7 @@ async fn test_fulfillment_error_handling() {
 // GMP ESCROW STATE QUERYING
 // ============================================================================
 
-/// Helper: Creates a mock Solana RPC response for getAccountInfo with escrow data.
+// Helper: Creates a mock Solana RPC response for getAccountInfo with escrow data.
 fn create_mock_escrow_response(is_claimed: bool) -> serde_json::Value {
     // Create an EscrowAccount with the specified is_claimed state
     let escrow = EscrowAccount {
@@ -148,10 +148,10 @@ fn create_mock_escrow_response(is_claimed: bool) -> serde_json::Value {
     })
 }
 
-/// 13. Test: is_escrow_released returns true when escrow has been released
-/// Verifies that is_escrow_released() correctly parses escrow account data
-/// and returns true when is_claimed flag is set.
-/// Why: With auto-release, the solver polls this to confirm release happened.
+// 13. Test: is_escrow_released returns true when escrow has been released
+// Verifies that is_escrow_released() correctly parses escrow account data
+// and returns true when is_claimed flag is set.
+// Why: With auto-release, the solver polls this to confirm release happened.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_is_escrow_released_success() {
     let mock_server = MockServer::start().await;
@@ -178,9 +178,9 @@ async fn test_is_escrow_released_success() {
     assert!(result, "Expected is_escrow_released to return true");
 }
 
-/// 14. Test: is_escrow_released returns false when escrow not yet released
-/// Verifies that is_escrow_released() correctly parses a false is_claimed value.
-/// Why: The solver polls this function repeatedly; false must not be misinterpreted.
+// 14. Test: is_escrow_released returns false when escrow not yet released
+// Verifies that is_escrow_released() correctly parses a false is_claimed value.
+// Why: The solver polls this function repeatedly; false must not be misinterpreted.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_is_escrow_released_false() {
     let mock_server = MockServer::start().await;
@@ -207,9 +207,9 @@ async fn test_is_escrow_released_false() {
     assert!(!result, "Expected is_escrow_released to return false");
 }
 
-/// 15. Test: is_escrow_released handles RPC error
-/// Verifies that is_escrow_released() propagates errors from failed RPC requests.
-/// Why: Network errors must not be silently swallowed; the solver needs to retry.
+// 15. Test: is_escrow_released handles RPC error
+// Verifies that is_escrow_released() propagates errors from failed RPC requests.
+// Why: Network errors must not be silently swallowed; the solver needs to retry.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_is_escrow_released_error() {
     let mock_server = MockServer::start().await;
@@ -265,9 +265,9 @@ async fn test_is_escrow_released_error() {
 // BALANCE QUERIES
 // ============================================================================
 
-/// 23. Test: get_token_balance returns correct SPL token balance
-/// Verifies that get_token_balance() derives the ATA and parses the balance response.
-/// Why: Liquidity monitoring depends on accurate token balance reads from SVM chains.
+// 23. Test: get_token_balance returns correct SPL token balance
+// Verifies that get_token_balance() derives the ATA and parses the balance response.
+// Why: Liquidity monitoring depends on accurate token balance reads from SVM chains.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_get_token_balance_success() {
     let mock_server = MockServer::start().await;
@@ -312,9 +312,9 @@ async fn test_get_token_balance_success() {
     assert_eq!(balance, 1_000_000);
 }
 
-/// 24. Test: get_token_balance propagates RPC errors
-/// Verifies that get_token_balance() returns Err on RPC error.
-/// Why: RPC errors must propagate so the liquidity monitor can log and retry.
+// 24. Test: get_token_balance propagates RPC errors
+// Verifies that get_token_balance() returns Err on RPC error.
+// Why: RPC errors must propagate so the liquidity monitor can log and retry.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_get_token_balance_error() {
     let mock_server = MockServer::start().await;
@@ -354,9 +354,9 @@ async fn test_get_token_balance_error() {
 
 // #25: test_get_token_balance_zero - N/A for SVM (token account either exists with balance or doesn't exist)
 
-/// 26. Test: get_native_balance returns correct SOL balance
-/// Verifies that get_native_balance() calls getBalance and returns lamports.
-/// Why: Gas token monitoring uses native SOL balance, not SPL token balance.
+// 26. Test: get_native_balance returns correct SOL balance
+// Verifies that get_native_balance() calls getBalance and returns lamports.
+// Why: Gas token monitoring uses native SOL balance, not SPL token balance.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_get_native_balance_success() {
     let mock_server = MockServer::start().await;
@@ -393,9 +393,9 @@ async fn test_get_native_balance_success() {
     assert_eq!(balance, 100_000_000);
 }
 
-/// 27. Test: get_native_balance propagates RPC errors
-/// Verifies that get_native_balance() returns Err on RPC failure.
-/// Why: RPC errors must propagate so the liquidity monitor can log and retry.
+// 27. Test: get_native_balance propagates RPC errors
+// Verifies that get_native_balance() returns Err on RPC failure.
+// Why: RPC errors must propagate so the liquidity monitor can log and retry.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_get_native_balance_error() {
     let mock_server = MockServer::start().await;

@@ -21,10 +21,10 @@ use test_helpers::{
 // HUB CLIENT INITIALIZATION
 // ============================================================================
 
-/// 1. Test: HubChainClient Initialization
-/// Verifies that HubChainClient::new() creates a client with correct config.
-/// Why: Client initialization is the entry point for all hub operations. A failure
-/// here would prevent any solver operations on the hub chain.
+// 1. Test: HubChainClient Initialization
+// Verifies that HubChainClient::new() creates a client with correct config.
+// Why: Client initialization is the entry point for all hub operations. A failure
+// here would prevent any solver operations on the hub chain.
 #[test]
 fn test_hub_client_new() {
     let config = create_default_hub_chain_config();
@@ -35,10 +35,10 @@ fn test_hub_client_new() {
 // INTENT EVENT DESERIALIZATION
 // ============================================================================
 
-/// 2. Test: IntentCreatedEvent Deserialization
-/// Verifies that IntentCreatedEvent deserializes correctly from JSON.
-/// Why: Intent events have a specific JSON structure. A deserialization bug would
-/// cause the solver to miss intent opportunities or parse wrong data.
+// 2. Test: IntentCreatedEvent Deserialization
+// Verifies that IntentCreatedEvent deserializes correctly from JSON.
+// Why: Intent events have a specific JSON structure. A deserialization bug would
+// cause the solver to miss intent opportunities or parse wrong data.
 #[test]
 fn test_intent_created_event_deserialization() {
     let json = json!({
@@ -66,10 +66,10 @@ fn test_intent_created_event_deserialization() {
 // INTENT EVENT QUERYING
 // ============================================================================
 
-/// 3. Test: Get Intent Events Success
-/// Verifies that get_intent_events() parses transaction events correctly.
-/// Why: The solver needs to discover intents from the hub chain. A parsing bug
-/// would cause missed intent opportunities.
+// 3. Test: Get Intent Events Success
+// Verifies that get_intent_events() parses transaction events correctly.
+// Why: The solver needs to discover intents from the hub chain. A parsing bug
+// would cause missed intent opportunities.
 #[tokio::test]
 async fn test_get_intent_events_success() {
     let mock_server = MockServer::start().await;
@@ -118,10 +118,10 @@ async fn test_get_intent_events_success() {
     assert_eq!(events[0].offered_amount, "1000");
 }
 
-/// 4. Test: Get Intent Events Empty
-/// Verifies that get_intent_events() handles empty transaction list correctly.
-/// Why: A hub with no intents should return an empty list, not an error.
-/// The solver should handle this gracefully and continue polling.
+// 4. Test: Get Intent Events Empty
+// Verifies that get_intent_events() handles empty transaction list correctly.
+// Why: A hub with no intents should return an empty list, not an error.
+// The solver should handle this gracefully and continue polling.
 #[tokio::test]
 async fn test_get_intent_events_empty() {
     let mock_server = MockServer::start().await;
@@ -150,10 +150,10 @@ async fn test_get_intent_events_empty() {
 // SOLVER REGISTRATION CHECKS
 // ============================================================================
 
-/// 5. Test: Is Solver Registered True
-/// Verifies that is_solver_registered() returns true for registered solver.
-/// Why: The solver needs to verify its registration before attempting fulfillments.
-/// A false negative would cause the solver to skip valid fulfillment opportunities.
+// 5. Test: Is Solver Registered True
+// Verifies that is_solver_registered() returns true for registered solver.
+// Why: The solver needs to verify its registration before attempting fulfillments.
+// A false negative would cause the solver to skip valid fulfillment opportunities.
 #[tokio::test]
 async fn test_is_solver_registered_true() {
     let mock_server = MockServer::start().await;
@@ -177,10 +177,10 @@ async fn test_is_solver_registered_true() {
     assert!(is_registered);
 }
 
-/// 6. Test: Is Solver Registered False
-/// Verifies that is_solver_registered() returns false for unregistered solver.
-/// Why: The solver must correctly detect when it's not registered to avoid
-/// wasting gas on transactions that will fail.
+// 6. Test: Is Solver Registered False
+// Verifies that is_solver_registered() returns false for unregistered solver.
+// Why: The solver must correctly detect when it's not registered to avoid
+// wasting gas on transactions that will fail.
 #[tokio::test]
 async fn test_is_solver_registered_false() {
     let mock_server = MockServer::start().await;
@@ -204,9 +204,9 @@ async fn test_is_solver_registered_false() {
     assert!(!is_registered);
 }
 
-/// 7. Test: Is Solver Registered Address Normalization
-/// Verifies that is_solver_registered() handles addresses with/without 0x prefix.
-/// Why: Address format shouldn't affect registration checks. Both formats should work.
+// 7. Test: Is Solver Registered Address Normalization
+// Verifies that is_solver_registered() handles addresses with/without 0x prefix.
+// Why: Address format shouldn't affect registration checks. Both formats should work.
 #[tokio::test]
 async fn test_is_solver_registered_address_normalization() {
     let mock_server = MockServer::start().await;
@@ -237,10 +237,10 @@ async fn test_is_solver_registered_address_normalization() {
     assert!(is_registered2);
 }
 
-/// 8. Test: Is Solver Registered HTTP Error
-/// Verifies that is_solver_registered() handles HTTP errors correctly.
-/// Why: Network errors should be propagated to the caller, not silently ignored.
-/// The solver needs to know when queries fail to retry or alert operators.
+// 8. Test: Is Solver Registered HTTP Error
+// Verifies that is_solver_registered() handles HTTP errors correctly.
+// Why: Network errors should be propagated to the caller, not silently ignored.
+// The solver needs to know when queries fail to retry or alert operators.
 #[tokio::test]
 async fn test_is_solver_registered_http_error() {
     let mock_server = MockServer::start().await;
@@ -267,9 +267,9 @@ async fn test_is_solver_registered_http_error() {
         .contains("Failed to query solver registration"));
 }
 
-/// 9. Test: Is Solver Registered Invalid JSON
-/// Verifies that is_solver_registered() handles invalid JSON responses correctly.
-/// Why: Malformed responses should result in errors, not silent failures or panics.
+// 9. Test: Is Solver Registered Invalid JSON
+// Verifies that is_solver_registered() handles invalid JSON responses correctly.
+// Why: Malformed responses should result in errors, not silent failures or panics.
 #[tokio::test]
 async fn test_is_solver_registered_invalid_json() {
     let mock_server = MockServer::start().await;
@@ -292,9 +292,9 @@ async fn test_is_solver_registered_invalid_json() {
     assert!(result.is_err());
 }
 
-/// 10. Test: Is Solver Registered Unexpected Format
-/// Verifies that is_solver_registered() handles unexpected response formats correctly.
-/// Why: A response with wrong format (empty array, non-boolean) should fail clearly.
+// 10. Test: Is Solver Registered Unexpected Format
+// Verifies that is_solver_registered() handles unexpected response formats correctly.
+// Why: A response with wrong format (empty array, non-boolean) should fail clearly.
 #[tokio::test]
 async fn test_is_solver_registered_unexpected_format() {
     let mock_server = MockServer::start().await;
@@ -319,4 +319,127 @@ async fn test_is_solver_registered_unexpected_format() {
         .unwrap_err()
         .to_string()
         .contains("Unexpected response format"));
+}
+
+// ============================================================================
+// RUN-SCRIPT CLI ARGS BUILDER
+// ============================================================================
+
+// 11. Test: build_run_script_args assembles e2e-mode args including --args block
+// Verifies that build_run_script_args returns the move + run-script + --assume-yes
+// header, the compiled-script-path flag, the user-supplied --args list, and the
+// --profile auth tail when e2e_mode is true and user_args is non-empty.
+// Why: e2e fulfillment is the default code path; broken arg ordering would silently
+// mis-route the script payload at the CLI layer.
+#[test]
+fn test_build_run_script_args_e2e_with_args() {
+    let user_args = vec![
+        "address:0x1111111111111111111111111111111111111111111111111111111111111111"
+            .to_string(),
+        "u64:100".to_string(),
+    ];
+    let result = solver::chains::hub::build_run_script_args(
+        "/tmp/abstract_inflow.mv",
+        &user_args,
+        true,
+        "default",
+        None,
+        "ignored-in-e2e",
+    );
+    assert_eq!(
+        result,
+        vec![
+            "move".to_string(),
+            "run-script".to_string(),
+            "--assume-yes".to_string(),
+            "--compiled-script-path".to_string(),
+            "/tmp/abstract_inflow.mv".to_string(),
+            "--args".to_string(),
+            "address:0x1111111111111111111111111111111111111111111111111111111111111111"
+                .to_string(),
+            "u64:100".to_string(),
+            "--profile".to_string(),
+            "default".to_string(),
+        ]
+    );
+}
+
+// 12. Test: build_run_script_args omits --args entirely when user_args is empty
+// Verifies that the `--args` flag is not emitted when the caller passes an empty slice.
+// Why: emitting `--args` with no values would cause the aptos CLI to error; the helper
+// must keep the flag conditional on having values to pass.
+#[test]
+fn test_build_run_script_args_e2e_no_args() {
+    let result = solver::chains::hub::build_run_script_args(
+        "/tmp/script.mv",
+        &[],
+        true,
+        "solver",
+        None,
+        "ignored-in-e2e",
+    );
+    assert_eq!(
+        result,
+        vec![
+            "move".to_string(),
+            "run-script".to_string(),
+            "--assume-yes".to_string(),
+            "--compiled-script-path".to_string(),
+            "/tmp/script.mv".to_string(),
+            "--profile".to_string(),
+            "solver".to_string(),
+        ]
+    );
+}
+
+// 13. Test: build_run_script_args swaps --profile for --private-key + --url in testnet mode
+// Verifies that the auth tail in testnet mode (e2e_mode = false) uses the
+// pk_hex_stripped + base_url pair instead of --profile.
+// Why: testnet/mainnet fulfillment goes through MOVEMENT_SOLVER_PRIVATE_KEY rather
+// than profiles; using the wrong auth flag silently fails authentication on the live network.
+#[test]
+fn test_build_run_script_args_testnet_uses_private_key_and_url() {
+    let user_args = vec!["u64:1".to_string()];
+    let result = solver::chains::hub::build_run_script_args(
+        "/tmp/script.mv",
+        &user_args,
+        false,
+        "ignored-in-testnet",
+        Some("2222222222222222222222222222222222222222222222222222222222222222"),
+        "https://mainnet.movementnetwork.xyz/v1",
+    );
+    assert_eq!(
+        result,
+        vec![
+            "move".to_string(),
+            "run-script".to_string(),
+            "--assume-yes".to_string(),
+            "--compiled-script-path".to_string(),
+            "/tmp/script.mv".to_string(),
+            "--args".to_string(),
+            "u64:1".to_string(),
+            "--private-key".to_string(),
+            "2222222222222222222222222222222222222222222222222222222222222222".to_string(),
+            "--url".to_string(),
+            "https://mainnet.movementnetwork.xyz/v1".to_string(),
+        ]
+    );
+}
+
+// 14. Test: build_run_script_args panics in testnet mode when pk_hex_stripped is None
+// Verifies that testnet mode aborts loudly rather than silently dropping the
+// --private-key flag if the caller forgot to resolve MOVEMENT_SOLVER_PRIVATE_KEY.
+// Why: project No Fallbacks Policy — auth misconfiguration must fail explicitly,
+// not produce a CLI invocation that authenticates against an unintended principal.
+#[test]
+#[should_panic(expected = "non-e2e mode requires pk_hex_stripped")]
+fn test_build_run_script_args_testnet_requires_private_key() {
+    let _ = solver::chains::hub::build_run_script_args(
+        "/tmp/script.mv",
+        &[],
+        false,
+        "ignored",
+        None,
+        "https://example",
+    );
 }

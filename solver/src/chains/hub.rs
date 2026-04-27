@@ -21,7 +21,7 @@ use crate::config::ChainConfig;
 /// appends `--private-key <pk_hex_stripped> --url <base_url>` and requires
 /// `pk_hex_stripped` to be `Some` (the caller resolves `MOVEMENT_SOLVER_PRIVATE_KEY`
 /// before calling).
-fn build_run_script_args(
+pub fn build_run_script_args(
     script_path: &str,
     user_args: &[String],
     e2e_mode: bool,
@@ -62,7 +62,7 @@ fn build_run_script_args(
 }
 
 /// Extracts transaction hash from CLI output (handles both traditional and JSON formats)
-fn extract_transaction_hash(output: &str) -> Option<String> {
+pub fn extract_transaction_hash(output: &str) -> Option<String> {
     // Try JSON format first: "transaction_hash": "0x..."
     if let Some(start) = output.find("\"transaction_hash\"") {
         let after_key = &output[start..];
@@ -1324,7 +1324,7 @@ pub struct SolverRegistrationInfo {
 }
 
 /// Parse hex bytes from JSON value (handles Move's vector<u8> format)
-fn parse_hex_from_json(value: &serde_json::Value) -> Vec<u8> {
+pub fn parse_hex_from_json(value: &serde_json::Value) -> Vec<u8> {
     if let Some(s) = value.as_str() {
         // Format: "0x..." hex string
         let hex_str = s.strip_prefix("0x").unwrap_or(s);
@@ -1335,7 +1335,7 @@ fn parse_hex_from_json(value: &serde_json::Value) -> Vec<u8> {
 }
 
 /// Parse optional address from JSON (Move's Option<address>)
-fn parse_optional_address(value: &serde_json::Value) -> Option<String> {
+pub fn parse_optional_address(value: &serde_json::Value) -> Option<String> {
     // Move Option is serialized as: {"vec": []} for None, {"vec": ["0x..."]} for Some
     if let Some(obj) = value.as_object() {
         if let Some(vec_val) = obj.get("vec") {
@@ -1352,7 +1352,7 @@ fn parse_optional_address(value: &serde_json::Value) -> Option<String> {
 }
 
 /// Parse optional hex bytes from JSON (Move's Option<vector<u8>>)
-fn parse_optional_hex(value: &serde_json::Value) -> Vec<u8> {
+pub fn parse_optional_hex(value: &serde_json::Value) -> Vec<u8> {
     // Move Option<vector<u8>> is serialized as: {"vec": []} for None, {"vec": ["0x..."]} for Some
     if let Some(obj) = value.as_object() {
         if let Some(vec_val) = obj.get("vec") {
@@ -1366,217 +1366,5 @@ fn parse_optional_hex(value: &serde_json::Value) -> Vec<u8> {
     Vec::new()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn test_parse_hex_from_json_with_prefix() {
-        let value = json!("0xdeadbeef");
-        let result = parse_hex_from_json(&value);
-        assert_eq!(result, vec![0xde, 0xad, 0xbe, 0xef]);
-    }
-
-    #[test]
-    fn test_parse_hex_from_json_without_prefix() {
-        let value = json!("deadbeef");
-        let result = parse_hex_from_json(&value);
-        assert_eq!(result, vec![0xde, 0xad, 0xbe, 0xef]);
-    }
-
-    #[test]
-    fn test_parse_hex_from_json_empty() {
-        let value = json!("");
-        let result = parse_hex_from_json(&value);
-        assert_eq!(result, Vec::<u8>::new());
-    }
-
-    #[test]
-    fn test_parse_hex_from_json_not_string() {
-        let value = json!(123);
-        let result = parse_hex_from_json(&value);
-        assert_eq!(result, Vec::<u8>::new());
-    }
-
-    #[test]
-    fn test_parse_optional_address_some() {
-        // Move Option<address> with value: {"vec": ["0x1234..."]}
-        let value = json!({"vec": ["0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"]});
-        let result = parse_optional_address(&value);
-        assert_eq!(result, Some("0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string()));
-    }
-
-    #[test]
-    fn test_parse_optional_address_none() {
-        // Move Option<address> with no value: {"vec": []}
-        let value = json!({"vec": []});
-        let result = parse_optional_address(&value);
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_parse_optional_address_invalid() {
-        let value = json!("not an option");
-        let result = parse_optional_address(&value);
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_parse_optional_hex_some() {
-        // Move Option<vector<u8>> with value: {"vec": ["0xdeadbeef"]}
-        let value = json!({"vec": ["0xdeadbeef"]});
-        let result = parse_optional_hex(&value);
-        assert_eq!(result, vec![0xde, 0xad, 0xbe, 0xef]);
-    }
-
-    #[test]
-    fn test_parse_optional_hex_none() {
-        // Move Option<vector<u8>> with no value: {"vec": []}
-        let value = json!({"vec": []});
-        let result = parse_optional_hex(&value);
-        assert_eq!(result, Vec::<u8>::new());
-    }
-
-    #[test]
-    fn test_parse_optional_hex_invalid() {
-        let value = json!("not an option");
-        let result = parse_optional_hex(&value);
-        assert_eq!(result, Vec::<u8>::new());
-    }
-
-    #[test]
-    fn test_parse_optional_hex_32_byte_address() {
-        // Typical SVM address (32 bytes)
-        let svm_hex = "6e5f2e9b6d3f4a1c8e7d0b2a5f4c3e8d1a0b9f7e6c5d4a3b2c1e0f9a8b7c6d5e";
-        let value = json!({"vec": [format!("0x{}", svm_hex)]});
-        let result = parse_optional_hex(&value);
-        assert_eq!(result.len(), 32);
-        assert_eq!(hex::encode(&result), svm_hex);
-    }
-
-    // ============================================================================
-    // RUN-SCRIPT CLI ARGS BUILDER TESTS
-    // ============================================================================
-
-    // 1. Test: build_run_script_args assembles e2e-mode args including --args block
-    // Verifies that build_run_script_args returns the move + run-script + --assume-yes
-    // header, the compiled-script-path flag, the user-supplied --args list, and the
-    // --profile auth tail when e2e_mode is true and user_args is non-empty.
-    // Why: e2e fulfillment is the default code path; broken arg ordering would silently
-    // mis-route the script payload at the CLI layer.
-    #[test]
-    fn test_build_run_script_args_e2e_with_args() {
-        let user_args = vec![
-            "address:0x1111111111111111111111111111111111111111111111111111111111111111"
-                .to_string(),
-            "u64:100".to_string(),
-        ];
-        let result = build_run_script_args(
-            "/tmp/abstract_inflow.mv",
-            &user_args,
-            true,
-            "default",
-            None,
-            "ignored-in-e2e",
-        );
-        assert_eq!(
-            result,
-            vec![
-                "move".to_string(),
-                "run-script".to_string(),
-                "--assume-yes".to_string(),
-                "--compiled-script-path".to_string(),
-                "/tmp/abstract_inflow.mv".to_string(),
-                "--args".to_string(),
-                "address:0x1111111111111111111111111111111111111111111111111111111111111111"
-                    .to_string(),
-                "u64:100".to_string(),
-                "--profile".to_string(),
-                "default".to_string(),
-            ]
-        );
-    }
-
-    // 2. Test: build_run_script_args omits --args entirely when user_args is empty
-    // Verifies that the `--args` flag is not emitted when the caller passes an empty slice.
-    // Why: emitting `--args` with no values would cause the aptos CLI to error; the helper
-    // must keep the flag conditional on having values to pass.
-    #[test]
-    fn test_build_run_script_args_e2e_no_args() {
-        let result = build_run_script_args(
-            "/tmp/script.mv",
-            &[],
-            true,
-            "solver",
-            None,
-            "ignored-in-e2e",
-        );
-        assert_eq!(
-            result,
-            vec![
-                "move".to_string(),
-                "run-script".to_string(),
-                "--assume-yes".to_string(),
-                "--compiled-script-path".to_string(),
-                "/tmp/script.mv".to_string(),
-                "--profile".to_string(),
-                "solver".to_string(),
-            ]
-        );
-    }
-
-    // 3. Test: build_run_script_args swaps --profile for --private-key + --url in testnet mode
-    // Verifies that the auth tail in testnet mode (e2e_mode = false) uses the
-    // pk_hex_stripped + base_url pair instead of --profile.
-    // Why: testnet/mainnet fulfillment goes through MOVEMENT_SOLVER_PRIVATE_KEY rather
-    // than profiles; using the wrong auth flag silently fails authentication on the live network.
-    #[test]
-    fn test_build_run_script_args_testnet_uses_private_key_and_url() {
-        let user_args = vec!["u64:1".to_string()];
-        let result = build_run_script_args(
-            "/tmp/script.mv",
-            &user_args,
-            false,
-            "ignored-in-testnet",
-            Some("2222222222222222222222222222222222222222222222222222222222222222"),
-            "https://mainnet.movementnetwork.xyz/v1",
-        );
-        assert_eq!(
-            result,
-            vec![
-                "move".to_string(),
-                "run-script".to_string(),
-                "--assume-yes".to_string(),
-                "--compiled-script-path".to_string(),
-                "/tmp/script.mv".to_string(),
-                "--args".to_string(),
-                "u64:1".to_string(),
-                "--private-key".to_string(),
-                "2222222222222222222222222222222222222222222222222222222222222222".to_string(),
-                "--url".to_string(),
-                "https://mainnet.movementnetwork.xyz/v1".to_string(),
-            ]
-        );
-    }
-
-    // 4. Test: build_run_script_args panics in testnet mode when pk_hex_stripped is None
-    // Verifies that testnet mode aborts loudly rather than silently dropping the
-    // --private-key flag if the caller forgot to resolve MOVEMENT_SOLVER_PRIVATE_KEY.
-    // Why: project No Fallbacks Policy — auth misconfiguration must fail explicitly,
-    // not produce a CLI invocation that authenticates against an unintended principal.
-    #[test]
-    #[should_panic(expected = "non-e2e mode requires pk_hex_stripped")]
-    fn test_build_run_script_args_testnet_requires_private_key() {
-        let _ = build_run_script_args(
-            "/tmp/script.mv",
-            &[],
-            false,
-            "ignored",
-            None,
-            "https://example",
-        );
-    }
-}
 
 
