@@ -22,7 +22,7 @@ Consequence: the two framework extensions named in the plan are not "introduce a
 
 ## Area A — Solver-side fulfillment submission (Rust)
 
-### Current shape
+### Solver Rust — current shape
 
 The solver submits hub-side fulfillment transactions by shelling out to the Move CLI (`aptos` or `movement`) with `move run --function-id <module>::<function>` and BCS-encoded arguments. Invocation is synchronous (`std::process::Command`) and the transaction hash is extracted by regex-matching stdout.
 
@@ -34,7 +34,7 @@ Key call sites:
 
 Authentication: `--profile` for E2E tests, `--private-key` with `MOVEMENT_SOLVER_PRIVATE_KEY` for live networks. The `chain-clients/mvm/` crate wraps RPC queries (view functions, events) but does not submit transactions — it defers to the CLI.
 
-### What is missing
+### Solver Rust — what is missing
 
 No script-payload submission exists anywhere in the Rust codebase today. Every fulfillment tx flows through `aptos move run --function-id`. The CLI does support scripts via a separate subcommand: `aptos move run-script --compiled-script-path <PATH.mv>` (pre-compiled bytecode) or `--script-path <PATH.move>` (source, CLI compiles). Same `--type-args`, `--args`, `--profile`/`--private-key`/`--url` flags as `move run`. So the script path is a parallel sync `Command` invocation, not a different protocol.
 
@@ -42,14 +42,14 @@ No script-payload submission exists anywhere in the Rust codebase today. Every f
 
 The two `fulfill_*_intent` functions in [solver/src/chains/hub.rs](../../../../solver/src/chains/hub.rs) are the entry points to modify. Add a new code path that invokes `aptos move run-script --compiled-script-path <path> --args ...` when the caller supplies a script-bytecode path, parallel to the existing `move run --function-id` path. The tx-hash extraction helper [solver/src/chains/hub.rs:19-49](../../../../solver/src/chains/hub.rs#L19-L49) is reusable across both paths. Auth (`--profile` / `--private-key`) is identical between subcommands. Sync stays sync — no async needed.
 
-### Open questions for this area
+### Solver Rust — open questions
 
 1. **Where the compiled `.mv` file lives.** The CLI takes a file path. The `.mv` for the abstract E2E (plan 1 step 4) and for Mosaic (plan 2) needs to be compiled ahead of time and reachable from the solver at run time. Open: ship inside the solver crate, alongside the test fixture, in a separate package the solver loads at startup, or per-PoC compiled by plan 2 / plan 3?
 2. **Compile-time vs runtime parameterization.** Some script parameters (token amounts, recipient addresses) want to be passed via `--args` per call. Others (Mosaic module addresses) are baked into the bytecode at compile time. Open: which split goes into the abstract test fixture's `.mv` vs the Mosaic `.mv` in plan 2?
 
 ## Area B — Move-side inflow receiver
 
-### Current shape
+### Move inflow — current shape
 
 The inflow entry function [fa_intent_inflow::fulfill_inflow_intent](../../../../intent-frameworks/mvm/intent-hub/sources/fa_intent_inflow.move#L74) ([fa_intent_inflow.move:74-147](../../../../intent-frameworks/mvm/intent-hub/sources/fa_intent_inflow.move#L74-L147)) runs the following sequence in one tx:
 
@@ -96,7 +96,7 @@ In the programmable path the script constructs the payment FA from its own opera
 
 ## Area C — Move-side outflow escrow
 
-### Current shape
+### Move outflow — current shape
 
 The outflow entry function [fa_intent_outflow::fulfill_outflow_intent](../../../../intent-frameworks/mvm/intent-hub/sources/fa_intent_outflow.move#L139) ([fa_intent_outflow.move:139-196](../../../../intent-frameworks/mvm/intent-hub/sources/fa_intent_outflow.move#L139-L196)) runs:
 
@@ -119,7 +119,7 @@ Both ends of the outflow hot-potato pair are already `public fun`:
 
 A Move script can already call both. The escrow store is created/destroyed inside `start`, so a script gets the unlocked FA directly as a return value. This is the hot-potato handoff the plan describes: the script receives the FA *and* the non-droppable session; the session cannot leave the tx without being consumed by `finish`.
 
-### What is missing
+### Move outflow — what is missing
 
 The script still needs to, in the same tx:
 
@@ -142,7 +142,7 @@ Script flow then becomes: `assert is_fulfillment_proof_received` → `start_fa_o
 
 The classic `fulfill_outflow_intent` entry function stays unchanged.
 
-### Open questions for this area
+### Move outflow — open questions
 
 1. **Intent-type constraints.** `fulfill_outflow_intent` is typed specifically to `Intent<FungibleStoreManager, OracleGuardedLimitOrder>`. Are programmable outflow intents still the same shape, or do they need a new intent type with a different argument struct (e.g. one that carries the delivery post-condition spec)?
 
@@ -160,10 +160,13 @@ The classic `fulfill_outflow_intent` entry function stays unchanged.
 
 The classic entry functions (`fulfill_inflow_intent`, `fulfill_outflow_intent`) stay unchanged. EVM and SVM code untouched.
 
+## Resolved design questions
+
+- **(A1) — resolved.** Compiled `.mv` script files live in the test-only Move package's own `build/` output (mirrors the `testing-infra/ci-e2e/test-tokens/` precedent for test-only packages). The abstract test package lives at `testing-infra/ci-e2e/test-shapes/`, compiled at E2E setup time before the orchestration script runs. The Mosaic-specific package (plan 2) follows the same pattern.
+- **(A2) — resolved.** Compile-time parameters baked into the script bytecode: module addresses of `test-shapes` and the intent-hub modules (resolved via the package's `Move.toml` `[addresses]` section). Runtime parameters passed via `--args`: per-intent values that vary every fulfillment — `intent_addr`, `intent_id` / `intent_id_bytes`, `payment_amount` (inflow), `provided_metadata` + `provided_amount` (outflow). The `solver: signer` is implicit from the tx sender, not an arg.
+
 ## Open design questions carried forward
 
-1. (A1) Where the compiled `.mv` script file is shipped from / loaded at run time (solver crate, separate package, per-PoC artifact).
-2. (A2) Compile-time vs runtime parameterization split between the abstract test `.mv` (plan 1 step 4) and the Mosaic `.mv` (plan 2).
-3. (C1) Whether programmable outflow needs a new intent argument type that carries delivery post-condition spec.
+1. (C1) Whether programmable outflow needs a new intent argument type that carries delivery post-condition spec.
 
-Items A1–A2 feed plan 1 step 2 (inflow implementation) and step 3 (outflow implementation). Item C1 is a design call that plan 1 implementation must close before step 3 lands.
+Item C1 is a design call that plan 1 implementation must close before step 3 lands.
