@@ -146,6 +146,51 @@ module mvmt_intent::fa_intent_inflow {
         };
     }
 
+    /// Public helper for Move scripts that drive an inflow fulfillment.
+    ///
+    /// Bundles the post-finish cleanup that `fulfill_inflow_intent` inlines:
+    /// `intent_registry::unregister_intent` (which is `public(friend)` and therefore
+    /// not directly callable from a script) and, for cross-chain intents,
+    /// `intent_gmp_hub::send_fulfillment_proof` plus `gmp_intent_state::remove_intent`.
+    ///
+    /// Script flow:
+    ///   1. assert `gmp_intent_state::is_escrow_confirmed(intent_id_bytes)`
+    ///   2. `fa_intent::start_fa_offering_session(solver, intent)`
+    ///   3. arbitrary script work building `payment_fa`
+    ///   4. `fa_intent::finish_fa_receiving_session_with_event(...)`
+    ///   5. `script_complete(solver, intent_addr, intent_id_bytes, payment_amount)`
+    ///
+    /// # Arguments
+    /// - `solver`: signer of the solver fulfilling the intent
+    /// - `intent_addr`: address of the intent object consumed by `finish`
+    /// - `intent_id_bytes`: cross-chain intent id (BCS-encoded address), or empty for same-chain
+    /// - `payment_amount`: amount delivered to the requester; forwarded in the GMP fulfillment proof
+    public fun script_complete(
+        solver: &signer,
+        intent_addr: address,
+        intent_id_bytes: vector<u8>,
+        payment_amount: u64
+    ) {
+        intent_registry::unregister_intent(intent_addr);
+
+        if (!std::vector::is_empty(&intent_id_bytes)) {
+            let dst_chain_id = gmp_intent_state::get_dst_chain_id(intent_id_bytes);
+            let solver_addr_connected_chain =
+                gmp_intent_state::get_solver_addr_connected_chain(intent_id_bytes);
+
+            let _nonce = intent_gmp_hub::send_fulfillment_proof(
+                solver,
+                dst_chain_id,
+                intent_id_bytes,
+                solver_addr_connected_chain,
+                payment_amount,
+                timestamp::now_seconds()
+            );
+
+            gmp_intent_state::remove_intent(intent_id_bytes);
+        };
+    }
+
     /// Creates an inflow intent and returns the intent object.
     ///
     /// This is the core implementation that both the entry function and tests use.

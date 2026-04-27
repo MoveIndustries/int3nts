@@ -572,5 +572,64 @@ module mvmt_intent::fa_intent_inflow_tests {
         );
     }
 
+    #[test(
+        aptos_framework = @0x1,
+        mvmt_intent = @0x123,
+        requestor = @0xcafe,
+        solver = @0xdead
+    )]
+    // 7. Test: a programmable inflow script can drive start_fa_offering_session +
+    // finish_fa_receiving_session_with_event directly and then call
+    // fa_intent_inflow::script_complete to perform the post-finish cleanup.
+    // Verifies that script_complete unregisters the intent from intent_registry and
+    // removes its entry from gmp_intent_state on the cross-chain branch.
+    // Why: scripts cannot call the friend-only intent_registry::unregister_intent; the
+    // public script_complete wrapper is the only path for programmable fulfillment to
+    // complete the cleanup that fulfill_inflow_intent inlines today.
+    fun test_script_complete_cross_chain(
+        aptos_framework: &signer,
+        mvmt_intent: &signer,
+        requestor: &signer,
+        solver: &signer,
+    ) {
+        let (intent_obj, _offered_metadata, desired_metadata) = setup_inflow_intent(
+            aptos_framework,
+            mvmt_intent,
+            requestor,
+            solver,
+        );
+
+        let intent_addr = object::object_address(&intent_obj);
+        let intent_id_bytes = std::bcs::to_bytes(&@0x5678); // intent_id from setup_inflow_intent
+
+        // Mimic GMP arrival from the connected chain.
+        gmp_intent_state::confirm_escrow(intent_id_bytes);
+
+        // What the programmable script does between start and finish.
+        let (unlocked_fa, session) = fa_intent::start_fa_offering_session(solver, intent_obj);
+        primary_fungible_store::deposit(signer::address_of(solver), unlocked_fa);
+        let payment_fa = primary_fungible_store::withdraw(solver, desired_metadata, 100);
+        fa_intent::finish_fa_receiving_session_with_event(
+            session, payment_fa, intent_addr, signer::address_of(solver),
+        );
+
+        // Pre-cleanup state: intent and gmp entry are still registered after finish.
+        assert!(intent_registry::is_intent_registered(intent_addr));
+        let (exists_before, _, _) = gmp_intent_state::get_intent_state(intent_id_bytes);
+        assert!(exists_before);
+
+        // Function under test.
+        fa_intent_inflow::script_complete(solver, intent_addr, intent_id_bytes, 100);
+
+        // Post-cleanup state: both registries are emptied for this intent.
+        assert!(!intent_registry::is_intent_registered(intent_addr));
+        let (exists_after, _, _) = gmp_intent_state::get_intent_state(intent_id_bytes);
+        assert!(!exists_after);
+
+        // Tokens delivered to the requester via finish_fa_receiving_session_with_event above.
+        assert!(primary_fungible_store::balance(signer::address_of(requestor), desired_metadata) == 100);
+        assert!(primary_fungible_store::balance(signer::address_of(solver), desired_metadata) == 0);
+    }
+
 }
 

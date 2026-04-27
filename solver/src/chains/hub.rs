@@ -15,6 +15,52 @@ use crate::config::ChainConfig;
 // HELPER FUNCTIONS
 // ============================================================================
 
+/// Builds the CLI argument list for `aptos move run-script` invocation.
+///
+/// Auth tail: when `e2e_mode` is true, appends `--profile <profile>`; otherwise
+/// appends `--private-key <pk_hex_stripped> --url <base_url>` and requires
+/// `pk_hex_stripped` to be `Some` (the caller resolves `MOVEMENT_SOLVER_PRIVATE_KEY`
+/// before calling).
+fn build_run_script_args(
+    script_path: &str,
+    user_args: &[String],
+    e2e_mode: bool,
+    profile: &str,
+    pk_hex_stripped: Option<&str>,
+    base_url: &str,
+) -> Vec<String> {
+    let mut out: Vec<String> = vec![
+        "move".to_string(),
+        "run-script".to_string(),
+        "--assume-yes".to_string(),
+        "--compiled-script-path".to_string(),
+        script_path.to_string(),
+    ];
+
+    if !user_args.is_empty() {
+        out.push("--args".to_string());
+        for a in user_args {
+            out.push(a.clone());
+        }
+    }
+
+    if e2e_mode {
+        out.push("--profile".to_string());
+        out.push(profile.to_string());
+    } else {
+        out.push("--private-key".to_string());
+        out.push(
+            pk_hex_stripped
+                .expect("non-e2e mode requires pk_hex_stripped")
+                .to_string(),
+        );
+        out.push("--url".to_string());
+        out.push(base_url.to_string());
+    }
+
+    out
+}
+
 /// Extracts transaction hash from CLI output (handles both traditional and JSON formats)
 fn extract_transaction_hash(output: &str) -> Option<String> {
     // Try JSON format first: "transaction_hash": "0x..."
@@ -384,6 +430,80 @@ impl HubChainClient {
         // Handles both formats:
         // - Traditional CLI: "Transaction hash: 0x..."
         // - JSON format: "transaction_hash": "0x..."
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        if let Some(hash) = extract_transaction_hash(&output_str) {
+            return Ok(hash);
+        }
+
+        anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
+    }
+
+    /// Fulfills an inflow request intent via a pre-compiled Move script.
+    ///
+    /// Submits the script through `aptos move run-script --compiled-script-path`,
+    /// parallel to `fulfill_inflow_intent` which uses `move run --function-id`.
+    /// The script is responsible for the full inflow fulfillment: assert
+    /// `gmp_intent_state::is_escrow_confirmed`, call `start_fa_offering_session`,
+    /// perform arbitrary Move work, call `finish_fa_receiving_session_with_event`,
+    /// and end with `fa_intent_inflow::script_complete`.
+    ///
+    /// # Arguments
+    ///
+    /// * `script_path` - Filesystem path to the compiled `.mv` script bytecode
+    /// * `args` - Pre-formatted CLI arguments (`"address:0x...", "u64:100"`, etc.)
+    ///   matching the script's parameter list
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Transaction hash
+    /// * `Err(anyhow::Error)` - Failed to submit script
+    pub fn fulfill_inflow_intent_via_script(
+        &self,
+        script_path: &str,
+        args: &[String],
+    ) -> Result<String> {
+        // Determine CLI based on e2e_mode flag
+        let cli = if self.e2e_mode {
+            "aptos"
+        } else {
+            "movement"
+        };
+
+        // Prepare private key if needed (for testnet mode)
+        let pk_hex_stripped = if !self.e2e_mode {
+            let pk_hex = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY")
+                .context("MOVEMENT_SOLVER_PRIVATE_KEY not set")?;
+            Some(pk_hex.strip_prefix("0x").unwrap_or(&pk_hex).to_string())
+        } else {
+            None
+        };
+
+        let command_args = build_run_script_args(
+            script_path,
+            args,
+            self.e2e_mode,
+            &self.profile,
+            pk_hex_stripped.as_deref(),
+            &self.base_url,
+        );
+
+        let output = Command::new(cli)
+            .args(&command_args)
+            .output()
+            .context(format!("Failed to execute {} move run-script", cli))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            anyhow::bail!(
+                "{} move run-script failed:\nstderr: {}\nstdout: {}",
+                cli,
+                stderr,
+                stdout
+            );
+        }
+
+        // Reuses the existing tx-hash extraction helper.
         let output_str = String::from_utf8_lossy(&output.stdout);
         if let Some(hash) = extract_transaction_hash(&output_str) {
             return Ok(hash);
@@ -1333,6 +1453,129 @@ mod tests {
         let result = parse_optional_hex(&value);
         assert_eq!(result.len(), 32);
         assert_eq!(hex::encode(&result), svm_hex);
+    }
+
+    // ============================================================================
+    // RUN-SCRIPT CLI ARGS BUILDER TESTS
+    // ============================================================================
+
+    // 1. Test: build_run_script_args assembles e2e-mode args including --args block
+    // Verifies that build_run_script_args returns the move + run-script + --assume-yes
+    // header, the compiled-script-path flag, the user-supplied --args list, and the
+    // --profile auth tail when e2e_mode is true and user_args is non-empty.
+    // Why: e2e fulfillment is the default code path; broken arg ordering would silently
+    // mis-route the script payload at the CLI layer.
+    #[test]
+    fn test_build_run_script_args_e2e_with_args() {
+        let user_args = vec![
+            "address:0x1111111111111111111111111111111111111111111111111111111111111111"
+                .to_string(),
+            "u64:100".to_string(),
+        ];
+        let result = build_run_script_args(
+            "/tmp/abstract_inflow.mv",
+            &user_args,
+            true,
+            "default",
+            None,
+            "ignored-in-e2e",
+        );
+        assert_eq!(
+            result,
+            vec![
+                "move".to_string(),
+                "run-script".to_string(),
+                "--assume-yes".to_string(),
+                "--compiled-script-path".to_string(),
+                "/tmp/abstract_inflow.mv".to_string(),
+                "--args".to_string(),
+                "address:0x1111111111111111111111111111111111111111111111111111111111111111"
+                    .to_string(),
+                "u64:100".to_string(),
+                "--profile".to_string(),
+                "default".to_string(),
+            ]
+        );
+    }
+
+    // 2. Test: build_run_script_args omits --args entirely when user_args is empty
+    // Verifies that the `--args` flag is not emitted when the caller passes an empty slice.
+    // Why: emitting `--args` with no values would cause the aptos CLI to error; the helper
+    // must keep the flag conditional on having values to pass.
+    #[test]
+    fn test_build_run_script_args_e2e_no_args() {
+        let result = build_run_script_args(
+            "/tmp/script.mv",
+            &[],
+            true,
+            "solver",
+            None,
+            "ignored-in-e2e",
+        );
+        assert_eq!(
+            result,
+            vec![
+                "move".to_string(),
+                "run-script".to_string(),
+                "--assume-yes".to_string(),
+                "--compiled-script-path".to_string(),
+                "/tmp/script.mv".to_string(),
+                "--profile".to_string(),
+                "solver".to_string(),
+            ]
+        );
+    }
+
+    // 3. Test: build_run_script_args swaps --profile for --private-key + --url in testnet mode
+    // Verifies that the auth tail in testnet mode (e2e_mode = false) uses the
+    // pk_hex_stripped + base_url pair instead of --profile.
+    // Why: testnet/mainnet fulfillment goes through MOVEMENT_SOLVER_PRIVATE_KEY rather
+    // than profiles; using the wrong auth flag silently fails authentication on the live network.
+    #[test]
+    fn test_build_run_script_args_testnet_uses_private_key_and_url() {
+        let user_args = vec!["u64:1".to_string()];
+        let result = build_run_script_args(
+            "/tmp/script.mv",
+            &user_args,
+            false,
+            "ignored-in-testnet",
+            Some("2222222222222222222222222222222222222222222222222222222222222222"),
+            "https://mainnet.movementnetwork.xyz/v1",
+        );
+        assert_eq!(
+            result,
+            vec![
+                "move".to_string(),
+                "run-script".to_string(),
+                "--assume-yes".to_string(),
+                "--compiled-script-path".to_string(),
+                "/tmp/script.mv".to_string(),
+                "--args".to_string(),
+                "u64:1".to_string(),
+                "--private-key".to_string(),
+                "2222222222222222222222222222222222222222222222222222222222222222".to_string(),
+                "--url".to_string(),
+                "https://mainnet.movementnetwork.xyz/v1".to_string(),
+            ]
+        );
+    }
+
+    // 4. Test: build_run_script_args panics in testnet mode when pk_hex_stripped is None
+    // Verifies that testnet mode aborts loudly rather than silently dropping the
+    // --private-key flag if the caller forgot to resolve MOVEMENT_SOLVER_PRIVATE_KEY.
+    // Why: project No Fallbacks Policy — auth misconfiguration must fail explicitly,
+    // not produce a CLI invocation that authenticates against an unintended principal.
+    #[test]
+    #[should_panic(expected = "non-e2e mode requires pk_hex_stripped")]
+    fn test_build_run_script_args_testnet_requires_private_key() {
+        let _ = build_run_script_args(
+            "/tmp/script.mv",
+            &[],
+            false,
+            "ignored",
+            None,
+            "https://example",
+        );
     }
 }
 
