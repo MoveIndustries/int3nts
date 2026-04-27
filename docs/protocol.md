@@ -262,6 +262,12 @@ sequenceDiagram
 - Validation contract pulls tokens from solver, validates requirements, forwards to recipient, and sends GMP message
 - Solver receives locked tokens from hub as payment for their work
 
+### Programmable Fulfillment Variant
+
+Solvers may also fulfill an inflow or outflow intent on the hub by submitting a Move script payload instead of calling the entry function. The hub-side step becomes a `move run-script` invocation that drives the session through arbitrary Move work between start and finish — for example, swapping into a different asset, depositing into a liquidity pool, and staking the LP receipt in one atomic transaction. Phases 1, 2, and 4 of the flows above are unchanged.
+
+See [Programmable Fulfillment](programmable-fulfillment.md) for the hub-side delta, the script-driven sequence, and the additional public Move and Rust entry points.
+
 ## Cross-Chain Linking Mechanism
 
 The protocol uses `intent_id` to link intents, GMP messages, and escrows across chains:

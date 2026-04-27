@@ -15,12 +15,10 @@ use crate::config::ChainConfig;
 // HELPER FUNCTIONS
 // ============================================================================
 
-/// Builds the CLI argument list for `aptos move run-script` invocation.
+/// Builds the CLI argument list for `aptos move run-script`.
 ///
-/// Auth tail: when `e2e_mode` is true, appends `--profile <profile>`; otherwise
-/// appends `--private-key <pk_hex_stripped> --url <base_url>` and requires
-/// `pk_hex_stripped` to be `Some` (the caller resolves `MOVEMENT_SOLVER_PRIVATE_KEY`
-/// before calling).
+/// In testnet mode (`e2e_mode = false`), `pk_hex_stripped` must be `Some` —
+/// the caller resolves `MOVEMENT_SOLVER_PRIVATE_KEY` before calling.
 pub fn build_run_script_args(
     script_path: &str,
     user_args: &[String],
@@ -438,20 +436,17 @@ impl HubChainClient {
         anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
     }
 
-    /// Fulfills an inflow request intent via a pre-compiled Move script.
+    /// Submits a Move script payload as the inflow fulfillment.
     ///
-    /// Submits the script through `aptos move run-script --compiled-script-path`,
-    /// parallel to `fulfill_inflow_intent` which uses `move run --function-id`.
-    /// The script is responsible for the full inflow fulfillment: assert
-    /// `gmp_intent_state::is_escrow_confirmed`, call `start_fa_offering_session`,
-    /// perform arbitrary Move work, call `finish_fa_receiving_session_with_event`,
-    /// and end with `fa_intent_inflow::script_complete`.
+    /// Parallel to `fulfill_inflow_intent` (fixed entry function); this path
+    /// lets the solver run an arbitrary Move script that drives the full
+    /// inflow lifecycle. The script's flow is owned by
+    /// `fa_intent_inflow::script_complete`.
     ///
     /// # Arguments
     ///
     /// * `script_path` - Filesystem path to the compiled `.mv` script bytecode
-    /// * `args` - Pre-formatted CLI arguments (`"address:0x...", "u64:100"`, etc.)
-    ///   matching the script's parameter list
+    /// * `args` - Pre-formatted CLI arguments matching the script's parameter list
     ///
     /// # Returns
     ///
@@ -602,6 +597,74 @@ impl HubChainClient {
         // Handles both formats:
         // - Traditional CLI: "Transaction hash: 0x..."
         // - JSON format: "transaction_hash": "0x..."
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        if let Some(hash) = extract_transaction_hash(&output_str) {
+            return Ok(hash);
+        }
+
+        anyhow::bail!("Could not extract transaction hash from output: {}", output_str)
+    }
+
+    /// Submits a Move script payload as the outflow fulfillment.
+    ///
+    /// Parallel to `fulfill_outflow_intent` (fixed entry function); this path
+    /// lets the solver run an arbitrary Move script that drives the full
+    /// outflow lifecycle. The script's flow is owned by
+    /// `fa_intent_outflow::script_complete`.
+    ///
+    /// # Arguments
+    ///
+    /// * `script_path` - Filesystem path to the compiled `.mv` script bytecode
+    /// * `args` - Pre-formatted CLI arguments matching the script's parameter list
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Transaction hash
+    /// * `Err(anyhow::Error)` - Failed to submit script
+    pub fn fulfill_outflow_intent_via_script(
+        &self,
+        script_path: &str,
+        args: &[String],
+    ) -> Result<String> {
+        let cli = if self.e2e_mode {
+            "aptos"
+        } else {
+            "movement"
+        };
+
+        let pk_hex_stripped = if !self.e2e_mode {
+            let pk_hex = std::env::var("MOVEMENT_SOLVER_PRIVATE_KEY")
+                .context("MOVEMENT_SOLVER_PRIVATE_KEY not set")?;
+            Some(pk_hex.strip_prefix("0x").unwrap_or(&pk_hex).to_string())
+        } else {
+            None
+        };
+
+        let command_args = build_run_script_args(
+            script_path,
+            args,
+            self.e2e_mode,
+            &self.profile,
+            pk_hex_stripped.as_deref(),
+            &self.base_url,
+        );
+
+        let output = Command::new(cli)
+            .args(&command_args)
+            .output()
+            .context(format!("Failed to execute {} move run-script", cli))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            anyhow::bail!(
+                "{} move run-script failed:\nstderr: {}\nstdout: {}",
+                cli,
+                stderr,
+                stdout
+            );
+        }
+
         let output_str = String::from_utf8_lossy(&output.stdout);
         if let Some(hash) = extract_transaction_hash(&output_str) {
             return Ok(hash);

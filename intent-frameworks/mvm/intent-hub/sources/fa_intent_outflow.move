@@ -195,6 +195,42 @@ module mvmt_intent::fa_intent_outflow {
         gmp_intent_state::remove_intent(intent_id_bytes);
     }
 
+    /// Post-finish cleanup for a programmable outflow fulfillment driven by a
+    /// Move script.
+    ///
+    /// Exists because `LimitOrderFulfillmentEvent` cannot be constructed
+    /// outside this module and `intent_registry::unregister_intent` is
+    /// friend-only. The delivered-amount and recipient post-condition is
+    /// enforced on the connected chain before the GMP FulfillmentProof
+    /// arrives, so no hub-side amount check is performed here.
+    ///
+    /// # Arguments
+    /// - `solver`: Signer fulfilling the intent
+    /// - `intent_addr`: Address of the intent object consumed by `finish`
+    /// - `intent_id`: Cross-chain intent id (the address used as identifier)
+    /// - `provided_metadata`: Metadata of the asset that was unlocked from escrow
+    /// - `provided_amount`: Amount of the unlocked asset (reported in the fulfillment event)
+    public fun script_complete(
+        solver: &signer,
+        intent_addr: address,
+        intent_id: address,
+        provided_metadata: Object<Metadata>,
+        provided_amount: u64
+    ) {
+        event::emit(LimitOrderFulfillmentEvent {
+            intent_addr,
+            intent_id,
+            solver: signer::address_of(solver),
+            provided_metadata,
+            provided_amount,
+            timestamp: timestamp::now_seconds()
+        });
+
+        intent_registry::unregister_intent(intent_addr);
+
+        gmp_intent_state::remove_intent(bcs::to_bytes(&intent_id));
+    }
+
     /// Entry function to cancel an expired outflow intent and return funds to the requester.
     ///
     /// Can be called by the intent owner (requester) or the admin (@mvmt_intent).

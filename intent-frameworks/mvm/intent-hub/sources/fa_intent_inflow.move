@@ -146,25 +146,19 @@ module mvmt_intent::fa_intent_inflow {
         };
     }
 
-    /// Public helper for Move scripts that drive an inflow fulfillment.
+    /// Post-finish cleanup for a programmable inflow fulfillment driven by a
+    /// Move script.
     ///
-    /// Bundles the post-finish cleanup that `fulfill_inflow_intent` inlines:
-    /// `intent_registry::unregister_intent` (which is `public(friend)` and therefore
-    /// not directly callable from a script) and, for cross-chain intents,
-    /// `intent_gmp_hub::send_fulfillment_proof` plus `gmp_intent_state::remove_intent`.
-    ///
-    /// Script flow:
-    ///   1. assert `gmp_intent_state::is_escrow_confirmed(intent_id_bytes)`
-    ///   2. `fa_intent::start_fa_offering_session(solver, intent)`
-    ///   3. arbitrary script work building `payment_fa`
-    ///   4. `fa_intent::finish_fa_receiving_session_with_event(...)`
-    ///   5. `script_complete(solver, intent_addr, intent_id_bytes, payment_amount)`
+    /// Exists because `intent_registry::unregister_intent` is friend-only.
+    /// Pass an empty `intent_id_bytes` for same-chain intents to skip the
+    /// cross-chain GMP cleanup; `payment_amount` is forwarded in the
+    /// fulfillment proof on the cross-chain branch.
     ///
     /// # Arguments
-    /// - `solver`: signer of the solver fulfilling the intent
-    /// - `intent_addr`: address of the intent object consumed by `finish`
-    /// - `intent_id_bytes`: cross-chain intent id (BCS-encoded address), or empty for same-chain
-    /// - `payment_amount`: amount delivered to the requester; forwarded in the GMP fulfillment proof
+    /// - `solver`: Signer fulfilling the intent
+    /// - `intent_addr`: Address of the intent object consumed by `finish`
+    /// - `intent_id_bytes`: Cross-chain intent id (BCS-encoded address), or empty for same-chain
+    /// - `payment_amount`: Amount delivered to the requester (forwarded in the fulfillment proof)
     public fun script_complete(
         solver: &signer,
         intent_addr: address,
